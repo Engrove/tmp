@@ -1,0 +1,112 @@
+TAP version 13
+# Subtest: WP05 defines a versioned closed surface pair
+ok 1 - WP05 defines a versioned closed surface pair
+  ---
+  duration_ms: 3.52696
+  type: 'test'
+  ...
+# Subtest: WEB_TARGET allows only http(s) non-ChatGPT URLs
+ok 2 - WEB_TARGET allows only http(s) non-ChatGPT URLs
+  ---
+  duration_ms: 0.317212
+  type: 'test'
+  ...
+# Subtest: controller and target bind to distinct tabs and produce READY pair
+ok 3 - controller and target bind to distinct tabs and produce READY pair
+  ---
+  duration_ms: 4.417625
+  type: 'test'
+  ...
+# Subtest: one tab cannot own both roles
+ok 4 - one tab cannot own both roles
+  ---
+  duration_ms: 1.025354
+  type: 'test'
+  ...
+# Subtest: ChatGPT cannot be bound as WEB_TARGET
+ok 5 - ChatGPT cannot be bound as WEB_TARGET
+  ---
+  duration_ms: 0.352155
+  type: 'test'
+  ...
+# Subtest: navigation rotates document epoch while retaining surface identity
+ok 6 - navigation rotates document epoch while retaining surface identity
+  ---
+  duration_ms: 1.388366
+  type: 'test'
+  ...
+# Subtest: tab replacement retains surface identity but rotates epoch and tab id
+ok 7 - tab replacement retains surface identity but rotates epoch and tab id
+  ---
+  duration_ms: 0.800898
+  type: 'test'
+  ...
+# Subtest: close and explicit detach preserve identity but release tab
+ok 8 - close and explicit detach preserve identity but release tab
+  ---
+  duration_ms: 0.901264
+  type: 'test'
+  ...
+# Subtest: moved surfaces are not auto-rebound
+ok 9 - moved surfaces are not auto-rebound
+  ---
+  duration_ms: 1.204072
+  type: 'test'
+  ...
+# Subtest: activation is tracked independently for both surfaces
+ok 10 - activation is tracked independently for both surfaces
+  ---
+  duration_ms: 1.977861
+  type: 'test'
+  ...
+# Subtest: legacy selected ChatGPT tab migrates into controller surface
+ok 11 - legacy selected ChatGPT tab migrates into controller surface
+  ---
+  duration_ms: 4.715602
+  type: 'test'
+  ...
+# Subtest: standard missions bind only controller while browser mission binds both
+ok 12 - standard missions bind only controller while browser mission binds both
+  ---
+  duration_ms: 0.750734
+  type: 'test'
+  ...
+# Subtest: legacy-run mission reconciliation materializes controller surface id
+ok 13 - legacy-run mission reconciliation materializes controller surface id
+  ---
+  duration_ms: 1.709808
+  type: 'test'
+  ...
+# Subtest: runtime reconciliation preserves pair-bound mission surface ids
+ok 14 - runtime reconciliation preserves pair-bound mission surface ids
+  ---
+  duration_ms: 0.635725
+  type: 'test'
+  ...
+# Subtest: WP05 adds exactly two closed UI commands
+ok 15 - WP05 adds exactly two closed UI commands
+  ---
+  duration_ms: 0.502314
+  type: 'test'
+  ...
+# Subtest: source wiring tracks both role lifecycle and explicit target controls
+ok 16 - source wiring tracks both role lifecycle and explicit target controls
+  ---
+  duration_ms: 5.971553
+  type: 'test'
+  ...
+# Subtest: WP05 does not start WP06 permission or debugger work
+ok 17 - WP05 does not start WP06 permission or debugger work
+  ---
+  duration_ms: 4.257404
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 281.974168

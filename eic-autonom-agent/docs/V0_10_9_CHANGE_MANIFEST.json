@@ -1,0 +1,22 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.10.9",
+  "baseline": {
+    "version": "0.10.8",
+    "source_sha256": "e6733b5c7e9161c5dd082e62b4b755303f79e60fcd67c3efc3e3f845fc9522f5"
+  },
+  "scope": {
+    "features": [
+      "universal manual/autostart session-context initialization gate",
+      "deterministic canonical main-task baseline dispatch",
+      "strict wait until Nano chain completes",
+      "state-shaped takeover recovery criteria",
+      "bounded Nano stream idle watchdog",
+      "closable phase-scoped ChatGPT process overlay"
+    ],
+    "claim_boundary": "Source/package candidate only; installed runtime requires Desktop Chrome acceptance.",
+    "added_files": 7,
+    "modified_files": 30,
+    "removed_files": 0
+  }
+}

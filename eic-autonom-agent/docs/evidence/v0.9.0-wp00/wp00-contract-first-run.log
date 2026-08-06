@@ -1,0 +1,252 @@
+$ node --test tests/v090-wp00-contract.test.mjs
+exit=1
+duration_s=0.08
+
+TAP version 13
+# Subtest: WP00 keeps the v0.8.2 runtime and standard permission baseline unchanged
+ok 1 - WP00 keeps the v0.8.2 runtime and standard permission baseline unchanged
+  ---
+  duration_ms: 1.793559
+  type: 'test'
+  ...
+# Subtest: EIC.md enforces manual approval and forbids autonomous addon execution
+ok 2 - EIC.md enforces manual approval and forbids autonomous addon execution
+  ---
+  duration_ms: 0.201439
+  type: 'test'
+  ...
+# Subtest: WP00 ledger covers WP00 through WP14 and stops before WP01
+ok 3 - WP00 ledger covers WP00 through WP14 and stops before WP01
+  ---
+  duration_ms: 0.513592
+  type: 'test'
+  ...
+# Subtest: WP00 architecture and inventory documents exist
+ok 4 - WP00 architecture and inventory documents exist
+  ---
+  duration_ms: 0.369247
+  type: 'test'
+  ...
+# Subtest: WP00 records exact source and transcript identities
+not ok 5 - WP00 records exact source and transcript identities
+  ---
+  duration_ms: 1.040293
+  type: 'test'
+  location: '/mnt/data/eic-autonom-agent-wp00/source/tests/v090-wp00-contract.test.mjs:53:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /reference-only attachments/. Input:
+    
+    '# v0.9.0 requirements baseline\n' +
+      '\n' +
+      '## Evidence sources\n' +
+      '\n' +
+      '| Source | Identity | Supported use |\n' +
+      '|---|---|---|\n' +
+      '| v0.8.2 source artifact | artifact 1119, SHA-256 `46bd49e0310ff39b9da906ae024e834ba47ddacc2ae0700b62fd7603b9328c9d` | Exact v0.8.2 source baseline |\n' +
+      '| Browser transcript | SHA-256 `d4fc78c8690861af1bfb3cdb14c1cf3a5e79191ff627b24faeb51a091a5c2a26` | Browser-visible requirements and plan |\n' +
+      '| Operator statement, 2026-08-04 | “v0.8.2 Desktop Chrome-acceptansen har körts: PASS.” | Operator attestation only |\n' +
+      '\n' +
+      'The transcript completeness verdict covers the six browser-visible conversation turns. It does not\n' +
+      'contain the bodies of nine referenced attachments. The seven UI screenshots and the referenced\n' +
+      '`EIC_Autonom_Agent_v0.9.0_plan_och_Nano_prompter.md` body are therefore not owner-readable here.\n' +
+      'Requirements below are limited to text present in the transcript.\n' +
+      '\n' +
+      '## Release objective\n' +
+      '\n' +
+      'Create one v0.9.0 release through WP00–WP14. The release combines:\n' +
+      '\n' +
+      '1. Mission Control redesign.\n' +
+      '2. A two-tab browser-agent subsystem with ChatGPT/EIC as controller and a separate web target.\n' +
+      '3. Separate standard and browser-enabled packages.\n' +
+      '4. Bounded evidence, permissions, recovery and manual approval behavior.\n' +
+      '\n' +
+      '## Required Mission Control views\n' +
+      '\n' +
+      '- **Körning** — active mission, state, current step, next action and blocker.\n' +
+      '- **Webbytor** — controller/target pairing, permissions, origin and browser status.\n' +
+      '- **Evidens** — screenshots, receipts, console, network, DOM/accessibility and timeline.\n' +
+      '- **Uppdrag** — mission builder and mode templates.\n' +
+      '- **Inställningar** — governance, Nano, Mjölnar, data, recovery and advanced policy.\n' +
+      '\n' +
+      'A fixed header, persistent navigation and state-specific action dock are required. The main panel\n' +
+      'should have one primary vertical scroll, with scoped exceptions for large evidence or JSON views.\n' +
+      '\n' +
+      '## Mission and role model\n' +
+      '\n' +
+      'Existing v0.8.2 functions must be represented as mission modes. Add:\n' +
+      '\n' +
+      '- `CHATGPT_CONTROLLER`\n' +
+      '- `WEB_TARGET`\n' +
+      '- `AI_WEB_RESEARCH`\n' +
+      '\n' +
+      'The target tab must have its own identity and lifecycle. `selectedTabId` cannot be reused as the\n' +
+      'browser target role.\n' +
+      '\n' +
+      '## Browser action protocol\n' +
+      '\n' +
+      'Required action registry:\n' +
+      '\n' +
+      '`observe`, `scroll`, `click`, `double_click`, `focus`, `type`, `clear`, `select`, `check`,\n' +
+      '`uncheck`, `keypress`, `navigate`, `back`, `forward`, `reload`, `wait_for`, `capture`.\n' +
+      '\n' +
+      'Forbidden generic operations include `eval`, `execute_javascript`, `run_script`, `call_function`,\n' +
+      '`set_cookie` and `modify_request`.\n' +
+      '\n' +
+      'The model may request exactly one structured action per response. The extension validates the\n' +
+      'operation, target, current document epoch, origin boundary, risk and expected effect before dispatch.\n' +
+      '\n' +
+      '## Observation and evidence\n' +
+      '\n' +
+      'The controlled diagnostic package includes:\n' +
+      '\n' +
+      '- accessibility tree;\n' +
+      '- DOM/layout snapshot;\n' +
+      '- screenshot;\n' +
+      '- console errors and uncaught exceptions;\n' +
+      '- request/response metadata;\n' +
+      '- HTTP failures and failed requests;\n' +
+      '- navigation and load state.\n' +
+      '\n' +
+      'Response bodies are opt-in and require redaction. Credentials, authorization/cookie headers and\n' +
+      'password values must never enter durable evidence.\n' +
+      '\n' +
+      '## Permissions and builds\n' +
+      '\n' +
+      '- Standard package preserves the current restricted ChatGPT permission boundary.\n' +
+      '- Browser package may add `debugger` and explicit optional host permissions.\n' +
+      '- General website access is granted per origin by the operator.\n' +
+      '- Origin changes pause the mission until explicitly approved.\n' +
+      '\n' +
+      '## Recovery and acceptance\n' +
+      '\n' +
+      'Recovery must fail closed after target navigation, reload, service-worker restart, debugger detach,\n' +
+      'tab replacement and import. Unit fixtures are not Desktop Chrome acceptance. WP13 requires real\n' +
+      'Chrome execution in a separate profile or user-data-dir.\n' +
+      '\n' +
+      '## Manual execution override\n' +
+      '\n' +
+      'The transcript proposed autonomous Nano operation. The current operator instruction overrides that\n' +
+      'method: implementation is manual and every WP stops for explicit approval before the next WP.\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    # v0.9.0 requirements baseline
+    
+    ## Evidence sources
+    
+    | Source | Identity | Supported use |
+    |---|---|---|
+    | v0.8.2 source artifact | artifact 1119, SHA-256 `46bd49e0310ff39b9da906ae024e834ba47ddacc2ae0700b62fd7603b9328c9d` | Exact v0.8.2 source baseline |
+    | Browser transcript | SHA-256 `d4fc78c8690861af1bfb3cdb14c1cf3a5e79191ff627b24faeb51a091a5c2a26` | Browser-visible requirements and plan |
+    | Operator statement, 2026-08-04 | “v0.8.2 Desktop Chrome-acceptansen har körts: PASS.” | Operator attestation only |
+    
+    The transcript completeness verdict covers the six browser-visible conversation turns. It does not
+    contain the bodies of nine referenced attachments. The seven UI screenshots and the referenced
+    `EIC_Autonom_Agent_v0.9.0_plan_och_Nano_prompter.md` body are therefore not owner-readable here.
+    Requirements below are limited to text present in the transcript.
+    
+    ## Release objective
+    
+    Create one v0.9.0 release through WP00–WP14. The release combines:
+    
+    1. Mission Control redesign.
+    2. A two-tab browser-agent subsystem with ChatGPT/EIC as controller and a separate web target.
+    3. Separate standard and browser-enabled packages.
+    4. Bounded evidence, permissions, recovery and manual approval behavior.
+    
+    ## Required Mission Control views
+    
+    - **Körning** — active mission, state, current step, next action and blocker.
+    - **Webbytor** — controller/target pairing, permissions, origin and browser status.
+    - **Evidens** — screenshots, receipts, console, network, DOM/accessibility and timeline.
+    - **Uppdrag** — mission builder and mode templates.
+    - **Inställningar** — governance, Nano, Mjölnar, data, recovery and advanced policy.
+    
+    A fixed header, persistent navigation and state-specific action dock are required. The main panel
+    should have one primary vertical scroll, with scoped exceptions for large evidence or JSON views.
+    
+    ## Mission and role model
+    
+    Existing v0.8.2 functions must be represented as mission modes. Add:
+    
+    - `CHATGPT_CONTROLLER`
+    - `WEB_TARGET`
+    - `AI_WEB_RESEARCH`
+    
+    The target tab must have its own identity and lifecycle. `selectedTabId` cannot be reused as the
+    browser target role.
+    
+    ## Browser action protocol
+    
+    Required action registry:
+    
+    `observe`, `scroll`, `click`, `double_click`, `focus`, `type`, `clear`, `select`, `check`,
+    `uncheck`, `keypress`, `navigate`, `back`, `forward`, `reload`, `wait_for`, `capture`.
+    
+    Forbidden generic operations include `eval`, `execute_javascript`, `run_script`, `call_function`,
+    `set_cookie` and `modify_request`.
+    
+    The model may request exactly one structured action per response. The extension validates the
+    operation, target, current document epoch, origin boundary, risk and expected effect before dispatch.
+    
+    ## Observation and evidence
+    
+    The controlled diagnostic package includes:
+    
+    - accessibility tree;
+    - DOM/layout snapshot;
+    - screenshot;
+    - console errors and uncaught exceptions;
+    - request/response metadata;
+    - HTTP failures and failed requests;
+    - navigation and load state.
+    
+    Response bodies are opt-in and require redaction. Credentials, authorization/cookie headers and
+    password values must never enter durable evidence.
+    
+    ## Permissions and builds
+    
+    - Standard package preserves the current restricted ChatGPT permission boundary.
+    - Browser package may add `debugger` and explicit optional host permissions.
+    - General website access is granted per origin by the operator.
+    - Origin changes pause the mission until explicitly approved.
+    
+    ## Recovery and acceptance
+    
+    Recovery must fail closed after target navigation, reload, service-worker restart, debugger detach,
+    tab replacement and import. Unit fixtures are not Desktop Chrome acceptance. WP13 requires real
+    Chrome execution in a separate profile or user-data-dir.
+    
+    ## Manual execution override
+    
+    The transcript proposed autonomous Nano operation. The current operator instruction overrides that
+    method: implementation is manual and every WP stops for explicit approval before the next WP.
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/eic-autonom-agent-wp00/source/tests/v090-wp00-contract.test.mjs:57:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Desktop acceptance is retained only as an operator attestation
+ok 6 - Desktop acceptance is retained only as an operator attestation
+  ---
+  duration_ms: 0.20247
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 50.229008

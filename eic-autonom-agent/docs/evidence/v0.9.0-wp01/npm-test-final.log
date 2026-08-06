@@ -1,0 +1,2409 @@
+$ npm test
+exit=0
+
+STDOUT
+
+> eic-autonom-agent@0.8.2 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: normaliserar svensk status deterministiskt
+ok 1 - normaliserar svensk status deterministiskt
+  ---
+  duration_ms: 2.186732
+  type: 'test'
+  ...
+# Subtest: svenska background-signaler klassificeras WAITING_BACKGROUND
+ok 2 - svenska background-signaler klassificeras WAITING_BACKGROUND
+  ---
+  duration_ms: 0.303069
+  type: 'test'
+  ...
+# Subtest: engelska background-signaler klassificeras WAITING_BACKGROUND
+ok 3 - engelska background-signaler klassificeras WAITING_BACKGROUND
+  ---
+  duration_ms: 0.206006
+  type: 'test'
+  ...
+# Subtest: språkdetektion känner svenska
+ok 4 - språkdetektion känner svenska
+  ---
+  duration_ms: 0.610175
+  type: 'test'
+  ...
+# Subtest: språkdetektion känner engelska
+ok 5 - språkdetektion känner engelska
+  ---
+  duration_ms: 0.159918
+  type: 'test'
+  ...
+# Subtest: samma text i assistantsvar utan trusted struktur triggar inte background
+ok 6 - samma text i assistantsvar utan trusted struktur triggar inte background
+  ---
+  duration_ms: 0.192245
+  type: 'test'
+  ...
+# Subtest: trusted struktur utan tillräcklig signal fail-closed unknown
+ok 7 - trusted struktur utan tillräcklig signal fail-closed unknown
+  ---
+  duration_ms: 0.125225
+  type: 'test'
+  ...
+# Subtest: foreground stop control klassificeras GENERATING_FOREGROUND
+ok 8 - foreground stop control klassificeras GENERATING_FOREGROUND
+  ---
+  duration_ms: 0.162981
+  type: 'test'
+  ...
+# Subtest: terminal EIC CONTINUE-trailer vinner över stale scoped stop control
+ok 9 - terminal EIC CONTINUE-trailer vinner över stale scoped stop control
+  ---
+  duration_ms: 0.340876
+  type: 'test'
+  ...
+# Subtest: verklig streaming eller composer busy får inte överskrivas
+ok 10 - verklig streaming eller composer busy får inte överskrivas
+  ---
+  duration_ms: 0.312874
+  type: 'test'
+  ...
+# Subtest: auth signal är hard state
+ok 11 - auth signal är hard state
+  ---
+  duration_ms: 0.150033
+  type: 'test'
+  ...
+# Subtest: trusted cancellation klassificeras CANCELLED
+ok 12 - trusted cancellation klassificeras CANCELLED
+  ---
+  duration_ms: 0.102111
+  type: 'test'
+  ...
+# Subtest: trusted error klassificeras ERROR
+ok 13 - trusted error klassificeras ERROR
+  ---
+  duration_ms: 0.073429
+  type: 'test'
+  ...
+# Subtest: enter background clears normal TTL
+ok 14 - enter background clears normal TTL
+  ---
+  duration_ms: 1.824444
+  type: 'test'
+  ...
+# Subtest: background wait has no application TTL after many hours
+ok 15 - background wait has no application TTL after many hours
+  ---
+  duration_ms: 0.204864
+  type: 'test'
+  ...
+# Subtest: refresh background preserves original waitStartedAt
+ok 16 - refresh background preserves original waitStartedAt
+  ---
+  duration_ms: 0.331201
+  type: 'test'
+  ...
+# Subtest: discarded target remains logical WAITING_BACKGROUND
+ok 17 - discarded target remains logical WAITING_BACKGROUND
+  ---
+  duration_ms: 0.253576
+  type: 'test'
+  ...
+# Subtest: frozen target remains logical WAITING_BACKGROUND
+ok 18 - frozen target remains logical WAITING_BACKGROUND
+  ---
+  duration_ms: 0.177553
+  type: 'test'
+  ...
+# Subtest: leaving background requires transition back to response verification
+ok 19 - leaving background requires transition back to response verification
+  ---
+  duration_ms: 0.211523
+  type: 'test'
+  ...
+# Subtest: one completion snapshot is insufficient
+ok 20 - one completion snapshot is insufficient
+  ---
+  duration_ms: 0.137524
+  type: 'test'
+  ...
+# Subtest: two separated identical snapshots become stable
+ok 21 - two separated identical snapshots become stable
+  ---
+  duration_ms: 0.086749
+  type: 'test'
+  ...
+# Subtest: partial response resets completion candidate
+ok 22 - partial response resets completion candidate
+  ---
+  duration_ms: 0.077295
+  type: 'test'
+  ...
+# Subtest: egen badge är explicit exkluderad från trusted page chrome
+ok 23 - egen badge är explicit exkluderad från trusted page chrome
+  ---
+  duration_ms: 0.867796
+  type: 'test'
+  ...
+# Subtest: BACKGROUND har egen label och kan inte falla till FRÅNKOPPLAD
+ok 24 - BACKGROUND har egen label och kan inte falla till FRÅNKOPPLAD
+  ---
+  duration_ms: 0.184453
+  type: 'test'
+  ...
+# Subtest: content skickar bounded turn-ID och promptdigest; background läser effect-setet
+ok 25 - content skickar bounded turn-ID och promptdigest; background läser effect-setet
+  ---
+  duration_ms: 0.191203
+  type: 'test'
+  ...
+# Subtest: Nano-förslag separeras från lokal trusted Mjölnar-trigger
+ok 26 - Nano-förslag separeras från lokal trusted Mjölnar-trigger
+  ---
+  duration_ms: 0.308007
+  type: 'test'
+  ...
+# Subtest: target-authored fallback är default av och panelstängning får inte skapa continuation
+ok 27 - target-authored fallback är default av och panelstängning får inte skapa continuation
+  ---
+  duration_ms: 0.206717
+  type: 'test'
+  ...
+# Subtest: storage failure öppnar fail-closed circuit
+ok 28 - storage failure öppnar fail-closed circuit
+  ---
+  duration_ms: 0.104395
+  type: 'test'
+  ...
+# Subtest: tickAll isolerar fönsterfel
+ok 29 - tickAll isolerar fönsterfel
+  ---
+  duration_ms: 0.270661
+  type: 'test'
+  ...
+# Subtest: takeover utan Nano-claim pausar efter värdfristen
+ok 30 - takeover utan Nano-claim pausar efter värdfristen
+  ---
+  duration_ms: 0.258434
+  type: 'test'
+  ...
+# Subtest: locator promotion uppdaterar aktiv run i background
+ok 31 - locator promotion uppdaterar aktiv run i background
+  ---
+  duration_ms: 0.347014
+  type: 'test'
+  ...
+# Subtest: Mjölnar-verifierad effekt omgrundas före continuation
+ok 32 - Mjölnar-verifierad effekt omgrundas före continuation
+  ---
+  duration_ms: 0.50622
+  type: 'test'
+  ...
+# Subtest: prompt repetition har egen pausklass och rapporteras inte som Nano-hostfel
+ok 33 - prompt repetition har egen pausklass och rapporteras inte som Nano-hostfel
+  ---
+  duration_ms: 0.164934
+  type: 'test'
+  ...
+# Subtest: v0.6.2 stabiliserar och supersederar foreground-observationer före claim decision och submit
+ok 34 - v0.6.2 stabiliserar och supersederar foreground-observationer före claim decision och submit
+  ---
+  duration_ms: 0.196502
+  type: 'test'
+  ...
+# Subtest: Nano använder isolerad task clone och exporterar exakt stale reason
+ok 35 - Nano använder isolerad task clone och exporterar exakt stale reason
+  ---
+  duration_ms: 0.105997
+  type: 'test'
+  ...
+# Subtest: foreground-detektering är composer-scopead och terminal EIC-trailer kan slå ut stale stop-knapp
+ok 36 - foreground-detektering är composer-scopead och terminal EIC-trailer kan slå ut stale stop-knapp
+  ---
+  duration_ms: 0.065407
+  type: 'test'
+  ...
+# Subtest: endast destruktivitetsnivå 10 ger verklig PAUS
+ok 37 - endast destruktivitetsnivå 10 ger verklig PAUS
+  ---
+  duration_ms: 0.125706
+  type: 'test'
+  ...
+# Subtest: svenska metaåtgärder utan progress triggar STOP_META_LOOP
+ok 38 - svenska metaåtgärder utan progress triggar STOP_META_LOOP
+  ---
+  duration_ms: 15.163939
+  type: 'test'
+  ...
+# Subtest: takeover binder continuity till exakt konversation och task fingerprint
+ok 39 - takeover binder continuity till exakt konversation och task fingerprint
+  ---
+  duration_ms: 1.106591
+  type: 'test'
+  ...
+# Subtest: 20 omskrivna meta-turer med påstådd modellprogress stoppas deterministiskt
+ok 40 - 20 omskrivna meta-turer med påstådd modellprogress stoppas deterministiskt
+  ---
+  duration_ms: 9.344732
+  type: 'test'
+  ...
+# Subtest: Custom GPT URL använder exakt conversation-id, inte GPT-id
+ok 41 - Custom GPT URL använder exakt conversation-id, inte GPT-id
+  ---
+  duration_ms: 1.315801
+  type: 'test'
+  ...
+# Subtest: GPT-landningssida utan conversation behåller GPT-locator
+ok 42 - GPT-landningssida utan conversation behåller GPT-locator
+  ---
+  duration_ms: 0.208589
+  type: 'test'
+  ...
+# Subtest: vanlig /c/-session får exakt conversation-locator
+ok 43 - vanlig /c/-session får exakt conversation-locator
+  ---
+  duration_ms: 0.385742
+  type: 'test'
+  ...
+# Subtest: legacy runtime och continuity migreras från sparad target-URL
+ok 44 - legacy runtime och continuity migreras från sparad target-URL
+  ---
+  duration_ms: 0.320315
+  type: 'test'
+  ...
+# Subtest: tvetydig legacy continuity-locator skrivs inte om
+ok 45 - tvetydig legacy continuity-locator skrivs inte om
+  ---
+  duration_ms: 0.238213
+  type: 'test'
+  ...
+# Subtest: nivåstegen har exakt tio ordnade nivåer
+ok 46 - nivåstegen har exakt tio ordnade nivåer
+  ---
+  duration_ms: 1.514235
+  type: 'test'
+  ...
+# Subtest: owner-read är nivå 1
+ok 47 - owner-read är nivå 1
+  ---
+  duration_ms: 3.972719
+  type: 'test'
+  ...
+# Subtest: lokal refresh/recovery är nivå 3
+ok 48 - lokal refresh/recovery är nivå 3
+  ---
+  duration_ms: 1.470109
+  type: 'test'
+  ...
+# Subtest: rena Workbench- och work-package-effekter är högst nivå 5
+ok 49 - rena Workbench- och work-package-effekter är högst nivå 5
+  ---
+  duration_ms: 0.381636
+  type: 'test'
+  ...
+# Subtest: kritiska effekter sänks aldrig av ett Workbench-ord
+ok 50 - kritiska effekter sänks aldrig av ett Workbench-ord
+  ---
+  duration_ms: 0.342347
+  type: 'test'
+  ...
+# Subtest: EIC backend core admin är nivå 6
+ok 51 - EIC backend core admin är nivå 6
+  ---
+  duration_ms: 0.142992
+  type: 'test'
+  ...
+# Subtest: EIC backend restart är nivå 7
+ok 52 - EIC backend restart är nivå 7
+  ---
+  duration_ms: 1.120621
+  type: 'test'
+  ...
+# Subtest: core schema migration är nivå 8
+ok 53 - core schema migration är nivå 8
+  ---
+  duration_ms: 0.132607
+  type: 'test'
+  ...
+# Subtest: merge release deploy och permissions är nivå 9, inte mänsklig paus
+ok 54 - merge release deploy och permissions är nivå 9, inte mänsklig paus
+  ---
+  duration_ms: 0.367135
+  type: 'test'
+  ...
+# Subtest: auth secrets permanent deletion och unknown blast radius är nivå 10
+ok 55 - auth secrets permanent deletion och unknown blast radius är nivå 10
+  ---
+  duration_ms: 0.407154
+  type: 'test'
+  ...
+# Subtest: Hjalmar mental kontroll krävs bara över nivå 5 och kan begära owner-read
+ok 56 - Hjalmar mental kontroll krävs bara över nivå 5 och kan begära owner-read
+  ---
+  duration_ms: 0.448214
+  type: 'test'
+  ...
+# Subtest: PAUSE under nivå 10 omvandlas till CONTINUE
+ok 57 - PAUSE under nivå 10 omvandlas till CONTINUE
+  ---
+  duration_ms: 0.231173
+  type: 'test'
+  ...
+# Subtest: nivå 10 behåller verklig PAUS
+ok 58 - nivå 10 behåller verklig PAUS
+  ---
+  duration_ms: 0.275789
+  type: 'test'
+  ...
+# Subtest: turn i tidigare användarmeddelande förblir synligt efter senare operatörsmeddelande
+ok 59 - turn i tidigare användarmeddelande förblir synligt efter senare operatörsmeddelande
+  ---
+  duration_ms: 1.527775
+  type: 'test'
+  ...
+# Subtest: saknat turn-ID kan fortfarande ge bounded retry
+ok 60 - saknat turn-ID kan fortfarande ge bounded retry
+  ---
+  duration_ms: 0.448385
+  type: 'test'
+  ...
+# Subtest: raw startprompt can be acknowledged by canonical prompt digest without injected turn marker
+ok 61 - raw startprompt can be acknowledged by canonical prompt digest without injected turn marker
+  ---
+  duration_ms: 0.277452
+  type: 'test'
+  ...
+# Subtest: ogrundad takeover kan inte bli CONTINUE i Max Mode
+ok 62 - ogrundad takeover kan inte bli CONTINUE i Max Mode
+  ---
+  duration_ms: 1.737706
+  type: 'test'
+  ...
+# Subtest: även grundad continuity får ingen generisk semantic fallback utan turn-markör
+ok 63 - även grundad continuity får ingen generisk semantic fallback utan turn-markör
+  ---
+  duration_ms: 0.334766
+  type: 'test'
+  ...
+# Subtest: unikt turn-bundet EIC_NEXT kan deterministiskt fortsätta under nivå 10
+ok 64 - unikt turn-bundet EIC_NEXT kan deterministiskt fortsätta under nivå 10
+  ---
+  duration_ms: 4.332663
+  type: 'test'
+  ...
+# Subtest: v3 config migreras till v4
+ok 65 - v3 config migreras till v4
+  ---
+  duration_ms: 1.605911
+  type: 'test'
+  ...
+# Subtest: Mjölnar defaultas av och shadow
+ok 66 - Mjölnar defaultas av och shadow
+  ---
+  duration_ms: 0.2635
+  type: 'test'
+  ...
+# Subtest: background wait defaultas på
+ok 67 - background wait defaultas på
+  ---
+  duration_ms: 0.146067
+  type: 'test'
+  ...
+# Subtest: gammal pause-state autoomklassificeras inte
+ok 68 - gammal pause-state autoomklassificeras inte
+  ---
+  duration_ms: 2.524102
+  type: 'test'
+  ...
+# Subtest: migration är idempotent
+ok 69 - migration är idempotent
+  ---
+  duration_ms: 0.771814
+  type: 'test'
+  ...
+# Subtest: run får persistent backgroundfält
+ok 70 - run får persistent backgroundfält
+  ---
+  duration_ms: 0.252835
+  type: 'test'
+  ...
+# Subtest: run får Mjölnar-ledger
+ok 71 - run får Mjölnar-ledger
+  ---
+  duration_ms: 0.301377
+  type: 'test'
+  ...
+# Subtest: selected conversation bevaras
+ok 72 - selected conversation bevaras
+  ---
+  duration_ms: 0.240657
+  type: 'test'
+  ...
+# Subtest: v4 migreras till v5 utan att ändra pausstate
+ok 73 - v4 migreras till v5 utan att ändra pausstate
+  ---
+  duration_ms: 1.075474
+  type: 'test'
+  ...
+# Subtest: v4→v5 migration är idempotent
+ok 74 - v4→v5 migration är idempotent
+  ---
+  duration_ms: 0.832153
+  type: 'test'
+  ...
+# Subtest: v5 migreras till v6 med fail-closed fallback
+ok 75 - v5 migreras till v6 med fail-closed fallback
+  ---
+  duration_ms: 1.142694
+  type: 'test'
+  ...
+# Subtest: v5→v6 migration är idempotent
+ok 76 - v5→v6 migration är idempotent
+  ---
+  duration_ms: 0.308417
+  type: 'test'
+  ...
+# Subtest: v6 state migrates to v7 with host telemetry and observation supersede fields
+ok 77 - v6 state migrates to v7 with host telemetry and observation supersede fields
+  ---
+  duration_ms: 1.062835
+  type: 'test'
+  ...
+# Subtest: v7 till v8 aktiverar autonom kärna och Mjölnar D1 live
+ok 78 - v7 till v8 aktiverar autonom kärna och Mjölnar D1 live
+  ---
+  duration_ms: 1.148663
+  type: 'test'
+  ...
+# Subtest: v8 migration är idempotent
+ok 79 - v8 migration är idempotent
+  ---
+  duration_ms: 0.840446
+  type: 'test'
+  ...
+# Subtest: vanlig target-text är inte trusted trigger
+ok 80 - vanlig target-text är inte trusted trigger
+  ---
+  duration_ms: 0.892993
+  type: 'test'
+  ...
+# Subtest: lokal state-machine candidate är trusted
+ok 81 - lokal state-machine candidate är trusted
+  ---
+  duration_ms: 0.170142
+  type: 'test'
+  ...
+# Subtest: request använder canonical protokoll
+ok 82 - request använder canonical protokoll
+  ---
+  duration_ms: 9.757364
+  type: 'test'
+  ...
+# Subtest: request fyller inte saknad beslutskritisk data med gissning
+ok 83 - request fyller inte saknad beslutskritisk data med gissning
+  ---
+  duration_ms: 0.565468
+  type: 'test'
+  ...
+# Subtest: D0 routine emitterar DELEGABLE
+ok 84 - D0 routine emitterar DELEGABLE
+  ---
+  duration_ms: 5.21445
+  type: 'test'
+  ...
+# Subtest: D0 dispatch tillåts inte i shadow
+ok 85 - D0 dispatch tillåts inte i shadow
+  ---
+  duration_ms: 1.906977
+  type: 'test'
+  ...
+# Subtest: D0 dispatch tillåts i D0 live
+ok 86 - D0 dispatch tillåts i D0 live
+  ---
+  duration_ms: 0.669182
+  type: 'test'
+  ...
+# Subtest: D1 med rollback readback och Hjalmar GO emitterar DELEGABLE
+ok 87 - D1 med rollback readback och Hjalmar GO emitterar DELEGABLE
+  ---
+  duration_ms: 0.574191
+  type: 'test'
+  ...
+# Subtest: D1 med modellrapporterad Hjalmar GO skapar inte extern PASS men låg risk kan delegeras
+ok 88 - D1 med modellrapporterad Hjalmar GO skapar inte extern PASS men låg risk kan delegeras
+  ---
+  duration_ms: 3.35902
+  type: 'test'
+  ...
+# Subtest: Nano-proposed Mjölnar candidate är inte trusted
+ok 89 - Nano-proposed Mjölnar candidate är inte trusted
+  ---
+  duration_ms: 0.396948
+  type: 'test'
+  ...
+# Subtest: D2 matchar ordgränser och ger inte false positive på AUTHOR/EMERGENCY
+ok 90 - D2 matchar ordgränser och ger inte false positive på AUTHOR/EMERGENCY
+  ---
+  duration_ms: 0.87758
+  type: 'test'
+  ...
+# Subtest: D1 blockeras utan rollback
+ok 91 - D1 blockeras utan rollback
+  ---
+  duration_ms: 0.817602
+  type: 'test'
+  ...
+# Subtest: nivå 10 LOGIN_USER kräver människa
+ok 92 - nivå 10 LOGIN_USER kräver människa
+  ---
+  duration_ms: 0.53943
+  type: 'test'
+  ...
+# Subtest: nivå 10 SOLVE_CAPTCHA kräver människa
+ok 93 - nivå 10 SOLVE_CAPTCHA kräver människa
+  ---
+  duration_ms: 0.504278
+  type: 'test'
+  ...
+# Subtest: nivå 10 READ_SECRET kräver människa
+ok 94 - nivå 10 READ_SECRET kräver människa
+  ---
+  duration_ms: 0.453563
+  type: 'test'
+  ...
+# Subtest: nivå 10 DELETE_DATA kräver människa
+ok 95 - nivå 10 DELETE_DATA kräver människa
+  ---
+  duration_ms: 0.38406
+  type: 'test'
+  ...
+# Subtest: nivå 9 CHANGE_PERMISSION ger inte verklig mänsklig PAUS
+ok 96 - nivå 9 CHANGE_PERMISSION ger inte verklig mänsklig PAUS
+  ---
+  duration_ms: 0.601282
+  type: 'test'
+  ...
+# Subtest: nivå 9 MERGE_BRANCH ger inte verklig mänsklig PAUS
+ok 97 - nivå 9 MERGE_BRANCH ger inte verklig mänsklig PAUS
+  ---
+  duration_ms: 1.157867
+  type: 'test'
+  ...
+# Subtest: nivå 9 RELEASE_BUILD ger inte verklig mänsklig PAUS
+ok 98 - nivå 9 RELEASE_BUILD ger inte verklig mänsklig PAUS
+  ---
+  duration_ms: 0.490838
+  type: 'test'
+  ...
+# Subtest: nivå 9 DEPLOY_PRODUCTION ger inte verklig mänsklig PAUS
+ok 99 - nivå 9 DEPLOY_PRODUCTION ger inte verklig mänsklig PAUS
+  ---
+  duration_ms: 0.321246
+  type: 'test'
+  ...
+# Subtest: trusted Hjalmar BLOCK kan inte överridas
+ok 100 - trusted Hjalmar BLOCK kan inte överridas
+  ---
+  duration_ms: 0.439962
+  type: 'test'
+  ...
+# Subtest: modellrapporterad Hjalmar BLOCK är inte owner-verdict
+ok 101 - modellrapporterad Hjalmar BLOCK är inte owner-verdict
+  ---
+  duration_ms: 2.079442
+  type: 'test'
+  ...
+# Subtest: okänd action code avvisas
+ok 102 - okänd action code avvisas
+  ---
+  duration_ms: 0.82274
+  type: 'test'
+  ...
+# Subtest: okänd D1 target/owner ger READ_REQUIRED
+ok 103 - okänd D1 target/owner ger READ_REQUIRED
+  ---
+  duration_ms: 0.601281
+  type: 'test'
+  ...
+# Subtest: bias check är BIAS_BOUNDED och inte BIAS_FREE
+ok 104 - bias check är BIAS_BOUNDED och inte BIAS_FREE
+  ---
+  duration_ms: 0.381746
+  type: 'test'
+  ...
+# Subtest: actor name påverkar inte action-specific bias verdict
+ok 105 - actor name påverkar inte action-specific bias verdict
+  ---
+  duration_ms: 0.614721
+  type: 'test'
+  ...
+# Subtest: presentation order påverkar inte action-specific bias verdict
+ok 106 - presentation order påverkar inte action-specific bias verdict
+  ---
+  duration_ms: 0.620059
+  type: 'test'
+  ...
+# Subtest: saknad exact effect ger bias INCONCLUSIVE
+ok 107 - saknad exact effect ger bias INCONCLUSIVE
+  ---
+  duration_ms: 0.946693
+  type: 'test'
+  ...
+# Subtest: ledger binder idempotency key
+ok 108 - ledger binder idempotency key
+  ---
+  duration_ms: 0.608262
+  type: 'test'
+  ...
+# Subtest: duplicate dispatch blockeras
+ok 109 - duplicate dispatch blockeras
+  ---
+  duration_ms: 0.450067
+  type: 'test'
+  ...
+# Subtest: dispatch ledger går till readback pending
+ok 110 - dispatch ledger går till readback pending
+  ---
+  duration_ms: 0.559559
+  type: 'test'
+  ...
+# Subtest: verified readback markeras separat från verdict
+ok 111 - verified readback markeras separat från verdict
+  ---
+  duration_ms: 0.483607
+  type: 'test'
+  ...
+# Subtest: action registry innehåller ingen generell click automation
+ok 112 - action registry innehåller ingen generell click automation
+  ---
+  duration_ms: 0.196561
+  type: 'test'
+  ...
+# Subtest: head-tail-komprimering bevarar load-bearing slutmarkörer
+ok 113 - head-tail-komprimering bevarar load-bearing slutmarkörer
+  ---
+  duration_ms: 1.211075
+  type: 'test'
+  ...
+# Subtest: takeover avvisar självskapad meta-loop från runtimeexporten
+ok 114 - takeover avvisar självskapad meta-loop från runtimeexporten
+  ---
+  duration_ms: 4.585568
+  type: 'test'
+  ...
+# Subtest: groundad takeover med konkret fil, effekt och evidens passerar
+ok 115 - groundad takeover med konkret fil, effekt och evidens passerar
+  ---
+  duration_ms: 0.722962
+  type: 'test'
+  ...
+# Subtest: tom takeover-observation failar stängt
+ok 116 - tom takeover-observation failar stängt
+  ---
+  duration_ms: 0.14818
+  type: 'test'
+  ...
+# Subtest: beslutsprompten innehåller både senaste svar och konversationsutdrag
+ok 117 - beslutsprompten innehåller både senaste svar och konversationsutdrag
+  ---
+  duration_ms: 0.736081
+  type: 'test'
+  ...
+# Subtest: Nano-request kräver claim före prompting och completion
+ok 118 - Nano-request kräver claim före prompting och completion
+  ---
+  duration_ms: 0.662222
+  type: 'test'
+  ...
+# Subtest: takeover har aldrig deterministic fallback deadline
+ok 119 - takeover har aldrig deterministic fallback deadline
+  ---
+  duration_ms: 0.20213
+  type: 'test'
+  ...
+# Subtest: Nano-claim använder lease som korrekthetsgräns och avbryter inte en tyst modell efter 45 sekunder
+ok 120 - Nano-claim använder lease som korrekthetsgräns och avbryter inte en tyst modell efter 45 sekunder
+  ---
+  duration_ms: 0.165185
+  type: 'test'
+  ...
+# Subtest: heartbeat förnyar claim-leasen och exakt claim kan slutföra
+ok 121 - heartbeat förnyar claim-leasen och exakt claim kan slutföra
+  ---
+  duration_ms: 0.335117
+  type: 'test'
+  ...
+# Subtest: stale eller utgången claim avvisar progress, completion och failure
+ok 122 - stale eller utgången claim avvisar progress, completion och failure
+  ---
+  duration_ms: 0.456447
+  type: 'test'
+  ...
+# Subtest: ordinarie Nano-request kan inte claimas efter deadline men takeover kan
+ok 123 - ordinarie Nano-request kan inte claimas efter deadline men takeover kan
+  ---
+  duration_ms: 0.196742
+  type: 'test'
+  ...
+# Subtest: deterministic fallback är endast tillåten när den är due och aldrig för takeover
+ok 124 - deterministic fallback är endast tillåten när den är due och aldrig för takeover
+  ---
+  duration_ms: 0.150904
+  type: 'test'
+  ...
+# Subtest: beslutspromptens canonical groundingfält heter contextEvidence
+ok 125 - beslutspromptens canonical groundingfält heter contextEvidence
+  ---
+  duration_ms: 0.176983
+  type: 'test'
+  ...
+# Subtest: Nano pipeline has explicit claim, heartbeat, completion and failure owner commands
+ok 126 - Nano pipeline has explicit claim, heartbeat, completion and failure owner commands
+  ---
+  duration_ms: 1.390812
+  type: 'test'
+  ...
+# Subtest: quiet Nano is not cancelled by the historical 45-second heartbeat shortcut
+ok 127 - quiet Nano is not cancelled by the historical 45-second heartbeat shortcut
+  ---
+  duration_ms: 0.36368
+  type: 'test'
+  ...
+# Subtest: Nano LanguageModel declaration uses the supported English capability
+ok 128 - Nano LanguageModel declaration uses the supported English capability
+  ---
+  duration_ms: 0.916939
+  type: 'test'
+  ...
+# Subtest: missing concrete Nano action is replaced by a bounded owner-read instead of a real pause
+ok 129 - missing concrete Nano action is replaced by a bounded owner-read instead of a real pause
+  ---
+  duration_ms: 0.301967
+  type: 'test'
+  ...
+# Subtest: assistantCount is telemetry and not the response identity owner
+ok 130 - assistantCount is telemetry and not the response identity owner
+  ---
+  duration_ms: 0.325162
+  type: 'test'
+  ...
+# Subtest: turn-bound trailer remains valid with bounded benign trailing DOM text
+ok 131 - turn-bound trailer remains valid with bounded benign trailing DOM text
+  ---
+  duration_ms: 1.716415
+  type: 'test'
+  ...
+# Subtest: duplicate protocol markers in bounded tail are rejected
+ok 132 - duplicate protocol markers in bounded tail are rejected
+  ---
+  duration_ms: 0.146817
+  type: 'test'
+  ...
+# Subtest: turnless three-line contract is supported only when explicitly enabled
+ok 133 - turnless three-line contract is supported only when explicitly enabled
+  ---
+  duration_ms: 0.189731
+  type: 'test'
+  ...
+# Subtest: contradictory DONE with a next action is rejected
+ok 134 - contradictory DONE with a next action is rejected
+  ---
+  duration_ms: 0.130613
+  type: 'test'
+  ...
+# Subtest: foreground response requires repeated identical hash and settle time
+ok 135 - foreground response requires repeated identical hash and settle time
+  ---
+  duration_ms: 1.141642
+  type: 'test'
+  ...
+# Subtest: growing assistant response resets the stability candidate
+ok 136 - growing assistant response resets the stability candidate
+  ---
+  duration_ms: 0.278493
+  type: 'test'
+  ...
+# Subtest: exact v0.5.3 incident: interim EIC-startmeny is superseded and full CONTINUE is accepted
+ok 137 - exact v0.5.3 incident: interim EIC-startmeny is superseded and full CONTINUE is accepted
+  ---
+  duration_ms: 0.895298
+  type: 'test'
+  ...
+# Subtest: exact v0.6.0 screenshot trailer is accepted as turnless CONTINUE
+ok 138 - exact v0.6.0 screenshot trailer is accepted as turnless CONTINUE
+  ---
+  duration_ms: 0.482385
+  type: 'test'
+  ...
+# Subtest: locator promoveras från GPT/root till exakt conversation
+ok 139 - locator promoveras från GPT/root till exakt conversation
+  ---
+  duration_ms: 1.735688
+  type: 'test'
+  ...
+# Subtest: annan conversation är mismatch och får inte övertas
+ok 140 - annan conversation är mismatch och får inte övertas
+  ---
+  duration_ms: 1.054673
+  type: 'test'
+  ...
+# Subtest: recovery attempts är bounded
+ok 141 - recovery attempts är bounded
+  ---
+  duration_ms: 0.236571
+  type: 'test'
+  ...
+# Subtest: journal behåller full prompt endast för aktiv tur
+ok 142 - journal behåller full prompt endast för aktiv tur
+  ---
+  duration_ms: 0.179426
+  type: 'test'
+  ...
+# Subtest: okänd background action normaliseras fail-closed till PAUSE
+ok 143 - okänd background action normaliseras fail-closed till PAUSE
+  ---
+  duration_ms: 0.183041
+  type: 'test'
+  ...
+# Subtest: safety pause från Mjölnar readback kastar inte
+ok 144 - safety pause från Mjölnar readback kastar inte
+  ---
+  duration_ms: 2.254553
+  type: 'test'
+  ...
+# Subtest: terminal run muteras inte av sen tab-event
+ok 145 - terminal run muteras inte av sen tab-event
+  ---
+  duration_ms: 0.240336
+  type: 'test'
+  ...
+# Subtest: modellens progressDelta ignoreras för meta-only action
+ok 146 - modellens progressDelta ignoreras för meta-only action
+  ---
+  duration_ms: 5.620081
+  type: 'test'
+  ...
+# Subtest: Nano-formulerad konkret action kan inte ensam skapa lokal progress
+ok 147 - Nano-formulerad konkret action kan inte ensam skapa lokal progress
+  ---
+  duration_ms: 0.544097
+  type: 'test'
+  ...
+# Subtest: ändrad response med giltig turn-bunden konkret EIC_NEXT ger progress
+ok 148 - ändrad response med giltig turn-bunden konkret EIC_NEXT ger progress
+  ---
+  duration_ms: 0.398921
+  type: 'test'
+  ...
+# Subtest: modellens DONE kan inte avsluta utan turn-bundet target DONE
+ok 149 - modellens DONE kan inte avsluta utan turn-bundet target DONE
+  ---
+  duration_ms: 0.352042
+  type: 'test'
+  ...
+# Subtest: turn-bundet target DONE med evidens kan tillåta stabil completion
+ok 150 - turn-bundet target DONE med evidens kan tillåta stabil completion
+  ---
+  duration_ms: 0.099999
+  type: 'test'
+  ...
+# Subtest: loop correction är hard pause signal
+ok 151 - loop correction är hard pause signal
+  ---
+  duration_ms: 0.165646
+  type: 'test'
+  ...
+# Subtest: alla aktiva states kan fail-closed pausas utan throw
+ok 152 - alla aktiva states kan fail-closed pausas utan throw
+  ---
+  duration_ms: 1.595105
+  type: 'test'
+  ...
+# Subtest: Mjölnar PAUSE till CONTINUE måste omgrundas och meta-action avvisas
+ok 153 - Mjölnar PAUSE till CONTINUE måste omgrundas och meta-action avvisas
+  ---
+  duration_ms: 1.611088
+  type: 'test'
+  ...
+# Subtest: turn-ID-set bevaras över DOM-virtualisering och är bounded
+ok 154 - turn-ID-set bevaras över DOM-virtualisering och är bounded
+  ---
+  duration_ms: 0.49231
+  type: 'test'
+  ...
+# Subtest: start analysis seeds durable intent work unit constraints risks and evidence
+ok 155 - start analysis seeds durable intent work unit constraints risks and evidence
+  ---
+  duration_ms: 4.127428
+  type: 'test'
+  ...
+# Subtest: raw startprompt preserves leading and trailing whitespace exactly
+ok 156 - raw startprompt preserves leading and trailing whitespace exactly
+  ---
+  duration_ms: 6.94133
+  type: 'test'
+  ...
+# Subtest: existing turnless three-line contract is detected without wrapping
+ok 157 - existing turnless three-line contract is detected without wrapping
+  ---
+  duration_ms: 0.478048
+  type: 'test'
+  ...
+# Subtest: existing bound four-line contract extracts its own turn id
+ok 158 - existing bound four-line contract extracts its own turn id
+  ---
+  duration_ms: 0.128301
+  type: 'test'
+  ...
+# Subtest: start analysis rejects meta-only and multi-unit first actions
+ok 159 - start analysis rejects meta-only and multi-unit first actions
+  ---
+  duration_ms: 0.372362
+  type: 'test'
+  ...
+# Subtest: exakt v0.6.1-runtimeåtgärd är konkret och inte META_ONLY_ACTION
+ok 160 - exakt v0.6.1-runtimeåtgärd är konkret och inte META_ONLY_ACTION
+  ---
+  duration_ms: 4.721089
+  type: 'test'
+  ...
+# Subtest: giltig turn-bunden CONTINUE går direkt genom protocol fast path
+ok 161 - giltig turn-bunden CONTINUE går direkt genom protocol fast path
+  ---
+  duration_ms: 3.125242
+  type: 'test'
+  ...
+# Subtest: importerad v0.6.1-stuck state återköas över content-epoch-byte
+ok 162 - importerad v0.6.1-stuck state återköas över content-epoch-byte
+  ---
+  duration_ms: 0.302739
+  type: 'test'
+  ...
+# Subtest: cross-epoch recovery kräver exakt conversation, hash, turn och ACKED effect
+ok 163 - cross-epoch recovery kräver exakt conversation, hash, turn och ACKED effect
+  ---
+  duration_ms: 0.156843
+  type: 'test'
+  ...
+# Subtest: deterministic protocol completion kräver matchande pending source
+ok 164 - deterministic protocol completion kräver matchande pending source
+  ---
+  duration_ms: 1.125118
+  type: 'test'
+  ...
+# Subtest: recoverable PAUS under nivå 10 omvandlas till CONTINUE
+ok 165 - recoverable PAUS under nivå 10 omvandlas till CONTINUE
+  ---
+  duration_ms: 1.478351
+  type: 'test'
+  ...
+# Subtest: nivå 10 förblir verklig PAUS
+ok 166 - nivå 10 förblir verklig PAUS
+  ---
+  duration_ms: 0.224754
+  type: 'test'
+  ...
+# Subtest: exakt v0.6.2 desktopincident är en konkret engineering action
+ok 167 - exakt v0.6.2 desktopincident är en konkret engineering action
+  ---
+  duration_ms: 6.816955
+  type: 'test'
+  ...
+# Subtest: generisk verify utan target eller output förblir meta-only
+ok 168 - generisk verify utan target eller output förblir meta-only
+  ---
+  duration_ms: 1.106069
+  type: 'test'
+  ...
+# Subtest: owner-read med exact route och observerbar output är konkret
+ok 169 - owner-read med exact route och observerbar output är konkret
+  ---
+  duration_ms: 1.213649
+  type: 'test'
+  ...
+# Subtest: deterministic repair är bounded och lägger till exact target/output
+ok 170 - deterministic repair är bounded och lägger till exact target/output
+  ---
+  duration_ms: 0.778334
+  type: 'test'
+  ...
+# Subtest: deterministic pending initieras med at-most-once guard
+ok 171 - deterministic pending initieras med at-most-once guard
+  ---
+  duration_ms: 0.534532
+  type: 'test'
+  ...
+# Subtest: deterministic callback-lease tillåter en schedule och därefter rena WAIT-snapshots
+ok 172 - deterministic callback-lease tillåter en schedule och därefter rena WAIT-snapshots
+  ---
+  duration_ms: 0.394895
+  type: 'test'
+  ...
+# Subtest: callback attempt ceiling går till bounded reconciliation efter två utgångna leases
+ok 173 - callback attempt ceiling går till bounded reconciliation efter två utgångna leases
+  ---
+  duration_ms: 0.299343
+  type: 'test'
+  ...
+# Subtest: source exhaustion binds till exakt source och observation
+ok 174 - source exhaustion binds till exakt source och observation
+  ---
+  duration_ms: 0.171765
+  type: 'test'
+  ...
+# Subtest: deterministic grounding kan inte återarma identisk deterministic source
+ok 175 - deterministic grounding kan inte återarma identisk deterministic source
+  ---
+  duration_ms: 0.741048
+  type: 'test'
+  ...
+# Subtest: audit coalescing finns och behåller repeat count
+ok 176 - audit coalescing finns och behåller repeat count
+  ---
+  duration_ms: 0.457659
+  type: 'test'
+  ...
+# Subtest: semantisk Mjölnar-bedömning får inte påstå VERIFIED_EFFECT
+ok 177 - semantisk Mjölnar-bedömning får inte påstå VERIFIED_EFFECT
+  ---
+  duration_ms: 0.474534
+  type: 'test'
+  ...
+# Subtest: giltig incidentaction behålls oförändrad av deterministic planner
+ok 178 - giltig incidentaction behålls oförändrad av deterministic planner
+  ---
+  duration_ms: 3.144121
+  type: 'test'
+  ...
+# Subtest: D4: svenska implementationsverb klassas inte längre som META_ONLY
+ok 179 - D4: svenska implementationsverb klassas inte längre som META_ONLY
+  ---
+  duration_ms: 5.597828
+  type: 'test'
+  ...
+# Subtest: D4: rena metaåtgärder är fortfarande META_ONLY
+ok 180 - D4: rena metaåtgärder är fortfarande META_ONLY
+  ---
+  duration_ms: 2.1384
+  type: 'test'
+  ...
+# Subtest: D3: workUnit-prefixet får inte göra varje åtgärd till en auditåtgärd
+ok 181 - D3: workUnit-prefixet får inte göra varje åtgärd till en auditåtgärd
+  ---
+  duration_ms: 3.291579
+  type: 'test'
+  ...
+# Subtest: D3: verifierad progress rankar över verifieringsord i åtgärdstexten
+ok 182 - D3: verifierad progress rankar över verifieringsord i åtgärdstexten
+  ---
+  duration_ms: 0.389688
+  type: 'test'
+  ...
+# Subtest: D1: beslutsprompten hålls inom värdmodellens contextfönster
+ok 183 - D1: beslutsprompten hålls inom värdmodellens contextfönster
+  ---
+  duration_ms: 2.368631
+  type: 'test'
+  ...
+# Subtest: D1: obudgeterad byggväg behåller v0.6.3-beteendet
+ok 184 - D1: obudgeterad byggväg behåller v0.6.3-beteendet
+  ---
+  duration_ms: 0.455705
+  type: 'test'
+  ...
+# Subtest: D1: degraderingsstegen är bounded och avslutas
+ok 185 - D1: degraderingsstegen är bounded och avslutas
+  ---
+  duration_ms: 0.254668
+  type: 'test'
+  ...
+# Subtest: D2: continuity kompakteras semantiskt i stället för att växa till bytetaket
+ok 186 - D2: continuity kompakteras semantiskt i stället för att växa till bytetaket
+  ---
+  duration_ms: 6.364805
+  type: 'test'
+  ...
+# Subtest: D2: projektionen kan bindas till ett teckentak utan att tappa bärande fält
+ok 187 - D2: projektionen kan bindas till ett teckentak utan att tappa bärande fält
+  ---
+  duration_ms: 0.70821
+  type: 'test'
+  ...
+# Subtest: D6: blockers återasserteras och förfaller explicit utan falsk resolution
+ok 188 - D6: blockers återasserteras och förfaller explicit utan falsk resolution
+  ---
+  duration_ms: 0.857912
+  type: 'test'
+  ...
+# Subtest: D7: deterministisk CONTINUE härleder arbetsenhet ur turn-bundet EIC_NEXT
+ok 189 - D7: deterministisk CONTINUE härleder arbetsenhet ur turn-bundet EIC_NEXT
+  ---
+  duration_ms: 2.875012
+  type: 'test'
+  ...
+# Subtest: D7: position avancerar med arbetsenheten och får provenance
+ok 190 - D7: position avancerar med arbetsenheten och får provenance
+  ---
+  duration_ms: 0.360514
+  type: 'test'
+  ...
+# Subtest: R5: readiness kräver stabil composer/epoch/version men inte en tom send-control
+ok 191 - R5: readiness kräver stabil composer/epoch/version men inte en tom send-control
+  ---
+  duration_ms: 0.312072
+  type: 'test'
+  ...
+# Subtest: R5: stabilitet kräver flera identiska probes och nollställs vid identitetsbyte
+ok 192 - R5: stabilitet kräver flera identiska probes och nollställs vid identitetsbyte
+  ---
+  duration_ms: 0.2162
+  type: 'test'
+  ...
+# Subtest: R5: gaten spärrar autonom dispatch tills första svaret finns
+ok 193 - R5: gaten spärrar autonom dispatch tills första svaret finns
+  ---
+  duration_ms: 0.315928
+  type: 'test'
+  ...
+# Subtest: R5: gaten tidsgränsar bara före leverans och aldrig under målsessionens tänkande
+ok 194 - R5: gaten tidsgränsar bara före leverans och aldrig under målsessionens tänkande
+  ---
+  duration_ms: 0.195119
+  type: 'test'
+  ...
+# Subtest: R5: saknad gate på en äldre run blockerar ingenting
+ok 195 - R5: saknad gate på en äldre run blockerar ingenting
+  ---
+  duration_ms: 0.072016
+  type: 'test'
+  ...
+# Subtest: D9: v8-migrationen är byte-identisk vid no-op oavsett klocka
+ok 196 - D9: v8-migrationen är byte-identisk vid no-op oavsett klocka
+  ---
+  duration_ms: 0.966873
+  type: 'test'
+  ...
+# Subtest: D-19: explicit zero context budget emits zero characters
+ok 197 - D-19: explicit zero context budget emits zero characters
+  ---
+  duration_ms: 1.239928
+  type: 'test'
+  ...
+# Subtest: D-19/D-21: section allocation never exceeds its variable budget
+ok 198 - D-19/D-21: section allocation never exceeds its variable budget
+  ---
+  duration_ms: 0.414114
+  type: 'test'
+  ...
+# Subtest: D-20/D-21: incident-sized Nano input converges under 2400 characters
+ok 199 - D-20/D-21: incident-sized Nano input converges under 2400 characters
+  ---
+  duration_ms: 8.152876
+  type: 'test'
+  ...
+# Subtest: D-01/D-27: coherent DONE trailer survives bounded trailing DOM text
+ok 200 - D-01/D-27: coherent DONE trailer survives bounded trailing DOM text
+  ---
+  duration_ms: 1.654543
+  type: 'test'
+  ...
+# Subtest: D-01: duplicate trailer marker is still rejected
+ok 201 - D-01: duplicate trailer marker is still rejected
+  ---
+  duration_ms: 0.210292
+  type: 'test'
+  ...
+# Subtest: D-31: Swedish merge authorization is critical reversible and Hjalmar-controlled
+ok 202 - D-31: Swedish merge authorization is critical reversible and Hjalmar-controlled
+  ---
+  duration_ms: 2.431094
+  type: 'test'
+  ...
+# Subtest: D-31: unknown non-empty action fails closed instead of READ_ONLY
+ok 203 - D-31: unknown non-empty action fails closed instead of READ_ONLY
+  ---
+  duration_ms: 3.555821
+  type: 'test'
+  ...
+# Subtest: D-24: Nano dispatch lock is atomic and token-owned
+ok 204 - D-24: Nano dispatch lock is atomic and token-owned
+  ---
+  duration_ms: 0.203391
+  type: 'test'
+  ...
+# Subtest: D-07: lifecycle deadline extension has a cumulative cap
+ok 205 - D-07: lifecycle deadline extension has a cumulative cap
+  ---
+  duration_ms: 0.491489
+  type: 'test'
+  ...
+# Subtest: D-29 superseded by v0.6.9: eight stagnant cycles require autonomous checkpoint
+ok 206 - D-29 superseded by v0.6.9: eight stagnant cycles require autonomous checkpoint
+  ---
+  duration_ms: 0.795369
+  type: 'test'
+  ...
+# Subtest: D-22/D-24/D-26/D-27: integration guards are wired in browser entrypoints
+ok 207 - D-22/D-24/D-26/D-27: integration guards are wired in browser entrypoints
+  ---
+  duration_ms: 2.237346
+  type: 'test'
+  ...
+# Subtest: v0.6.6 Nano declares English-only text input and output
+ok 208 - v0.6.6 Nano declares English-only text input and output
+  ---
+  duration_ms: 1.047393
+  type: 'test'
+  ...
+# Subtest: v0.6.6 dirty notification handles invalidated extension context synchronously and asynchronously
+ok 209 - v0.6.6 dirty notification handles invalidated extension context synchronously and asynchronously
+  ---
+  duration_ms: 0.302539
+  type: 'test'
+  ...
+# Subtest: v0.6.6 reinjection replaces a stale same-version bridge
+ok 210 - v0.6.6 reinjection replaces a stale same-version bridge
+  ---
+  duration_ms: 0.221739
+  type: 'test'
+  ...
+# Subtest: v0.6.6 bridge disposal tolerates an already invalidated runtime
+ok 211 - v0.6.6 bridge disposal tolerates an already invalidated runtime
+  ---
+  duration_ms: 0.22284
+  type: 'test'
+  ...
+# Subtest: v0.6.7: stale Stop/composer busy cannot suppress a stable assistant candidate
+ok 212 - v0.6.7: stale Stop/composer busy cannot suppress a stable assistant candidate
+  ---
+  duration_ms: 1.82791
+  type: 'test'
+  ...
+# Subtest: v0.6.7: real assistant streaming remains non-triggering
+ok 213 - v0.6.7: real assistant streaming remains non-triggering
+  ---
+  duration_ms: 0.416988
+  type: 'test'
+  ...
+# Subtest: v0.6.7: latest user prompt never reprocesses the previous assistant
+ok 214 - v0.6.7: latest user prompt never reprocesses the previous assistant
+  ---
+  duration_ms: 0.59346
+  type: 'test'
+  ...
+# Subtest: v0.6.7: WAITING arms an existing assistant answer at activation
+ok 215 - v0.6.7: WAITING arms an existing assistant answer at activation
+  ---
+  duration_ms: 0.129482
+  type: 'test'
+  ...
+# Subtest: v0.6.7: response identity includes the user task only after an assistant turn exists
+ok 216 - v0.6.7: response identity includes the user task only after an assistant turn exists
+  ---
+  duration_ms: 1.082465
+  type: 'test'
+  ...
+# Subtest: v0.6.7: browser entrypoints wire role-first dynamic triggering without trailer dependency
+ok 217 - v0.6.7: browser entrypoints wire role-first dynamic triggering without trailer dependency
+  ---
+  duration_ms: 1.3155
+  type: 'test'
+  ...
+# Subtest: v0.6.8 registers D2 live and five privileged action codes
+ok 218 - v0.6.8 registers D2 live and five privileged action codes
+  ---
+  duration_ms: 0.99165
+  type: 'test'
+  ...
+# Subtest: v0.6.8 D2 action is delegable only with complete privileged controls
+ok 219 - v0.6.8 D2 action is delegable only with complete privileged controls
+  ---
+  duration_ms: 8.596744
+  type: 'test'
+  ...
+# Subtest: v0.6.8 D2 dispatch is opt-in and D2 rollout is a strict superset
+ok 220 - v0.6.8 D2 dispatch is opt-in and D2 rollout is a strict superset
+  ---
+  duration_ms: 3.431707
+  type: 'test'
+  ...
+# Subtest: v0.6.8 D2 requests owner facts when owner evidence is incomplete
+ok 221 - v0.6.8 D2 requests owner facts when owner evidence is incomplete
+  ---
+  duration_ms: 1.236783
+  type: 'test'
+  ...
+# Subtest: v0.6.8 D2 requests owner facts when rollback is incomplete
+ok 222 - v0.6.8 D2 requests owner facts when rollback is incomplete
+  ---
+  duration_ms: 0.62064
+  type: 'test'
+  ...
+# Subtest: v0.6.8 D2 requests owner facts when readback is incomplete
+ok 223 - v0.6.8 D2 requests owner facts when readback is incomplete
+  ---
+  duration_ms: 0.428245
+  type: 'test'
+  ...
+# Subtest: v0.6.8 D2 requests owner facts when reversibility is incomplete
+ok 224 - v0.6.8 D2 requests owner facts when reversibility is incomplete
+  ---
+  duration_ms: 1.140931
+  type: 'test'
+  ...
+# Subtest: v0.6.8 D2 requests owner facts when human authority is incomplete
+ok 225 - v0.6.8 D2 requests owner facts when human authority is incomplete
+  ---
+  duration_ms: 0.494914
+  type: 'test'
+  ...
+# Subtest: v0.6.8 D2 requests owner facts when material ambiguity is incomplete
+ok 226 - v0.6.8 D2 requests owner facts when material ambiguity is incomplete
+  ---
+  duration_ms: 0.900034
+  type: 'test'
+  ...
+# Subtest: v0.6.8 auth uses existing owner authorization but login/CAPTCHA/secrets remain human-required
+ok 227 - v0.6.8 auth uses existing owner authorization but login/CAPTCHA/secrets remain human-required
+  ---
+  duration_ms: 2.445345
+  type: 'test'
+  ...
+# Subtest: v0.6.8 D2 handoff prompt is exact, owner-routed and never self-verifies effect
+ok 228 - v0.6.8 D2 handoff prompt is exact, owner-routed and never self-verifies effect
+  ---
+  duration_ms: 0.653719
+  type: 'test'
+  ...
+# Subtest: v0.6.8 browser wiring sends D2 through target owner-route handoff without new Chrome permissions
+ok 229 - v0.6.8 browser wiring sends D2 through target owner-route handoff without new Chrome permissions
+  ---
+  duration_ms: 1.704777
+  type: 'test'
+  ...
+# Subtest: v0.6.9 eight no-progress cycles create an autonomous checkpoint, not human handoff
+ok 230 - v0.6.9 eight no-progress cycles create an autonomous checkpoint, not human handoff
+  ---
+  duration_ms: 9.338423
+  type: 'test'
+  ...
+# Subtest: v0.6.9 incident replay excludes the recurring Workspace subsystem
+ok 231 - v0.6.9 incident replay excludes the recurring Workspace subsystem
+  ---
+  duration_ms: 2.136497
+  type: 'test'
+  ...
+# Subtest: v0.6.9 subsystem pivot resets the retry budget without fabricating progress
+ok 232 - v0.6.9 subsystem pivot resets the retry budget without fabricating progress
+  ---
+  duration_ms: 1.077908
+  type: 'test'
+  ...
+# Subtest: v0.6.9 exhausted subsystem set returns bounded RECOVERING input instead of guessing
+ok 233 - v0.6.9 exhausted subsystem set returns bounded RECOVERING input instead of guessing
+  ---
+  duration_ms: 0.968916
+  type: 'test'
+  ...
+# Subtest: v0.6.9 deterministic recovery preserves the actual Nano parse error
+ok 234 - v0.6.9 deterministic recovery preserves the actual Nano parse error
+  ---
+  duration_ms: 3.225782
+  type: 'test'
+  ...
+# Subtest: v0.6.9 browser wiring prevents sticky pause and accepts its own v8 export
+ok 235 - v0.6.9 browser wiring prevents sticky pause and accepts its own v8 export
+  ---
+  duration_ms: 1.70643
+  type: 'test'
+  ...
+# Subtest: v0.6.9 Nano output gets balanced extraction and one schema-bound format repair
+ok 236 - v0.6.9 Nano output gets balanced extraction and one schema-bound format repair
+  ---
+  duration_ms: 0.446713
+  type: 'test'
+  ...
+# Subtest: v0.6.9 balanced Nano JSON parser handles prose, nested braces and rejects incomplete output
+ok 237 - v0.6.9 balanced Nano JSON parser handles prose, nested braces and rejects incomplete output
+  ---
+  duration_ms: 1.549687
+  type: 'test'
+  ...
+# Subtest: v0.7.0 deterministic takeover recovery passes the gate that consumes it
+ok 238 - v0.7.0 deterministic takeover recovery passes the gate that consumes it
+  ---
+  duration_ms: 2.13165
+  type: 'test'
+  ...
+# Subtest: v0.7.0 takeover recovery still authors no target prompt
+ok 239 - v0.7.0 takeover recovery still authors no target prompt
+  ---
+  duration_ms: 0.160939
+  type: 'test'
+  ...
+# Subtest: v0.7.0 grounding requirements still apply in full to every prompt-authoring action
+ok 240 - v0.7.0 grounding requirements still apply in full to every prompt-authoring action
+  ---
+  duration_ms: 0.267196
+  type: 'test'
+  ...
+# Subtest: v0.7.0 a meta-only CONTINUE is still rejected after local context grounding
+ok 241 - v0.7.0 a meta-only CONTINUE is still rejected after local context grounding
+  ---
+  duration_ms: 4.525999
+  type: 'test'
+  ...
+# Subtest: v0.7.0 PAUSE and DONE carry their own obligations instead of prompt obligations
+ok 242 - v0.7.0 PAUSE and DONE carry their own obligations instead of prompt obligations
+  ---
+  duration_ms: 0.209711
+  type: 'test'
+  ...
+# Subtest: v0.7.0 the deterministic repair path is no longer reached by a well-formed PAUSE
+ok 243 - v0.7.0 the deterministic repair path is no longer reached by a well-formed PAUSE
+  ---
+  duration_ms: 0.368806
+  type: 'test'
+  ...
+# Subtest: v0.7.0 derives context anchors deterministically from the observation
+ok 244 - v0.7.0 derives context anchors deterministically from the observation
+  ---
+  duration_ms: 0.138796
+  type: 'test'
+  ...
+# Subtest: v0.7.0 local grounding never invents context for an empty observation
+ok 245 - v0.7.0 local grounding never invents context for an empty observation
+  ---
+  duration_ms: 0.147659
+  type: 'test'
+  ...
+# Subtest: v0.7.0 local grounding never overwrites context the model already produced
+ok 246 - v0.7.0 local grounding never overwrites context the model already produced
+  ---
+  duration_ms: 0.421625
+  type: 'test'
+  ...
+# Subtest: v0.7.0 local grounding never promotes target text to verified facts
+ok 247 - v0.7.0 local grounding never promotes target text to verified facts
+  ---
+  duration_ms: 0.482446
+  type: 'test'
+  ...
+# Subtest: v0.7.0 the response constraint no longer accepts what the gate rejects
+ok 248 - v0.7.0 the response constraint no longer accepts what the gate rejects
+  ---
+  duration_ms: 0.180999
+  type: 'test'
+  ...
+# Subtest: v0.7.0 bounds Nano output in the panel instead of trusting the host
+ok 249 - v0.7.0 bounds Nano output in the panel instead of trusting the host
+  ---
+  duration_ms: 0.103444
+  type: 'test'
+  ...
+# Subtest: v0.7.0 isolates every analysis even on hosts without clone()
+ok 250 - v0.7.0 isolates every analysis even on hosts without clone()
+  ---
+  duration_ms: 0.092837
+  type: 'test'
+  ...
+# Subtest: v0.7.0 bounds the shared base session when the host exposes no context usage
+ok 251 - v0.7.0 bounds the shared base session when the host exposes no context usage
+  ---
+  duration_ms: 0.066899
+  type: 'test'
+  ...
+# Subtest: v0.7.0 treats kErrorUnknown as recoverable rather than terminal
+ok 252 - v0.7.0 treats kErrorUnknown as recoverable rather than terminal
+  ---
+  duration_ms: 0.082342
+  type: 'test'
+  ...
+# Subtest: v0.7.0 rebuilds a stale Nano session without an operator gesture
+ok 253 - v0.7.0 rebuilds a stale Nano session without an operator gesture
+  ---
+  duration_ms: 0.080439
+  type: 'test'
+  ...
+# Subtest: v0.7.0 carries prior valid decision fields into the single repair round
+ok 254 - v0.7.0 carries prior valid decision fields into the single repair round
+  ---
+  duration_ms: 0.145245
+  type: 'test'
+  ...
+# Subtest: v0.7.0 requeues a failed takeover against a fresh session before any reconciliation
+ok 255 - v0.7.0 requeues a failed takeover against a fresh session before any reconciliation
+  ---
+  duration_ms: 0.176371
+  type: 'test'
+  ...
+# Subtest: v0.7.0 clears the takeover budget once a takeover is genuinely grounded
+ok 256 - v0.7.0 clears the takeover budget once a takeover is genuinely grounded
+  ---
+  duration_ms: 0.095592
+  type: 'test'
+  ...
+# Subtest: v0.7.0 keeps the hard prompt-authoring guard
+ok 257 - v0.7.0 keeps the hard prompt-authoring guard
+  ---
+  duration_ms: 0.122181
+  type: 'test'
+  ...
+# Subtest: v0.7.1 does not classify an echoed target mandate as a level-10 effect
+ok 258 - v0.7.1 does not classify an echoed target mandate as a level-10 effect
+  ---
+  duration_ms: 1.777615
+  type: 'test'
+  ...
+# Subtest: v0.7.1 ignores justification prose even when a real action is present
+ok 259 - v0.7.1 ignores justification prose even when a real action is present
+  ---
+  duration_ms: 3.38652
+  type: 'test'
+  ...
+# Subtest: v0.7.1 still escalates a genuine level-10 effect
+ok 260 - v0.7.1 still escalates a genuine level-10 effect
+  ---
+  duration_ms: 1.297233
+  type: 'test'
+  ...
+# Subtest: v0.7.1 still escalates a genuine level-9 effect
+ok 261 - v0.7.1 still escalates a genuine level-9 effect
+  ---
+  duration_ms: 0.512389
+  type: 'test'
+  ...
+# Subtest: v0.7.1 escalates on target-declared next actions
+ok 262 - v0.7.1 escalates on target-declared next actions
+  ---
+  duration_ms: 0.153237
+  type: 'test'
+  ...
+# Subtest: v0.7.1 recognises actionless decisions in both languages
+ok 263 - v0.7.1 recognises actionless decisions in both languages
+  ---
+  duration_ms: 0.129742
+  type: 'test'
+  ...
+# Subtest: v0.7.1 does not let a model-supplied level escalate an actionless decision
+ok 264 - v0.7.1 does not let a model-supplied level escalate an actionless decision
+  ---
+  duration_ms: 0.298162
+  type: 'test'
+  ...
+# Subtest: v0.7.1 persists the classification input and classifier version
+ok 265 - v0.7.1 persists the classification input and classifier version
+  ---
+  duration_ms: 0.151715
+  type: 'test'
+  ...
+# Subtest: v0.7.1 provides a local authorization surface for a level-10 boundary
+ok 266 - v0.7.1 provides a local authorization surface for a level-10 boundary
+  ---
+  duration_ms: 0.538908
+  type: 'test'
+  ...
+# Subtest: v0.7.1 binds an authorization to one exact boundary
+ok 267 - v0.7.1 binds an authorization to one exact boundary
+  ---
+  duration_ms: 0.463698
+  type: 'test'
+  ...
+# Subtest: v0.7.1 requires an explicit written justification
+ok 268 - v0.7.1 requires an explicit written justification
+  ---
+  duration_ms: 0.28963
+  type: 'test'
+  ...
+# Subtest: v0.7.1 records the authorization in durable continuity
+ok 269 - v0.7.1 records the authorization in durable continuity
+  ---
+  duration_ms: 0.234838
+  type: 'test'
+  ...
+# Subtest: v0.7.1 exposes the boundary identity to the panel rather than letting it invent one
+ok 270 - v0.7.1 exposes the boundary identity to the panel rather than letting it invent one
+  ---
+  duration_ms: 0.113508
+  type: 'test'
+  ...
+# Subtest: v0.7.1 keeps authorization off the target surface entirely
+ok 271 - v0.7.1 keeps authorization off the target surface entirely
+  ---
+  duration_ms: 0.190712
+  type: 'test'
+  ...
+# Subtest: v0.7.1 lets an authorized hard block resume
+ok 272 - v0.7.1 lets an authorized hard block resume
+  ---
+  duration_ms: 0.125386
+  type: 'test'
+  ...
+# Subtest: v0.7.1 gives the output ceiling headroom over observed legitimate decisions
+ok 273 - v0.7.1 gives the output ceiling headroom over observed legitimate decisions
+  ---
+  duration_ms: 0.150513
+  type: 'test'
+  ...
+# Subtest: v0.7.1 salvages a complete decision before declaring an overrun
+ok 274 - v0.7.1 salvages a complete decision before declaring an overrun
+  ---
+  duration_ms: 0.098196
+  type: 'test'
+  ...
+# Subtest: v0.7.2 Nano declares exactly one language and it is English
+ok 275 - v0.7.2 Nano declares exactly one language and it is English
+  ---
+  duration_ms: 1.011229
+  type: 'test'
+  ...
+# Subtest: v0.7.2 has no alternative or fallback language set
+ok 276 - v0.7.2 has no alternative or fallback language set
+  ---
+  duration_ms: 2.512889
+  type: 'test'
+  ...
+# Subtest: v0.7.2 every languages declaration resolves to the single supported set
+ok 277 - v0.7.2 every languages declaration resolves to the single supported set
+  ---
+  duration_ms: 0.331772
+  type: 'test'
+  ...
+# Subtest: v0.7.2 declares input and output symmetrically
+ok 278 - v0.7.2 declares input and output symmetrically
+  ---
+  duration_ms: 0.169722
+  type: 'test'
+  ...
+# Subtest: v0.7.2 keeps Swedish target material out of the API declaration entirely
+ok 279 - v0.7.2 keeps Swedish target material out of the API declaration entirely
+  ---
+  duration_ms: 0.265604
+  type: 'test'
+  ...
+# Subtest: v0.7.2 handles Swedish where it belongs — as quoted untrusted data
+ok 280 - v0.7.2 handles Swedish where it belongs — as quoted untrusted data
+  ---
+  duration_ms: 0.21602
+  type: 'test'
+  ...
+# Subtest: v0.7.2 surfaces a create failure instead of retrying another language
+ok 281 - v0.7.2 surfaces a create failure instead of retrying another language
+  ---
+  duration_ms: 0.16193
+  type: 'test'
+  ...
+# Subtest: v0.7.2 does not conflate the UI sort locale with the API declaration
+ok 282 - v0.7.2 does not conflate the UI sort locale with the API declaration
+  ---
+  duration_ms: 0.104525
+  type: 'test'
+  ...
+# Subtest: v0.7.4 registers APP_AUDIT_LONG without disturbing the existing modes
+ok 283 - v0.7.4 registers APP_AUDIT_LONG without disturbing the existing modes
+  ---
+  duration_ms: 1.144797
+  type: 'test'
+  ...
+# Subtest: v0.7.4 keeps the audit mode orthogonal to the Mjölnar rollout
+ok 284 - v0.7.4 keeps the audit mode orthogonal to the Mjölnar rollout
+  ---
+  duration_ms: 0.251433
+  type: 'test'
+  ...
+# Subtest: v0.7.4 audit block before the trailer leaves the trailer readable
+ok 285 - v0.7.4 audit block before the trailer leaves the trailer readable
+  ---
+  duration_ms: 1.916621
+  type: 'test'
+  ...
+# Subtest: v0.7.4 refuses an audit block placed after the trailer
+ok 286 - v0.7.4 refuses an audit block placed after the trailer
+  ---
+  duration_ms: 1.524029
+  type: 'test'
+  ...
+# Subtest: v0.7.4 the audit block does not consume the trailer's DOM-noise margin
+ok 287 - v0.7.4 the audit block does not consume the trailer's DOM-noise margin
+  ---
+  duration_ms: 0.517356
+  type: 'test'
+  ...
+# Subtest: v0.7.4 parses the event from fence-free innerText
+ok 288 - v0.7.4 parses the event from fence-free innerText
+  ---
+  duration_ms: 0.16209
+  type: 'test'
+  ...
+# Subtest: v0.7.4 reports a missing or malformed event distinctly
+ok 289 - v0.7.4 reports a missing or malformed event distinctly
+  ---
+  duration_ms: 0.174869
+  type: 'test'
+  ...
+# Subtest: v0.7.4 accepts a well-formed step
+ok 290 - v0.7.4 accepts a well-formed step
+  ---
+  duration_ms: 0.514703
+  type: 'test'
+  ...
+# Subtest: v0.7.4 rejects a non-monotonic step number
+ok 291 - v0.7.4 rejects a non-monotonic step number
+  ---
+  duration_ms: 0.708089
+  type: 'test'
+  ...
+# Subtest: v0.7.4 binds the event to the addon's own run and turn identity
+ok 292 - v0.7.4 binds the event to the addon's own run and turn identity
+  ---
+  duration_ms: 1.086721
+  type: 'test'
+  ...
+# Subtest: v0.7.4 refuses a jump from observation straight to accepted
+ok 293 - v0.7.4 refuses a jump from observation straight to accepted
+  ---
+  duration_ms: 0.527212
+  type: 'test'
+  ...
+# Subtest: v0.7.4 enforces the two-turn readback rule
+ok 294 - v0.7.4 enforces the two-turn readback rule
+  ---
+  duration_ms: 0.911211
+  type: 'test'
+  ...
+# Subtest: v0.7.4 refuses a weak sink state as persistence
+ok 295 - v0.7.4 refuses a weak sink state as persistence
+  ---
+  duration_ms: 0.446152
+  type: 'test'
+  ...
+# Subtest: v0.7.4 refuses persistence without any receipt
+ok 296 - v0.7.4 refuses persistence without any receipt
+  ---
+  duration_ms: 0.157914
+  type: 'test'
+  ...
+# Subtest: v0.7.4 detects a fingerprint conflict on a reused finding id
+ok 297 - v0.7.4 detects a fingerprint conflict on a reused finding id
+  ---
+  duration_ms: 0.238643
+  type: 'test'
+  ...
+# Subtest: v0.7.4 refuses a database path that escapes the run directory
+ok 298 - v0.7.4 refuses a database path that escapes the run directory
+  ---
+  duration_ms: 0.136352
+  type: 'test'
+  ...
+# Subtest: v0.7.4 requires a row id for any turn that claims to have written one
+ok 299 - v0.7.4 requires a row id for any turn that claims to have written one
+  ---
+  duration_ms: 0.116924
+  type: 'test'
+  ...
+# Subtest: v0.7.4 blocks secret-shaped values before durable addon storage
+ok 300 - v0.7.4 blocks secret-shaped values before durable addon storage
+  ---
+  duration_ms: 0.166357
+  type: 'test'
+  ...
+# Subtest: v0.7.4 refuses DONE before any export or sink was claimed
+ok 301 - v0.7.4 refuses DONE before any export or sink was claimed
+  ---
+  duration_ms: 0.169231
+  type: 'test'
+  ...
+# Subtest: v0.7.4 derives progress from step number and coverage, not from the model
+ok 302 - v0.7.4 derives progress from step number and coverage, not from the model
+  ---
+  duration_ms: 0.13508
+  type: 'test'
+  ...
+# Subtest: v0.7.4 reports no progress when a step repeats a covered cell without advancing
+ok 303 - v0.7.4 reports no progress when a step repeats a covered cell without advancing
+  ---
+  duration_ms: 0.152556
+  type: 'test'
+  ...
+# Subtest: v0.7.4 substitutes audit progress into the anti-loop path
+ok 304 - v0.7.4 substitutes audit progress into the anti-loop path
+  ---
+  duration_ms: 0.503226
+  type: 'test'
+  ...
+# Subtest: v0.7.4 strips the event block out of the text budgeted for Nano
+ok 305 - v0.7.4 strips the event block out of the text budgeted for Nano
+  ---
+  duration_ms: 0.347935
+  type: 'test'
+  ...
+# Subtest: v0.7.4 leaves a non-audit response untouched
+ok 306 - v0.7.4 leaves a non-audit response untouched
+  ---
+  duration_ms: 0.101451
+  type: 'test'
+  ...
+# Subtest: v0.7.4 records every audit claim as target-session provenance
+ok 307 - v0.7.4 records every audit claim as target-session provenance
+  ---
+  duration_ms: 0.140238
+  type: 'test'
+  ...
+# Subtest: v0.7.4 never promotes an audit claim into verifiedFacts
+ok 308 - v0.7.4 never promotes an audit claim into verifiedFacts
+  ---
+  duration_ms: 0.34397
+  type: 'test'
+  ...
+# Subtest: v0.7.4 start prompt explains scripts/eic_app_audit.py as EIC's ledger
+ok 309 - v0.7.4 start prompt explains scripts/eic_app_audit.py as EIC's ledger
+  ---
+  duration_ms: 0.547812
+  type: 'test'
+  ...
+# Subtest: v0.7.4 start prompt forbids simulating ledger output
+ok 310 - v0.7.4 start prompt forbids simulating ledger output
+  ---
+  duration_ms: 0.157454
+  type: 'test'
+  ...
+# Subtest: v0.7.4 start prompt respects the operator's sink switch and blocks ledgerless mode
+ok 311 - v0.7.4 start prompt respects the operator's sink switch and blocks ledgerless mode
+  ---
+  duration_ms: 0.206757
+  type: 'test'
+  ...
+# Subtest: v0.7.4 start prompt refuses an empty test need
+ok 312 - v0.7.4 start prompt refuses an empty test need
+  ---
+  duration_ms: 0.462676
+  type: 'test'
+  ...
+# Subtest: v0.7.4 seeds a deterministic start analysis instead of asking Nano to infer one
+ok 313 - v0.7.4 seeds a deterministic start analysis instead of asking Nano to infer one
+  ---
+  duration_ms: 0.172917
+  type: 'test'
+  ...
+# Subtest: v0.7.4 exposes the mode through a dedicated command and panel surface
+ok 314 - v0.7.4 exposes the mode through a dedicated command and panel surface
+  ---
+  duration_ms: 0.396047
+  type: 'test'
+  ...
+# Subtest: v0.7.4 only ingests audit events in audit mode
+ok 315 - v0.7.4 only ingests audit events in audit mode
+  ---
+  duration_ms: 0.165115
+  type: 'test'
+  ...
+# Subtest: v0.7.4 uses the verified Workbench python3 invocation
+ok 316 - v0.7.4 uses the verified Workbench python3 invocation
+  ---
+  duration_ms: 0.120669
+  type: 'test'
+  ...
+# Subtest: v0.7.4 rejects missing identities and non-integer step numbers
+ok 317 - v0.7.4 rejects missing identities and non-integer step numbers
+  ---
+  duration_ms: 0.329007
+  type: 'test'
+  ...
+# Subtest: v0.7.4 requires ledger-compatible fingerprints
+ok 318 - v0.7.4 requires ledger-compatible fingerprints
+  ---
+  duration_ms: 0.136372
+  type: 'test'
+  ...
+# Subtest: v0.7.4 treats reproduction as evidence, not a ledger status
+ok 319 - v0.7.4 treats reproduction as evidence, not a ledger status
+  ---
+  duration_ms: 0.324491
+  type: 'test'
+  ...
+# Subtest: v0.7.4 accepts ZIP persistence only with a real bundle SHA-256 claim
+ok 320 - v0.7.4 accepts ZIP persistence only with a real bundle SHA-256 claim
+  ---
+  duration_ms: 0.225374
+  type: 'test'
+  ...
+# Subtest: v0.7.4 binds database receipts to the exact run path and known row types
+ok 321 - v0.7.4 binds database receipts to the exact run path and known row types
+  ---
+  duration_ms: 0.151495
+  type: 'test'
+  ...
+# Subtest: v0.7.4 initializes audit mode before the first prompt is dispatched
+ok 322 - v0.7.4 initializes audit mode before the first prompt is dispatched
+  ---
+  duration_ms: 0.284131
+  type: 'test'
+  ...
+# Subtest: v0.7.4 binds the first audit prompt to exact addon run and turn ids
+ok 323 - v0.7.4 binds the first audit prompt to exact addon run and turn ids
+  ---
+  duration_ms: 0.221739
+  type: 'test'
+  ...
+# Subtest: v0.7.4 locks the Workbench ledger prerequisite in the operator UI
+ok 324 - v0.7.4 locks the Workbench ledger prerequisite in the operator UI
+  ---
+  duration_ms: 0.319694
+  type: 'test'
+  ...
+# Subtest: v0.7.5 never creates, opens or requests a new ChatGPT tab
+ok 325 - v0.7.5 never creates, opens or requests a new ChatGPT tab
+  ---
+  duration_ms: 2.038622
+  type: 'test'
+  ...
+# Subtest: v0.7.5 routes both start commands into the selected prepared session
+ok 326 - v0.7.5 routes both start commands into the selected prepared session
+  ---
+  duration_ms: 0.415286
+  type: 'test'
+  ...
+# Subtest: v0.7.5 does not let Workbench vocabulary downgrade critical effects
+ok 327 - v0.7.5 does not let Workbench vocabulary downgrade critical effects
+  ---
+  duration_ms: 4.029332
+  type: 'test'
+  ...
+# Subtest: v0.7.5 audit placement ignores quoted historical trailers
+ok 328 - v0.7.5 audit placement ignores quoted historical trailers
+  ---
+  duration_ms: 1.371363
+  type: 'test'
+  ...
+# Subtest: v0.7.5 content trailer detection strips code and quotes before scanning
+ok 329 - v0.7.5 content trailer detection strips code and quotes before scanning
+  ---
+  duration_ms: 0.182251
+  type: 'test'
+  ...
+# Subtest: v0.7.5 compaction removes closed blockers before saturating
+ok 330 - v0.7.5 compaction removes closed blockers before saturating
+  ---
+  duration_ms: 2.013054
+  type: 'test'
+  ...
+# Subtest: v0.7.5 root query parameters are not conversation identity
+ok 331 - v0.7.5 root query parameters are not conversation identity
+  ---
+  duration_ms: 0.425141
+  type: 'test'
+  ...
+# Subtest: v0.7.5 submit preflight includes the latest message role
+ok 332 - v0.7.5 submit preflight includes the latest message role
+  ---
+  duration_ms: 0.123212
+  type: 'test'
+  ...
+# Subtest: v0.7.5 section allocation is additive for every small budget
+ok 333 - v0.7.5 section allocation is additive for every small budget
+  ---
+  duration_ms: 3.012696
+  type: 'test'
+  ...
+# Subtest: v0.7.5 strips audit events before response projection
+ok 334 - v0.7.5 strips audit events before response projection
+  ---
+  duration_ms: 0.55984
+  type: 'test'
+  ...
+# Subtest: v0.7.5 removes malformed audit protocol regions from Nano input
+ok 335 - v0.7.5 removes malformed audit protocol regions from Nano input
+  ---
+  duration_ms: 0.551298
+  type: 'test'
+  ...
+# Subtest: v0.7.5 duplicate gate includes delegated pending dispatch
+ok 336 - v0.7.5 duplicate gate includes delegated pending dispatch
+  ---
+  duration_ms: 12.342857
+  type: 'test'
+  ...
+# Subtest: v0.7.5 semantic compaction restores chronological order after dedupe
+ok 337 - v0.7.5 semantic compaction restores chronological order after dedupe
+  ---
+  duration_ms: 0.936228
+  type: 'test'
+  ...
+# Subtest: v0.7.5 prompt does not prefill a verified readback state
+ok 338 - v0.7.5 prompt does not prefill a verified readback state
+  ---
+  duration_ms: 0.244082
+  type: 'test'
+  ...
+# Subtest: v0.7.5 removes the identical-branch auth ternary
+ok 339 - v0.7.5 removes the identical-branch auth ternary
+  ---
+  duration_ms: 0.099608
+  type: 'test'
+  ...
+# Subtest: v0.7.5 projection emergency pass may trim optional lists below the soft floor
+ok 340 - v0.7.5 projection emergency pass may trim optional lists below the soft floor
+  ---
+  duration_ms: 0.759376
+  type: 'test'
+  ...
+# Subtest: v0.8.2 reports the same version across all bridge and UI runtime surfaces
+ok 341 - v0.8.2 reports the same version across all bridge and UI runtime surfaces
+  ---
+  duration_ms: 0.110404
+  type: 'test'
+  ...
+# Subtest: v0.8.2 keeps compatibility IDs internal and removes legacy version labels from dropdowns
+ok 342 - v0.8.2 keeps compatibility IDs internal and removes legacy version labels from dropdowns
+  ---
+  duration_ms: 0.205595
+  type: 'test'
+  ...
+# Subtest: v0.7.6 rejects the exact reproduced embedded requestedAction fragment
+ok 343 - v0.7.6 rejects the exact reproduced embedded requestedAction fragment
+  ---
+  duration_ms: 2.032182
+  type: 'test'
+  ...
+# Subtest: v0.7.6 buildTurnObject independently rejects a contaminated workUnit
+ok 344 - v0.7.6 buildTurnObject independently rejects a contaminated workUnit
+  ---
+  duration_ms: 0.95813
+  type: 'test'
+  ...
+# Subtest: v0.7.6 permits ordinary prose that names requestedAction without field syntax
+ok 345 - v0.7.6 permits ordinary prose that names requestedAction without field syntax
+  ---
+  duration_ms: 0.799345
+  type: 'test'
+  ...
+# Subtest: v0.7.6 normalizeDecision uses the shared field-isolation guard
+ok 346 - v0.7.6 normalizeDecision uses the shared field-isolation guard
+  ---
+  duration_ms: 8.94568
+  type: 'test'
+  ...
+# Subtest: v0.7.7 does not require a visible send control before composer insertion
+ok 347 - v0.7.7 does not require a visible send control before composer insertion
+  ---
+  duration_ms: 1.211886
+  type: 'test'
+  ...
+# Subtest: v0.7.7 can prove stable prepared-session identity while foreground work continues
+ok 348 - v0.7.7 can prove stable prepared-session identity while foreground work continues
+  ---
+  duration_ms: 0.295188
+  type: 'test'
+  ...
+# Subtest: v0.7.7 can queue during background work without treating it as submit-ready
+ok 349 - v0.7.7 can queue during background work without treating it as submit-ready
+  ---
+  duration_ms: 0.354165
+  type: 'test'
+  ...
+# Subtest: v0.7.7 queued one-shot prompt does not time out while existing work finishes
+ok 350 - v0.7.7 queued one-shot prompt does not time out while existing work finishes
+  ---
+  duration_ms: 0.4858
+  type: 'test'
+  ...
+# Subtest: v0.7.7 prepared-start source queues busy targets and never creates a tab
+ok 351 - v0.7.7 prepared-start source queues busy targets and never creates a tab
+  ---
+  duration_ms: 2.70511
+  type: 'test'
+  ...
+# Subtest: v0.7.8 new assistant reply implicitly ACKs UNCERTAIN_EXHAUSTED prompt delivery
+ok 352 - v0.7.8 new assistant reply implicitly ACKs UNCERTAIN_EXHAUSTED prompt delivery
+  ---
+  duration_ms: 1.666425
+  type: 'test'
+  ...
+# Subtest: v0.7.8 does not use an unchanged baseline assistant as implicit ACK
+ok 353 - v0.7.8 does not use an unchanged baseline assistant as implicit ACK
+  ---
+  duration_ms: 0.308478
+  type: 'test'
+  ...
+# Subtest: v0.7.8 missing footer remains a Nano response candidate and prompt requires repair
+ok 354 - v0.7.8 missing footer remains a Nano response candidate and prompt requires repair
+  ---
+  duration_ms: 1.562366
+  type: 'test'
+  ...
+# Subtest: v0.7.8 accepts strict FULL_STOP forms and rejects incomplete forms
+ok 355 - v0.7.8 accepts strict FULL_STOP forms and rejects incomplete forms
+  ---
+  duration_ms: 1.368459
+  type: 'test'
+  ...
+# Subtest: v0.7.8 FULL_STOP terminates only after corroborating Nano completion decision
+ok 356 - v0.7.8 FULL_STOP terminates only after corroborating Nano completion decision
+  ---
+  duration_ms: 0.250741
+  type: 'test'
+  ...
+# Subtest: v0.7.8 compiled target turn always repeats footer and FULL_STOP rule
+ok 357 - v0.7.8 compiled target turn always repeats footer and FULL_STOP rule
+  ---
+  duration_ms: 12.124583
+  type: 'test'
+  ...
+# Subtest: v0.7.8 detach preserves the active run and exact reattach resumes through RECOVERING
+ok 358 - v0.7.8 detach preserves the active run and exact reattach resumes through RECOVERING
+  ---
+  duration_ms: 1.942129
+  type: 'test'
+  ...
+# Subtest: v0.7.8 detach UI and command are present
+ok 359 - v0.7.8 detach UI and command are present
+  ---
+  duration_ms: 1.615264
+  type: 'test'
+  ...
+# Subtest: v0.8.0 preserves the exact v0.7.8 mandates as the active defaults
+ok 360 - v0.8.0 preserves the exact v0.7.8 mandates as the active defaults
+  ---
+  duration_ms: 1.550828
+  type: 'test'
+  ...
+# Subtest: v0.8.0 adds ARCHAEOLOGY_LONG without removing existing run modes
+ok 361 - v0.8.0 adds ARCHAEOLOGY_LONG without removing existing run modes
+  ---
+  duration_ms: 0.655101
+  type: 'test'
+  ...
+# Subtest: ERP reverse engineering is one of several archaeology scenarios
+ok 362 - ERP reverse engineering is one of several archaeology scenarios
+  ---
+  duration_ms: 0.263771
+  type: 'test'
+  ...
+# Subtest: core surfaces expose independent dropdown profiles and a legacy master preset
+ok 363 - core surfaces expose independent dropdown profiles and a legacy master preset
+  ---
+  duration_ms: 0.275178
+  type: 'test'
+  ...
+# Subtest: ARCHAEOLOGY_LONG start prompt is analysis-only and Workspace-discovery aware
+ok 364 - ARCHAEOLOGY_LONG start prompt is analysis-only and Workspace-discovery aware
+  ---
+  duration_ms: 0.758475
+  type: 'test'
+  ...
+# Subtest: Nano receives Workspace-aware research rules only for ARCHAEOLOGY_LONG
+ok 365 - Nano receives Workspace-aware research rules only for ARCHAEOLOGY_LONG
+  ---
+  duration_ms: 1.078249
+  type: 'test'
+  ...
+# Subtest: sidepanel binds core-profile dropdown listeners once outside renderTabs
+ok 366 - sidepanel binds core-profile dropdown listeners once outside renderTabs
+  ---
+  duration_ms: 0.699898
+  type: 'test'
+  ...
+# Subtest: a bound archaeology event passes, advances state and remains target provenance
+ok 367 - a bound archaeology event passes, advances state and remains target provenance
+  ---
+  duration_ms: 2.298417
+  type: 'test'
+  ...
+# Subtest: archaeology event gate rejects mutation, unknown effects and invented Workspace probes
+ok 368 - archaeology event gate rejects mutation, unknown effects and invented Workspace probes
+  ---
+  duration_ms: 0.871752
+  type: 'test'
+  ...
+# Subtest: ARCHAEOLOGY_LONG has a level-4 runtime effect ceiling and isolated replan guard
+ok 369 - ARCHAEOLOGY_LONG has a level-4 runtime effect ceiling and isolated replan guard
+  ---
+  duration_ms: 0.495244
+  type: 'test'
+  ...
+# Subtest: USER_PAUSE is a strict valid trailer only with decision and no completion evidence
+ok 370 - USER_PAUSE is a strict valid trailer only with decision and no completion evidence
+  ---
+  duration_ms: 0.803441
+  type: 'test'
+  ...
+# Subtest: USER_PAUSE deterministically produces level 10 and local HUMAN_REQUIRED handling
+ok 371 - USER_PAUSE deterministically produces level 10 and local HUMAN_REQUIRED handling
+  ---
+  duration_ms: 0.877791
+  type: 'test'
+  ...
+# Subtest: unscoped continuity never aliases Chrome window 0
+ok 372 - unscoped continuity never aliases Chrome window 0
+  ---
+  duration_ms: 1.215862
+  type: 'test'
+  ...
+# Subtest: v0.8.2 scopes continuity independently per window and exact legacy locator
+ok 373 - v0.8.2 scopes continuity independently per window and exact legacy locator
+  ---
+  duration_ms: 1.085739
+  type: 'test'
+  ...
+# Subtest: legacy continuity with a mismatched locator is never adopted by a sole window
+ok 374 - legacy continuity with a mismatched locator is never adopted by a sole window
+  ---
+  duration_ms: 0.381566
+  type: 'test'
+  ...
+# Subtest: TAKEOVER_BOOTSTRAP cannot overwrite an established start-analysis intent
+ok 375 - TAKEOVER_BOOTSTRAP cannot overwrite an established start-analysis intent
+  ---
+  duration_ms: 7.219622
+  type: 'test'
+  ...
+# Subtest: g-to-c locator promotion preserves intent and updates scoped position
+ok 376 - g-to-c locator promotion preserves intent and updates scoped position
+  ---
+  duration_ms: 0.405541
+  type: 'test'
+  ...
+# Subtest: specialized run mode is sticky only for the same tab and conversation
+ok 377 - specialized run mode is sticky only for the same tab and conversation
+  ---
+  duration_ms: 0.901106
+  type: 'test'
+  ...
+# Subtest: specialized modes reject temporarily stable incomplete responses
+ok 378 - specialized modes reject temporarily stable incomplete responses
+  ---
+  duration_ms: 0.227197
+  type: 'test'
+  ...
+# Subtest: required evidence is not promoted to an executable recovery direction
+ok 379 - required evidence is not promoted to an executable recovery direction
+  ---
+  duration_ms: 0.470017
+  type: 'test'
+  ...
+# Subtest: later assistant response reconciles an unconfirmed start receipt
+ok 380 - later assistant response reconciles an unconfirmed start receipt
+  ---
+  duration_ms: 1.783884
+  type: 'test'
+  ...
+# Subtest: receipt reconciliation never ACKs a merely prepared or unchanged baseline response
+ok 381 - receipt reconciliation never ACKs a merely prepared or unchanged baseline response
+  ---
+  duration_ms: 0.565899
+  type: 'test'
+  ...
+# Subtest: source wiring enforces scoped continuity, sticky mode, completion and hard Nano timeout
+ok 382 - source wiring enforces scoped continuity, sticky mode, completion and hard Nano timeout
+  ---
+  duration_ms: 0.413112
+  type: 'test'
+  ...
+# Subtest: WP00 keeps the v0.8.2 runtime and standard permission baseline unchanged
+ok 383 - WP00 keeps the v0.8.2 runtime and standard permission baseline unchanged
+  ---
+  duration_ms: 2.565513
+  type: 'test'
+  ...
+# Subtest: EIC.md enforces manual approval and forbids autonomous addon execution
+ok 384 - EIC.md enforces manual approval and forbids autonomous addon execution
+  ---
+  duration_ms: 0.241979
+  type: 'test'
+  ...
+# Subtest: WP00 ledger covers WP00 through WP14 and preserves manual gate progression
+ok 385 - WP00 ledger covers WP00 through WP14 and preserves manual gate progression
+  ---
+  duration_ms: 0.408956
+  type: 'test'
+  ...
+# Subtest: WP00 architecture and inventory documents exist
+ok 386 - WP00 architecture and inventory documents exist
+  ---
+  duration_ms: 0.279584
+  type: 'test'
+  ...
+# Subtest: WP00 records exact source and transcript identities
+ok 387 - WP00 records exact source and transcript identities
+  ---
+  duration_ms: 0.243391
+  type: 'test'
+  ...
+# Subtest: Desktop acceptance is retained only as an operator attestation
+ok 388 - Desktop acceptance is retained only as an operator attestation
+  ---
+  duration_ms: 0.274186
+  type: 'test'
+  ...
+# Subtest: WP01 command registry is closed and declares response kinds
+ok 389 - WP01 command registry is closed and declares response kinds
+  ---
+  duration_ms: 1.70679
+  type: 'test'
+  ...
+# Subtest: WP01 command envelope keeps payload separate from routing metadata
+ok 390 - WP01 command envelope keeps payload separate from routing metadata
+  ---
+  duration_ms: 1.719319
+  type: 'test'
+  ...
+# Subtest: WP01 uiSnapshot is versioned and detached from runtime objects
+ok 391 - WP01 uiSnapshot is versioned and detached from runtime objects
+  ---
+  duration_ms: 0.240937
+  type: 'test'
+  ...
+# Subtest: WP01 dispatcher returns a bound snapshot result
+ok 392 - WP01 dispatcher returns a bound snapshot result
+  ---
+  duration_ms: 0.497628
+  type: 'test'
+  ...
+# Subtest: WP01 dispatcher keeps heartbeat acknowledgement separate from uiSnapshot
+ok 393 - WP01 dispatcher keeps heartbeat acknowledgement separate from uiSnapshot
+  ---
+  duration_ms: 0.217463
+  type: 'test'
+  ...
+# Subtest: WP01 runtime client creates and validates the full request/result round trip
+ok 394 - WP01 runtime client creates and validates the full request/result round trip
+  ---
+  duration_ms: 0.749791
+  type: 'test'
+  ...
+# Subtest: WP01 result validation rejects cross-request response confusion
+ok 395 - WP01 result validation rejects cross-request response confusion
+  ---
+  duration_ms: 0.823471
+  type: 'test'
+  ...
+# Subtest: WP01 source wiring centralizes dispatch outside the DOM renderer
+ok 396 - WP01 source wiring centralizes dispatch outside the DOM renderer
+  ---
+  duration_ms: 1.611949
+  type: 'test'
+  ...
+# Subtest: WP01 keeps version, permissions and persistent schemas unchanged
+ok 397 - WP01 keeps version, permissions and persistent schemas unchanged
+  ---
+  duration_ms: 0.64126
+  type: 'test'
+  ...
+# Subtest: WP01 documentation stops before WP02
+ok 398 - WP01 documentation stops before WP02
+  ---
+  duration_ms: 0.643053
+  type: 'test'
+  ...
+1..398
+# tests 398
+# suites 0
+# pass 398
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 897.151682
+
+STDERR
+

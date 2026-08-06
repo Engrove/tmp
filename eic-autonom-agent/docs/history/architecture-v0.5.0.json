@@ -1,0 +1,90 @@
+{
+  "schema": "eic.autonom.architecture.v0.5.0",
+  "version": "0.5.0",
+  "claim_boundary": "source-and-node-verified candidate; desktop Chrome runtime not verified",
+  "primary_text_areas": [
+    {
+      "id": "nanoMandate",
+      "owner": "nano",
+      "outbound": false
+    },
+    {
+      "id": "targetMandate",
+      "owner": "target-session",
+      "outbound": "header-every-turn"
+    },
+    {
+      "id": "continuityData",
+      "owner": "orchestrator",
+      "outbound": "bounded projection only"
+    }
+  ],
+  "separate_new_session_prompt": {
+    "id": "newSessionPrompt",
+    "one_time_per_session": true,
+    "nano_full_read": true,
+    "max_chars": 120000
+  },
+  "modes": [
+    "WAITING_CONTINUE",
+    "NEW_SESSION"
+  ],
+  "states": [
+    "IDLE",
+    "PREPARING",
+    "WAITING_FOR_RESPONSE",
+    "ASSESSING",
+    "CONTINUING",
+    "RECOVERING",
+    "SOFT_PAUSED",
+    "HARD_BLOCKED",
+    "DONE",
+    "STOPPED",
+    "ERROR_RETRYABLE",
+    "ERROR_TERMINAL"
+  ],
+  "ownership": {
+    "durable_state": "chrome.storage.local",
+    "single_writer": "background.js",
+    "view_and_nano_host": "sidepanel.js",
+    "dom_adapter": "content.js",
+    "watchdog": "chrome.alarms"
+  },
+  "window_tab_contract": {
+    "window_context": true,
+    "linked_tab_context": true,
+    "target_modes": [
+      "LOCKED",
+      "FOLLOW"
+    ],
+    "one_active_run_per_window": true,
+    "cross_window_auto_target": false
+  },
+  "prompt_contract": {
+    "protocol": "EIC-AA/3",
+    "markdown": true,
+    "json": true,
+    "same_canonical_object": true,
+    "turn_bound": true,
+    "tail_bound": true,
+    "private_nano_canary": true
+  },
+  "effect_journal": [
+    "PREPARED",
+    "SUBMITTING",
+    "SUBMITTED_UNCONFIRMED",
+    "ACKED",
+    "RESPONSE_SEEN",
+    "COMPLETED"
+  ],
+  "hard_boundaries": [
+    "operator_stop",
+    "authentication",
+    "captcha",
+    "authorization",
+    "privacy_or_secrets",
+    "policy_or_safety",
+    "destructive_confirmation"
+  ],
+  "desktop_acceptance_pending": true
+}

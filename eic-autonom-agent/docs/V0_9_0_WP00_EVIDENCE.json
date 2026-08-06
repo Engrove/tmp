@@ -1,0 +1,99 @@
+{
+  "schema": "eic.autonom.v090.wp00.evidence.v1",
+  "generatedAt": "2026-08-04T06:49:32.459817+00:00",
+  "projectId": 63,
+  "sourceArtifact": {
+    "artifactId": 1119,
+    "fileName": "eic-autonom-agent-v0.8.2-source.zip",
+    "sizeBytes": 526997,
+    "sha256": "46bd49e0310ff39b9da906ae024e834ba47ddacc2ae0700b62fd7603b9328c9d"
+  },
+  "requirementsTranscript": {
+    "fileName": "AI websurfningsfunktion Chrome-2026-08-04T06-02-49-818Z.zip",
+    "sizeBytes": 56166,
+    "sha256": "d4fc78c8690861af1bfb3cdb14c1cf3a5e79191ff627b24faeb51a091a5c2a26",
+    "completeness": "VERIFIED_COMPLETE_BROWSER_TRANSCRIPT",
+    "turnCount": 6,
+    "attachmentReferenceCount": 9,
+    "attachmentBodiesCaptured": 0
+  },
+  "operatorAttestations": [
+    {
+      "date": "2026-08-04",
+      "claim": "v0.8.2 Desktop Chrome acceptance PASS",
+      "evidenceClass": "operator_attestation",
+      "scenarioLevelEvidencePresent": false
+    }
+  ],
+  "baseline": {
+    "version": "0.8.2",
+    "schemas": {
+      "config": "eic.autonom.config.v8",
+      "runtime": "eic.autonom.runtime.v8",
+      "continuity": "eic.nano.continuity.v2",
+      "export": "eic.autonom.export.v10"
+    },
+    "tests": {
+      "command": "npm test",
+      "exitCode": 0,
+      "pass": 382,
+      "fail": 0
+    },
+    "validation": {
+      "command": "npm run validate",
+      "exitCode": 0,
+      "verdict": "PASS"
+    }
+  },
+  "wp00": {
+    "executionMode": "manual_operator_approval_per_wp",
+    "runtimeFilesChanged": false,
+    "originalFilesChanged": [],
+    "originalFilesRemoved": [],
+    "addedFiles": [
+      "EIC.md",
+      "docs/ADR_V0_9_0_001_MISSION_CONTROL.md",
+      "docs/ADR_V0_9_0_002_EXPLICIT_SURFACE_ROLES.md",
+      "docs/ADR_V0_9_0_003_DUAL_BUILD_PERMISSIONS.md",
+      "docs/ADR_V0_9_0_004_BROWSER_PROTOCOL.md",
+      "docs/ADR_V0_9_0_005_EVIDENCE_RECOVERY.md",
+      "docs/ADR_V0_9_0_006_MANUAL_GATES.md",
+      "docs/DESKTOP_CHROME_ACCEPTANCE_RESULT_V0_8_2.md",
+      "docs/V0_9_0_CONTROL_INVENTORY.md",
+      "docs/V0_9_0_EXECUTION_LEDGER.md",
+      "docs/V0_9_0_REQUIREMENTS_BASELINE.md",
+      "docs/V0_9_0_STATE_MAP.md",
+      "docs/evidence/v0.9.0-wp00/npm-test-baseline.log",
+      "docs/evidence/v0.9.0-wp00/npm-test-final.log",
+      "docs/evidence/v0.9.0-wp00/npm-validate-baseline.log",
+      "docs/evidence/v0.9.0-wp00/npm-validate-final.log",
+      "docs/evidence/v0.9.0-wp00/wp00-contract-final.log",
+      "docs/evidence/v0.9.0-wp00/wp00-contract-first-run.log",
+      "tests/v090-wp00-contract.test.mjs",
+      "docs/V0_9_0_WP00_EVIDENCE.json"
+    ],
+    "focusedTest": {
+      "command": "node --test tests/v090-wp00-contract.test.mjs",
+      "exitCode": 0,
+      "pass": 6,
+      "fail": 0
+    },
+    "fullRegression": {
+      "command": "npm test",
+      "exitCode": 0,
+      "pass": 388,
+      "fail": 0
+    },
+    "validation": {
+      "command": "npm run validate",
+      "exitCode": 0,
+      "verdict": "PASS"
+    },
+    "remediatedCheck": {
+      "firstRunExitCode": 1,
+      "class": "documentation_term_mismatch",
+      "detail": "Changed referenced attachments to reference-only attachments; no runtime defect."
+    },
+    "nextGate": "WP01_WAITING_OPERATOR_APPROVAL"
+  }
+}

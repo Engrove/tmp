@@ -1,0 +1,1979 @@
+--- a/EIC.md
++++ b/EIC.md
+@@ -34,12 +34,26 @@
+ - Manifest/package/application version stays `0.8.2`.
+ - Standard permissions stay limited to `sidePanel`, `storage`, `tabs`, `scripting`, `alarms`.
+ - Standard host permissions stay limited to ChatGPT/OpenAI origins.
+-- `CONFIG_SCHEMA=eic.autonom.config.v8`.
+-- `RUNTIME_SCHEMA=eic.autonom.runtime.v8`.
+-- `EXPORT_SCHEMA=eic.autonom.export.v10`.
++- `CONFIG_SCHEMA=eic.autonom.config.v9`.
++- `RUNTIME_SCHEMA=eic.autonom.runtime.v9`.
++- `EXPORT_SCHEMA=eic.autonom.export.v11`.
++- `MISSION_SCHEMA=eic.autonom.mission.v1`.
++- `MISSION_STORE_SCHEMA=eic.autonom.mission-store.v1`.
++- `UI_SNAPSHOT_SCHEMA=eic.autonom.ui-snapshot.v2`.
+ - `CONTINUITY_SCHEMA=eic.nano.continuity.v2`.
+ - Existing run modes and v0.8.2 regression behavior must be preserved.
+ - The installed v0.8.2 controller must never be reloaded or replaced by development actions.
++
++
++
++## WP02 compatibility boundary
++
++- The v0.8.2 `run` object remains the execution owner until the approved WP04 migration.
++- Runtime v9 persists a normalized mission store and per-window mission references.
++- WP02 synchronizes one mission compatibility record from each active legacy run before persistence.
++- Mission records use explicit `controllerSurfaceId` and `targetSurfaceId`; `selectedTabId` is retained only in the legacy binding.
++- `AI_WEB_RESEARCH` exists in the closed mode registry but remains disabled and browser-profile-only until WP06–WP10 gates.
++- No Mission Control visual redesign, browser action, origin grant, debugger permission or general website access is allowed in WP02.
+ 
+ ## v0.9.0 non-negotiable architecture
+ 
+--- a/background.js
++++ b/background.js
+@@ -60,6 +60,7 @@
+ import { migrateV5ToV6 } from "./lib/migration-v5-v6.mjs";
+ import { migrateV6ToV7 } from "./lib/migration-v6-v7.mjs";
+ import { migrateV7ToV8 } from "./lib/migration-v7-v8.mjs";
++import { migrateV8ToV9 } from "./lib/migration-v8-v9.mjs";
+ import {
+   classifyDestructiveness,
+   resolveAutonomousPause,
+@@ -218,6 +219,11 @@
+   shouldPauseForLoop
+ } from "./lib/runtime-safety.mjs";
+ import {
++  importMissionView,
++  missionViewForWindow,
++  reconcileRuntimeMissions
++} from "./lib/mission-state-machine.mjs";
++import {
+   UI_COMMANDS,
+   createUiCommandError,
+   createUiSnapshot,
+@@ -409,15 +415,25 @@
+   }
+   if (
+     Number(config?.version || 0) < 8 ||
+-    Number(runtime?.version || 0) < 8 ||
+-    config?.schema !== CONFIG_SCHEMA ||
+-    runtime?.schema !== RUNTIME_SCHEMA
++    Number(runtime?.version || 0) < 8
+   ) {
+     const result = migrateV7ToV8(config, runtime);
+     config = result.config;
+     runtime = result.runtime;
+     changed = true;
+     stages.push("v7→v8");
++  }
++  if (
++    Number(config?.version || 0) < 9 ||
++    Number(runtime?.version || 0) < 9 ||
++    config?.schema !== CONFIG_SCHEMA ||
++    runtime?.schema !== RUNTIME_SCHEMA
++  ) {
++    const result = migrateV8ToV9(config, runtime);
++    config = result.config;
++    runtime = result.runtime;
++    changed = true;
++    stages.push("v8→v9");
+   }
+ 
+   return { config, runtime, changed, stages };
+@@ -525,13 +541,15 @@
+ 
+ function defaultWindowContext(windowId) {
+   return {
+-    schema: "eic.autonom.window-context.v6",
++    schema: "eic.autonom.window-context.v7",
+     windowId,
+     alias: `Fönster ${windowId}`,
+     targetMode: TARGET_MODES.LOCKED,
+     selectedTabId: null,
+     linkedTabs: {},
+     run: null,
++    activeMissionId: null,
++    missionIds: [],
+     continuity: null,
+     continuityBackup: null,
+     continuityMigration: null,
+@@ -549,9 +567,11 @@
+   const key = String(windowId);
+   if (!runtime.windows[key]) runtime.windows[key] = defaultWindowContext(windowId);
+   const context = runtime.windows[key];
+-  context.schema = "eic.autonom.window-context.v6";
++  context.schema = "eic.autonom.window-context.v7";
+   context.windowId = Number(windowId);
+   context.linkedTabs ||= {};
++  context.activeMissionId = context.activeMissionId ? String(context.activeMissionId) : null;
++  context.missionIds = Array.isArray(context.missionIds) ? [...new Set(context.missionIds.map(String))].slice(-128) : [];
+   context.startPromptReceipts ||= [];
+   context.nanoHostTelemetry ||= { hostId: "", modelKind: "", status: "unknown", staleReason: "", contextUsage: null, contextWindow: null, updatedAt: null };
+   return context;
+@@ -644,6 +664,7 @@
+     }
+   }
+ 
++  reconcileRuntimeMissions(runtime);
+   runtime.revision = Number(runtime.revision || 0) + 1;
+   runtime.updatedAt = nowIso();
+   writes[STORAGE_KEYS.RUNTIME] = runtime;
+@@ -990,6 +1011,7 @@
+     config,
+     continuity,
+     window: windowView,
++    missions: missionViewForWindow(runtime, windowId),
+     audit: (audit.items || [])
+       .filter((item) => item.windowId === windowId || item.windowId === null)
+       .slice(0, 100)
+@@ -5402,9 +5424,10 @@
+       "eic.autonom.export.v7",
+       "eic.autonom.export.v8",
+       "eic.autonom.export.v9",
+-      "eic.autonom.export.v10"
++      "eic.autonom.export.v10",
++      "eic.autonom.export.v11"
+     ].includes(payload.schema)) {
+-      throw new Error("Importfilen måste vara eic.autonom.export.v3–v10.");
++      throw new Error("Importfilen måste vara eic.autonom.export.v3–v11.");
+     }
+     const migrated = migrateStoredState(payload.config || createDefaultConfig(), createDefaultRuntime());
+     const config = migrated.config;
+@@ -5420,6 +5443,9 @@
+     const continuity = await sealContinuity(imported);
+     context.continuityBackup = context.continuity || continuity;
+     context.continuity = continuity;
++    if (payload.schema === "eic.autonom.export.v11" && payload.missions) {
++      importMissionView(bundle.runtime, context, payload.missions);
++    }
+     try {
+       await chrome.storage.local.set({ [STORAGE_KEYS.CONFIG]: config });
+       await writeRuntimeBundle(bundle.runtime, continuity, bundle.audit, windowId);
+--- a/docs/V0_9_0_EXECUTION_LEDGER.md
++++ b/docs/V0_9_0_EXECUTION_LEDGER.md
+@@ -5,7 +5,7 @@
+ - Release: one `v0.9.0`.
+ - Execution method: manual.
+ - Approval rule: the next WP may not start without explicit operator approval.
+-- Active gate: WP01 implemented in the isolated working copy; WP02 is waiting for operator approval.
++- Active gate: WP02 implemented in the isolated working copy; WP03 is waiting for operator approval.
+ - Source baseline: artifact 1119.
+ - Working-copy version: 0.8.2.
+ - Repository state: no Git/Forgejo checkout or persistence claim established in WP00.
+@@ -16,8 +16,8 @@
+ |---|---|---|---|---|
+ | WP00 | Baseline, scope, execution ledger, inventory and ADRs | IMPLEMENTED | WP00 evidence and source candidate | Await WP01 approval |
+ | WP01 | uiSnapshot, command dispatch and UI/runtime separation | IMPLEMENTED | WP01 contract, tests and evidence | Await WP02 approval |
+-| WP02 | Mission domain, mode registry, state machine and persistence schema | WAITING_APPROVAL | — | — |
+-| WP03 | Mission Control app shell | NOT_STARTED | — | — |
++| WP02 | Mission domain, mode registry, state machine and persistence schema | IMPLEMENTED | WP02 contract, tests and evidence | Await WP03 approval |
++| WP03 | Mission Control app shell | WAITING_APPROVAL | — | — |
+ | WP04 | Migrate all v0.8.2 functions into mission modes | NOT_STARTED | — | — |
+ | WP05 | Controller/target pairing and tab lifecycle | NOT_STARTED | — | — |
+ | WP06 | Dual builds, permission model and CDP session | NOT_STARTED | — | — |
+@@ -118,3 +118,54 @@
+ WP01 source gate is PASS. The versioned UI boundary is implemented without visual redesign,
+ persistent-schema change or permission expansion. WP02 remains blocked until explicit operator approval.
+ 
++
++
++## WP02 receipt
++
++### Inputs
++
++- Operator approval: `Godkänt`, bound to the immediately preceding WP01 gate.
++- Working baseline: completed WP01 candidate, SHA-256
++  `0c1821271a35cbcdfc07504b9a4c5cbda5d6e0af789e0c427e955bceba698a04`.
++- Pre-change `npm test`: exit 0, 398/398 PASS.
++- Pre-change `npm run validate`: exit 0, PASS.
++
++### Implementation
++
++- Added `lib/mission-contract.mjs`.
++- Added `lib/mission-state-machine.mjs`.
++- Added `lib/migration-v8-v9.mjs`.
++- Added a closed registry with four migrated standard modes and disabled browser-only
++  `AI_WEB_RESEARCH`.
++- Added explicit `CHATGPT_CONTROLLER` and `WEB_TARGET` role fields.
++- Added a closed Mission lifecycle with fail-closed unknown-state handling.
++- Advanced config/runtime/export/audit/window/UI snapshot schemas to v9/v9/v11/v9/v7/v2.
++- Added normalized Mission persistence, per-window references and run-to-mission reconciliation.
++- Added v11 Mission view export/import while retaining v3–v10 import compatibility.
++
++### Preserved boundaries
++
++- Legacy run v8 remains execution owner until WP04.
++- No visual Mission Control redesign or WP03 app shell.
++- No new permissions, host permissions, browser actions, origin grants or CDP session.
++- `AI_WEB_RESEARCH` is registered but disabled.
++- Package/application version remains 0.8.2 until WP14.
++
++### Verification
++
++- Focused WP02 Mission contract: 11/11 PASS.
++- Full regression: 409/409 PASS.
++- Static validation: PASS.
++- Background service-worker smoke: PASS.
++- Syntax checks: 94/94 JavaScript/MJS files PASS.
++- Functional delta before evidence materialization: 5 files added, 12 modified and 0 removed.
++- `manifest.json`, `package.json`, `sidepanel.html` and `sidepanel.css` remain byte-identical to WP01.
++- The first post-change full run exposed one historical fixture that encoded export v10. It was
++  advanced to the intentional current export v11; no runtime behavior defect was identified.
++- Packaging and ZIP integrity results are stored outside this source-contained ledger to avoid
++  self-referential package hashing.
++
++### Gate decision
++
++WP02 source gate is PASS after the declared verification and immutable package checks succeed.
++WP03 remains blocked until explicit operator approval.
+--- a/docs/V0_9_0_STATE_MAP.md
++++ b/docs/V0_9_0_STATE_MAP.md
+@@ -1,98 +1,120 @@
+ # v0.9.0 state map
+ 
+-## Current durable ownership
++## Current durable ownership after WP02
+ 
+-`chrome.storage.local` is the v0.8.2 durable state owner.
++`chrome.storage.local` remains the durable state owner.
+ 
+ | Storage key | Schema/current shape | Purpose |
+ |---|---|---|
+-| `eicAutonomAgent.v3.config` | `eic.autonom.config.v8` | mandates, profiles, modes, timeouts, Mjölnar and UI preferences |
+-| `eicAutonomAgent.v3.runtime` | `eic.autonom.runtime.v8` | revisioned per-window runtime |
++| `eicAutonomAgent.v3.config` | `eic.autonom.config.v9` | mandates, profiles, mode defaults, timeouts, Mjölnar and UI preferences |
++| `eicAutonomAgent.v3.runtime` | `eic.autonom.runtime.v9` | revisioned per-window runtime plus normalized Mission store |
+ | `eicAutonomAgent.v3.continuity` | `eic.nano.continuity.v2` | legacy/global sealed continuity |
+ | `eicAutonomAgent.v3.continuityBackup` | continuity v2 | backup for recovery |
+-| `eicAutonomAgent.v3.audit` | `eic.autonom.audit.v8` | bounded event list |
++| `eicAutonomAgent.v3.audit` | `eic.autonom.audit.v9` | bounded event list |
+ | `eicAutonomAgent.v3.migrationBackup` | migration-dependent | rollback input |
+ | `eicAutonomAgent.v2` / `.v1` | legacy | migration sources |
+ 
+-## Current runtime tree
++## Runtime v9 tree
+ 
+ ```text
+-runtime v8
+-└─ windows[windowId]
++runtime v9
++├─ missionStore: mission-store v1
++│  └─ missions[missionId]: mission v1
++└─ windows[windowId]: window-context v7
+    ├─ targetMode: FOLLOW | LOCKED
+    ├─ selectedTabId
+    ├─ linkedTabs[tabId]
+    ├─ run: run v8 | null
++   ├─ activeMissionId
++   ├─ missionIds[]
+    ├─ continuity / continuityBackup
+    ├─ startPromptReceipts[]
+    ├─ nanoHostTelemetry
+    └─ lastActiveTabId
+ ```
+ 
+-`selectedTabId` means the selected ChatGPT target for the current continuation engine. It must not be
+-reinterpreted as a generic web target.
++`selectedTabId` still means the selected ChatGPT target for the legacy continuation engine. It is not
++a generic web target and is copied only into the Mission compatibility binding.
++
++## Mission record v1
++
++```text
++mission
++├─ missionId, modeId, state, stateRevision
++├─ currentStep, nextAction
++├─ controllerSurfaceId -> CHATGPT_CONTROLLER
++├─ targetSurfaceId -> WEB_TARGET
++├─ policyProfile, originGrants
++├─ risk and approval state
++├─ evidencePolicy, evidenceIndex, receipts
++├─ recovery
++└─ legacyBinding -> runId/runMode/runState/selectedTabId
++```
++
++WP02 stores explicit surface role fields but does not yet materialize the surface objects. That work
++belongs to WP05.
++
++## Closed mode registry
++
++- `CHATGPT_CONTINUATION`
++- `CHATGPT_NEW_SESSION`
++- `APP_AUDIT_LONG`
++- `ARCHAEOLOGY_LONG`
++- `AI_WEB_RESEARCH`
++
++The first four map to existing run modes. `AI_WEB_RESEARCH` is browser-profile-only and disabled
++until the later permission, evidence, protocol and safety gates.
++
++## Mission lifecycle
++
++`DRAFT`, `READY`, `RUNNING`, `WAITING_TARGET`, `WAITING_EVIDENCE`, `RECOVERING`, `PAUSED`,
++`BLOCKED`, `COMPLETED`, `FAILED`, `CANCELLED`.
++
++Transitions are allowlisted. An unknown legacy run state maps to `BLOCKED`.
+ 
+ ## Current run model
+ 
+-Modes:
++Legacy run modes remain:
+ 
+ - `WAITING_CONTINUE`
+ - `NEW_SESSION`
+ - `APP_AUDIT_LONG`
+ - `ARCHAEOLOGY_LONG`
+ 
+-State-machine states:
++Legacy run states remain:
+ 
+ `IDLE`, `PREPARING`, `WAITING_FOR_RESPONSE`, `WAITING_FOREGROUND`, `WAITING_BACKGROUND`,
+ `ASSESSING`, `CONTINUING`, `RECOVERING`, `SOFT_PAUSED`, `HARD_BLOCKED`, `DONE`, `STOPPED`,
+ `ERROR_RETRYABLE`, `ERROR_TERMINAL`, `MJOLNAR_ADJUDICATING`, `MJOLNAR_DISPATCH`,
+ `MJOLNAR_READBACK`, `HUMAN_REQUIRED`.
+ 
+-The run owns target ChatGPT tab identity, conversation identity, response observation, Nano requests,
+-effect journal, prompt history, deadlines, recovery, destructiveness, Mjölnar state and receipts.
++The run remains execution owner in WP02. Its state is synchronized into the bound mission before
++persistence. WP04 will migrate existing behavior to Mission-owned execution.
+ 
+ ## Current process ownership
+ 
+ | Process/surface | Responsibility |
+ |---|---|
+-| Background service worker | durable state transitions, tab lifecycle, continuation/effect dispatch |
+-| Side panel | UI, local Nano host, config editing, snapshot rendering |
++| Background service worker | durable state transitions, tab lifecycle, continuation/effect dispatch and Mission reconciliation |
++| Side panel | UI, local Nano host, config editing and snapshot rendering |
+ | ChatGPT content script | page observation, composer interaction and ChatGPT-specific bridge |
+ | `chrome.storage.local` | durable source of truth |
+ | alarms/tabs events | wake-up and lifecycle signals, not durable truth |
+ 
+-## v0.9.0 target concepts
+-
+-The future schema must add rather than alias:
+-
+-```text
+-mission
+-├─ missionId, modeId, state, currentStep, nextAction
+-├─ controllerSurfaceId -> CHATGPT_CONTROLLER
+-├─ targetSurfaceId -> WEB_TARGET (optional per mode)
+-├─ policyProfile, originGrants, risk/approval state
+-├─ evidencePolicy and bounded evidence index
+-└─ receipts/recovery
+-
+-surfaces
+-├─ controller surfaces (ChatGPT/EIC)
+-└─ web target surfaces (origin, document epoch, permission, CDP state)
+-```
+-
+ ## Migration invariants
+ 
+-- v0.8.2 exports remain importable through an explicit migration path.
+-- Existing run modes retain semantics even when represented as mission modes.
++- v0.8.2 exports remain importable through the migration chain.
++- v11 exports include a window-scoped Mission view.
++- Existing run modes retain semantics through explicit Mission mappings.
+ - Continuity integrity and per-window scoping remain fail closed.
+-- `selectedTabId` remains backward-compatible for migrated ChatGPT controller state until retired.
++- Mission identity is stable for the same `runId`.
++- `selectedTabId` remains backward-compatible for migrated ChatGPT controller state until WP05.
+ - Standard builds never materialize browser-only permission or CDP state.
+-- Unknown browser action, stale document epoch, origin change, debugger detach or missing receipt
+-  produces pause/block, not best-effort dispatch.
+-- Migration must be reversible until WP14 release acceptance.
++- Unknown mission mode/state, stale document epoch, origin change, debugger detach or missing receipt
++  must produce pause/block, not best-effort dispatch.
++- Migration must remain reversible until WP14 release acceptance.
+ 
+-## WP01 UI/runtime boundary
+-
+-WP01 adds a non-durable UI read/command boundary without changing any storage schema.
++## UI/runtime boundary after WP02
+ 
+ ```text
+ sidepanel DOM
+@@ -100,14 +122,9 @@
+    └─ EIC_UI_COMMAND / eic.autonom.ui-command.v1
+       └─ background UI_COMMAND_HANDLERS
+          ├─ runtime/storage owner operations
+-         └─ eic.autonom.ui-snapshot.v1
+-            └─ detached model: config, continuity, window, audit
++         └─ eic.autonom.ui-snapshot.v2
++            └─ detached model: config, continuity, window, missions, audit
+ ```
+ 
+-The command registry is closed. Routing metadata is separate from payload data, and each result is
+-bound to the request id and command. `NANO_HEARTBEAT` returns an acknowledgement; other current
+-panel commands return a complete `uiSnapshot`.
+-
+-The legacy top-level snapshot aliases are transitional only. The Mission domain and next durable
+-schema are intentionally deferred to WP02.
+-
++The command registry remains closed. The Mission view is exposed without visual redesign. WP03 owns
++the new app shell.
+--- a/lib/contracts.mjs
++++ b/lib/contracts.mjs
+@@ -5,11 +5,11 @@
+ } from "./core-profiles.mjs";
+ 
+ export const APP_VERSION = "0.8.2";
+-export const CONFIG_SCHEMA = "eic.autonom.config.v8";
++export const CONFIG_SCHEMA = "eic.autonom.config.v9";
+ export const CONTINUITY_SCHEMA = "eic.nano.continuity.v2";
+-export const RUNTIME_SCHEMA = "eic.autonom.runtime.v8";
+-export const EXPORT_SCHEMA = "eic.autonom.export.v10";
+-export const EXPORT_VERSION = 10;
++export const RUNTIME_SCHEMA = "eic.autonom.runtime.v9";
++export const EXPORT_SCHEMA = "eic.autonom.export.v11";
++export const EXPORT_VERSION = 11;
+ export const CONTENT_SCRIPT_VERSION = "0.8.2";
+ 
+ export const STORAGE_KEYS = Object.freeze({
+@@ -48,7 +48,7 @@
+ 
+ export const DEFAULT_CONFIG = Object.freeze({
+   schema: CONFIG_SCHEMA,
+-  version: 8,
++  version: 9,
+   nanoMandate: DEFAULT_NANO_MANDATE,
+   nanoMandateProfile: "LEGACY_V078",
+   nanoMandateVersion: "nano-core-v3",
+@@ -82,6 +82,9 @@
+   recoveryBudget: 9,
+   promptHistoryLimit: 5,
+   uiDensity: "compact",
++  defaultMissionModeId: "CHATGPT_CONTINUATION",
++  missionPolicyProfile: "STANDARD_SAFE",
++  missionEvidenceProfile: "CONTINUITY_ONLY",
+   updatedAt: null
+ });
+ 
+@@ -92,11 +95,19 @@
+ export function createDefaultRuntime() {
+   return {
+     schema: RUNTIME_SCHEMA,
+-    version: 8,
++    version: 9,
+     revision: 0,
+     windows: {},
++    missionStore: {
++      schema: "eic.autonom.mission-store.v1",
++      version: 1,
++      revision: 0,
++      missions: {},
++      updatedAt: null
++    },
+     orphanedRuns: [],
+     orphanedContinuities: [],
++    orphanedMissions: [],
+     startPromptReceipts: [],
+     updatedAt: null
+   };
+@@ -104,8 +115,8 @@
+ 
+ export function createDefaultAudit() {
+   return {
+-    schema: "eic.autonom.audit.v8",
+-    version: 8,
++    schema: "eic.autonom.audit.v9",
++    version: 9,
+     items: []
+   };
+ }
+--- a/lib/migration-v7-v8.mjs
++++ b/lib/migration-v7-v8.mjs
+@@ -1,11 +1,12 @@
+ import {
+-  CONFIG_SCHEMA,
+-  RUNTIME_SCHEMA,
+   createDefaultConfig,
+   createDefaultRuntime
+ } from "./contracts.mjs";
+ import { deepClone, nowIso } from "./common.mjs";
+ import { STATES } from "./state-machine.mjs";
++
++const CONFIG_SCHEMA_V8 = "eic.autonom.config.v8";
++const RUNTIME_SCHEMA_V8 = "eic.autonom.runtime.v8";
+ 
+ function normalizeRun(run) {
+   if (!run || typeof run !== "object") return run;
+@@ -34,9 +35,14 @@
+ 
+ export function migrateV7ToV8(configValue, runtimeValue, { now = Date.now() } = {}) {
+   const defaults = createDefaultConfig();
++  defaults.schema = CONFIG_SCHEMA_V8;
++  defaults.version = 8;
++  delete defaults.defaultMissionModeId;
++  delete defaults.missionPolicyProfile;
++  delete defaults.missionEvidenceProfile;
+   const previousConfig = configValue && typeof configValue === "object" ? deepClone(configValue) : {};
+   const config = { ...defaults, ...previousConfig };
+-  config.schema = CONFIG_SCHEMA;
++  config.schema = CONFIG_SCHEMA_V8;
+   config.version = 8;
+   config.autonomyPolicyVersion = "EIC_DESTRUCTIVENESS/1";
+   config.maxAutonomousMode = true;
+@@ -56,17 +62,21 @@
+   // returned together with a mutated object (and the idempotence test was flaky
+   // whenever the two calls landed in different milliseconds).
+   const configAlreadyCurrent = Number(previousConfig.version || 0) >= 8 &&
+-    previousConfig.schema === CONFIG_SCHEMA;
++    previousConfig.schema === CONFIG_SCHEMA_V8;
+   config.updatedAt = configAlreadyCurrent && previousConfig.updatedAt !== undefined
+     ? previousConfig.updatedAt
+     : nowIso(now);
+ 
+   const baseRuntime = createDefaultRuntime();
++  baseRuntime.schema = RUNTIME_SCHEMA_V8;
++  baseRuntime.version = 8;
++  delete baseRuntime.missionStore;
++  delete baseRuntime.orphanedMissions;
+   const runtime = {
+     ...baseRuntime,
+     ...(runtimeValue && typeof runtimeValue === "object" ? deepClone(runtimeValue) : {})
+   };
+-  runtime.schema = RUNTIME_SCHEMA;
++  runtime.schema = RUNTIME_SCHEMA_V8;
+   runtime.version = 8;
+   runtime.windows ||= {};
+   for (const [key, windowContext] of Object.entries(runtime.windows)) {
+@@ -75,7 +85,7 @@
+     runtime.windows[key] = windowContext;
+   }
+   const runtimeAlreadyCurrent = Number(runtimeValue?.version || 0) >= 8 &&
+-    runtimeValue?.schema === RUNTIME_SCHEMA;
++    runtimeValue?.schema === RUNTIME_SCHEMA_V8;
+   runtime.updatedAt = runtimeAlreadyCurrent && runtimeValue?.updatedAt !== undefined
+     ? runtimeValue.updatedAt
+     : nowIso(now);
+@@ -85,8 +95,8 @@
+     runtime,
+     changed: Number(configValue?.version || 0) < 8 ||
+       Number(runtimeValue?.version || 0) < 8 ||
+-      configValue?.schema !== CONFIG_SCHEMA ||
+-      runtimeValue?.schema !== RUNTIME_SCHEMA,
++      configValue?.schema !== CONFIG_SCHEMA_V8 ||
++      runtimeValue?.schema !== RUNTIME_SCHEMA_V8,
+     report: {
+       autonomyPolicyVersion: config.autonomyPolicyVersion,
+       maxAutonomousMode: config.maxAutonomousMode,
+--- a/lib/ui-contract.mjs
++++ b/lib/ui-contract.mjs
+@@ -2,7 +2,8 @@
+ 
+ export const UI_COMMAND_SCHEMA = "eic.autonom.ui-command.v1";
+ export const UI_COMMAND_RESULT_SCHEMA = "eic.autonom.ui-command-result.v1";
+-export const UI_SNAPSHOT_SCHEMA = "eic.autonom.ui-snapshot.v1";
++export const UI_SNAPSHOT_SCHEMA = "eic.autonom.ui-snapshot.v2";
++export const LEGACY_UI_SNAPSHOT_SCHEMA = "eic.autonom.ui-snapshot.v1";
+ 
+ export const UI_RESPONSE_KINDS = Object.freeze({
+   SNAPSHOT: "SNAPSHOT",
+@@ -224,6 +225,7 @@
+   config,
+   continuity,
+   window,
++  missions,
+   audit
+ } = {}) {
+   if (!Number.isInteger(Number(windowId))) throw new Error("UI_SNAPSHOT_WINDOW_ID_INVALID");
+@@ -231,37 +233,64 @@
+     config: config || {},
+     continuity: continuity || {},
+     window: window || {},
++    missions: missions || {
++      schema: "eic.autonom.mission-view.v1",
++      version: 1,
++      activeMissionId: null,
++      missionIds: [],
++      missions: {}
++    },
+     audit: Array.isArray(audit) ? audit : []
+   });
+   return {
+     ok: true,
+     schema: UI_SNAPSHOT_SCHEMA,
+-    snapshotVersion: 1,
++    snapshotVersion: 2,
+     snapshotId: String(snapshotId || ""),
+     capturedAt: String(capturedAt || ""),
+     appVersion: String(appVersion || ""),
+     windowId: Number(windowId),
+-    compatibility: "v0.8.2-legacy-aliases",
++    compatibility: "v0.8.2-legacy-aliases+mission-v1",
+     model,
+     // Transitional aliases keep an already-open v0.8.2 panel readable during extension reload.
+     config: model.config,
+     continuity: model.continuity,
+     window: model.window,
++    missions: model.missions,
+     audit: model.audit
+   };
+ }
+ 
+ export function readUiSnapshotModel(snapshot) {
+   if (!isRecord(snapshot) || snapshot.ok !== true) throw new Error("UI_SNAPSHOT_INVALID");
+-  if (snapshot.schema && snapshot.schema !== UI_SNAPSHOT_SCHEMA) {
++  if (snapshot.schema &&
++      snapshot.schema !== UI_SNAPSHOT_SCHEMA &&
++      snapshot.schema !== LEGACY_UI_SNAPSHOT_SCHEMA) {
+     throw new Error(`UI_SNAPSHOT_SCHEMA_UNSUPPORTED:${snapshot.schema}`);
+   }
+-  if (isRecord(snapshot.model)) return snapshot.model;
++  if (isRecord(snapshot.model)) {
++    const model = cloneValue(snapshot.model);
++    model.missions ||= snapshot.missions || {
++      schema: "eic.autonom.mission-view.v1",
++      version: 1,
++      activeMissionId: null,
++      missionIds: [],
++      missions: {}
++    };
++    return model;
++  }
+   // One-version compatibility for old snapshots during a hot reload.
+   return {
+     config: snapshot.config || {},
+     continuity: snapshot.continuity || {},
+     window: snapshot.window || {},
++    missions: snapshot.missions || {
++      schema: "eic.autonom.mission-view.v1",
++      version: 1,
++      activeMissionId: null,
++      missionIds: [],
++      missions: {}
++    },
+     audit: Array.isArray(snapshot.audit) ? snapshot.audit : []
+   };
+ }
+--- a/scripts/validate.mjs
++++ b/scripts/validate.mjs
+@@ -23,6 +23,9 @@
+ const safety = read("lib/runtime-safety.mjs");
+ const machine = read("lib/state-machine.mjs");
+ const migration = read("lib/migration-v7-v8.mjs");
++const missionContract = read("lib/mission-contract.mjs");
++const missionState = read("lib/mission-state-machine.mjs");
++const migrationV9 = read("lib/migration-v8-v9.mjs");
+ const mjolnar = read("lib/mjolnar.mjs");
+ const destructiveness = read("lib/destructiveness.mjs");
+ const fallback = read("lib/fallback-planner.mjs");
+@@ -93,6 +96,7 @@
+ const uiRuntimeClient = read("lib/ui-runtime-client.mjs");
+ const wp01Contract = read("docs/V0_9_0_WP01_UI_RUNTIME_BOUNDARY.md");
+ const wp01Ledger = read("docs/V0_9_0_EXECUTION_LEDGER.md");
++const wp02Contract = read("docs/V0_9_0_WP02_MISSION_DOMAIN.md");
+ 
+ check(manifest.manifest_version === 3, "Manifest måste vara MV3.");
+ check(/^\d+\.\d+\.\d+$/.test(expectedVersion), "Package-version måste vara semver.");
+@@ -108,13 +112,12 @@
+ check(contracts.includes(`APP_VERSION = "${expectedVersion}"`), "APP_VERSION matchar inte package-version.");
+ check(contracts.includes(`CONTENT_SCRIPT_VERSION = "${expectedVersion}"`), "Contentversion matchar inte package-version.");
+ check(content.includes(`const VERSION = "${expectedVersion}";`), "Content bridge VERSION matchar inte package-version.");
+-check(contracts.includes('CONFIG_SCHEMA = "eic.autonom.config.v8"'), "Config v8 saknas.");
+-check(contracts.includes('RUNTIME_SCHEMA = "eic.autonom.runtime.v8"'), "Runtime v8 saknas.");
+-// v0.8.2 lifts the export schema to v10 and synchronizes the top-level export version.
+-check(contracts.includes('EXPORT_SCHEMA = "eic.autonom.export.v10"'), "Export v10 saknas.");
+-check(contracts.includes("EXPORT_VERSION = 10"), "Export top-level version 10 saknas.");
++check(contracts.includes('CONFIG_SCHEMA = "eic.autonom.config.v9"'), "Config v9 saknas.");
++check(contracts.includes('RUNTIME_SCHEMA = "eic.autonom.runtime.v9"'), "Runtime v9 saknas.");
++check(contracts.includes('EXPORT_SCHEMA = "eic.autonom.export.v11"'), "Export v11 saknas.");
++check(contracts.includes("EXPORT_VERSION = 11"), "Export top-level version 11 saknas.");
+ check(contracts.includes('CONTINUITY_SCHEMA = "eic.nano.continuity.v2"'), "Continuity v2 saknas.");
+-check(uiContract.includes('UI_SNAPSHOT_SCHEMA = "eic.autonom.ui-snapshot.v1"'), "WP01 uiSnapshot-schema saknas.");
++check(uiContract.includes('UI_SNAPSHOT_SCHEMA = "eic.autonom.ui-snapshot.v2"'), "WP02 uiSnapshot v2-schema saknas.");
+ check(uiContract.includes('UI_COMMAND_SCHEMA = "eic.autonom.ui-command.v1"'), "WP01 UI command-schema saknas.");
+ check(uiContract.includes("UI_COMMAND_SPECS") && uiContract.includes("UI_COMMAND_PAYLOAD_KEY_NOT_ALLOWED"),
+   "WP01 stängt commandregister eller payload-grind saknas.");
+@@ -126,12 +129,31 @@
+ check(!background.includes("switch (message.command)"), "Legacy command-switch finns kvar efter WP01.");
+ check(panel.includes("createUiRuntimeClient") && panel.includes("readUiSnapshotModel"),
+   "WP01 paneladapter eller uiSnapshot-läsning saknas.");
++check(missionContract.includes("MISSION_MODE_REGISTRY") &&
++  missionContract.includes("AI_WEB_RESEARCH") &&
++  missionContract.includes("CHATGPT_CONTROLLER") &&
++  missionContract.includes("WEB_TARGET"),
++  "WP02 mission mode registry eller surface roles saknas.");
++check(missionState.includes("MISSION_STATES") &&
++  missionState.includes("MISSION_TRANSITION_NOT_ALLOWED") &&
++  missionState.includes("reconcileRuntimeMissions"),
++  "WP02 mission state machine eller runtime-reconciliation saknas.");
++check(migrationV9.includes("migrateV8ToV9") &&
++  migrationV9.includes("eic.autonom.window-context.v7"),
++  "WP02 v8→v9 migration saknas.");
++check(background.includes("migrateV8ToV9") &&
++  background.includes("missionViewForWindow") &&
++  background.includes("importMissionView"),
++  "WP02 background wiring saknas.");
++check(wp02Contract.includes("No Mission Control visual redesign") &&
++  wp02Contract.includes("WP03"),
++  "WP02 scope/non-goals saknas.");
+ check(!panel.includes('type: "EIC_UI_COMMAND"'), "Panelen bygger fortfarande runtime-envelope direkt.");
+ check(wp01Contract.includes("No Mission Control visual redesign") && wp01Contract.includes("WP02"),
+   "WP01 scope/non-goals saknas.");
+-check(/\| WP01 \|.*\| IMPLEMENTED \|/.test(wp01Ledger) &&
+-  /\| WP02 \|.*\| WAITING_APPROVAL \|/.test(wp01Ledger),
+-  "WP01/WP02 ledgergrind är fel.");
++check(/\| WP02 \|.*\| IMPLEMENTED \|/.test(wp01Ledger) &&
++  /\| WP03 \|.*\| WAITING_APPROVAL \|/.test(wp01Ledger),
++  "WP02/WP03 ledgergrind är fel.");
+ check(appAudit.includes('invocation: "python3 scripts/eic_app_audit.py'), "APP_AUDIT använder inte verifierad python3-invokation.");
+ check(!appAudit.includes('"REPRODUCED"'), "APP_AUDIT får inte uppfinna ledgerstatus REPRODUCED.");
+ check(appAudit.includes('APP_AUDIT_REQUEST_PROTOCOL = "EIC_APP_AUDIT_REQUEST/1"'), "APP_AUDIT request-protokoll saknas.");
+@@ -139,7 +161,7 @@
+ check(appAuditParser.includes("if (!run.auditLastGate?.valid) return 0") || background.includes("if (!run.auditLastGate?.valid) return 0"), "Ogiltiga auditevent får inte räknas som progress.");
+ check(appAuditPrompt.includes("AUDIT_RUN_ID") && appAuditPrompt.includes("INITIAL_TURN_ID"), "Första auditprompten saknar run-/turnbindning.");
+ check(appAuditReview.includes("OPEN ACCEPTANCE GAP"), "EIC-granskningsrapporten saknar acceptansgräns.");
+-check(contracts.includes("version: 8"), "Config/runtime version 8 saknas.");
++check(contracts.includes("version: 9"), "Config/runtime version 9 saknas.");
+ check(contracts.includes("maxAutonomousMode: true"), "Max Autonomous Mode måste defaultas på.");
+ check(contracts.includes("mjolnarEnabled: true"), "Mjölnar måste defaultas på.");
+ check(contracts.includes('mjolnarRolloutMode: "D1_LIVE"'), "Mjölnar D1_LIVE måste vara standard.");
+@@ -154,7 +176,7 @@
+ check(panel.includes("operatorCandidate.readbackPlan") && panel.includes("operatorCandidate.destructivenessLevel"), "D2 operatorCandidate-kontrollfält saknas.");
+ check(contracts.includes("allowTargetAuthoredFallback: true"), "Deterministic protocol fallback måste vara aktiv.");
+ check(panel.includes("version: EXPORT_VERSION"), "Export top-level version härleds inte från EXPORT_VERSION.");
+-check(background.includes('schema: "eic.autonom.window-context.v6"'), "Window context v6 saknas.");
++check(background.includes('schema: "eic.autonom.window-context.v7"'), "Window context v7 saknas.");
+ check(machine.includes('schema: "eic.autonom.run.v8"'), "Run v8 saknas.");
+ check(background.includes("migrateV7ToV8") && migration.includes("legacyPauseReclassificationEnabled"), "v7→v8 migration ofullständig.");
+ check(migration.includes('mjolnarRolloutMode = "D1_LIVE"') && migration.includes("allowTargetAuthoredFallback = true"), "v8 migration aktiverar inte autonom policy.");
+@@ -365,8 +387,9 @@
+ check(background.includes('"eic.autonom.export.v8"') &&
+   background.includes('"eic.autonom.export.v9"') &&
+   background.includes('"eic.autonom.export.v10"') &&
+-  background.includes("v3–v10"),
+-  "Självimport av export v8/v9/v10 saknas.");
++  background.includes('"eic.autonom.export.v11"') &&
++  background.includes("v3–v11"),
++  "Självimport av export v8/v9/v10/v11 saknas.");
+ check(panel.includes("extractFirstJsonObject") && panel.includes("JSON FORMAT REPAIR ONLY"), "v0.6.9 Nano JSON-repair saknas.");
+ check(rootCauseV069.includes("NO_PROGRESS_BUDGET_EXHAUSTED") && rootCauseV069.includes("SUBSYSTEM:<NAME>"), "v0.6.9 root cause-dokument ofullständigt.");
+ check(verificationV069.includes("Incident acceptance") && changelogV069.includes("balanced JSON-object"), "v0.6.9 verifiering/changelog ofullständiga.");
+@@ -454,8 +477,8 @@
+ check(background.includes("continuityBackup") &&
+   background.includes("initializeWindowContinuity") &&
+   background.includes("loadBundle(windowId)") &&
+-  background.includes('schema: "eic.autonom.window-context.v6"'),
+-  "v0.8.2 window-scoped continuity är inte fullt inkopplad.");
++  background.includes('schema: "eic.autonom.window-context.v7"'),
++  "WP02 window-scoped continuity är inte fullt inkopplad.");
+ check(scopedContinuity.includes("resolveStickyRunMode") &&
+   scopedContinuity.includes("cloneSpecializedRunState") &&
+   scopedContinuity.includes("SPECIALIZED_TARGET_TAB_CHANGED") &&
+--- a/sidepanel.js
++++ b/sidepanel.js
+@@ -1889,6 +1889,7 @@
+     config: uiModel().config,
+     continuity: uiModel().continuity,
+     window: uiModel().window,
++    missions: uiModel().missions,
+     audit: uiModel().audit
+   };
+   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+--- a/tests/v082-runtime-isolation.test.mjs
++++ b/tests/v082-runtime-isolation.test.mjs
+@@ -237,9 +237,9 @@
+ });
+ 
+ test("source wiring enforces scoped continuity, sticky mode, completion and hard Nano timeout", () => {
+-  assert.equal(EXPORT_SCHEMA, "eic.autonom.export.v10");
+-  assert.equal(EXPORT_VERSION, 10);
+-  assert.match(background, /schema: "eic\.autonom\.window-context\.v6"/);
++  assert.equal(EXPORT_SCHEMA, "eic.autonom.export.v11");
++  assert.equal(EXPORT_VERSION, 11);
++  assert.match(background, /schema: "eic\.autonom\.window-context\.v7"/);
+   assert.match(background, /initializeWindowContinuity/);
+   assert.match(background, /resolveStickyRunMode/);
+   assert.match(background, /promoteContinuityConversation/);
+--- a/tests/v090-wp00-contract.test.mjs
++++ b/tests/v090-wp00-contract.test.mjs
+@@ -32,10 +32,9 @@
+     assert.match(text, new RegExp(`WP${String(index).padStart(2, "0")}`));
+   }
+   assert.match(text, /\| WP00 \|.*\| IMPLEMENTED \|/);
+-  assert.match(text, /\| WP01 \|.*\| (?:WAITING_APPROVAL|IMPLEMENTED) \|/);
+-  if (/\| WP01 \|.*\| IMPLEMENTED \|/.test(text)) {
+-    assert.match(text, /\| WP02 \|.*\| WAITING_APPROVAL \|/);
+-  }
++  assert.match(text, /\| WP01 \|.*\| IMPLEMENTED \|/);
++  assert.match(text, /\| WP02 \|.*\| IMPLEMENTED \|/);
++  assert.match(text, /\| WP03 \|.*\| WAITING_APPROVAL \|/);
+ });
+ 
+ test("WP00 architecture and inventory documents exist", () => {
+--- a/tests/v090-wp01-ui-boundary.test.mjs
++++ b/tests/v090-wp01-ui-boundary.test.mjs
+@@ -91,7 +91,7 @@
+     audit: []
+   });
+   assert.equal(snapshot.schema, UI_SNAPSHOT_SCHEMA);
+-  assert.equal(snapshot.snapshotVersion, 1);
++  assert.equal(snapshot.snapshotVersion, 2);
+   assert.equal(readUiSnapshotModel(snapshot).config.nested.value, 1);
+   config.nested.value = 2;
+   window.run.state = "STOPPED";
+@@ -192,24 +192,23 @@
+   assert.doesNotMatch(background, /switch\s*\(message\.command\)/);
+ });
+ 
+-test("WP01 keeps version, permissions and persistent schemas unchanged", () => {
++test("WP01 keeps application version and permissions unchanged across later schema work", () => {
+   const manifest = json("manifest.json");
+   const pkg = json("package.json");
+-  const contracts = read("lib/contracts.mjs");
++  const contract = read("docs/V0_9_0_WP01_UI_RUNTIME_BOUNDARY.md");
+   assert.equal(pkg.version, "0.8.2");
+   assert.equal(manifest.version, "0.8.2");
+   assert.deepEqual(manifest.permissions, ["sidePanel", "storage", "tabs", "scripting", "alarms"]);
+   assert.deepEqual(manifest.host_permissions, ["https://chatgpt.com/*", "https://chat.openai.com/*"]);
+-  assert.match(contracts, /eic\.autonom\.config\.v8/);
+-  assert.match(contracts, /eic\.autonom\.runtime\.v8/);
+-  assert.match(contracts, /eic\.autonom\.export\.v10/);
+-});
+-
+-test("WP01 documentation stops before WP02", () => {
++  assert.match(contract, /does not create the Mission domain, change persistent storage schemas/i);
++});
++
++test("WP01 documentation retains its boundary while the ledger advances", () => {
+   const ledger = read("docs/V0_9_0_EXECUTION_LEDGER.md");
+   const contract = read("docs/V0_9_0_WP01_UI_RUNTIME_BOUNDARY.md");
+   assert.match(ledger, /\| WP01 \|.*\| IMPLEMENTED \|/);
+-  assert.match(ledger, /\| WP02 \|.*\| WAITING_APPROVAL \|/);
++  assert.match(ledger, /\| WP02 \|.*\| IMPLEMENTED \|/);
++  assert.match(ledger, /\| WP03 \|.*\| WAITING_APPROVAL \|/);
+   assert.match(contract, /uiSnapshot/);
+   assert.match(contract, /No Mission Control visual redesign/i);
+   assert.match(contract, /WP02/i);
+--- a/docs/V0_9_0_WP02_MISSION_DOMAIN.md
++++ b/docs/V0_9_0_WP02_MISSION_DOMAIN.md
+@@ -0,0 +1,107 @@
++# WP02 — Mission domain, mode registry and persistence schema
++
++## Status
++
++Implemented in the isolated WP02 working copy. This gate defines the durable Mission domain and its
++compatibility bridge. It does not redesign the side panel and does not enable browser control.
++
++## Inputs
++
++- Verified WP01 source candidate:
++  `0c1821271a35cbcdfc07504b9a4c5cbda5d6e0af789e0c427e955bceba698a04`.
++- Explicit operator approval: `Godkänt`, interpreted from the immediately preceding WP01 gate as
++  approval to start WP02.
++- Governing development contract: `EIC.md`.
++- Requirement boundary from the transcript and WP00 state map.
++
++## Mission domain
++
++A mission is a durable, versioned record with:
++
++- `missionId`, `modeId`, lifecycle `state` and `stateRevision`;
++- `currentStep` and `nextAction`;
++- explicit `controllerSurfaceId` and `targetSurfaceId`;
++- policy profile, origin grants, risk and approval state;
++- bounded evidence policy, evidence index and receipts;
++- recovery state;
++- a compatibility binding to the current v0.8.2 run while that run remains execution owner.
++
++Schemas:
++
++- `eic.autonom.mission.v1`
++- `eic.autonom.mission-store.v1`
++- `eic.autonom.mission-view.v1`
++
++## Closed mode registry
++
++| Mode | Build profile | Required surface roles | WP02 status |
++|---|---|---|---|
++| `CHATGPT_CONTINUATION` | STANDARD | `CHATGPT_CONTROLLER` | enabled |
++| `CHATGPT_NEW_SESSION` | STANDARD | `CHATGPT_CONTROLLER` | enabled |
++| `APP_AUDIT_LONG` | STANDARD | `CHATGPT_CONTROLLER` | enabled |
++| `ARCHAEOLOGY_LONG` | STANDARD | `CHATGPT_CONTROLLER` | enabled |
++| `AI_WEB_RESEARCH` | BROWSER | `CHATGPT_CONTROLLER`, `WEB_TARGET` | disabled until later browser gates |
++
++Unknown mode identifiers fail closed.
++
++## Mission lifecycle
++
++The closed lifecycle is:
++
++`DRAFT`, `READY`, `RUNNING`, `WAITING_TARGET`, `WAITING_EVIDENCE`, `RECOVERING`,
++`PAUSED`, `BLOCKED`, `COMPLETED`, `FAILED`, `CANCELLED`.
++
++Transitions are allowlisted. Unknown states and disallowed transitions throw instead of being
++coerced into forward progress. Unknown legacy run states map to `BLOCKED`.
++
++## Persistence schema
++
++WP02 advances:
++
++- config: `eic.autonom.config.v9`;
++- runtime: `eic.autonom.runtime.v9`;
++- export: `eic.autonom.export.v11`;
++- audit: `eic.autonom.audit.v9`;
++- window context: `eic.autonom.window-context.v7`;
++- UI snapshot: `eic.autonom.ui-snapshot.v2`.
++
++Runtime v9 adds a normalized `missionStore`. Each window adds `activeMissionId` and `missionIds`.
++The v8→v9 migration preserves the legacy run, continuity and existing configuration fields, then
++creates one mission binding for each active run.
++
++## Compatibility ownership
++
++The legacy v0.8.2 run remains the execution owner through WP02. Before runtime persistence, its
++current mode and state are projected into the bound Mission record. Mission identity remains stable
++for the same `runId`.
++
++`selectedTabId` is not reinterpreted as a generic web target. It is retained only inside the legacy
++binding until WP05 introduces explicit controller/target surface objects.
++
++## Export and import
++
++The v11 export includes the window-scoped Mission view. Import accepts v3 through v11. A v11 Mission
++view is schema-validated, bounded and rebound to the current window. Earlier exports remain accepted
++through the existing migration chain.
++
++## Security boundaries
++
++- `AI_WEB_RESEARCH` is registered but disabled.
++- No browser action registry is activated.
++- No arbitrary JavaScript, cookies or request mutation is introduced.
++- No new permission, host permission or optional origin grant is introduced.
++- Evidence response bodies default to disabled and redaction-before-persist is required.
++
++## Non-goals
++
++- No Mission Control visual redesign.
++- No navigation shell or action dock; those belong to WP03.
++- No migration of existing UI features into missions; that belongs to WP04.
++- No controller/target lifecycle implementation; that belongs to WP05.
++- No `debugger`, CDP, broad host access or browser executor.
++- No Desktop Chrome runtime claim.
++
++## Gate
++
++WP02 is complete only after focused Mission tests, full regression, validation, syntax checks,
++packaging and ZIP integrity pass. WP03 remains blocked until explicit operator approval.
+--- a/lib/migration-v8-v9.mjs
++++ b/lib/migration-v8-v9.mjs
+@@ -0,0 +1,64 @@
++import {
++  CONFIG_SCHEMA,
++  RUNTIME_SCHEMA,
++  createDefaultConfig,
++  createDefaultRuntime
++} from "./contracts.mjs";
++import { deepClone, nowIso } from "./common.mjs";
++import {
++  MISSION_MODE_IDS,
++  MISSION_POLICY_PROFILES,
++  normalizeMissionStore
++} from "./mission-contract.mjs";
++import { reconcileRuntimeMissions } from "./mission-state-machine.mjs";
++
++export function migrateV8ToV9(configValue, runtimeValue, {
++  now = Date.now()
++} = {}) {
++  const defaults = createDefaultConfig();
++  const previousConfig = configValue && typeof configValue === "object"
++    ? deepClone(configValue)
++    : {};
++  const config = { ...defaults, ...previousConfig };
++  config.schema = CONFIG_SCHEMA;
++  config.version = 9;
++  config.defaultMissionModeId ||= MISSION_MODE_IDS.CHATGPT_CONTINUATION;
++  config.missionPolicyProfile ||= MISSION_POLICY_PROFILES.STANDARD_SAFE;
++  config.missionEvidenceProfile ||= "CONTINUITY_ONLY";
++  config.updatedAt = nowIso(now);
++
++  const previousRuntime = runtimeValue && typeof runtimeValue === "object"
++    ? deepClone(runtimeValue)
++    : createDefaultRuntime();
++  const runtime = {
++    ...createDefaultRuntime(),
++    ...previousRuntime,
++    schema: RUNTIME_SCHEMA,
++    version: 9,
++    windows: previousRuntime.windows && typeof previousRuntime.windows === "object"
++      ? previousRuntime.windows
++      : {},
++    missionStore: normalizeMissionStore(previousRuntime.missionStore),
++    orphanedMissions: Array.isArray(previousRuntime.orphanedMissions)
++      ? previousRuntime.orphanedMissions.slice(-128)
++      : []
++  };
++
++  for (const [windowKey, contextValue] of Object.entries(runtime.windows)) {
++    const context = contextValue && typeof contextValue === "object" ? contextValue : {};
++    context.schema = "eic.autonom.window-context.v7";
++    context.windowId = Number.isInteger(Number(context.windowId))
++      ? Number(context.windowId)
++      : Number(windowKey);
++    context.missionIds = Array.isArray(context.missionIds)
++      ? [...new Set(context.missionIds.map(String))].slice(-128)
++      : [];
++    context.activeMissionId = context.activeMissionId ? String(context.activeMissionId) : null;
++    runtime.windows[windowKey] = context;
++  }
++
++  reconcileRuntimeMissions(runtime, { now });
++  runtime.updatedAt = nowIso(now);
++
++  return { config, runtime };
++}
+--- a/lib/mission-contract.mjs
++++ b/lib/mission-contract.mjs
+@@ -0,0 +1,167 @@
++import { deepClone } from "./common.mjs";
++
++export const MISSION_SCHEMA = "eic.autonom.mission.v1";
++export const MISSION_STORE_SCHEMA = "eic.autonom.mission-store.v1";
++export const MISSION_MODE_REGISTRY_SCHEMA = "eic.autonom.mission-mode-registry.v1";
++
++export const MISSION_SURFACE_ROLES = Object.freeze({
++  CHATGPT_CONTROLLER: "CHATGPT_CONTROLLER",
++  WEB_TARGET: "WEB_TARGET"
++});
++
++export const MISSION_BUILD_PROFILES = Object.freeze({
++  STANDARD: "STANDARD",
++  BROWSER: "BROWSER"
++});
++
++export const MISSION_MODE_IDS = Object.freeze({
++  CHATGPT_CONTINUATION: "CHATGPT_CONTINUATION",
++  CHATGPT_NEW_SESSION: "CHATGPT_NEW_SESSION",
++  APP_AUDIT_LONG: "APP_AUDIT_LONG",
++  ARCHAEOLOGY_LONG: "ARCHAEOLOGY_LONG",
++  AI_WEB_RESEARCH: "AI_WEB_RESEARCH"
++});
++
++export const MISSION_POLICY_PROFILES = Object.freeze({
++  STANDARD_SAFE: "STANDARD_SAFE",
++  AUDIT_READ_MOSTLY: "AUDIT_READ_MOSTLY",
++  RESEARCH_READ_MOSTLY: "RESEARCH_READ_MOSTLY",
++  BROWSER_RESEARCH_GUARDED: "BROWSER_RESEARCH_GUARDED"
++});
++
++export const MISSION_EVIDENCE_PROFILES = Object.freeze({
++  CONTINUITY_ONLY: "CONTINUITY_ONLY",
++  AUDIT_BOUNDED: "AUDIT_BOUNDED",
++  RESEARCH_BOUNDED: "RESEARCH_BOUNDED",
++  BROWSER_DIAGNOSTIC_BOUNDED: "BROWSER_DIAGNOSTIC_BOUNDED"
++});
++
++function mode({
++  modeId,
++  title,
++  legacyRunMode = null,
++  buildProfile,
++  requiredSurfaceRoles,
++  optionalSurfaceRoles = [],
++  policyProfile,
++  evidenceProfile,
++  enabled = true
++}) {
++  return Object.freeze({
++    schema: "eic.autonom.mission-mode.v1",
++    version: 1,
++    modeId,
++    title,
++    legacyRunMode,
++    buildProfile,
++    requiredSurfaceRoles: Object.freeze([...requiredSurfaceRoles]),
++    optionalSurfaceRoles: Object.freeze([...optionalSurfaceRoles]),
++    policyProfile,
++    evidenceProfile,
++    enabled
++  });
++}
++
++export const MISSION_MODE_REGISTRY = Object.freeze({
++  schema: MISSION_MODE_REGISTRY_SCHEMA,
++  version: 1,
++  modes: Object.freeze({
++    [MISSION_MODE_IDS.CHATGPT_CONTINUATION]: mode({
++      modeId: MISSION_MODE_IDS.CHATGPT_CONTINUATION,
++      title: "Fortsätt befintlig ChatGPT/EIC-session",
++      legacyRunMode: "WAITING_CONTINUE",
++      buildProfile: MISSION_BUILD_PROFILES.STANDARD,
++      requiredSurfaceRoles: [MISSION_SURFACE_ROLES.CHATGPT_CONTROLLER],
++      policyProfile: MISSION_POLICY_PROFILES.STANDARD_SAFE,
++      evidenceProfile: MISSION_EVIDENCE_PROFILES.CONTINUITY_ONLY
++    }),
++    [MISSION_MODE_IDS.CHATGPT_NEW_SESSION]: mode({
++      modeId: MISSION_MODE_IDS.CHATGPT_NEW_SESSION,
++      title: "Starta ny ChatGPT/EIC-session",
++      legacyRunMode: "NEW_SESSION",
++      buildProfile: MISSION_BUILD_PROFILES.STANDARD,
++      requiredSurfaceRoles: [MISSION_SURFACE_ROLES.CHATGPT_CONTROLLER],
++      policyProfile: MISSION_POLICY_PROFILES.STANDARD_SAFE,
++      evidenceProfile: MISSION_EVIDENCE_PROFILES.CONTINUITY_ONLY
++    }),
++    [MISSION_MODE_IDS.APP_AUDIT_LONG]: mode({
++      modeId: MISSION_MODE_IDS.APP_AUDIT_LONG,
++      title: "Lång applikationsaudit",
++      legacyRunMode: "APP_AUDIT_LONG",
++      buildProfile: MISSION_BUILD_PROFILES.STANDARD,
++      requiredSurfaceRoles: [MISSION_SURFACE_ROLES.CHATGPT_CONTROLLER],
++      policyProfile: MISSION_POLICY_PROFILES.AUDIT_READ_MOSTLY,
++      evidenceProfile: MISSION_EVIDENCE_PROFILES.AUDIT_BOUNDED
++    }),
++    [MISSION_MODE_IDS.ARCHAEOLOGY_LONG]: mode({
++      modeId: MISSION_MODE_IDS.ARCHAEOLOGY_LONG,
++      title: "Lång arkeologi/reverse engineering",
++      legacyRunMode: "ARCHAEOLOGY_LONG",
++      buildProfile: MISSION_BUILD_PROFILES.STANDARD,
++      requiredSurfaceRoles: [MISSION_SURFACE_ROLES.CHATGPT_CONTROLLER],
++      policyProfile: MISSION_POLICY_PROFILES.RESEARCH_READ_MOSTLY,
++      evidenceProfile: MISSION_EVIDENCE_PROFILES.RESEARCH_BOUNDED
++    }),
++    [MISSION_MODE_IDS.AI_WEB_RESEARCH]: mode({
++      modeId: MISSION_MODE_IDS.AI_WEB_RESEARCH,
++      title: "AI-webbresearch",
++      legacyRunMode: null,
++      buildProfile: MISSION_BUILD_PROFILES.BROWSER,
++      requiredSurfaceRoles: [
++        MISSION_SURFACE_ROLES.CHATGPT_CONTROLLER,
++        MISSION_SURFACE_ROLES.WEB_TARGET
++      ],
++      policyProfile: MISSION_POLICY_PROFILES.BROWSER_RESEARCH_GUARDED,
++      evidenceProfile: MISSION_EVIDENCE_PROFILES.BROWSER_DIAGNOSTIC_BOUNDED,
++      enabled: false
++    })
++  })
++});
++
++const LEGACY_MODE_INDEX = Object.freeze(
++  Object.fromEntries(
++    Object.values(MISSION_MODE_REGISTRY.modes)
++      .filter((entry) => entry.legacyRunMode)
++      .map((entry) => [entry.legacyRunMode, entry.modeId])
++  )
++);
++
++export function missionModeForLegacyRunMode(runMode) {
++  return LEGACY_MODE_INDEX[String(runMode || "")] || null;
++}
++
++export function resolveMissionMode(modeId) {
++  const resolved = MISSION_MODE_REGISTRY.modes[String(modeId || "")];
++  if (!resolved) throw new Error(`MISSION_MODE_UNKNOWN:${modeId}`);
++  return resolved;
++}
++
++export function listMissionModes({ includeDisabled = true } = {}) {
++  return Object.values(MISSION_MODE_REGISTRY.modes)
++    .filter((entry) => includeDisabled || entry.enabled)
++    .map((entry) => deepClone(entry));
++}
++
++export function createDefaultMissionStore() {
++  return {
++    schema: MISSION_STORE_SCHEMA,
++    version: 1,
++    revision: 0,
++    missions: {},
++    updatedAt: null
++  };
++}
++
++export function normalizeMissionStore(value) {
++  const store = value && typeof value === "object" && !Array.isArray(value)
++    ? deepClone(value)
++    : createDefaultMissionStore();
++  store.schema = MISSION_STORE_SCHEMA;
++  store.version = 1;
++  store.revision = Math.max(0, Number(store.revision || 0));
++  store.missions = store.missions && typeof store.missions === "object" && !Array.isArray(store.missions)
++    ? store.missions
++    : {};
++  store.updatedAt = store.updatedAt || null;
++  return store;
++}
+--- a/lib/mission-state-machine.mjs
++++ b/lib/mission-state-machine.mjs
+@@ -0,0 +1,466 @@
++import { deepClone, nowIso, randomId, sanitizeText } from "./common.mjs";
++import {
++  MISSION_EVIDENCE_PROFILES,
++  MISSION_MODE_IDS,
++  MISSION_POLICY_PROFILES,
++  MISSION_SCHEMA,
++  MISSION_STORE_SCHEMA,
++  MISSION_SURFACE_ROLES,
++  createDefaultMissionStore,
++  missionModeForLegacyRunMode,
++  normalizeMissionStore,
++  resolveMissionMode
++} from "./mission-contract.mjs";
++
++export const MISSION_STATES = Object.freeze({
++  DRAFT: "DRAFT",
++  READY: "READY",
++  RUNNING: "RUNNING",
++  WAITING_TARGET: "WAITING_TARGET",
++  WAITING_EVIDENCE: "WAITING_EVIDENCE",
++  RECOVERING: "RECOVERING",
++  PAUSED: "PAUSED",
++  BLOCKED: "BLOCKED",
++  COMPLETED: "COMPLETED",
++  FAILED: "FAILED",
++  CANCELLED: "CANCELLED"
++});
++
++export const MISSION_TERMINAL_STATES = new Set([
++  MISSION_STATES.COMPLETED,
++  MISSION_STATES.FAILED,
++  MISSION_STATES.CANCELLED
++]);
++
++const ALLOWED_TRANSITIONS = Object.freeze({
++  [MISSION_STATES.DRAFT]: new Set([
++    MISSION_STATES.READY, MISSION_STATES.BLOCKED, MISSION_STATES.CANCELLED
++  ]),
++  [MISSION_STATES.READY]: new Set([
++    MISSION_STATES.RUNNING, MISSION_STATES.PAUSED,
++    MISSION_STATES.BLOCKED, MISSION_STATES.CANCELLED
++  ]),
++  [MISSION_STATES.RUNNING]: new Set([
++    MISSION_STATES.WAITING_TARGET, MISSION_STATES.WAITING_EVIDENCE,
++    MISSION_STATES.RECOVERING, MISSION_STATES.PAUSED,
++    MISSION_STATES.BLOCKED, MISSION_STATES.COMPLETED,
++    MISSION_STATES.FAILED, MISSION_STATES.CANCELLED
++  ]),
++  [MISSION_STATES.WAITING_TARGET]: new Set([
++    MISSION_STATES.RUNNING, MISSION_STATES.WAITING_EVIDENCE,
++    MISSION_STATES.RECOVERING, MISSION_STATES.PAUSED,
++    MISSION_STATES.BLOCKED, MISSION_STATES.COMPLETED,
++    MISSION_STATES.FAILED, MISSION_STATES.CANCELLED
++  ]),
++  [MISSION_STATES.WAITING_EVIDENCE]: new Set([
++    MISSION_STATES.RUNNING, MISSION_STATES.WAITING_TARGET,
++    MISSION_STATES.RECOVERING, MISSION_STATES.PAUSED,
++    MISSION_STATES.BLOCKED, MISSION_STATES.COMPLETED,
++    MISSION_STATES.FAILED, MISSION_STATES.CANCELLED
++  ]),
++  [MISSION_STATES.RECOVERING]: new Set([
++    MISSION_STATES.RUNNING, MISSION_STATES.WAITING_TARGET,
++    MISSION_STATES.WAITING_EVIDENCE, MISSION_STATES.PAUSED,
++    MISSION_STATES.BLOCKED, MISSION_STATES.FAILED,
++    MISSION_STATES.CANCELLED
++  ]),
++  [MISSION_STATES.PAUSED]: new Set([
++    MISSION_STATES.READY, MISSION_STATES.RUNNING,
++    MISSION_STATES.RECOVERING, MISSION_STATES.BLOCKED,
++    MISSION_STATES.CANCELLED
++  ]),
++  [MISSION_STATES.BLOCKED]: new Set([
++    MISSION_STATES.READY, MISSION_STATES.RECOVERING,
++    MISSION_STATES.CANCELLED
++  ]),
++  [MISSION_STATES.COMPLETED]: new Set(),
++  [MISSION_STATES.FAILED]: new Set(),
++  [MISSION_STATES.CANCELLED]: new Set()
++});
++
++const LEGACY_STATE_MAP = Object.freeze({
++  IDLE: MISSION_STATES.READY,
++  PREPARING: MISSION_STATES.RUNNING,
++  WAITING_FOR_RESPONSE: MISSION_STATES.WAITING_TARGET,
++  WAITING_FOREGROUND: MISSION_STATES.WAITING_TARGET,
++  WAITING_BACKGROUND: MISSION_STATES.WAITING_TARGET,
++  ASSESSING: MISSION_STATES.WAITING_EVIDENCE,
++  CONTINUING: MISSION_STATES.RUNNING,
++  RECOVERING: MISSION_STATES.RECOVERING,
++  SOFT_PAUSED: MISSION_STATES.PAUSED,
++  HARD_BLOCKED: MISSION_STATES.BLOCKED,
++  DONE: MISSION_STATES.COMPLETED,
++  STOPPED: MISSION_STATES.CANCELLED,
++  ERROR_RETRYABLE: MISSION_STATES.RECOVERING,
++  ERROR_TERMINAL: MISSION_STATES.FAILED,
++  MJOLNAR_ADJUDICATING: MISSION_STATES.WAITING_EVIDENCE,
++  MJOLNAR_DISPATCH: MISSION_STATES.RUNNING,
++  MJOLNAR_READBACK: MISSION_STATES.WAITING_EVIDENCE,
++  HUMAN_REQUIRED: MISSION_STATES.PAUSED
++});
++
++function text(value, max = 600) {
++  return sanitizeText(value || "", max);
++}
++
++function normalizeStringArray(value, maxItems = 64, maxChars = 400) {
++  return [...new Set((Array.isArray(value) ? value : [])
++    .map((item) => text(item, maxChars))
++    .filter(Boolean))]
++    .slice(0, maxItems);
++}
++
++function defaultEvidencePolicy(mode) {
++  return {
++    schema: "eic.autonom.mission-evidence-policy.v1",
++    profileId: mode.evidenceProfile || MISSION_EVIDENCE_PROFILES.CONTINUITY_ONLY,
++    bounded: true,
++    responseBodies: false,
++    redactBeforePersist: true
++  };
++}
++
++export function canTransitionMission(from, to) {
++  if (from === to) return true;
++  return Boolean(ALLOWED_TRANSITIONS[from]?.has(to));
++}
++
++export function transitionMission(missionValue, to, {
++  reason = "",
++  currentStep,
++  nextAction,
++  force = false,
++  now = Date.now()
++} = {}) {
++  const mission = normalizeMission(missionValue);
++  if (!Object.values(MISSION_STATES).includes(to)) {
++    throw new Error(`MISSION_STATE_UNKNOWN:${to}`);
++  }
++  if (!force && !canTransitionMission(mission.state, to)) {
++    throw new Error(`MISSION_TRANSITION_NOT_ALLOWED:${mission.state}->${to}`);
++  }
++  if (mission.state !== to) mission.stateRevision = Number(mission.stateRevision || 0) + 1;
++  mission.state = to;
++  if (currentStep !== undefined) mission.currentStep = text(currentStep, 800);
++  if (nextAction !== undefined) mission.nextAction = text(nextAction, 1200);
++  mission.stateReason = text(reason, 1200);
++  mission.updatedAt = nowIso(now);
++  if (MISSION_TERMINAL_STATES.has(to)) mission.completedAt ||= nowIso(now);
++  return mission;
++}
++
++export function legacyRunStateToMissionState(runState) {
++  return LEGACY_STATE_MAP[String(runState || "")] || MISSION_STATES.BLOCKED;
++}
++
++export function createMission({
++  missionId = randomId("mission"),
++  modeId = MISSION_MODE_IDS.CHATGPT_CONTINUATION,
++  state = MISSION_STATES.DRAFT,
++  windowId = null,
++  currentStep = "",
++  nextAction = "",
++  controllerSurfaceId = null,
++  targetSurfaceId = null,
++  policyProfile = null,
++  evidencePolicy = null,
++  originGrants = [],
++  legacyBinding = null,
++  now = Date.now()
++} = {}) {
++  const mode = resolveMissionMode(modeId);
++  if (!Object.values(MISSION_STATES).includes(state)) throw new Error(`MISSION_STATE_UNKNOWN:${state}`);
++  const mission = {
++    schema: MISSION_SCHEMA,
++    version: 1,
++    missionId: String(missionId),
++    modeId: mode.modeId,
++    state,
++    stateRevision: 0,
++    stateReason: "",
++    windowId: Number.isInteger(Number(windowId)) ? Number(windowId) : null,
++    currentStep: text(currentStep, 800),
++    nextAction: text(nextAction, 1200),
++    controllerSurfaceId: controllerSurfaceId ? String(controllerSurfaceId) : null,
++    targetSurfaceId: targetSurfaceId ? String(targetSurfaceId) : null,
++    surfaceRoles: {
++      [MISSION_SURFACE_ROLES.CHATGPT_CONTROLLER]: controllerSurfaceId ? String(controllerSurfaceId) : null,
++      [MISSION_SURFACE_ROLES.WEB_TARGET]: targetSurfaceId ? String(targetSurfaceId) : null
++    },
++    policyProfile: policyProfile || mode.policyProfile || MISSION_POLICY_PROFILES.STANDARD_SAFE,
++    originGrants: normalizeStringArray(originGrants, 64, 500),
++    risk: {
++      schema: "eic.autonom.mission-risk.v1",
++      status: "UNASSESSED",
++      level: null,
++      approvalRequired: false,
++      reason: ""
++    },
++    approval: {
++      schema: "eic.autonom.mission-approval.v1",
++      state: "NOT_REQUIRED",
++      requestId: null,
++      reason: ""
++    },
++    evidencePolicy: evidencePolicy ? deepClone(evidencePolicy) : defaultEvidencePolicy(mode),
++    evidenceIndex: [],
++    receipts: [],
++    recovery: {
++      schema: "eic.autonom.mission-recovery.v1",
++      state: "IDLE",
++      reason: "",
++      attempts: []
++    },
++    legacyBinding: legacyBinding ? deepClone(legacyBinding) : null,
++    createdAt: nowIso(now),
++    updatedAt: nowIso(now),
++    completedAt: null
++  };
++  return normalizeMission(mission);
++}
++
++export function normalizeMission(value) {
++  if (!value || typeof value !== "object" || Array.isArray(value)) {
++    throw new Error("MISSION_INVALID");
++  }
++  const mode = resolveMissionMode(value.modeId);
++  const mission = deepClone(value);
++  mission.schema = MISSION_SCHEMA;
++  mission.version = 1;
++  mission.missionId = String(mission.missionId || randomId("mission"));
++  mission.modeId = mode.modeId;
++  mission.state = Object.values(MISSION_STATES).includes(mission.state)
++    ? mission.state
++    : MISSION_STATES.BLOCKED;
++  mission.stateRevision = Math.max(0, Number(mission.stateRevision || 0));
++  mission.stateReason = text(mission.stateReason, 1200);
++  mission.windowId = Number.isInteger(Number(mission.windowId)) ? Number(mission.windowId) : null;
++  mission.currentStep = text(mission.currentStep, 800);
++  mission.nextAction = text(mission.nextAction, 1200);
++  mission.controllerSurfaceId = mission.controllerSurfaceId ? String(mission.controllerSurfaceId) : null;
++  mission.targetSurfaceId = mission.targetSurfaceId ? String(mission.targetSurfaceId) : null;
++  mission.surfaceRoles = {
++    [MISSION_SURFACE_ROLES.CHATGPT_CONTROLLER]: mission.controllerSurfaceId,
++    [MISSION_SURFACE_ROLES.WEB_TARGET]: mission.targetSurfaceId
++  };
++  mission.policyProfile = mission.policyProfile || mode.policyProfile || MISSION_POLICY_PROFILES.STANDARD_SAFE;
++  mission.originGrants = normalizeStringArray(mission.originGrants, 64, 500);
++  mission.risk = mission.risk && typeof mission.risk === "object" ? mission.risk : {};
++  mission.risk = {
++    schema: "eic.autonom.mission-risk.v1",
++    status: text(mission.risk.status || "UNASSESSED", 80),
++    level: Number.isFinite(Number(mission.risk.level)) ? Number(mission.risk.level) : null,
++    approvalRequired: Boolean(mission.risk.approvalRequired),
++    reason: text(mission.risk.reason, 1200)
++  };
++  mission.approval = mission.approval && typeof mission.approval === "object" ? mission.approval : {};
++  mission.approval = {
++    schema: "eic.autonom.mission-approval.v1",
++    state: text(mission.approval.state || "NOT_REQUIRED", 80),
++    requestId: mission.approval.requestId ? String(mission.approval.requestId) : null,
++    reason: text(mission.approval.reason, 1200)
++  };
++  mission.evidencePolicy = mission.evidencePolicy && typeof mission.evidencePolicy === "object"
++    ? mission.evidencePolicy
++    : defaultEvidencePolicy(mode);
++  mission.evidencePolicy = {
++    schema: "eic.autonom.mission-evidence-policy.v1",
++    profileId: text(mission.evidencePolicy.profileId || mode.evidenceProfile, 120),
++    bounded: mission.evidencePolicy.bounded !== false,
++    responseBodies: Boolean(mission.evidencePolicy.responseBodies),
++    redactBeforePersist: mission.evidencePolicy.redactBeforePersist !== false
++  };
++  mission.evidenceIndex = Array.isArray(mission.evidenceIndex) ? deepClone(mission.evidenceIndex).slice(-128) : [];
++  mission.receipts = Array.isArray(mission.receipts) ? deepClone(mission.receipts).slice(-128) : [];
++  mission.recovery = mission.recovery && typeof mission.recovery === "object" ? mission.recovery : {};
++  mission.recovery = {
++    schema: "eic.autonom.mission-recovery.v1",
++    state: text(mission.recovery.state || "IDLE", 80),
++    reason: text(mission.recovery.reason, 1200),
++    attempts: Array.isArray(mission.recovery.attempts) ? deepClone(mission.recovery.attempts).slice(-32) : []
++  };
++  mission.legacyBinding = mission.legacyBinding && typeof mission.legacyBinding === "object"
++    ? deepClone(mission.legacyBinding)
++    : null;
++  mission.createdAt ||= nowIso();
++  mission.updatedAt ||= mission.createdAt;
++  mission.completedAt ||= null;
++  return mission;
++}
++
++export function createMissionFromLegacyRun(run, {
++  windowId,
++  selectedTabId = null,
++  now = Date.now()
++} = {}) {
++  if (!run || typeof run !== "object") return null;
++  const modeId = missionModeForLegacyRunMode(run.mode) || MISSION_MODE_IDS.CHATGPT_CONTINUATION;
++  return createMission({
++    modeId,
++    state: legacyRunStateToMissionState(run.state),
++    windowId,
++    currentStep: run.activeWorkUnit || run.currentStep || "",
++    nextAction: run.resumePlan?.nextAction || run.nextAction || "",
++    legacyBinding: {
++      schema: "eic.autonom.legacy-run-binding.v1",
++      runId: run.runId || null,
++      runMode: run.mode || null,
++      runState: run.state || null,
++      selectedTabId: Number.isInteger(Number(selectedTabId)) ? Number(selectedTabId) : null,
++      targetTabId: Number.isInteger(Number(run.targetTabId)) ? Number(run.targetTabId) : null,
++      conversationKey: text(run.conversationKey, 1000),
++      syncedAt: nowIso(now)
++    },
++    now
++  });
++}
++
++function findMissionForRun(store, run) {
++  if (!run?.runId) return null;
++  return Object.values(store.missions || {}).find(
++    (mission) => mission?.legacyBinding?.runId === run.runId
++  ) || null;
++}
++
++export function synchronizeMissionFromLegacyRun(missionValue, run, {
++  selectedTabId = null,
++  now = Date.now()
++} = {}) {
++  const mission = normalizeMission(missionValue);
++  if (!run || typeof run !== "object") return mission;
++  const modeId = missionModeForLegacyRunMode(run.mode) || mission.modeId;
++  resolveMissionMode(modeId);
++  mission.modeId = modeId;
++  mission.state = legacyRunStateToMissionState(run.state);
++  mission.currentStep = text(run.activeWorkUnit || run.currentStep || mission.currentStep, 800);
++  mission.nextAction = text(run.resumePlan?.nextAction || run.nextAction || mission.nextAction, 1200);
++  mission.legacyBinding = {
++    schema: "eic.autonom.legacy-run-binding.v1",
++    runId: run.runId || null,
++    runMode: run.mode || null,
++    runState: run.state || null,
++    selectedTabId: Number.isInteger(Number(selectedTabId)) ? Number(selectedTabId) : null,
++    targetTabId: Number.isInteger(Number(run.targetTabId)) ? Number(run.targetTabId) : null,
++    conversationKey: text(run.conversationKey, 1000),
++    syncedAt: nowIso(now)
++  };
++  mission.updatedAt = nowIso(now);
++  if (MISSION_TERMINAL_STATES.has(mission.state)) mission.completedAt ||= nowIso(now);
++  return normalizeMission(mission);
++}
++
++export function reconcileWindowMission(runtimeValue, context, {
++  now = Date.now()
++} = {}) {
++  const runtime = runtimeValue;
++  runtime.missionStore = normalizeMissionStore(runtime.missionStore);
++  context.missionIds = normalizeStringArray(context.missionIds, 128, 180);
++  context.activeMissionId = context.activeMissionId ? String(context.activeMissionId) : null;
++
++  if (!context.run) {
++    if (context.activeMissionId && !runtime.missionStore.missions[context.activeMissionId]) {
++      context.activeMissionId = null;
++    }
++    return { changed: false, mission: context.activeMissionId
++      ? runtime.missionStore.missions[context.activeMissionId] || null
++      : null };
++  }
++
++  let mission = context.activeMissionId
++    ? runtime.missionStore.missions[context.activeMissionId]
++    : null;
++  if (!mission || mission?.legacyBinding?.runId !== context.run.runId) {
++    mission = findMissionForRun(runtime.missionStore, context.run);
++  }
++
++  let created = false;
++  if (!mission) {
++    mission = createMissionFromLegacyRun(context.run, {
++      windowId: context.windowId,
++      selectedTabId: context.selectedTabId,
++      now
++    });
++    created = true;
++  } else {
++    mission = synchronizeMissionFromLegacyRun(mission, context.run, {
++      selectedTabId: context.selectedTabId,
++      now
++    });
++  }
++
++  runtime.missionStore.missions[mission.missionId] = mission;
++  context.activeMissionId = mission.missionId;
++  if (!context.missionIds.includes(mission.missionId)) context.missionIds.push(mission.missionId);
++  context.missionIds = context.missionIds.slice(-128);
++  runtime.missionStore.revision = Number(runtime.missionStore.revision || 0) + (created ? 1 : 0);
++  runtime.missionStore.updatedAt = nowIso(now);
++  return { changed: true, created, mission };
++}
++
++export function reconcileRuntimeMissions(runtime, {
++  now = Date.now()
++} = {}) {
++  runtime.missionStore = normalizeMissionStore(runtime.missionStore || createDefaultMissionStore());
++  let changed = false;
++  for (const context of Object.values(runtime.windows || {})) {
++    if (!context || typeof context !== "object") continue;
++    const result = reconcileWindowMission(runtime, context, { now });
++    changed ||= result.changed;
++  }
++  return { runtime, changed };
++}
++
++export function missionViewForWindow(runtimeValue, windowId) {
++  const runtime = runtimeValue || {};
++  const store = normalizeMissionStore(runtime.missionStore);
++  const context = runtime.windows?.[String(windowId)] || {};
++  const missionIds = normalizeStringArray(context.missionIds, 128, 180)
++    .filter((missionId) => Boolean(store.missions[missionId]));
++  const activeMissionId = missionIds.includes(context.activeMissionId)
++    ? context.activeMissionId
++    : null;
++  const missions = Object.fromEntries(
++    missionIds.map((missionId) => [missionId, normalizeMission(store.missions[missionId])])
++  );
++  return {
++    schema: "eic.autonom.mission-view.v1",
++    version: 1,
++    activeMissionId,
++    missionIds,
++    missions
++  };
++}
++
++export function importMissionView(runtimeValue, context, view, {
++  now = Date.now()
++} = {}) {
++  if (!view) return { imported: 0, activeMissionId: context.activeMissionId || null };
++  if (view.schema !== "eic.autonom.mission-view.v1" || Number(view.version) !== 1) {
++    throw new Error("MISSION_VIEW_SCHEMA_UNSUPPORTED");
++  }
++  const store = normalizeMissionStore(runtimeValue.missionStore);
++  runtimeValue.missionStore = store;
++  const sourceIds = normalizeStringArray(view.missionIds, 128, 180);
++  const importedIds = [];
++  for (const sourceId of sourceIds) {
++    const raw = view.missions?.[sourceId];
++    if (!raw) continue;
++    let mission = normalizeMission(raw);
++    mission.windowId = Number(context.windowId);
++    if (store.missions[mission.missionId] &&
++        store.missions[mission.missionId]?.legacyBinding?.runId !== mission.legacyBinding?.runId) {
++      mission.missionId = randomId("mission-import");
++    }
++    mission.updatedAt = nowIso(now);
++    store.missions[mission.missionId] = mission;
++    importedIds.push(mission.missionId);
++  }
++  context.missionIds = [...new Set([...(context.missionIds || []), ...importedIds])].slice(-128);
++  const requestedActive = view.activeMissionId && view.missions?.[view.activeMissionId]
++    ? importedIds.find((id) => id === view.activeMissionId) || null
++    : null;
++  if (requestedActive) context.activeMissionId = requestedActive;
++  store.revision = Number(store.revision || 0) + (importedIds.length ? 1 : 0);
++  store.updatedAt = nowIso(now);
++  return { imported: importedIds.length, activeMissionId: context.activeMissionId || null };
++}
+--- a/tests/v090-wp02-mission-domain.test.mjs
++++ b/tests/v090-wp02-mission-domain.test.mjs
+@@ -0,0 +1,311 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import fs from "node:fs";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++
++import {
++  CONFIG_SCHEMA,
++  EXPORT_SCHEMA,
++  EXPORT_VERSION,
++  RUNTIME_SCHEMA,
++  createDefaultConfig,
++  createDefaultRuntime
++} from "../lib/contracts.mjs";
++import {
++  MISSION_BUILD_PROFILES,
++  MISSION_MODE_IDS,
++  MISSION_MODE_REGISTRY,
++  MISSION_STORE_SCHEMA,
++  MISSION_SURFACE_ROLES,
++  listMissionModes,
++  resolveMissionMode
++} from "../lib/mission-contract.mjs";
++import {
++  MISSION_STATES,
++  canTransitionMission,
++  createMission,
++  importMissionView,
++  legacyRunStateToMissionState,
++  missionViewForWindow,
++  reconcileRuntimeMissions,
++  transitionMission
++} from "../lib/mission-state-machine.mjs";
++import { migrateV8ToV9 } from "../lib/migration-v8-v9.mjs";
++import {
++  LEGACY_UI_SNAPSHOT_SCHEMA,
++  UI_SNAPSHOT_SCHEMA,
++  createUiSnapshot,
++  readUiSnapshotModel
++} from "../lib/ui-contract.mjs";
++
++const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
++const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
++const json = (relative) => JSON.parse(read(relative));
++const NOW = Date.parse("2026-08-04T08:00:00.000Z");
++
++function legacyRuntime(run = null) {
++  return {
++    schema: "eic.autonom.runtime.v8",
++    version: 8,
++    revision: 17,
++    windows: {
++      "7": {
++        schema: "eic.autonom.window-context.v6",
++        windowId: 7,
++        alias: "Fönster 7",
++        targetMode: "LOCKED",
++        selectedTabId: 42,
++        linkedTabs: {},
++        run,
++        continuity: null,
++        continuityBackup: null,
++        startPromptReceipts: [],
++        nanoHostTelemetry: {},
++        lastActiveTabId: 42
++      }
++    },
++    orphanedRuns: [],
++    orphanedContinuities: [],
++    startPromptReceipts: [],
++    updatedAt: "2026-08-04T07:00:00.000Z"
++  };
++}
++
++test("WP02 mission mode registry contains four migrated modes and separate AI_WEB_RESEARCH", () => {
++  assert.equal(MISSION_MODE_REGISTRY.schema, "eic.autonom.mission-mode-registry.v1");
++  assert.equal(listMissionModes().length, 5);
++  for (const modeId of [
++    MISSION_MODE_IDS.CHATGPT_CONTINUATION,
++    MISSION_MODE_IDS.CHATGPT_NEW_SESSION,
++    MISSION_MODE_IDS.APP_AUDIT_LONG,
++    MISSION_MODE_IDS.ARCHAEOLOGY_LONG
++  ]) {
++    const mode = resolveMissionMode(modeId);
++    assert.equal(mode.buildProfile, MISSION_BUILD_PROFILES.STANDARD);
++    assert.deepEqual(mode.requiredSurfaceRoles, [MISSION_SURFACE_ROLES.CHATGPT_CONTROLLER]);
++    assert.equal(mode.enabled, true);
++  }
++  const browserMode = resolveMissionMode(MISSION_MODE_IDS.AI_WEB_RESEARCH);
++  assert.equal(browserMode.buildProfile, MISSION_BUILD_PROFILES.BROWSER);
++  assert.deepEqual(browserMode.requiredSurfaceRoles, [
++    MISSION_SURFACE_ROLES.CHATGPT_CONTROLLER,
++    MISSION_SURFACE_ROLES.WEB_TARGET
++  ]);
++  assert.equal(browserMode.enabled, false);
++  assert.throws(() => resolveMissionMode("EXECUTE_JAVASCRIPT"), /MISSION_MODE_UNKNOWN/);
++});
++
++test("WP02 mission state machine is closed and fail-closed", () => {
++  assert.equal(canTransitionMission(MISSION_STATES.DRAFT, MISSION_STATES.READY), true);
++  assert.equal(canTransitionMission(MISSION_STATES.READY, MISSION_STATES.RUNNING), true);
++  assert.equal(canTransitionMission(MISSION_STATES.COMPLETED, MISSION_STATES.RUNNING), false);
++
++  const draft = createMission({
++    missionId: "mission-1",
++    modeId: MISSION_MODE_IDS.CHATGPT_CONTINUATION,
++    windowId: 7,
++    now: NOW
++  });
++  const ready = transitionMission(draft, MISSION_STATES.READY, {
++    reason: "baseline verified",
++    now: NOW + 1
++  });
++  assert.equal(ready.state, MISSION_STATES.READY);
++  assert.equal(ready.stateRevision, 1);
++  assert.throws(
++    () => transitionMission(ready, MISSION_STATES.COMPLETED),
++    /MISSION_TRANSITION_NOT_ALLOWED/
++  );
++});
++
++test("WP02 mission record separates controller and web target roles", () => {
++  const mission = createMission({
++    missionId: "mission-role-test",
++    modeId: MISSION_MODE_IDS.AI_WEB_RESEARCH,
++    controllerSurfaceId: "surface-chatgpt-1",
++    targetSurfaceId: "surface-web-1",
++    originGrants: ["https://example.com"],
++    now: NOW
++  });
++  assert.equal(mission.schema, "eic.autonom.mission.v1");
++  assert.equal(mission.controllerSurfaceId, "surface-chatgpt-1");
++  assert.equal(mission.targetSurfaceId, "surface-web-1");
++  assert.equal(mission.surfaceRoles.CHATGPT_CONTROLLER, "surface-chatgpt-1");
++  assert.equal(mission.surfaceRoles.WEB_TARGET, "surface-web-1");
++  assert.equal(mission.evidencePolicy.responseBodies, false);
++  assert.equal(mission.evidencePolicy.redactBeforePersist, true);
++});
++
++test("WP02 maps legacy run states into bounded mission lifecycle states", () => {
++  assert.equal(legacyRunStateToMissionState("WAITING_BACKGROUND"), MISSION_STATES.WAITING_TARGET);
++  assert.equal(legacyRunStateToMissionState("ASSESSING"), MISSION_STATES.WAITING_EVIDENCE);
++  assert.equal(legacyRunStateToMissionState("DONE"), MISSION_STATES.COMPLETED);
++  assert.equal(legacyRunStateToMissionState("UNKNOWN_FUTURE_STATE"), MISSION_STATES.BLOCKED);
++});
++
++test("WP02 v8→v9 migration preserves the legacy run and creates one mission binding", () => {
++  const legacyConfig = {
++    ...createDefaultConfig(),
++    schema: "eic.autonom.config.v8",
++    version: 8,
++    defaultMissionModeId: undefined,
++    missionPolicyProfile: undefined,
++    missionEvidenceProfile: undefined,
++    maxTurns: 41,
++    updatedAt: "2026-08-04T07:00:00.000Z"
++  };
++  const runtime = legacyRuntime({
++    schema: "eic.autonom.run.v8",
++    runId: "run-legacy-1",
++    mode: "APP_AUDIT_LONG",
++    state: "WAITING_BACKGROUND",
++    targetTabId: 42,
++    conversationKey: "chatgpt.com/c/test",
++    activeWorkUnit: "Gate 2",
++    nextAction: "Read result"
++  });
++  const migrated = migrateV8ToV9(legacyConfig, runtime, { now: NOW });
++  assert.equal(migrated.config.schema, CONFIG_SCHEMA);
++  assert.equal(migrated.config.version, 9);
++  assert.equal(migrated.config.maxTurns, 41);
++  assert.equal(migrated.runtime.schema, RUNTIME_SCHEMA);
++  assert.equal(migrated.runtime.version, 9);
++  assert.equal(migrated.runtime.windows["7"].schema, "eic.autonom.window-context.v7");
++  assert.equal(migrated.runtime.windows["7"].run.runId, "run-legacy-1");
++  assert.equal(migrated.runtime.missionStore.schema, MISSION_STORE_SCHEMA);
++  const missionId = migrated.runtime.windows["7"].activeMissionId;
++  assert.ok(missionId);
++  assert.deepEqual(migrated.runtime.windows["7"].missionIds, [missionId]);
++  const mission = migrated.runtime.missionStore.missions[missionId];
++  assert.equal(mission.modeId, MISSION_MODE_IDS.APP_AUDIT_LONG);
++  assert.equal(mission.state, MISSION_STATES.WAITING_TARGET);
++  assert.equal(mission.legacyBinding.runId, "run-legacy-1");
++  assert.equal(mission.legacyBinding.selectedTabId, 42);
++});
++
++test("WP02 reconciliation is idempotent for mission identity", () => {
++  const migrated = migrateV8ToV9(
++    { schema: "eic.autonom.config.v8", version: 8 },
++    legacyRuntime({
++      runId: "run-stable",
++      mode: "WAITING_CONTINUE",
++      state: "WAITING_FOR_RESPONSE"
++    }),
++    { now: NOW }
++  );
++  const firstId = migrated.runtime.windows["7"].activeMissionId;
++  reconcileRuntimeMissions(migrated.runtime, { now: NOW + 1 });
++  reconcileRuntimeMissions(migrated.runtime, { now: NOW + 2 });
++  assert.equal(migrated.runtime.windows["7"].activeMissionId, firstId);
++  assert.equal(Object.keys(migrated.runtime.missionStore.missions).length, 1);
++});
++
++test("WP02 mission view round-trips through the import boundary", () => {
++  const sourceRuntime = migrateV8ToV9(
++    { schema: "eic.autonom.config.v8", version: 8 },
++    legacyRuntime({
++      runId: "run-export",
++      mode: "NEW_SESSION",
++      state: "PREPARING"
++    }),
++    { now: NOW }
++  ).runtime;
++  const view = missionViewForWindow(sourceRuntime, 7);
++  assert.equal(view.schema, "eic.autonom.mission-view.v1");
++  assert.equal(view.missionIds.length, 1);
++
++  const targetRuntime = createDefaultRuntime();
++  targetRuntime.windows["9"] = {
++    schema: "eic.autonom.window-context.v7",
++    windowId: 9,
++    selectedTabId: null,
++    linkedTabs: {},
++    run: null,
++    activeMissionId: null,
++    missionIds: []
++  };
++  const result = importMissionView(targetRuntime, targetRuntime.windows["9"], view, { now: NOW + 5 });
++  assert.equal(result.imported, 1);
++  assert.equal(targetRuntime.windows["9"].missionIds.length, 1);
++  const imported = targetRuntime.missionStore.missions[targetRuntime.windows["9"].missionIds[0]];
++  assert.equal(imported.windowId, 9);
++  assert.equal(imported.modeId, MISSION_MODE_IDS.CHATGPT_NEW_SESSION);
++});
++
++test("WP02 uiSnapshot v2 exposes a detached mission view and reads v1 snapshots", () => {
++  const missions = {
++    schema: "eic.autonom.mission-view.v1",
++    version: 1,
++    activeMissionId: "mission-1",
++    missionIds: ["mission-1"],
++    missions: {
++      "mission-1": createMission({
++        missionId: "mission-1",
++        modeId: MISSION_MODE_IDS.CHATGPT_CONTINUATION,
++        now: NOW
++      })
++    }
++  };
++  const snapshot = createUiSnapshot({
++    appVersion: "0.8.2",
++    windowId: 7,
++    snapshotId: "snapshot-v2",
++    capturedAt: new Date(NOW).toISOString(),
++    config: {},
++    continuity: {},
++    window: {},
++    missions,
++    audit: []
++  });
++  assert.equal(snapshot.schema, UI_SNAPSHOT_SCHEMA);
++  assert.equal(snapshot.snapshotVersion, 2);
++  const model = readUiSnapshotModel(snapshot);
++  assert.equal(model.missions.activeMissionId, "mission-1");
++  missions.activeMissionId = null;
++  assert.equal(model.missions.activeMissionId, "mission-1");
++
++  const legacyModel = readUiSnapshotModel({
++    ok: true,
++    schema: LEGACY_UI_SNAPSHOT_SCHEMA,
++    config: {},
++    continuity: {},
++    window: {},
++    audit: []
++  });
++  assert.equal(legacyModel.missions.schema, "eic.autonom.mission-view.v1");
++});
++
++test("WP02 persistence contracts advance without changing package version or permissions", () => {
++  const manifest = json("manifest.json");
++  const pkg = json("package.json");
++  assert.equal(CONFIG_SCHEMA, "eic.autonom.config.v9");
++  assert.equal(RUNTIME_SCHEMA, "eic.autonom.runtime.v9");
++  assert.equal(EXPORT_SCHEMA, "eic.autonom.export.v11");
++  assert.equal(EXPORT_VERSION, 11);
++  assert.equal(createDefaultRuntime().missionStore.schema, MISSION_STORE_SCHEMA);
++  assert.equal(pkg.version, "0.8.2");
++  assert.equal(manifest.version, "0.8.2");
++  assert.deepEqual(manifest.permissions, ["sidePanel", "storage", "tabs", "scripting", "alarms"]);
++  assert.deepEqual(manifest.host_permissions, ["https://chatgpt.com/*", "https://chat.openai.com/*"]);
++});
++
++test("WP02 source wiring persists and snapshots the mission domain", () => {
++  const background = read("background.js");
++  const panel = read("sidepanel.js");
++  assert.match(background, /migrateV8ToV9/);
++  assert.match(background, /reconcileRuntimeMissions\(runtime\)/);
++  assert.match(background, /missionViewForWindow\(runtime, windowId\)/);
++  assert.match(background, /importMissionView\(bundle\.runtime, context, payload\.missions\)/);
++  assert.match(panel, /missions:\s*uiModel\(\)\.missions/);
++});
++
++test("WP02 documentation closes the gate before WP03", () => {
++  const ledger = read("docs/V0_9_0_EXECUTION_LEDGER.md");
++  const contract = read("docs/V0_9_0_WP02_MISSION_DOMAIN.md");
++  assert.match(ledger, /\| WP02 \|.*\| IMPLEMENTED \|/);
++  assert.match(ledger, /\| WP03 \|.*\| WAITING_APPROVAL \|/);
++  assert.match(contract, /Mission domain/i);
++  assert.match(contract, /No Mission Control visual redesign/i);
++  assert.match(contract, /WP03/i);
++});

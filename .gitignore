@@ -1,0 +1,3 @@
+# Build output from `npm run package` (written next to the project root).
+eic-autonom-agent-v*-dist/
+node_modules/

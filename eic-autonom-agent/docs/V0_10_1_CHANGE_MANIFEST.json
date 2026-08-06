@@ -1,0 +1,45 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "targetVersion": "0.10.1",
+  "createdAt": "2026-08-06T05:49:00Z",
+  "baseline": {
+    "sourceFile": "eic-autonom-agent-v0.10.0-source.zip",
+    "sha256": "c8e042e006e6dfc0e4c10938e06548c1d96799bb9fa86e284fac642e6bdbdbd4",
+    "sizeBytes": 976108,
+    "zipEntries": 367,
+    "tests": "743/743 PASS",
+    "validator": "PASS 140/140 syntax",
+    "package": "PASS"
+  },
+  "runtimeEvidence": {
+    "file": "eic-autonom-agent-v0.10.0-export-1785995111615.json",
+    "sha256": "76c8dade0c8ff4b8232c099edb0fccfb72ce265fa219c61d15d1d26de4770566",
+    "sizeBytes": 123815,
+    "observed": {
+      "appVersion": "0.10.0",
+      "runState": "WAITING_FOR_RESPONSE",
+      "targetResult": "PROTOCOL_AMBIGUOUS",
+      "legacyProtocol": "EIC-AA/4 four-line footer",
+      "nanoTelemetry": "RUNNING with output but without completion readback",
+      "sessionCapture": "manual capture succeeded after mission start",
+      "modelLifecycle": "profile change produced restart-required state"
+    }
+  },
+  "frozenScope": [
+    "Forward-only EIC-AA/5 consistency across start, repair, archaeology and runtime paths",
+    "Canonical compact target envelope with one instruction representation",
+    "ACK-bound mandate reference delivery",
+    "Default-enabled bounded automatic LanguageModel base-session restart with persistent cooldown loop guard",
+    "Default-enabled mission-independent initial Session Capture and stable-response delta capture",
+    "Durable Nano request recovery when panel lifecycle interrupts a running inference",
+    "Focused fixtures, full regression, validator, syntax, packaging and frozen-source rerun"
+  ],
+  "nonGoals": [
+    "Forgejo publish, merge, tag or release",
+    "Chrome Web Store publication",
+    "Desktop Chrome installation or runtime claim",
+    "Network/debugger transcript capture",
+    "Backward-compatibility adapters",
+    "Unrelated UI or architecture changes"
+  ]
+}

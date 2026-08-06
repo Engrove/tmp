@@ -1,0 +1,161 @@
+{
+  "schema": "eic.autonom.v090.wp02.evidence.v1",
+  "generatedAt": "2026-08-04T07:53:58.124142+00:00",
+  "projectId": 63,
+  "executionMode": "manual_operator_approval_per_wp",
+  "operatorApproval": {
+    "instruction": "Godkänt",
+    "boundTo": "WP02 after WP01 gate",
+    "approved": true
+  },
+  "baseline": {
+    "source": "v0.9.0 WP01 candidate",
+    "sha256": "0c1821271a35cbcdfc07504b9a4c5cbda5d6e0af789e0c427e955bceba698a04",
+    "version": "0.8.2",
+    "tests": {
+      "command": "npm test",
+      "exitCode": 0,
+      "pass": 398,
+      "fail": 0
+    },
+    "validation": {
+      "command": "npm run validate",
+      "exitCode": 0,
+      "verdict": "PASS"
+    }
+  },
+  "scope": {
+    "deliverables": [
+      "versioned Mission domain and normalized mission store",
+      "closed mode registry with explicit build profile and surface roles",
+      "closed Mission lifecycle state machine",
+      "v8 to v9 persistence migration and legacy-run compatibility binding",
+      "window-scoped Mission view in uiSnapshot v2 and export v11"
+    ],
+    "explicitNonGoals": [
+      "Mission Control visual redesign or WP03 app shell",
+      "migration of all existing controls into mission modes",
+      "controller/target tab lifecycle",
+      "browser permissions, origin grants, CDP or browser execution",
+      "enabling AI_WEB_RESEARCH"
+    ]
+  },
+  "delta": {
+    "functionalAddedFiles": [
+      "docs/V0_9_0_WP02_MISSION_DOMAIN.md",
+      "lib/migration-v8-v9.mjs",
+      "lib/mission-contract.mjs",
+      "lib/mission-state-machine.mjs",
+      "tests/v090-wp02-mission-domain.test.mjs"
+    ],
+    "functionalModifiedFiles": [
+      "EIC.md",
+      "background.js",
+      "docs/V0_9_0_EXECUTION_LEDGER.md",
+      "docs/V0_9_0_STATE_MAP.md",
+      "lib/contracts.mjs",
+      "lib/migration-v7-v8.mjs",
+      "lib/ui-contract.mjs",
+      "scripts/validate.mjs",
+      "sidepanel.js",
+      "tests/v082-runtime-isolation.test.mjs",
+      "tests/v090-wp00-contract.test.mjs",
+      "tests/v090-wp01-ui-boundary.test.mjs"
+    ],
+    "removedFiles": [],
+    "evidenceFiles": [
+      "docs/V0_9_0_WP02_EVIDENCE.json",
+      "docs/evidence/v0.9.0-wp02/background-smoke-final.log",
+      "docs/evidence/v0.9.0-wp02/node-check-final.log",
+      "docs/evidence/v0.9.0-wp02/npm-test-final.log",
+      "docs/evidence/v0.9.0-wp02/npm-validate-final.log",
+      "docs/evidence/v0.9.0-wp02/wp02-focused-final.log",
+      "docs/evidence/v0.9.0-wp02/wp02-source.patch"
+    ],
+    "protectedFiles": {
+      "manifest.json": {
+        "unchanged": true,
+        "sha256": "a44c3c176bad25f4477a6d533db593c8e094bab1ffa08d67f104e28a0caa7f6b"
+      },
+      "package.json": {
+        "unchanged": true,
+        "sha256": "3771875a343b9da22b45964d6f4b31d9d4ad69140c97aea8db0e819325d72a04"
+      },
+      "sidepanel.html": {
+        "unchanged": true,
+        "sha256": "4807b6bf0b44a298381dd1ae9610c778957124cde2fc264d1d76c81502bf56f0"
+      },
+      "sidepanel.css": {
+        "unchanged": true,
+        "sha256": "ad4e4268480e806f5a94a35a77bd65b217ad49869e09a7124121779846ce4180"
+      }
+    }
+  },
+  "schemas": {
+    "config": "eic.autonom.config.v9",
+    "runtime": "eic.autonom.runtime.v9",
+    "export": "eic.autonom.export.v11",
+    "audit": "eic.autonom.audit.v9",
+    "windowContext": "eic.autonom.window-context.v7",
+    "uiSnapshot": "eic.autonom.ui-snapshot.v2",
+    "mission": "eic.autonom.mission.v1",
+    "missionStore": "eic.autonom.mission-store.v1",
+    "modeRegistry": "eic.autonom.mission-mode-registry.v1"
+  },
+  "verification": {
+    "focusedTest": {
+      "command": "node --test tests/v090-wp02-mission-domain.test.mjs",
+      "exitCode": 0,
+      "pass": 11,
+      "fail": 0
+    },
+    "fullRegression": {
+      "command": "npm test",
+      "exitCode": 0,
+      "pass": 409,
+      "fail": 0
+    },
+    "validation": {
+      "command": "npm run validate",
+      "exitCode": 0,
+      "verdict": "PASS"
+    },
+    "backgroundSmoke": {
+      "command": "node scripts/background-smoke.mjs",
+      "exitCode": 0,
+      "verdict": "PASS"
+    },
+    "syntax": {
+      "command": "node --check <all JavaScript and MJS files>",
+      "exitCode": 0,
+      "pass": 94,
+      "fail": 0
+    },
+    "remediatedCheck": {
+      "firstFullRunFailCount": 1,
+      "class": "historical_fixture_expected_export_v10",
+      "detail": "The current-export fixture was updated to v11 after the intentional WP02 schema advance. No runtime defect was identified."
+    },
+    "revisionPatch": {
+      "path": "docs/evidence/v0.9.0-wp02/wp02-source.patch",
+      "sha256": "1f8c0c742a71bbd4d6e134f28907852c061b5d3ffa9928075b29830c0961304c",
+      "sizeBytes": 80587,
+      "scope": "functional and contract delta; generated command logs and build-info excluded"
+    }
+  },
+  "securityBoundary": {
+    "aiWebResearchRegistered": true,
+    "aiWebResearchEnabled": false,
+    "newPermissions": false,
+    "newHostPermissions": false,
+    "arbitraryJavaScript": false,
+    "browserExecutor": false
+  },
+  "claimBoundary": {
+    "sourceContractVerified": true,
+    "desktopChromeRuntimeVerifiedInThisGate": false,
+    "visualRenderingVerifiedInThisGate": false,
+    "repositoryPersisted": false,
+    "nextGate": "WP03_WAITING_OPERATOR_APPROVAL"
+  }
+}

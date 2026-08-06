@@ -1,0 +1,40 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.10.11",
+  "baseline": {
+    "version": "0.10.10",
+    "source_sha256": "89272943dfd4dea320f0ccc8d5d723c99a84fc67ea155a2e666189b58cd2484a"
+  },
+  "added": [
+    "docs/V0_10_11_ARCHITECTURE.md",
+    "docs/V0_10_11_CHANGE_MANIFEST.json",
+    "docs/CHANGELOG_V0_10_11.md",
+    "docs/VERIFICATION_V0_10_11.md",
+    "docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_11.md",
+    "docs/V0_10_11_INCIDENT_ANALYSIS.md",
+    "tests/v01011-deterministic-dispatch-liveness.test.mjs",
+    "tests/v01011-runtime-integration.test.mjs",
+    "tests/helpers/fake-chrome.mjs"
+  ],
+  "modified": [
+    "background.js",
+    "sidepanel.js",
+    "sidepanel.html",
+    "lib/session-context-init.mjs",
+    "lib/deterministic-dispatch-gate.mjs",
+    "lib/auto-runtime-guards.mjs",
+    "lib/attention-router.mjs",
+    "lib/ui-contract.mjs",
+    "lib/contracts.mjs",
+    "EIC.md",
+    "README.md",
+    "manifest.json",
+    "package.json",
+    "scripts/package.mjs",
+    "scripts/validate.mjs"
+  ],
+  "removed": [
+    "background.js::scheduleDeterministicDecision"
+  ],
+  "claim_boundary": "Source/package candidate only. The integration suite executes background.js against a fake Chrome runtime; installed Desktop Chrome behavior still requires separate owner-visible acceptance."
+}

@@ -1,0 +1,6 @@
+
+> eic-autonom-agent@0.8.2 validate
+> node scripts/validate.mjs
+
+VALIDATE CORE PASS: v0.8.2 source gates.
+VALIDATE PASS: v0.8.2 med window/run-scoped continuity, sticky specialized modes, bounded Nano, Workspace-aware research och strikt USER_PAUSE.

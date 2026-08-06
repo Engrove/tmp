@@ -1,0 +1,50 @@
+$ node --test tests/v090-wp00-contract.test.mjs
+exit=0
+duration_s=0.07
+
+TAP version 13
+# Subtest: WP00 keeps the v0.8.2 runtime and standard permission baseline unchanged
+ok 1 - WP00 keeps the v0.8.2 runtime and standard permission baseline unchanged
+  ---
+  duration_ms: 1.746759
+  type: 'test'
+  ...
+# Subtest: EIC.md enforces manual approval and forbids autonomous addon execution
+ok 2 - EIC.md enforces manual approval and forbids autonomous addon execution
+  ---
+  duration_ms: 0.200708
+  type: 'test'
+  ...
+# Subtest: WP00 ledger covers WP00 through WP14 and stops before WP01
+ok 3 - WP00 ledger covers WP00 through WP14 and stops before WP01
+  ---
+  duration_ms: 0.294376
+  type: 'test'
+  ...
+# Subtest: WP00 architecture and inventory documents exist
+ok 4 - WP00 architecture and inventory documents exist
+  ---
+  duration_ms: 0.260275
+  type: 'test'
+  ...
+# Subtest: WP00 records exact source and transcript identities
+ok 5 - WP00 records exact source and transcript identities
+  ---
+  duration_ms: 0.195339
+  type: 'test'
+  ...
+# Subtest: Desktop acceptance is retained only as an operator attestation
+ok 6 - Desktop acceptance is retained only as an operator attestation
+  ---
+  duration_ms: 0.179706
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 48.505503

@@ -1,0 +1,1319 @@
+--- a/background.js
++++ b/background.js
+@@ -217,6 +217,12 @@
+   resolveLifecycleDeadlineExtension,
+   shouldPauseForLoop
+ } from "./lib/runtime-safety.mjs";
++import {
++  UI_COMMANDS,
++  createUiCommandError,
++  createUiSnapshot,
++  dispatchUiCommand
++} from "./lib/ui-contract.mjs";
+ 
+ const WATCHDOG_ALARM = "eic-autonom-agent-watchdog-v8";
+ const WATCHDOG_MINUTES = 0.5;
+@@ -976,14 +982,18 @@
+       pauseRequiresHuman(context.run)
+     );
+   }
+-  return {
+-    ok: true,
++  return createUiSnapshot({
+     appVersion: APP_VERSION,
++    windowId,
++    snapshotId: randomId("ui-snapshot"),
++    capturedAt: nowIso(),
+     config,
+     continuity,
+     window: windowView,
+-    audit: (audit.items || []).filter((item) => item.windowId === windowId || item.windowId === null).slice(0, 100)
+-  };
++    audit: (audit.items || [])
++      .filter((item) => item.windowId === windowId || item.windowId === null)
++      .slice(0, 100)
++  });
+ }
+ 
+ 
+@@ -5474,77 +5484,68 @@
+   });
+ }
+ 
++const UI_COMMAND_HANDLERS = Object.freeze({
++  [UI_COMMANDS.GET_SNAPSHOT]: ({ windowId }) => snapshotForWindow(windowId),
++  [UI_COMMANDS.REFRESH]: async ({ windowId }) => {
++    await tickWindow(windowId, "ui-refresh");
++    return snapshotForWindow(windowId);
++  },
++  [UI_COMMANDS.LINK_ACTIVE_TAB]: ({ windowId }) => linkActiveTab(windowId),
++  [UI_COMMANDS.DETACH_SELECTED_TAB]: ({ windowId }) => detachSelectedTab(windowId),
++  [UI_COMMANDS.SELECT_TAB]: ({ windowId, payload }) =>
++    selectLinkedTab(windowId, Number(payload.tabId)),
++  [UI_COMMANDS.SET_TARGET_MODE]: ({ windowId, payload }) => enqueue(async () => {
++    const { continuity, runtime, audit } = await loadBundle(windowId);
++    const context = getWindowContext(runtime, windowId);
++    context.targetMode = payload.mode === TARGET_MODES.FOLLOW
++      ? TARGET_MODES.FOLLOW
++      : TARGET_MODES.LOCKED;
++    context.updatedAt = nowIso();
++    await writeRuntimeBundle(runtime, continuity, audit);
++    await notifyPanels(windowId);
++    return snapshotForWindow(windowId);
++  }),
++  [UI_COMMANDS.SAVE_CONFIG]: async ({ windowId, payload }) => {
++    await saveConfig(payload.config || {});
++    await notifyPanels(windowId);
++    return snapshotForWindow(windowId);
++  },
++  [UI_COMMANDS.START_WAITING]: ({ windowId }) => startWaiting(windowId),
++  [UI_COMMANDS.START_NEW_SESSION]: ({ windowId, payload }) =>
++    enqueue(() => preparePreparedSessionRunUnlocked(windowId, {
++      startPrompt: payload.startPrompt,
++      analysis: payload.analysis
++    })),
++  [UI_COMMANDS.NANO_HOST_STATE]: ({ windowId, payload }) =>
++    updateNanoHostState(windowId, payload.hostState || {}),
++  [UI_COMMANDS.NANO_CLAIM]: ({ windowId, payload }) =>
++    claimNanoRequest(windowId, payload),
++  [UI_COMMANDS.NANO_HEARTBEAT]: ({ windowId, payload }) =>
++    heartbeatNanoRequest(windowId, payload),
++  [UI_COMMANDS.NANO_FAILURE]: ({ windowId, payload }) =>
++    failNanoRequest(windowId, payload),
++  [UI_COMMANDS.NANO_DECISION]: ({ windowId, payload }) =>
++    applyNanoDecisionCommand(windowId, payload),
++  [UI_COMMANDS.PAUSE]: ({ windowId }) => controlRun(windowId, "PAUSE"),
++  [UI_COMMANDS.RESUME]: ({ windowId }) => controlRun(windowId, "RESUME"),
++  [UI_COMMANDS.STOP]: ({ windowId }) => controlRun(windowId, "STOP"),
++  [UI_COMMANDS.START_APP_AUDIT]: ({ windowId, payload }) =>
++    startAppAudit(windowId, payload),
++  [UI_COMMANDS.START_ARCHAEOLOGY]: ({ windowId, payload }) =>
++    startArchaeology(windowId, payload),
++  [UI_COMMANDS.AUTHORIZE_BOUNDARY]: ({ windowId, payload }) =>
++    authorizeBoundary(windowId, payload),
++  [UI_COMMANDS.IMPORT]: ({ windowId, payload }) =>
++    importState(windowId, payload.payload),
++  [UI_COMMANDS.RESET_WINDOW]: ({ windowId }) => resetWindow(windowId),
++  [UI_COMMANDS.CLEAR_AUDIT]: ({ windowId }) => clearAudit(windowId),
++  [UI_COMMANDS.ADD_AUDIT]: ({ windowId, payload }) =>
++    recordUiAudit(windowId, payload.auditEntry || {})
++});
++
+ async function handleUiCommand(message) {
+   await ensureInitialized();
+-  const windowId = Number(message.windowId);
+-  if (!Number.isInteger(windowId)) throw new Error("windowId saknas.");
+-  switch (message.command) {
+-    case "GET_SNAPSHOT":
+-      return snapshotForWindow(windowId);
+-    case "REFRESH":
+-      await tickWindow(windowId, "ui-refresh");
+-      return snapshotForWindow(windowId);
+-    case "LINK_ACTIVE_TAB":
+-      return linkActiveTab(windowId);
+-    case "DETACH_SELECTED_TAB":
+-      return detachSelectedTab(windowId);
+-    case "SELECT_TAB":
+-      return selectLinkedTab(windowId, Number(message.tabId));
+-    case "SET_TARGET_MODE": {
+-      return enqueue(async () => {
+-        const { continuity, runtime, audit } = await loadBundle(windowId);
+-        const context = getWindowContext(runtime, windowId);
+-        context.targetMode = message.mode === TARGET_MODES.FOLLOW ? TARGET_MODES.FOLLOW : TARGET_MODES.LOCKED;
+-        context.updatedAt = nowIso();
+-        await writeRuntimeBundle(runtime, continuity, audit);
+-        await notifyPanels(windowId);
+-        return snapshotForWindow(windowId);
+-      });
+-    }
+-    case "SAVE_CONFIG":
+-      await saveConfig(message.config || {});
+-      await notifyPanels(windowId);
+-      return snapshotForWindow(windowId);
+-    case "START_WAITING":
+-      return startWaiting(windowId);
+-    case "START_NEW_SESSION":
+-      return enqueue(() => preparePreparedSessionRunUnlocked(windowId, {
+-        startPrompt: message.startPrompt,
+-        analysis: message.analysis
+-      }));
+-    case "NANO_HOST_STATE":
+-      return updateNanoHostState(windowId, message.hostState || {});
+-    case "NANO_CLAIM":
+-      return claimNanoRequest(windowId, message);
+-    case "NANO_HEARTBEAT":
+-      return heartbeatNanoRequest(windowId, message);
+-    case "NANO_FAILURE":
+-      return failNanoRequest(windowId, message);
+-    case "NANO_DECISION":
+-      return applyNanoDecisionCommand(windowId, message);
+-    case "PAUSE":
+-      return controlRun(windowId, "PAUSE");
+-    case "RESUME":
+-      return controlRun(windowId, "RESUME");
+-    case "STOP":
+-      return controlRun(windowId, "STOP");
+-    case "START_APP_AUDIT":
+-      return startAppAudit(windowId, message);
+-    case "START_ARCHAEOLOGY":
+-      return startArchaeology(windowId, message);
+-    case "AUTHORIZE_BOUNDARY":
+-      return authorizeBoundary(windowId, message);
+-    case "IMPORT":
+-      return importState(windowId, message.payload);
+-    case "RESET_WINDOW":
+-      return resetWindow(windowId);
+-    case "CLEAR_AUDIT":
+-      return clearAudit(windowId);
+-    case "ADD_AUDIT":
+-      return recordUiAudit(windowId, message.auditEntry || {});
+-    default:
+-      throw new Error(`Okänt UI-kommando: ${message.command}`);
+-  }
++  return dispatchUiCommand(message, UI_COMMAND_HANDLERS);
+ }
+ 
+ /**
+@@ -5944,10 +5945,7 @@
+   if (message?.type === "EIC_UI_COMMAND") {
+     handleUiCommand(message)
+       .then(sendResponse)
+-      .catch((error) => sendResponse({
+-        ok: false,
+-        error: error instanceof Error ? error.message : String(error)
+-      }));
++      .catch((error) => sendResponse(createUiCommandError(message, error)));
+     return true;
+   }
+ 
+--- a/sidepanel.js
++++ b/sidepanel.js
+@@ -43,6 +43,8 @@
+   inferCoreProfile
+ } from "./lib/core-profiles.mjs";
+ import { ARCHAEOLOGY_SCENARIOS } from "./lib/archaeology-contract.mjs";
++import { readUiSnapshotModel } from "./lib/ui-contract.mjs";
++import { createUiRuntimeClient } from "./lib/ui-runtime-client.mjs";
+ 
+ const POLL_MS = 1_500;
+ const START_CHUNK_CHARS = 10_000;
+@@ -281,6 +283,15 @@
+   pollTimer: null
+ };
+ 
++const uiRuntime = createUiRuntimeClient({
++  sendMessage: (message) => chrome.runtime.sendMessage(message),
++  getWindowId: () => state.windowId
++});
++
++function uiModel(snapshot = state.snapshot) {
++  return readUiSnapshotModel(snapshot);
++}
++
+ 
+ function populateSelect(select, items) {
+   select.textContent = "";
+@@ -407,16 +418,9 @@
+   };
+ }
+ 
+-async function command(commandName, extra = {}) {
++async function command(commandName, payload = {}) {
+   if (!Number.isInteger(state.windowId)) throw new Error("Panelens windowId är inte klart.");
+-  const response = await chrome.runtime.sendMessage({
+-    type: "EIC_UI_COMMAND",
+-    command: commandName,
+-    windowId: state.windowId,
+-    ...extra
+-  });
+-  if (!response?.ok) throw new Error(response?.error || `Kommandot ${commandName} misslyckades.`);
+-  return response;
++  return uiRuntime.dispatch(commandName, payload);
+ }
+ 
+ async function reportNanoHostState(extra = {}) {
+@@ -734,9 +738,10 @@
+ 
+ function renderSnapshot(snapshot, { preserveInputs = false } = {}) {
+   if (!snapshot?.ok) return;
++  const model = uiModel(snapshot);
+   state.snapshot = snapshot;
+-  const config = snapshot.config || {};
+-  const windowContext = snapshot.window || {};
++  const config = model.config || {};
++  const windowContext = model.window || {};
+   const run = windowContext.run;
+   const [runLabel, runToneName] = runTone(run);
+   setBadge(elements.runBadge, runLabel, runToneName);
+@@ -789,10 +794,10 @@
+     : `v${APP_VERSION} · ingen aktiv run i detta fönster.`;
+ 
+   renderTabs(windowContext);
+-  renderAudit(snapshot.audit);
++  renderAudit(model.audit);
+   elements.turnCounter.textContent = `${run?.turnIndex || 0} turer · checkpoint ${run?.checkpointIndex || 0}`;
+   renderContinuityData(
+-    snapshot.continuity,
++    model.continuity,
+     config.continuityViewProfile || elements.continuityViewProfile.value || "CANONICAL"
+   );
+ 
+@@ -871,7 +876,7 @@
+     throw new Error("Chrome LanguageModel API saknas i denna extension-sida.");
+   }
+ 
+-  const config = state.snapshot?.config || uiConfig();
++  const config = state.snapshot ? (uiModel().config || uiConfig()) : uiConfig();
+   state.modelStatus = "creating";
+   state.modelBusy = true;
+   state.modelStale = false;
+@@ -1365,7 +1370,8 @@
+ }
+ 
+ async function processPendingNano(snapshot) {
+-  const run = snapshot?.window?.run;
++  const model = uiModel(snapshot);
++  const run = model.window?.run;
+   const request = run?.pendingNanoRequest;
+   if (!run || !request || request.status !== "PENDING") return;
+   if (state.modelBusy || state.activeNanoRequestId) return;
+@@ -1397,8 +1403,8 @@
+   let claimId = null;
+   try {
+   const observation = run.pendingObservation;
+-  const config = snapshot.config;
+-  const continuityProjection = projectContinuity(snapshot.continuity);
++  const config = model.config;
++  const continuityProjection = projectContinuity(model.continuity);
+   const analysisMode = request.mode || classifyNanoAnalysisMode({
+     run,
+     continuityProjection,
+@@ -1488,7 +1494,7 @@
+         contextWindow: state.lastContextWindow
+       }
+     });
+-    const claimedRun = claimedSnapshot?.window?.run;
++    const claimedRun = uiModel(claimedSnapshot).window?.run;
+     const claimed = claimedRun?.pendingNanoRequest;
+     claimId = claimed?.claimId || null;
+     if (!claimId || claimed?.status !== "RUNNING") {
+@@ -1880,10 +1886,10 @@
+     appVersion: APP_VERSION,
+     build: state.buildInfo || { status: "BUILD_INFO_NOT_LOADED", version: APP_VERSION },
+     windowId: state.windowId,
+-    config: state.snapshot.config,
+-    continuity: state.snapshot.continuity,
+-    window: state.snapshot.window,
+-    audit: state.snapshot.audit
++    config: uiModel().config,
++    continuity: uiModel().continuity,
++    window: uiModel().window,
++    audit: uiModel().audit
+   };
+   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+   const url = URL.createObjectURL(blob);
+@@ -1907,7 +1913,7 @@
+       applyScenarioPreset(elements.scenarioPreset.value);
+       await saveConfigNow();
+       renderNano();
+-      if (state.snapshot) renderContinuityData(state.snapshot.continuity, elements.continuityViewProfile.value);
++      if (state.snapshot) renderContinuityData(uiModel().continuity, elements.continuityViewProfile.value);
+     } catch (error) {
+       showError(error, "Snabbprofilen kunde inte tillämpas");
+     }
+@@ -1933,7 +1939,7 @@
+   });
+   elements.continuityViewProfile.addEventListener("change", async () => {
+     markCoreCombinationCustom();
+-    if (state.snapshot) renderContinuityData(state.snapshot.continuity, elements.continuityViewProfile.value);
++    if (state.snapshot) renderContinuityData(uiModel().continuity, elements.continuityViewProfile.value);
+     try { await saveConfigNow(); }
+     catch (error) { showError(error, "Kontinuitetsprofilen kunde inte sparas"); }
+   });
+@@ -2071,7 +2077,7 @@
+     }
+   });
+   elements.authorizeBoundaryButton.addEventListener("click", async () => {
+-    const run = state.snapshot?.window?.run;
++    const run = state.snapshot ? uiModel().window?.run : null;
+     const boundaryKey = String(run?.boundaryKey || "");
+     const justification = String(elements.boundaryJustification.value || "").trim();
+     if (!boundaryKey) {
+--- /dev/null
++++ b/lib/ui-contract.mjs
+@@ -0,0 +1,349 @@
++const COMMAND_TYPE = "EIC_UI_COMMAND";
++
++export const UI_COMMAND_SCHEMA = "eic.autonom.ui-command.v1";
++export const UI_COMMAND_RESULT_SCHEMA = "eic.autonom.ui-command-result.v1";
++export const UI_SNAPSHOT_SCHEMA = "eic.autonom.ui-snapshot.v1";
++
++export const UI_RESPONSE_KINDS = Object.freeze({
++  SNAPSHOT: "SNAPSHOT",
++  ACK: "ACK"
++});
++
++export const UI_COMMANDS = Object.freeze({
++  ADD_AUDIT: "ADD_AUDIT",
++  AUTHORIZE_BOUNDARY: "AUTHORIZE_BOUNDARY",
++  CLEAR_AUDIT: "CLEAR_AUDIT",
++  DETACH_SELECTED_TAB: "DETACH_SELECTED_TAB",
++  GET_SNAPSHOT: "GET_SNAPSHOT",
++  IMPORT: "IMPORT",
++  LINK_ACTIVE_TAB: "LINK_ACTIVE_TAB",
++  NANO_CLAIM: "NANO_CLAIM",
++  NANO_DECISION: "NANO_DECISION",
++  NANO_FAILURE: "NANO_FAILURE",
++  NANO_HEARTBEAT: "NANO_HEARTBEAT",
++  NANO_HOST_STATE: "NANO_HOST_STATE",
++  PAUSE: "PAUSE",
++  REFRESH: "REFRESH",
++  RESET_WINDOW: "RESET_WINDOW",
++  RESUME: "RESUME",
++  SAVE_CONFIG: "SAVE_CONFIG",
++  SELECT_TAB: "SELECT_TAB",
++  SET_TARGET_MODE: "SET_TARGET_MODE",
++  START_APP_AUDIT: "START_APP_AUDIT",
++  START_ARCHAEOLOGY: "START_ARCHAEOLOGY",
++  START_NEW_SESSION: "START_NEW_SESSION",
++  START_WAITING: "START_WAITING",
++  STOP: "STOP"
++});
++
++function spec(responseKind, allowedPayloadKeys = [], requiredPayloadKeys = []) {
++  return Object.freeze({
++    responseKind,
++    allowedPayloadKeys: Object.freeze([...allowedPayloadKeys]),
++    requiredPayloadKeys: Object.freeze([...requiredPayloadKeys])
++  });
++}
++
++export const UI_COMMAND_SPECS = Object.freeze({
++  [UI_COMMANDS.ADD_AUDIT]: spec(UI_RESPONSE_KINDS.SNAPSHOT, ["auditEntry"], ["auditEntry"]),
++  [UI_COMMANDS.AUTHORIZE_BOUNDARY]: spec(
++    UI_RESPONSE_KINDS.SNAPSHOT,
++    ["boundaryKey", "justification"],
++    ["boundaryKey", "justification"]
++  ),
++  [UI_COMMANDS.CLEAR_AUDIT]: spec(UI_RESPONSE_KINDS.SNAPSHOT),
++  [UI_COMMANDS.DETACH_SELECTED_TAB]: spec(UI_RESPONSE_KINDS.SNAPSHOT),
++  [UI_COMMANDS.GET_SNAPSHOT]: spec(UI_RESPONSE_KINDS.SNAPSHOT),
++  [UI_COMMANDS.IMPORT]: spec(UI_RESPONSE_KINDS.SNAPSHOT, ["payload"], ["payload"]),
++  [UI_COMMANDS.LINK_ACTIVE_TAB]: spec(UI_RESPONSE_KINDS.SNAPSHOT),
++  [UI_COMMANDS.NANO_CLAIM]: spec(
++    UI_RESPONSE_KINDS.SNAPSHOT,
++    [
++      "requestId", "analysisMode", "modelKind", "inputDigest", "inputChars",
++      "inputBudget", "hostState"
++    ],
++    ["requestId", "analysisMode", "inputDigest"]
++  ),
++  [UI_COMMANDS.NANO_DECISION]: spec(
++    UI_RESPONSE_KINDS.SNAPSHOT,
++    [
++      "requestId", "claimId", "analysisMode", "source", "durationMs",
++      "outputChars", "chunkCount", "firstTokenAt", "transport",
++      "contextUsage", "contextWindow", "cloneUsed", "staleReason",
++      "repairUsed", "decision"
++    ],
++    ["requestId", "analysisMode", "source", "decision"]
++  ),
++  [UI_COMMANDS.NANO_FAILURE]: spec(
++    UI_RESPONSE_KINDS.SNAPSHOT,
++    ["requestId", "claimId", "durationMs", "errorCode", "errorDetail", "repairUsed"],
++    ["requestId", "claimId", "errorCode"]
++  ),
++  [UI_COMMANDS.NANO_HEARTBEAT]: spec(
++    UI_RESPONSE_KINDS.ACK,
++    ["requestId", "claimId", "outputChars", "chunkCount"],
++    ["requestId", "claimId"]
++  ),
++  [UI_COMMANDS.NANO_HOST_STATE]: spec(UI_RESPONSE_KINDS.SNAPSHOT, ["hostState"], ["hostState"]),
++  [UI_COMMANDS.PAUSE]: spec(UI_RESPONSE_KINDS.SNAPSHOT),
++  [UI_COMMANDS.REFRESH]: spec(UI_RESPONSE_KINDS.SNAPSHOT),
++  [UI_COMMANDS.RESET_WINDOW]: spec(UI_RESPONSE_KINDS.SNAPSHOT),
++  [UI_COMMANDS.RESUME]: spec(UI_RESPONSE_KINDS.SNAPSHOT),
++  [UI_COMMANDS.SAVE_CONFIG]: spec(UI_RESPONSE_KINDS.SNAPSHOT, ["config"], ["config"]),
++  [UI_COMMANDS.SELECT_TAB]: spec(UI_RESPONSE_KINDS.SNAPSHOT, ["tabId"], ["tabId"]),
++  [UI_COMMANDS.SET_TARGET_MODE]: spec(UI_RESPONSE_KINDS.SNAPSHOT, ["mode"], ["mode"]),
++  [UI_COMMANDS.START_APP_AUDIT]: spec(
++    UI_RESPONSE_KINDS.SNAPSHOT,
++    [
++      "testNeed", "context", "targetReadOnly",
++      "allowWorkbenchAuditFiles", "allowForgejoFindingSink"
++    ],
++    ["testNeed"]
++  ),
++  [UI_COMMANDS.START_ARCHAEOLOGY]: spec(
++    UI_RESPONSE_KINDS.SNAPSHOT,
++    ["scenario", "question", "context", "allowWorkspaceEvidence", "allowExport"],
++    ["question"]
++  ),
++  [UI_COMMANDS.START_NEW_SESSION]: spec(
++    UI_RESPONSE_KINDS.SNAPSHOT,
++    ["startPrompt", "analysis"],
++    ["startPrompt", "analysis"]
++  ),
++  [UI_COMMANDS.START_WAITING]: spec(UI_RESPONSE_KINDS.SNAPSHOT),
++  [UI_COMMANDS.STOP]: spec(UI_RESPONSE_KINDS.SNAPSHOT)
++});
++
++const RESERVED_MESSAGE_KEYS = new Set([
++  "type", "schema", "requestId", "command", "windowId", "payload"
++]);
++
++function isRecord(value) {
++  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
++}
++
++function cloneValue(value) {
++  if (typeof structuredClone === "function") return structuredClone(value);
++  return JSON.parse(JSON.stringify(value));
++}
++
++function newRequestId() {
++  if (globalThis.crypto?.randomUUID) return `ui-command-${globalThis.crypto.randomUUID()}`;
++  return `ui-command-${Date.now()}-${Math.random().toString(16).slice(2)}`;
++}
++
++function validatePayload(command, payload) {
++  const specValue = UI_COMMAND_SPECS[command];
++  if (!specValue) throw new Error(`UNKNOWN_UI_COMMAND:${command}`);
++  if (!isRecord(payload)) throw new Error(`UI_COMMAND_PAYLOAD_NOT_OBJECT:${command}`);
++
++  const allowed = new Set(specValue.allowedPayloadKeys);
++  for (const key of Object.keys(payload)) {
++    if (!allowed.has(key)) throw new Error(`UI_COMMAND_PAYLOAD_KEY_NOT_ALLOWED:${command}:${key}`);
++  }
++  for (const key of specValue.requiredPayloadKeys) {
++    if (!(key in payload)) throw new Error(`UI_COMMAND_PAYLOAD_KEY_REQUIRED:${command}:${key}`);
++  }
++
++  if (command === UI_COMMANDS.SELECT_TAB && !Number.isInteger(Number(payload.tabId))) {
++    throw new Error("UI_COMMAND_TAB_ID_INVALID");
++  }
++  if (command === UI_COMMANDS.SET_TARGET_MODE && typeof payload.mode !== "string") {
++    throw new Error("UI_COMMAND_TARGET_MODE_INVALID");
++  }
++  if (command === UI_COMMANDS.SAVE_CONFIG && !isRecord(payload.config)) {
++    throw new Error("UI_COMMAND_CONFIG_INVALID");
++  }
++  if (command === UI_COMMANDS.IMPORT && !isRecord(payload.payload)) {
++    throw new Error("UI_COMMAND_IMPORT_INVALID");
++  }
++  if (command === UI_COMMANDS.START_NEW_SESSION) {
++    if (typeof payload.startPrompt !== "string" || !isRecord(payload.analysis)) {
++      throw new Error("UI_COMMAND_START_SESSION_INVALID");
++    }
++  }
++  return payload;
++}
++
++function legacyPayload(message) {
++  return Object.fromEntries(
++    Object.entries(message || {}).filter(([key]) => !RESERVED_MESSAGE_KEYS.has(key))
++  );
++}
++
++export function createUiCommand({
++  command,
++  windowId,
++  payload = {},
++  requestId = newRequestId()
++} = {}) {
++  if (!UI_COMMAND_SPECS[command]) throw new Error(`UNKNOWN_UI_COMMAND:${command}`);
++  if (!Number.isInteger(Number(windowId))) throw new Error("UI_COMMAND_WINDOW_ID_INVALID");
++  const normalizedPayload = validatePayload(command, cloneValue(payload));
++  return {
++    type: COMMAND_TYPE,
++    schema: UI_COMMAND_SCHEMA,
++    requestId: String(requestId || newRequestId()),
++    command,
++    windowId: Number(windowId),
++    payload: normalizedPayload
++  };
++}
++
++export function parseUiCommand(message) {
++  if (!isRecord(message) || message.type !== COMMAND_TYPE) {
++    throw new Error("UI_COMMAND_TYPE_INVALID");
++  }
++  const legacy = !message.schema;
++  if (!legacy && message.schema !== UI_COMMAND_SCHEMA) {
++    throw new Error(`UI_COMMAND_SCHEMA_UNSUPPORTED:${message.schema}`);
++  }
++  const command = String(message.command || "");
++  if (!UI_COMMAND_SPECS[command]) throw new Error(`UNKNOWN_UI_COMMAND:${command}`);
++  const windowId = Number(message.windowId);
++  if (!Number.isInteger(windowId)) throw new Error("UI_COMMAND_WINDOW_ID_INVALID");
++  const payload = validatePayload(
++    command,
++    cloneValue(legacy ? legacyPayload(message) : (message.payload || {}))
++  );
++  return {
++    legacy,
++    requestId: String(message.requestId || ""),
++    command,
++    windowId,
++    payload,
++    responseKind: UI_COMMAND_SPECS[command].responseKind
++  };
++}
++
++export function createUiSnapshot({
++  appVersion,
++  windowId,
++  snapshotId,
++  capturedAt,
++  config,
++  continuity,
++  window,
++  audit
++} = {}) {
++  if (!Number.isInteger(Number(windowId))) throw new Error("UI_SNAPSHOT_WINDOW_ID_INVALID");
++  const model = cloneValue({
++    config: config || {},
++    continuity: continuity || {},
++    window: window || {},
++    audit: Array.isArray(audit) ? audit : []
++  });
++  return {
++    ok: true,
++    schema: UI_SNAPSHOT_SCHEMA,
++    snapshotVersion: 1,
++    snapshotId: String(snapshotId || ""),
++    capturedAt: String(capturedAt || ""),
++    appVersion: String(appVersion || ""),
++    windowId: Number(windowId),
++    compatibility: "v0.8.2-legacy-aliases",
++    model,
++    // Transitional aliases keep an already-open v0.8.2 panel readable during extension reload.
++    config: model.config,
++    continuity: model.continuity,
++    window: model.window,
++    audit: model.audit
++  };
++}
++
++export function readUiSnapshotModel(snapshot) {
++  if (!isRecord(snapshot) || snapshot.ok !== true) throw new Error("UI_SNAPSHOT_INVALID");
++  if (snapshot.schema && snapshot.schema !== UI_SNAPSHOT_SCHEMA) {
++    throw new Error(`UI_SNAPSHOT_SCHEMA_UNSUPPORTED:${snapshot.schema}`);
++  }
++  if (isRecord(snapshot.model)) return snapshot.model;
++  // One-version compatibility for old snapshots during a hot reload.
++  return {
++    config: snapshot.config || {},
++    continuity: snapshot.continuity || {},
++    window: snapshot.window || {},
++    audit: Array.isArray(snapshot.audit) ? snapshot.audit : []
++  };
++}
++
++export function createUiCommandError(message, error) {
++  const detail = error instanceof Error ? error.message : String(error || "Okänt UI-fel");
++  if (message?.schema !== UI_COMMAND_SCHEMA) {
++    return { ok: false, error: detail };
++  }
++  return {
++    ok: false,
++    schema: UI_COMMAND_RESULT_SCHEMA,
++    resultVersion: 1,
++    requestId: String(message.requestId || ""),
++    command: String(message.command || ""),
++    error: detail
++  };
++}
++
++function createUiCommandSuccess(request, value) {
++  if (request.legacy) return value;
++  if (request.responseKind === UI_RESPONSE_KINDS.SNAPSHOT) {
++    if (value?.schema !== UI_SNAPSHOT_SCHEMA) {
++      throw new Error(`UI_COMMAND_SNAPSHOT_REQUIRED:${request.command}`);
++    }
++    return {
++      ok: true,
++      schema: UI_COMMAND_RESULT_SCHEMA,
++      resultVersion: 1,
++      requestId: request.requestId,
++      command: request.command,
++      responseKind: request.responseKind,
++      uiSnapshot: value
++    };
++  }
++  return {
++    ok: true,
++    schema: UI_COMMAND_RESULT_SCHEMA,
++    resultVersion: 1,
++    requestId: request.requestId,
++    command: request.command,
++    responseKind: request.responseKind,
++    data: cloneValue(value || {})
++  };
++}
++
++export async function dispatchUiCommand(message, handlers) {
++  const request = parseUiCommand(message);
++  const handler = handlers?.[request.command];
++  if (typeof handler !== "function") throw new Error(`UI_COMMAND_HANDLER_MISSING:${request.command}`);
++  const value = await handler({
++    command: request.command,
++    windowId: request.windowId,
++    requestId: request.requestId,
++    payload: request.payload
++  });
++  return createUiCommandSuccess(request, value);
++}
++
++export function unwrapUiCommandResult(response, {
++  command,
++  requestId
++} = {}) {
++  if (!isRecord(response)) throw new Error("UI_COMMAND_RESULT_INVALID");
++  if (!response.schema) {
++    if (response.ok === false) throw new Error(response.error || "UI-kommandot misslyckades.");
++    return response;
++  }
++  if (response.schema !== UI_COMMAND_RESULT_SCHEMA) {
++    throw new Error(`UI_COMMAND_RESULT_SCHEMA_UNSUPPORTED:${response.schema}`);
++  }
++  if (response.ok !== true) throw new Error(response.error || "UI-kommandot misslyckades.");
++  if (command && response.command !== command) {
++    throw new Error(`UI_COMMAND_RESULT_COMMAND_MISMATCH:${response.command}`);
++  }
++  if (requestId && response.requestId !== requestId) {
++    throw new Error("UI_COMMAND_RESULT_REQUEST_ID_MISMATCH");
++  }
++  if (response.responseKind === UI_RESPONSE_KINDS.SNAPSHOT) {
++    readUiSnapshotModel(response.uiSnapshot);
++    return response.uiSnapshot;
++  }
++  if (response.responseKind === UI_RESPONSE_KINDS.ACK) return response.data || {};
++  throw new Error(`UI_COMMAND_RESULT_KIND_UNSUPPORTED:${response.responseKind}`);
++}
+--- /dev/null
++++ b/lib/ui-runtime-client.mjs
+@@ -0,0 +1,27 @@
++import {
++  createUiCommand,
++  unwrapUiCommandResult
++} from "./ui-contract.mjs";
++
++export function createUiRuntimeClient({
++  sendMessage,
++  getWindowId
++} = {}) {
++  if (typeof sendMessage !== "function") throw new Error("UI_RUNTIME_SEND_MESSAGE_REQUIRED");
++  if (typeof getWindowId !== "function") throw new Error("UI_RUNTIME_WINDOW_PROVIDER_REQUIRED");
++
++  return Object.freeze({
++    async dispatch(command, payload = {}) {
++      const request = createUiCommand({
++        command,
++        windowId: getWindowId(),
++        payload
++      });
++      const response = await sendMessage(request);
++      return unwrapUiCommandResult(response, {
++        command: request.command,
++        requestId: request.requestId
++      });
++    }
++  });
++}
+--- a/scripts/validate.mjs
++++ b/scripts/validate.mjs
+@@ -89,6 +89,10 @@
+ const verificationV082 = read("docs/VERIFICATION_V0_8_2.md");
+ const changelogV082 = read("docs/CHANGELOG_V0_8_2.md");
+ const acceptanceV082 = read("docs/DESKTOP_CHROME_ACCEPTANCE_V0_8_2.md");
++const uiContract = read("lib/ui-contract.mjs");
++const uiRuntimeClient = read("lib/ui-runtime-client.mjs");
++const wp01Contract = read("docs/V0_9_0_WP01_UI_RUNTIME_BOUNDARY.md");
++const wp01Ledger = read("docs/V0_9_0_EXECUTION_LEDGER.md");
+ 
+ check(manifest.manifest_version === 3, "Manifest måste vara MV3.");
+ check(/^\d+\.\d+\.\d+$/.test(expectedVersion), "Package-version måste vara semver.");
+@@ -110,6 +114,24 @@
+ check(contracts.includes('EXPORT_SCHEMA = "eic.autonom.export.v10"'), "Export v10 saknas.");
+ check(contracts.includes("EXPORT_VERSION = 10"), "Export top-level version 10 saknas.");
+ check(contracts.includes('CONTINUITY_SCHEMA = "eic.nano.continuity.v2"'), "Continuity v2 saknas.");
++check(uiContract.includes('UI_SNAPSHOT_SCHEMA = "eic.autonom.ui-snapshot.v1"'), "WP01 uiSnapshot-schema saknas.");
++check(uiContract.includes('UI_COMMAND_SCHEMA = "eic.autonom.ui-command.v1"'), "WP01 UI command-schema saknas.");
++check(uiContract.includes("UI_COMMAND_SPECS") && uiContract.includes("UI_COMMAND_PAYLOAD_KEY_NOT_ALLOWED"),
++  "WP01 stängt commandregister eller payload-grind saknas.");
++check(uiRuntimeClient.includes("createUiRuntimeClient") && uiRuntimeClient.includes("unwrapUiCommandResult"),
++  "WP01 runtime-client saknas eller validerar inte resultat.");
++check(background.includes("const UI_COMMAND_HANDLERS = Object.freeze") &&
++  background.includes("dispatchUiCommand(message, UI_COMMAND_HANDLERS)"),
++  "WP01 central background-dispatch saknas.");
++check(!background.includes("switch (message.command)"), "Legacy command-switch finns kvar efter WP01.");
++check(panel.includes("createUiRuntimeClient") && panel.includes("readUiSnapshotModel"),
++  "WP01 paneladapter eller uiSnapshot-läsning saknas.");
++check(!panel.includes('type: "EIC_UI_COMMAND"'), "Panelen bygger fortfarande runtime-envelope direkt.");
++check(wp01Contract.includes("No Mission Control visual redesign") && wp01Contract.includes("WP02"),
++  "WP01 scope/non-goals saknas.");
++check(/\| WP01 \|.*\| IMPLEMENTED \|/.test(wp01Ledger) &&
++  /\| WP02 \|.*\| WAITING_APPROVAL \|/.test(wp01Ledger),
++  "WP01/WP02 ledgergrind är fel.");
+ check(appAudit.includes('invocation: "python3 scripts/eic_app_audit.py'), "APP_AUDIT använder inte verifierad python3-invokation.");
+ check(!appAudit.includes('"REPRODUCED"'), "APP_AUDIT får inte uppfinna ledgerstatus REPRODUCED.");
+ check(appAudit.includes('APP_AUDIT_REQUEST_PROTOCOL = "EIC_APP_AUDIT_REQUEST/1"'), "APP_AUDIT request-protokoll saknas.");
+@@ -237,7 +259,7 @@
+ check(background.includes("scheduleResponseStabilityProbe") && background.includes("waiting-start-dynamic-evaluation"), "v0.6.7 självschemalagd response probe saknas.");
+ check(background.includes("protocolVariablesRequired: false"), "v0.6.7 trailer får inte vara triggerkrav.");
+ check(background.includes("dynamicSoftCandidate") && background.includes("responseMinimumReads = dynamicSoftCandidate ? 3 : 2"), "v0.6.7 soft-busy stabilitetspolicy saknas.");
+-check(panel.includes('command("ADD_AUDIT"') && background.includes('case "ADD_AUDIT"'), "v0.6.5 sidepanel-audit saknas.");
++check(panel.includes('command("ADD_AUDIT"') && background.includes("UI_COMMANDS.ADD_AUDIT"), "v0.6.5 sidepanel-audit saknas.");
+ check(safety.includes("releaseNanoDispatchLock") && safety.includes("resolveLifecycleDeadlineExtension"), "v0.6.5 runtime-safety helpers saknas.");
+ check(destructiveness.includes("UNCLASSIFIED_REQUIRES_CONTROL") && destructiveness.includes("utför\\s+merge"), "v0.6.5 fail-closed svensk destruktivitetsklassificering saknas.");
+ check(machine.includes("NO_PROGRESS_BUDGET_EXHAUSTED") && continuity.includes("NO_PROGRESS_CHECKPOINT"), "v0.6.9 no-progress checkpoint saknas.");
+@@ -409,7 +431,7 @@
+   panel.includes("elements.targetMandateProfile.addEventListener") &&
+   panel.includes("elements.continuityViewProfile.addEventListener"),
+   "v0.8.0 dropdown-lyssnare är dubblerade eller felplacerade.");
+-check(background.includes('case "START_ARCHAEOLOGY":') &&
++check(background.includes("UI_COMMANDS.START_ARCHAEOLOGY") &&
+   background.includes("enforceArchaeologyDecisionCeiling") &&
+   background.includes("strictUserPause ? STATES.HUMAN_REQUIRED : STATES.HARD_BLOCKED"),
+   "v0.8.0 start-, effekt- eller USER_PAUSE-runtimegrind saknas.");
+--- /dev/null
++++ b/tests/v090-wp01-ui-boundary.test.mjs
+@@ -0,0 +1,216 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import fs from "node:fs";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++
++import {
++  UI_COMMANDS,
++  UI_COMMAND_RESULT_SCHEMA,
++  UI_COMMAND_SCHEMA,
++  UI_COMMAND_SPECS,
++  UI_RESPONSE_KINDS,
++  UI_SNAPSHOT_SCHEMA,
++  createUiCommand,
++  createUiSnapshot,
++  dispatchUiCommand,
++  readUiSnapshotModel,
++  unwrapUiCommandResult
++} from "../lib/ui-contract.mjs";
++import { createUiRuntimeClient } from "../lib/ui-runtime-client.mjs";
++
++const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
++const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
++const json = (relative) => JSON.parse(read(relative));
++
++function sampleSnapshot() {
++  return createUiSnapshot({
++    appVersion: "0.8.2",
++    windowId: 7,
++    snapshotId: "ui-snapshot-test",
++    capturedAt: "2026-08-04T07:00:00.000Z",
++    config: { maxTurns: 30 },
++    continuity: { stableGoal: "test" },
++    window: { alias: "Fönster 7", run: null },
++    audit: [{ title: "event" }]
++  });
++}
++
++test("WP01 command registry is closed and declares response kinds", () => {
++  assert.equal(Object.keys(UI_COMMANDS).length, 24);
++  assert.deepEqual(
++    new Set(Object.values(UI_COMMANDS)),
++    new Set(Object.keys(UI_COMMAND_SPECS))
++  );
++  assert.equal(UI_COMMAND_SPECS.NANO_HEARTBEAT.responseKind, UI_RESPONSE_KINDS.ACK);
++  for (const [command, spec] of Object.entries(UI_COMMAND_SPECS)) {
++    if (command !== UI_COMMANDS.NANO_HEARTBEAT) {
++      assert.equal(spec.responseKind, UI_RESPONSE_KINDS.SNAPSHOT, command);
++    }
++  }
++});
++
++test("WP01 command envelope keeps payload separate from routing metadata", () => {
++  const message = createUiCommand({
++    command: UI_COMMANDS.SELECT_TAB,
++    windowId: 7,
++    requestId: "request-1",
++    payload: { tabId: 42 }
++  });
++  assert.equal(message.schema, UI_COMMAND_SCHEMA);
++  assert.equal(message.command, UI_COMMANDS.SELECT_TAB);
++  assert.equal(message.windowId, 7);
++  assert.deepEqual(message.payload, { tabId: 42 });
++  assert.equal(Object.hasOwn(message, "tabId"), false);
++
++  assert.throws(
++    () => createUiCommand({
++      command: UI_COMMANDS.SELECT_TAB,
++      windowId: 7,
++      payload: { tabId: 42, arbitraryAuthority: true }
++    }),
++    /UI_COMMAND_PAYLOAD_KEY_NOT_ALLOWED/
++  );
++  assert.throws(
++    () => createUiCommand({ command: "EXECUTE_JAVASCRIPT", windowId: 7 }),
++    /UNKNOWN_UI_COMMAND/
++  );
++});
++
++test("WP01 uiSnapshot is versioned and detached from runtime objects", () => {
++  const config = { nested: { value: 1 } };
++  const window = { run: { state: "IDLE" } };
++  const snapshot = createUiSnapshot({
++    appVersion: "0.8.2",
++    windowId: 7,
++    snapshotId: "snapshot-1",
++    capturedAt: "2026-08-04T07:00:00.000Z",
++    config,
++    continuity: {},
++    window,
++    audit: []
++  });
++  assert.equal(snapshot.schema, UI_SNAPSHOT_SCHEMA);
++  assert.equal(snapshot.snapshotVersion, 1);
++  assert.equal(readUiSnapshotModel(snapshot).config.nested.value, 1);
++  config.nested.value = 2;
++  window.run.state = "STOPPED";
++  assert.equal(readUiSnapshotModel(snapshot).config.nested.value, 1);
++  assert.equal(readUiSnapshotModel(snapshot).window.run.state, "IDLE");
++  assert.equal(snapshot.config, snapshot.model.config);
++});
++
++test("WP01 dispatcher returns a bound snapshot result", async () => {
++  const message = createUiCommand({
++    command: UI_COMMANDS.GET_SNAPSHOT,
++    windowId: 7,
++    requestId: "request-snapshot"
++  });
++  const result = await dispatchUiCommand(message, {
++    [UI_COMMANDS.GET_SNAPSHOT]: async ({ windowId, payload }) => {
++      assert.equal(windowId, 7);
++      assert.deepEqual(payload, {});
++      return sampleSnapshot();
++    }
++  });
++  assert.equal(result.schema, UI_COMMAND_RESULT_SCHEMA);
++  assert.equal(result.command, UI_COMMANDS.GET_SNAPSHOT);
++  assert.equal(result.requestId, "request-snapshot");
++  assert.equal(result.responseKind, UI_RESPONSE_KINDS.SNAPSHOT);
++  assert.equal(result.uiSnapshot.schema, UI_SNAPSHOT_SCHEMA);
++  assert.equal(
++    unwrapUiCommandResult(result, {
++      command: UI_COMMANDS.GET_SNAPSHOT,
++      requestId: "request-snapshot"
++    }).snapshotId,
++    "ui-snapshot-test"
++  );
++});
++
++test("WP01 dispatcher keeps heartbeat acknowledgement separate from uiSnapshot", async () => {
++  const message = createUiCommand({
++    command: UI_COMMANDS.NANO_HEARTBEAT,
++    windowId: 7,
++    requestId: "request-heartbeat",
++    payload: { requestId: "nano-1", claimId: "claim-1", outputChars: 3, chunkCount: 1 }
++  });
++  const result = await dispatchUiCommand(message, {
++    [UI_COMMANDS.NANO_HEARTBEAT]: async ({ payload }) => ({
++      ok: true,
++      requestId: payload.requestId,
++      heartbeatAt: "2026-08-04T07:00:01.000Z"
++    })
++  });
++  assert.equal(result.responseKind, UI_RESPONSE_KINDS.ACK);
++  assert.equal(Object.hasOwn(result, "uiSnapshot"), false);
++  assert.equal(result.data.requestId, "nano-1");
++});
++
++test("WP01 runtime client creates and validates the full request/result round trip", async () => {
++  let sent = null;
++  const client = createUiRuntimeClient({
++    getWindowId: () => 7,
++    sendMessage: async (message) => {
++      sent = message;
++      return dispatchUiCommand(message, {
++        [UI_COMMANDS.GET_SNAPSHOT]: async () => sampleSnapshot()
++      });
++    }
++  });
++  const snapshot = await client.dispatch(UI_COMMANDS.GET_SNAPSHOT);
++  assert.equal(sent.schema, UI_COMMAND_SCHEMA);
++  assert.equal(sent.windowId, 7);
++  assert.equal(snapshot.schema, UI_SNAPSHOT_SCHEMA);
++});
++
++test("WP01 result validation rejects cross-request response confusion", () => {
++  assert.throws(
++    () => unwrapUiCommandResult({
++      ok: true,
++      schema: UI_COMMAND_RESULT_SCHEMA,
++      resultVersion: 1,
++      requestId: "wrong-request",
++      command: UI_COMMANDS.GET_SNAPSHOT,
++      responseKind: UI_RESPONSE_KINDS.SNAPSHOT,
++      uiSnapshot: sampleSnapshot()
++    }, {
++      command: UI_COMMANDS.GET_SNAPSHOT,
++      requestId: "expected-request"
++    }),
++    /UI_COMMAND_RESULT_REQUEST_ID_MISMATCH/
++  );
++});
++
++test("WP01 source wiring centralizes dispatch outside the DOM renderer", () => {
++  const panel = read("sidepanel.js");
++  const background = read("background.js");
++  assert.match(panel, /createUiRuntimeClient/);
++  assert.match(panel, /readUiSnapshotModel/);
++  assert.doesNotMatch(panel, /type:\s*["']EIC_UI_COMMAND["']/);
++  assert.match(background, /const UI_COMMAND_HANDLERS = Object\.freeze/);
++  assert.match(background, /dispatchUiCommand\(message, UI_COMMAND_HANDLERS\)/);
++  assert.doesNotMatch(background, /switch\s*\(message\.command\)/);
++});
++
++test("WP01 keeps version, permissions and persistent schemas unchanged", () => {
++  const manifest = json("manifest.json");
++  const pkg = json("package.json");
++  const contracts = read("lib/contracts.mjs");
++  assert.equal(pkg.version, "0.8.2");
++  assert.equal(manifest.version, "0.8.2");
++  assert.deepEqual(manifest.permissions, ["sidePanel", "storage", "tabs", "scripting", "alarms"]);
++  assert.deepEqual(manifest.host_permissions, ["https://chatgpt.com/*", "https://chat.openai.com/*"]);
++  assert.match(contracts, /eic\.autonom\.config\.v8/);
++  assert.match(contracts, /eic\.autonom\.runtime\.v8/);
++  assert.match(contracts, /eic\.autonom\.export\.v10/);
++});
++
++test("WP01 documentation stops before WP02", () => {
++  const ledger = read("docs/V0_9_0_EXECUTION_LEDGER.md");
++  const contract = read("docs/V0_9_0_WP01_UI_RUNTIME_BOUNDARY.md");
++  assert.match(ledger, /\| WP01 \|.*\| IMPLEMENTED \|/);
++  assert.match(ledger, /\| WP02 \|.*\| WAITING_APPROVAL \|/);
++  assert.match(contract, /uiSnapshot/);
++  assert.match(contract, /No Mission Control visual redesign/i);
++  assert.match(contract, /WP02/i);
++});
+--- a/tests/nano-runtime-regression.test.mjs
++++ b/tests/nano-runtime-regression.test.mjs
+@@ -7,7 +7,7 @@
+ 
+ test("Nano pipeline has explicit claim, heartbeat, completion and failure owner commands", () => {
+   for (const command of ["NANO_CLAIM", "NANO_HEARTBEAT", "NANO_DECISION", "NANO_FAILURE"]) {
+-    assert.match(background, new RegExp(`case "${command}"`));
++    assert.match(background, new RegExp(`UI_COMMANDS\\.${command}`));
+     assert.match(sidepanel, new RegExp(`"${command}"`));
+   }
+ });
+--- a/tests/v065-incident-regression.test.mjs
++++ b/tests/v065-incident-regression.test.mjs
+@@ -170,6 +170,6 @@
+   assert.ok(lockIndex >= 0 && lockIndex < firstMeasureAfterProcess);
+   assert.match(sidepanel, /NanoBudgetExceededError/);
+   assert.match(sidepanel, /command\("ADD_AUDIT"/);
+-  assert.match(background, /case "ADD_AUDIT"/);
++  assert.match(background, /UI_COMMANDS\.ADD_AUDIT/);
+   assert.doesNotMatch(content, /const status = lines\.find\(\(line\) => \/\^Status:/);
+ });
+--- a/tests/v071-false-level10.test.mjs
++++ b/tests/v071-false-level10.test.mjs
+@@ -123,7 +123,7 @@
+ 
+ test("v0.7.1 provides a local authorization surface for a level-10 boundary", () => {
+   assert.match(background, /async function authorizeBoundary\(windowId, message = \{\}\)/);
+-  assert.match(background, /case "AUTHORIZE_BOUNDARY":/);
++  assert.match(background, /UI_COMMANDS\.AUTHORIZE_BOUNDARY/);
+   assert.match(background, /function boundaryKey\(run\)/);
+   assert.match(background, /function boundaryAuthorized\(run\)/);
+   assert.match(background, /if \(boundaryAuthorized\(run\)\) return false;/);
+--- a/tests/v074-app-audit.test.mjs
++++ b/tests/v074-app-audit.test.mjs
+@@ -450,7 +450,7 @@
+ // ---------------------------------------------------------------------------
+ 
+ test("v0.7.4 exposes the mode through a dedicated command and panel surface", () => {
+-  assert.match(background, /case "START_APP_AUDIT":/);
++  assert.match(background, /UI_COMMANDS\.START_APP_AUDIT/);
+   assert.match(background, /async function startAppAudit\(windowId, message = \{\}\)/);
+   assert.match(background, /runMode: RUN_MODES\.APP_AUDIT_LONG/);
+   assert.match(background, /initializeRun\(run, \{ audit \}\)/);
+--- a/tests/v075-regressions.test.mjs
++++ b/tests/v075-regressions.test.mjs
+@@ -76,8 +76,8 @@
+ 
+ test("v0.7.5 routes both start commands into the selected prepared session", () => {
+   const generic = background.slice(
+-    background.indexOf('case "START_NEW_SESSION"'),
+-    background.indexOf('case "NANO_HOST_STATE"')
++    background.indexOf("[UI_COMMANDS.START_NEW_SESSION]"),
++    background.indexOf("[UI_COMMANDS.NANO_HOST_STATE]")
+   );
+   const audit = background.slice(
+     background.indexOf("async function startAppAudit"),
+--- a/tests/v078-nano-continuity-regressions.test.mjs
++++ b/tests/v078-nano-continuity-regressions.test.mjs
+@@ -229,5 +229,5 @@
+   const background = fs.readFileSync(new URL("../background.js", import.meta.url), "utf8");
+   assert.match(html, /id="detachActiveTabButton"[^>]*>Koppla bort aktiv flik/);
+   assert.match(panel, /DETACH_SELECTED_TAB/);
+-  assert.match(background, /case "DETACH_SELECTED_TAB"/);
+-});
++  assert.match(background, /UI_COMMANDS\.DETACH_SELECTED_TAB/);
++});
+--- a/tests/v090-wp00-contract.test.mjs
++++ b/tests/v090-wp00-contract.test.mjs
+@@ -26,13 +26,16 @@
+   assert.match(text, /Do not use the autonomous addon/);
+ });
+ 
+-test("WP00 ledger covers WP00 through WP14 and stops before WP01", () => {
++test("WP00 ledger covers WP00 through WP14 and preserves manual gate progression", () => {
+   const text = read("docs/V0_9_0_EXECUTION_LEDGER.md");
+   for (let index = 0; index <= 14; index += 1) {
+     assert.match(text, new RegExp(`WP${String(index).padStart(2, "0")}`));
+   }
+   assert.match(text, /\| WP00 \|.*\| IMPLEMENTED \|/);
+-  assert.match(text, /\| WP01 \|.*\| WAITING_APPROVAL \|/);
++  assert.match(text, /\| WP01 \|.*\| (?:WAITING_APPROVAL|IMPLEMENTED) \|/);
++  if (/\| WP01 \|.*\| IMPLEMENTED \|/.test(text)) {
++    assert.match(text, /\| WP02 \|.*\| WAITING_APPROVAL \|/);
++  }
+ });
+ 
+ test("WP00 architecture and inventory documents exist", () => {
+--- /dev/null
++++ b/docs/V0_9_0_WP01_UI_RUNTIME_BOUNDARY.md
+@@ -0,0 +1,130 @@
++# v0.9.0 WP01 — UI/runtime boundary
++
++## Status
++
++Implementation scope for the manually approved WP01 gate.
++
++WP01 establishes the contract used by the current v0.8.2 panel and the future Mission Control shell.
++It does not create the Mission domain, change persistent storage schemas or redesign the visible panel.
++
++## Scope
++
++WP01 delivers three foundations:
++
++1. a versioned `uiSnapshot` read model;
++2. a closed, versioned UI command envelope and central dispatcher;
++3. separation between DOM rendering and the Chrome runtime transport.
++
++## uiSnapshot contract
++
++Schema:
++
++`eic.autonom.ui-snapshot.v1`
++
++The background service worker remains the runtime and storage owner. It reads the durable bundle,
++derives operator-facing fields such as the boundary identity and produces a detached snapshot:
++
++```text
++uiSnapshot
++├─ schema, snapshotVersion, snapshotId, capturedAt
++├─ appVersion, windowId
++└─ model
++   ├─ config
++   ├─ continuity
++   ├─ window
++   └─ audit
++```
++
++The snapshot is cloned before it crosses the boundary. UI code cannot mutate background-owned
++objects by changing the received model.
++
++For one transition version, the snapshot also exposes `config`, `continuity`, `window` and `audit`
++as legacy aliases. This keeps an already-open v0.8.2 side panel readable during extension reload.
++New panel code reads only `model` through `readUiSnapshotModel()`.
++
++## Command contract
++
++Request schema:
++
++`eic.autonom.ui-command.v1`
++
++Result schema:
++
++`eic.autonom.ui-command-result.v1`
++
++A request contains routing metadata and a separate payload:
++
++```json
++{
++  "type": "EIC_UI_COMMAND",
++  "schema": "eic.autonom.ui-command.v1",
++  "requestId": "ui-command-…",
++  "command": "SELECT_TAB",
++  "windowId": 7,
++  "payload": {
++    "tabId": 42
++  }
++}
++```
++
++The registry contains exactly the commands already supported by v0.8.2. Unknown commands and
++unknown payload keys fail closed. Command results are bound to `requestId` and `command`.
++
++All commands return a `uiSnapshot` except `NANO_HEARTBEAT`, which returns a bounded acknowledgement.
++This prevents heartbeat traffic from being mistaken for a complete UI state read.
++
++## Runtime dispatch
++
++`background.js` owns a single `UI_COMMAND_HANDLERS` registry. `dispatchUiCommand()`:
++
++1. validates schema, command, window identity and payload keys;
++2. calls exactly one registered handler;
++3. wraps the response as snapshot or acknowledgement;
++4. preserves a one-version legacy path for a pre-WP01 panel message.
++
++There is no `switch (message.command)` command router after WP01.
++
++## Panel separation
++
++`lib/ui-runtime-client.mjs` is the only panel transport adapter. The DOM layer:
++
++- supplies the current Chrome window id;
++- asks the client to dispatch a named command;
++- receives a validated snapshot or acknowledgement;
++- renders the snapshot read model.
++
++The panel no longer builds `EIC_UI_COMMAND` envelopes or interprets result envelopes itself.
++
++## Preserved invariants
++
++- application and manifest version remain `0.8.2`;
++- config/runtime/export/continuity schemas remain v8/v8/v10/v2;
++- standard permissions and host permissions are unchanged;
++- existing run modes, imports, exports and event handlers retain their behavior;
++- background/storage remains the runtime owner;
++- no browser target, general website permission, CDP session or browser action exists yet.
++
++## Explicit non-goals
++
++- **No Mission Control visual redesign in WP01.**
++- No Mission domain or persistence migration; that belongs to WP02.
++- No new navigation shell; that belongs to WP03.
++- No migration of existing feature cards; that belongs to WP04.
++- No controller/target pairing, permissions, CDP or browser execution.
++
++## Gate evidence
++
++WP01 requires:
++
++- focused `v090-wp01-ui-boundary` tests;
++- full `npm test`;
++- `npm run validate`;
++- syntax checks for changed JavaScript modules;
++- a source delta proving manifest, package and persistent schema files are unchanged;
++- updated execution ledger and machine-readable evidence.
++
++## Claim boundary
++
++WP01 source tests can verify the command and snapshot contracts and their source wiring. They do not
++prove rendering in Desktop Chrome, service-worker update behavior in an installed profile or future
++Mission Control behavior. Those claims require their later work-package and browser-owner evidence.
+--- a/docs/V0_9_0_EXECUTION_LEDGER.md
++++ b/docs/V0_9_0_EXECUTION_LEDGER.md
+@@ -5,7 +5,7 @@
+ - Release: one `v0.9.0`.
+ - Execution method: manual.
+ - Approval rule: the next WP may not start without explicit operator approval.
+-- Active gate: none; WP00 completed and WP01 is waiting for approval.
++- Active gate: WP01 implemented in the isolated working copy; WP02 is waiting for operator approval.
+ - Source baseline: artifact 1119.
+ - Working-copy version: 0.8.2.
+ - Repository state: no Git/Forgejo checkout or persistence claim established in WP00.
+@@ -15,8 +15,8 @@
+ | WP | Delivery | State | Evidence | Next condition |
+ |---|---|---|---|---|
+ | WP00 | Baseline, scope, execution ledger, inventory and ADRs | IMPLEMENTED | WP00 evidence and source candidate | Await WP01 approval |
+-| WP01 | uiSnapshot, command dispatch and UI/runtime separation | WAITING_APPROVAL | — | — |
+-| WP02 | Mission domain, mode registry, state machine and persistence schema | NOT_STARTED | — | — |
++| WP01 | uiSnapshot, command dispatch and UI/runtime separation | IMPLEMENTED | WP01 contract, tests and evidence | Await WP02 approval |
++| WP02 | Mission domain, mode registry, state machine and persistence schema | WAITING_APPROVAL | — | — |
+ | WP03 | Mission Control app shell | NOT_STARTED | — | — |
+ | WP04 | Migrate all v0.8.2 functions into mission modes | NOT_STARTED | — | — |
+ | WP05 | Controller/target pairing and tab lifecycle | NOT_STARTED | — | — |
+@@ -71,3 +71,50 @@
+ 
+ The source work is implemented when post-change focused tests, full regression, validation and source ZIP integrity succeed. The project owner record may mark WP00 PASS only after artifact write/readback and project chronology readback succeed. WP01 remains blocked
+ until the operator explicitly approves it.
++
++## WP01 receipt
++
++### Inputs
++
++- Operator approval: `Godkänn WP01`.
++- Working baseline: completed WP00 candidate, SHA-256
++  `e0928fc6ba8fd8cb5a2386675f5379146ae159599db232d6de68d4cb314b7b7c`.
++- Pre-change `npm test`: exit 0, 388/388 PASS.
++- Pre-change `npm run validate`: exit 0, PASS.
++
++### Implementation
++
++- Added `lib/ui-contract.mjs`.
++- Added `lib/ui-runtime-client.mjs`.
++- Replaced the background command switch with a closed `UI_COMMAND_HANDLERS` registry.
++- Added versioned command, result and `uiSnapshot` schemas.
++- Added request-id and command-bound response validation.
++- Separated panel DOM rendering from message-envelope construction and result decoding.
++- Added focused WP01 tests and contract documentation.
++
++### Preserved boundaries
++
++- No visible Mission Control redesign.
++- No persistent schema, version, permission or host-permission change.
++- No browser target, CDP session, general web permission or browser action.
++- WP02 has not started.
++
++### Verification
++
++- Focused WP01 contract: 10/10 PASS.
++- Full regression: 398/398 PASS.
++- Static validation: PASS.
++- Syntax checks: 13/13 PASS.
++- Source delta: 4 functional/documentation files added before evidence materialization, 12 files modified,
++  0 files removed; manifest, package, persistent contracts, sidepanel HTML and CSS are byte-identical.
++- Packaging and ZIP integrity: PASS; final immutable package hashes are recorded outside this
++  source-contained ledger to avoid self-referential package hashing.
++- The first post-change regression exposed seven static fixtures that encoded the old
++  `switch (message.command)` implementation. They were migrated to assert the closed registry and
++  central dispatcher; no runtime behavior defect was found.
++
++### Gate decision
++
++WP01 source gate is PASS. The versioned UI boundary is implemented without visual redesign,
++persistent-schema change or permission expansion. WP02 remains blocked until explicit operator approval.
++
+--- a/docs/V0_9_0_STATE_MAP.md
++++ b/docs/V0_9_0_STATE_MAP.md
+@@ -89,3 +89,25 @@
+ - Unknown browser action, stale document epoch, origin change, debugger detach or missing receipt
+   produces pause/block, not best-effort dispatch.
+ - Migration must be reversible until WP14 release acceptance.
++
++## WP01 UI/runtime boundary
++
++WP01 adds a non-durable UI read/command boundary without changing any storage schema.
++
++```text
++sidepanel DOM
++└─ ui-runtime-client
++   └─ EIC_UI_COMMAND / eic.autonom.ui-command.v1
++      └─ background UI_COMMAND_HANDLERS
++         ├─ runtime/storage owner operations
++         └─ eic.autonom.ui-snapshot.v1
++            └─ detached model: config, continuity, window, audit
++```
++
++The command registry is closed. Routing metadata is separate from payload data, and each result is
++bound to the request id and command. `NANO_HEARTBEAT` returns an acknowledgement; other current
++panel commands return a complete `uiSnapshot`.
++
++The legacy top-level snapshot aliases are transitional only. The Mission domain and next durable
++schema are intentionally deferred to WP02.
++

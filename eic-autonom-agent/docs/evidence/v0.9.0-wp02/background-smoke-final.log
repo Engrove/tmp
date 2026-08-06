@@ -1,0 +1,8 @@
+$ node scripts/background-smoke.mjs
+exit_code=0
+
+STDOUT
+BACKGROUND BOOT SMOKE PASS
+
+STDERR
+

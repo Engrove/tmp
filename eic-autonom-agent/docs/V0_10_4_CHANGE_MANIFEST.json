@@ -1,0 +1,74 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.10.4",
+  "createdAt": "2026-08-06T08:27:00Z",
+  "baseline": {
+    "version": "0.10.3",
+    "sourceSha256": "3d5936a611b96225b565312708e424d2a5edc1f8fbb5f71ad07a3571d5fbbe7e",
+    "sourceBytes": 1011231,
+    "zipEntries": 386,
+    "tests": "762/762 PASS",
+    "validator": "PASS; 145/145 syntax",
+    "packaging": "BLOCKED only by immutable existing v0.10.3 dist directory; source package script otherwise unchanged"
+  },
+  "units": [
+    {
+      "id": "CAPTURE_LOOP_AND_PAUSE",
+      "files": [
+        "background.js",
+        "content.js",
+        "lib/auto-runtime-guards.mjs",
+        "tests/v0104-capture-control.test.mjs"
+      ],
+      "goals": [
+        "one automatic capture attempt per stable transcript fingerprint",
+        "capture fingerprint independent of volatile document epoch",
+        "operator pause cancels active capture and blocks new automatic capture",
+        "manual capture remains available"
+      ]
+    },
+    {
+      "id": "CORE_REVIEW_ATTENTION_TTL",
+      "files": [
+        "background.js",
+        "sidepanel.js",
+        "sidepanel.html",
+        "sidepanel.css",
+        "lib/core-surface-review.mjs",
+        "lib/attention-router.mjs",
+        "tests/v0104-review-attention.test.mjs"
+      ],
+      "goals": [
+        "global attention banner routes to review regardless of active tab",
+        "remove no-op proposal changes before decision",
+        "default-enabled five-minute safe auto-apply with explicit disable",
+        "decline/apply cancel TTL"
+      ]
+    },
+    {
+      "id": "AUTOSTART_PRESETS",
+      "files": [
+        "sidepanel.js",
+        "sidepanel.html",
+        "sidepanel.css",
+        "lib/autostart-presets.mjs",
+        "lib/contracts.mjs",
+        "lib/ui-contract.mjs",
+        "tests/v0104-autostart.test.mjs"
+      ],
+      "goals": [
+        "single explicit user-gesture startup control",
+        "logically ordered presets including Mjolnar D2",
+        "preset binds profile, mission mode, Mjolnar and startup actions",
+        "D2 requires explicit high-risk confirmation"
+      ]
+    }
+  ],
+  "nonGoals": [
+    "no Forgejo write",
+    "no installation",
+    "no release or deployment",
+    "no credential or permission expansion",
+    "no transcript authority promotion"
+  ]
+}

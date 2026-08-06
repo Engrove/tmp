@@ -1,0 +1,74 @@
+{
+  "schema": "eic.autonom.wp08-evidence.v1",
+  "workPackage": "WP08",
+  "status": "SOURCE_GATE_PASS",
+  "executionMode": "AUTONOMOUS_STRICT_WP",
+  "operatorAuthorization": "explicit",
+  "autonomousAddonUsed": false,
+  "baseline": {
+    "wp07SourceSha256": "24a17f36dfb6b688fd06a5120193a8053d70d0ba2eb45503ee24f8cca90a005f",
+    "tests": "482/482 PASS",
+    "validate": "PASS"
+  },
+  "contract": {
+    "actionProtocol": "EIC_BROWSER_ACTION/1",
+    "observationProtocol": "EIC_BROWSER_OBSERVATION/1",
+    "actionRegistry": [
+      "observe",
+      "scroll",
+      "click",
+      "double_click",
+      "focus",
+      "type",
+      "clear",
+      "select",
+      "check",
+      "uncheck",
+      "keypress",
+      "navigate",
+      "back",
+      "forward",
+      "reload",
+      "wait_for",
+      "capture"
+    ],
+    "exactlyOneStandaloneMarker": true,
+    "exactlyOnceBarrier": "PENDING_DISPATCH_BEFORE_CDP",
+    "observationTtlMs": 30000,
+    "maxObservationElements": 200,
+    "sameOriginNavigationOnly": true,
+    "forbiddenOperations": [
+      "eval",
+      "execute_javascript",
+      "run_script",
+      "call_function",
+      "set_cookie",
+      "modify_request"
+    ],
+    "forbiddenCdp": [
+      "Runtime.evaluate",
+      "Runtime.callFunctionOn",
+      "Network.getResponseBody",
+      "Network.getRequestPostData",
+      "Network.setRequestInterception",
+      "Storage.setCookies",
+      "Network.setCookie",
+      "Network.setCookies"
+    ]
+  },
+  "verification": {
+    "focused": "24/24 PASS",
+    "fullRegression": "506/506 PASS",
+    "validate": "PASS",
+    "backgroundSmoke": "PASS",
+    "syntax": "113/113 PASS",
+    "sourceFixtureOnly": true
+  },
+  "claimBoundary": [
+    "No live WEB_TARGET action was executed.",
+    "No screenshot was attached to ChatGPT.",
+    "No Desktop Chrome runtime, installed extension, repository persistence, release, deployment or artifact storage is claimed.",
+    "WP09 has not started in this gate."
+  ],
+  "createdAt": "2026-08-04T14:28:00+03:00"
+}

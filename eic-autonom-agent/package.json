@@ -1,0 +1,14 @@
+{
+  "name": "eic-autonom-agent",
+  "version": "0.10.11",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "validate": "node scripts/validate.mjs",
+    "package": "node scripts/package.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: WP03 closed view registry exposes exactly the five approved views
+ok 1 - WP03 closed view registry exposes exactly the five approved views
+  ---
+  duration_ms: 1.215202
+  type: 'test'
+  ...
+# Subtest: WP03 view resolution fails closed for unknown views
+ok 2 - WP03 view resolution fails closed for unknown views
+  ---
+  duration_ms: 0.36415
+  type: 'test'
+  ...
+# Subtest: WP03 shell activates exactly one panel and one selected tab
+ok 3 - WP03 shell activates exactly one panel and one selected tab
+  ---
+  duration_ms: 0.446622
+  type: 'test'
+  ...
+# Subtest: WP03 shell supports bounded keyboard navigation
+ok 4 - WP03 shell supports bounded keyboard navigation
+  ---
+  duration_ms: 0.308708
+  type: 'test'
+  ...
+# Subtest: WP03 Mission summary renders only the active WP02 Mission
+ok 5 - WP03 Mission summary renders only the active WP02 Mission
+  ---
+  duration_ms: 0.327896
+  type: 'test'
+  ...
+# Subtest: WP03 Mission summary has a bounded legacy fallback
+ok 6 - WP03 Mission summary has a bounded legacy fallback
+  ---
+  duration_ms: 0.125876
+  type: 'test'
+  ...
+# Subtest: WP03 HTML contains the five accessible views
+ok 7 - WP03 HTML contains the five accessible views
+  ---
+  duration_ms: 0.376748
+  type: 'test'
+  ...
+# Subtest: WP03 preserves the four run command controls in the persistent action dock
+ok 8 - WP03 preserves the four run command controls in the persistent action dock
+  ---
+  duration_ms: 0.250371
+  type: 'test'
+  ...
+# Subtest: WP03 CSS makes header/navigation and action dock sticky and responsive
+ok 9 - WP03 CSS makes header/navigation and action dock sticky and responsive
+  ---
+  duration_ms: 1.006512
+  type: 'test'
+  ...
+# Subtest: WP03 panel reads the Mission summary without changing command transport
+ok 10 - WP03 panel reads the Mission summary without changing command transport
+  ---
+  duration_ms: 0.744243
+  type: 'test'
+  ...
+# Subtest: WP03 contract blocks WP04 semantics and browser enablement
+ok 11 - WP03 contract blocks WP04 semantics and browser enablement
+  ---
+  duration_ms: 0.226216
+  type: 'test'
+  ...
+# Subtest: WP03 ledger closes the shell gate and blocks WP04
+ok 12 - WP03 ledger closes the shell gate and blocks WP04
+  ---
+  duration_ms: 0.179697
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 55.867396

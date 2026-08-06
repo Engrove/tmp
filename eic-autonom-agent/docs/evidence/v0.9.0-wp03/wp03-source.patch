@@ -1,0 +1,1560 @@
+--- a/EIC.md
++++ b/EIC.md
+@@ -55,6 +55,17 @@
+ - `AI_WEB_RESEARCH` exists in the closed mode registry but remains disabled and browser-profile-only until WP06–WP10 gates.
+ - No Mission Control visual redesign, browser action, origin grant, debugger permission or general website access is allowed in WP02.
+ 
++
++## WP03 application-shell boundary
++
++- WP03 adds only the Mission Control application shell: sticky header/navigation, five local views and a persistent action dock.
++- The approved views are `Körning`, `Webbytor`, `Evidens`, `Uppdrag` and `Inställningar`.
++- Navigation state is panel-local and must not mutate `chrome.storage`, Mission records or the legacy run.
++- Existing v0.8.2 control IDs and WP01 command dispatch remain the execution path.
++- WP03 may render the active WP02 Mission and explicit surface-role fields read-only.
++- WP04 owns migration of legacy functions into Mission modes.
++- `AI_WEB_RESEARCH`, controller/target pairing, browser permissions, origin grants and CDP remain disabled/not implemented.
++
+ ## v0.9.0 non-negotiable architecture
+ 
+ - Mission Control shell with Körning, Webbytor, Evidens, Uppdrag and Inställningar.
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,12 @@
+ # EIC Autonom Agent v0.8.2
++
++## v0.9.0 WP03-kandidat — Mission Control app shell
++
++Den aktuella utvecklingskopian visar ett nytt Mission Control-skal med fast toppfält, fem vyer
++(`Körning`, `Webbytor`, `Evidens`, `Uppdrag`, `Inställningar`) och en alltid tillgänglig action dock.
++Skalet läser WP02:s Mission-sammanfattning och explicita ytroller men ändrar inte körningslogik,
++permissions, hosts, persistensschema eller paketversion. Befintliga v0.8.2-funktioner migreras
++semantiskt till Mission modes först i WP04.
+ 
+ ## Nytt i v0.8.2
+ 
+--- a/docs/V0_9_0_EXECUTION_LEDGER.md
++++ b/docs/V0_9_0_EXECUTION_LEDGER.md
+@@ -5,7 +5,7 @@
+ - Release: one `v0.9.0`.
+ - Execution method: manual.
+ - Approval rule: the next WP may not start without explicit operator approval.
+-- Active gate: WP02 implemented in the isolated working copy; WP03 is waiting for operator approval.
++- Active gate: WP03 implemented in the isolated working copy; WP04 is waiting for operator approval.
+ - Source baseline: artifact 1119.
+ - Working-copy version: 0.8.2.
+ - Repository state: no Git/Forgejo checkout or persistence claim established in WP00.
+@@ -17,8 +17,8 @@
+ | WP00 | Baseline, scope, execution ledger, inventory and ADRs | IMPLEMENTED | WP00 evidence and source candidate | Await WP01 approval |
+ | WP01 | uiSnapshot, command dispatch and UI/runtime separation | IMPLEMENTED | WP01 contract, tests and evidence | Await WP02 approval |
+ | WP02 | Mission domain, mode registry, state machine and persistence schema | IMPLEMENTED | WP02 contract, tests and evidence | Await WP03 approval |
+-| WP03 | Mission Control app shell | WAITING_APPROVAL | — | — |
+-| WP04 | Migrate all v0.8.2 functions into mission modes | NOT_STARTED | — | — |
++| WP03 | Mission Control app shell | IMPLEMENTED | WP03 shell contract, tests and evidence | Await WP04 approval |
++| WP04 | Migrate all v0.8.2 functions into mission modes | WAITING_APPROVAL | — | — |
+ | WP05 | Controller/target pairing and tab lifecycle | NOT_STARTED | — | — |
+ | WP06 | Dual builds, permission model and CDP session | NOT_STARTED | — | — |
+ | WP07 | DOM/AX, screenshots, console, network and evidence storage | NOT_STARTED | — | — |
+@@ -169,3 +169,47 @@
+ 
+ WP02 source gate is PASS after the declared verification and immutable package checks succeed.
+ WP03 remains blocked until explicit operator approval.
++
++
++## WP03 receipt
++
++### Inputs
++
++- Operator approval: `Godkänt`, bound to the immediately preceding WP02 gate.
++- Working baseline: completed WP02 candidate, SHA-256
++  `82c9cf69ac86b1bd2bc50e4fc6fa2ee54d64baeea78861fbf7b59c64b099f83d`.
++- Pre-change `npm test`: exit 0, 409/409 PASS.
++- Pre-change `npm run validate`: exit 0, PASS.
++
++### Implementation
++
++- Added `lib/mission-control-shell.mjs` with a closed five-view registry and accessible local navigation.
++- Rebuilt `sidepanel.html` as a Mission Control shell with sticky topbar, view panels and action dock.
++- Added read-only active-Mission and explicit surface-role summaries from the WP02 `uiSnapshot`.
++- Preserved every existing v0.8.2 control id and WP01 runtime command path.
++- Added responsive shell CSS, focused WP03 tests and the WP03 contract document.
++
++### Preserved boundaries
++
++- No semantic migration of existing functions into Mission execution; WP04 owns that work.
++- No config/runtime/export/Mission/uiSnapshot schema change.
++- No permission, host, origin-grant, debugger/CDP or browser-action change.
++- `AI_WEB_RESEARCH` remains disabled.
++- Package/application version remains 0.8.2 until WP14.
++
++### Verification
++
++- Focused WP03 shell contract: 12/12 PASS.
++- Full regression: 421/421 PASS.
++- Static validation: PASS.
++- Background service-worker smoke: PASS.
++- Syntax checks: 96/96 JavaScript/MJS files PASS.
++- First full regression exposed two static compatibility fixtures: one attribute-order regex and one
++  WP00 ledger assertion frozen to WP03 waiting state. Both were updated without changing runtime behavior.
++- Immutable package hashes are recorded outside this source-contained ledger to avoid
++  self-referential package hashing.
++
++### Gate decision
++
++WP03 source gate is PASS only after all declared checks and immutable package integrity succeed.
++WP04 remains blocked until explicit operator approval.
+--- /dev/null
++++ b/docs/V0_9_0_WP03_MISSION_CONTROL_SHELL.md
+@@ -0,0 +1,72 @@
++# v0.9.0 WP03 — Mission Control application shell
++
++## Scope
++
++WP03 introduces the visual application shell only:
++
++- sticky Mission Control header;
++- five keyboard-accessible views: `Körning`, `Webbytor`, `Evidens`, `Uppdrag`, `Inställningar`;
++- a persistent action dock for the existing start/pause/resume/stop controls;
++- read-only rendering of the active WP02 Mission summary and explicit surface-role fields;
++- responsive layout for the Chrome side panel.
++
++## Source boundaries
++
++- `lib/mission-control-shell.mjs` owns the closed local view registry and navigation state.
++- Navigation is panel-local presentation state. It is not written to `chrome.storage`.
++- `uiSnapshot` remains the only runtime read boundary.
++- The shell may render WP02 Mission fields but may not create, mutate or execute Missions.
++- Existing v0.8.2 control IDs and command dispatch remain unchanged.
++
++## View allocation in WP03
++
++- `Körning`: status and Chrome Nano host.
++- `Webbytor`: explicit `CHATGPT_CONTROLLER` / `WEB_TARGET` display and linked ChatGPT tabs.
++- `Evidens`: Mjölnar status and the existing event log.
++- `Uppdrag`: existing new-session, archaeology and app-audit controls.
++- `Inställningar`: existing core mandates, continuity profiles and data/recovery.
++
++This allocation is a visual shell. WP04 owns the semantic migration of all v0.8.2 features into Mission modes.
++
++## Action dock
++
++The existing controls keep their IDs and command handlers:
++
++- `startWaitingButton`;
++- `pauseButton`;
++- `resumeButton`;
++- `stopButton`.
++
++WP03 only moves them into a sticky, always-visible dock. No command, permission, state-machine or persistence behavior changes.
++
++## Accessibility contract
++
++- Navigation uses `role=tablist`, `role=tab` and `role=tabpanel`.
++- Exactly one view is active.
++- Inactive panels are hidden.
++- Arrow Left/Right, Home and End move and focus navigation.
++- Selected tab state is reflected through `aria-selected` and `tabindex`.
++
++## Non-goals
++
++WP03 does not:
++
++- migrate legacy functions into Mission execution;
++- enable `AI_WEB_RESEARCH`;
++- add controller/target pairing;
++- add browser permissions, origin grants, debugger/CDP or general website access;
++- change config/runtime/export/Mission/uiSnapshot schemas;
++- change the package/application version;
++- claim Desktop Chrome rendering or runtime acceptance.
++
++## Gate
++
++WP03 is source-gate complete only when:
++
++1. the focused shell contract passes;
++2. the full regression passes;
++3. `npm run validate` passes;
++4. JavaScript/MJS syntax checks pass;
++5. package and ZIP integrity pass;
++6. manifest, package, persistent contracts and background/content runtime remain unchanged;
++7. WP04 remains blocked pending explicit operator approval.
+--- /dev/null
++++ b/lib/mission-control-shell.mjs
+@@ -0,0 +1,157 @@
++export const MISSION_CONTROL_SHELL_SCHEMA = "eic.autonom.mission-control-shell.v1";
++
++export const MISSION_CONTROL_VIEW_IDS = Object.freeze({
++  RUN: "RUN",
++  SURFACES: "SURFACES",
++  EVIDENCE: "EVIDENCE",
++  MISSIONS: "MISSIONS",
++  SETTINGS: "SETTINGS"
++});
++
++export const MISSION_CONTROL_VIEW_REGISTRY = Object.freeze({
++  [MISSION_CONTROL_VIEW_IDS.RUN]: Object.freeze({
++    id: MISSION_CONTROL_VIEW_IDS.RUN,
++    label: "Körning",
++    panelId: "missionViewRun"
++  }),
++  [MISSION_CONTROL_VIEW_IDS.SURFACES]: Object.freeze({
++    id: MISSION_CONTROL_VIEW_IDS.SURFACES,
++    label: "Webbytor",
++    panelId: "missionViewSurfaces"
++  }),
++  [MISSION_CONTROL_VIEW_IDS.EVIDENCE]: Object.freeze({
++    id: MISSION_CONTROL_VIEW_IDS.EVIDENCE,
++    label: "Evidens",
++    panelId: "missionViewEvidence"
++  }),
++  [MISSION_CONTROL_VIEW_IDS.MISSIONS]: Object.freeze({
++    id: MISSION_CONTROL_VIEW_IDS.MISSIONS,
++    label: "Uppdrag",
++    panelId: "missionViewMissions"
++  }),
++  [MISSION_CONTROL_VIEW_IDS.SETTINGS]: Object.freeze({
++    id: MISSION_CONTROL_VIEW_IDS.SETTINGS,
++    label: "Inställningar",
++    panelId: "missionViewSettings"
++  })
++});
++
++export const DEFAULT_MISSION_CONTROL_VIEW = MISSION_CONTROL_VIEW_IDS.RUN;
++
++const VIEW_ORDER = Object.freeze(Object.keys(MISSION_CONTROL_VIEW_REGISTRY));
++
++function text(value, fallback, max = 180) {
++  const normalized = String(value || "").replace(/\s+/g, " ").trim();
++  return (normalized || fallback).slice(0, max);
++}
++
++export function resolveMissionControlView(viewId) {
++  const view = MISSION_CONTROL_VIEW_REGISTRY[String(viewId || "")];
++  if (!view) throw new Error(`MISSION_CONTROL_VIEW_UNKNOWN:${viewId}`);
++  return view;
++}
++
++export function missionShellSummary(missionView, run = null) {
++  const view = missionView && typeof missionView === "object" ? missionView : {};
++  const activeMissionId = String(view.activeMissionId || "");
++  const activeMission = activeMissionId && view.missions?.[activeMissionId]
++    ? view.missions[activeMissionId]
++    : null;
++  return Object.freeze({
++    schema: MISSION_CONTROL_SHELL_SCHEMA,
++    version: 1,
++    activeMissionId: activeMission?.missionId || null,
++    modeLabel: text(activeMission?.modeId || run?.mode, "INGET UPPDRAG"),
++    stateLabel: text(activeMission?.state || run?.state, "IDLE"),
++    stepLabel: text(activeMission?.currentStep || run?.activeWorkUnit, "Ingen aktiv arbetsenhet", 260),
++    controllerSurfaceLabel: text(
++      activeMission?.surfaceRoles?.CHATGPT_CONTROLLER || activeMission?.controllerSurfaceId,
++      "Ej bunden"
++    ),
++    webTargetSurfaceLabel: text(
++      activeMission?.surfaceRoles?.WEB_TARGET || activeMission?.targetSurfaceId,
++      "Ej bunden"
++    )
++  });
++}
++
++function requireNode(map, viewId, kind) {
++  const node = map?.[viewId];
++  if (!node) throw new Error(`MISSION_CONTROL_${kind}_MISSING:${viewId}`);
++  return node;
++}
++
++export function createMissionControlShell({
++  buttons,
++  panels,
++  initialView = DEFAULT_MISSION_CONTROL_VIEW,
++  onViewChanged = null
++} = {}) {
++  const listeners = [];
++  let activeView = resolveMissionControlView(initialView).id;
++
++  for (const viewId of VIEW_ORDER) {
++    requireNode(buttons, viewId, "BUTTON");
++    requireNode(panels, viewId, "PANEL");
++  }
++
++  function activate(viewId, { focus = false } = {}) {
++    const next = resolveMissionControlView(viewId).id;
++    for (const id of VIEW_ORDER) {
++      const selected = id === next;
++      const button = buttons[id];
++      const panel = panels[id];
++      button.setAttribute?.("aria-selected", selected ? "true" : "false");
++      button.setAttribute?.("tabindex", selected ? "0" : "-1");
++      panel.toggleAttribute?.("hidden", !selected);
++      panel.classList?.toggle("is-active", selected);
++    }
++    activeView = next;
++    if (focus) buttons[next].focus?.();
++    if (typeof onViewChanged === "function") onViewChanged(next);
++    return next;
++  }
++
++  function move(from, delta) {
++    const index = VIEW_ORDER.indexOf(from);
++    const next = VIEW_ORDER[(index + delta + VIEW_ORDER.length) % VIEW_ORDER.length];
++    activate(next, { focus: true });
++  }
++
++  for (const viewId of VIEW_ORDER) {
++    const button = buttons[viewId];
++    const click = () => activate(viewId);
++    const keydown = (event) => {
++      if (event.key === "ArrowRight") {
++        event.preventDefault?.();
++        move(viewId, 1);
++      } else if (event.key === "ArrowLeft") {
++        event.preventDefault?.();
++        move(viewId, -1);
++      } else if (event.key === "Home") {
++        event.preventDefault?.();
++        activate(VIEW_ORDER[0], { focus: true });
++      } else if (event.key === "End") {
++        event.preventDefault?.();
++        activate(VIEW_ORDER.at(-1), { focus: true });
++      }
++    };
++    button.addEventListener?.("click", click);
++    button.addEventListener?.("keydown", keydown);
++    listeners.push([button, "click", click], [button, "keydown", keydown]);
++  }
++
++  activate(activeView);
++
++  return Object.freeze({
++    schema: MISSION_CONTROL_SHELL_SCHEMA,
++    version: 1,
++    activate,
++    getActiveView: () => activeView,
++    destroy() {
++      for (const [node, type, listener] of listeners) {
++        node.removeEventListener?.(type, listener);
++      }
++    }
++  });
++}
+--- a/scripts/validate.mjs
++++ b/scripts/validate.mjs
+@@ -97,6 +97,8 @@
+ const wp01Contract = read("docs/V0_9_0_WP01_UI_RUNTIME_BOUNDARY.md");
+ const wp01Ledger = read("docs/V0_9_0_EXECUTION_LEDGER.md");
+ const wp02Contract = read("docs/V0_9_0_WP02_MISSION_DOMAIN.md");
++const missionControlShell = read("lib/mission-control-shell.mjs");
++const wp03Contract = read("docs/V0_9_0_WP03_MISSION_CONTROL_SHELL.md");
+ 
+ check(manifest.manifest_version === 3, "Manifest måste vara MV3.");
+ check(/^\d+\.\d+\.\d+$/.test(expectedVersion), "Package-version måste vara semver.");
+@@ -151,9 +153,28 @@
+ check(!panel.includes('type: "EIC_UI_COMMAND"'), "Panelen bygger fortfarande runtime-envelope direkt.");
+ check(wp01Contract.includes("No Mission Control visual redesign") && wp01Contract.includes("WP02"),
+   "WP01 scope/non-goals saknas.");
+-check(/\| WP02 \|.*\| IMPLEMENTED \|/.test(wp01Ledger) &&
+-  /\| WP03 \|.*\| WAITING_APPROVAL \|/.test(wp01Ledger),
+-  "WP02/WP03 ledgergrind är fel.");
++check(/\| WP03 \|.*\| IMPLEMENTED \|/.test(wp01Ledger) &&
++  /\| WP04 \|.*\| WAITING_APPROVAL \|/.test(wp01Ledger),
++  "WP03/WP04 ledgergrind är fel.");
++check(missionControlShell.includes("MISSION_CONTROL_VIEW_REGISTRY") &&
++  missionControlShell.includes("MISSION_CONTROL_VIEW_UNKNOWN") &&
++  missionControlShell.includes("createMissionControlShell"),
++  "WP03 stängt viewregister eller shell-controller saknas.");
++check(html.includes('role="tablist"') &&
++  html.includes('data-mission-view="RUN"') &&
++  html.includes('data-mission-view="SURFACES"') &&
++  html.includes('data-mission-view="EVIDENCE"') &&
++  html.includes('data-mission-view="MISSIONS"') &&
++  html.includes('data-mission-view="SETTINGS"') &&
++  html.includes('class="action-dock"'),
++  "WP03 Mission Control-vyer eller action dock saknas.");
++check(panel.includes("createMissionControlShell") &&
++  panel.includes("renderMissionControlSummary(model.missions, run)"),
++  "WP03 panelwiring för shell/Mission-sammanfattning saknas.");
++check(wp03Contract.includes("WP04 owns the semantic migration") &&
++  wp03Contract.includes("does not") &&
++  wp03Contract.includes("AI_WEB_RESEARCH"),
++  "WP03 scope/non-goals saknas.");
+ check(appAudit.includes('invocation: "python3 scripts/eic_app_audit.py'), "APP_AUDIT använder inte verifierad python3-invokation.");
+ check(!appAudit.includes('"REPRODUCED"'), "APP_AUDIT får inte uppfinna ledgerstatus REPRODUCED.");
+ check(appAudit.includes('APP_AUDIT_REQUEST_PROTOCOL = "EIC_APP_AUDIT_REQUEST/1"'), "APP_AUDIT request-protokoll saknas.");
+--- a/sidepanel.css
++++ b/sidepanel.css
+@@ -266,3 +266,192 @@
+ .audit-facts { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 10px 0 0; font-size: 12px; }
+ .audit-facts dt { opacity: 0.7; }
+ .audit-facts dd { margin: 0; word-break: break-word; }
++
++
++/* v0.9.0 WP03 — Mission Control application shell */
++.mission-control-body {
++  min-height: 100vh;
++  overflow-x: hidden;
++}
++.mission-control-shell {
++  min-height: 100vh;
++  display: grid;
++  grid-template-rows: auto 1fr auto auto;
++  gap: 10px;
++  padding: 0 12px 12px;
++}
++.mission-topbar {
++  position: sticky;
++  top: 0;
++  z-index: 30;
++  display: grid;
++  gap: 8px;
++  margin: 0 -12px;
++  padding: 10px 12px 8px;
++  border-bottom: 1px solid var(--line);
++  background: color-mix(in srgb, var(--bg) 94%, transparent);
++  backdrop-filter: blur(12px);
++}
++.mission-header {
++  display: grid;
++  grid-template-columns: auto minmax(0, 1fr) minmax(108px, auto) auto;
++  gap: 10px;
++  align-items: center;
++  padding: 0;
++}
++.mission-header-context {
++  min-width: 0;
++  display: grid;
++  justify-items: end;
++  gap: 1px;
++  text-align: right;
++  color: var(--muted);
++  font-size: 10px;
++}
++.mission-header-context strong,
++.mission-header-context span {
++  max-width: 190px;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++.mission-header-context strong {
++  color: var(--text);
++  font-size: 11px;
++}
++.mission-nav {
++  display: grid;
++  grid-auto-flow: column;
++  grid-auto-columns: minmax(92px, 1fr);
++  gap: 6px;
++  overflow-x: auto;
++  padding-bottom: 1px;
++  scrollbar-width: thin;
++}
++.mission-nav-button {
++  min-height: 34px;
++  border: 1px solid transparent;
++  border-radius: 7px;
++  padding: 7px 9px;
++  background: transparent;
++  color: var(--muted);
++  cursor: pointer;
++  font-size: 11px;
++  font-weight: 800;
++  white-space: nowrap;
++}
++.mission-nav-button:hover {
++  border-color: var(--line);
++  color: var(--text);
++}
++.mission-nav-button[aria-selected="true"] {
++  border-color: rgba(45, 212, 191, .5);
++  background: rgba(45, 212, 191, .11);
++  color: var(--accent);
++}
++.mission-nav-button:focus-visible {
++  outline: 2px solid var(--accent);
++  outline-offset: 1px;
++}
++.mission-views,
++.mission-view {
++  min-width: 0;
++  display: grid;
++  align-content: start;
++  gap: 10px;
++}
++.mission-view[hidden] {
++  display: none !important;
++}
++.mission-view-heading {
++  padding: 4px 2px 0;
++}
++.mission-view-heading h2 {
++  margin-bottom: 1px;
++  font-size: 17px;
++}
++.mission-view-heading p {
++  margin: 0;
++  color: var(--muted);
++  font-size: 11px;
++  line-height: 1.4;
++}
++.surface-role-grid dd {
++  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
++  font-size: 10px;
++}
++.action-dock {
++  position: sticky;
++  bottom: 0;
++  z-index: 25;
++  display: grid;
++  gap: 8px;
++  margin: 0 -12px;
++  padding: 9px 12px 10px;
++  border-top: 1px solid var(--line);
++  background: color-mix(in srgb, var(--bg) 94%, transparent);
++  backdrop-filter: blur(12px);
++}
++.action-dock-status {
++  min-width: 0;
++  display: flex;
++  justify-content: space-between;
++  gap: 12px;
++  color: var(--muted);
++  font-size: 10px;
++}
++.action-dock-status strong {
++  overflow: hidden;
++  color: var(--text);
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++.action-dock-controls {
++  display: grid;
++  grid-template-columns: minmax(120px, 1.4fr) repeat(3, minmax(76px, 1fr));
++  margin-top: 0;
++}
++.action-dock-controls .button {
++  width: 100%;
++}
++.mission-control-shell > footer {
++  padding-bottom: 2px;
++}
++@media (max-width: 520px) {
++  .mission-header {
++    grid-template-columns: auto minmax(0, 1fr) auto;
++  }
++  .mission-header-context {
++    grid-column: 2 / 4;
++    grid-row: 2;
++    justify-items: start;
++    text-align: left;
++  }
++  .mission-header-context strong,
++  .mission-header-context span {
++    max-width: 100%;
++  }
++  .action-dock-controls {
++    grid-template-columns: 1fr 1fr;
++  }
++}
++@media (max-width: 380px) {
++  .mission-control-shell {
++    padding-inline: 8px;
++  }
++  .mission-topbar,
++  .action-dock {
++    margin-inline: -8px;
++    padding-inline: 8px;
++  }
++  .mission-header {
++    grid-template-columns: auto minmax(0, 1fr) auto;
++  }
++  .mission-header .brand-icon {
++    width: 34px;
++    height: 34px;
++  }
++  .mission-header h1 {
++    font-size: 17px;
++  }
++}
+--- a/sidepanel.html
++++ b/sidepanel.html
+@@ -1,359 +1,322 @@
+-<!doctype html>
++<!DOCTYPE html>
++
+ <html lang="sv">
+ <head>
+-  <meta charset="utf-8">
+-  <meta name="viewport" content="width=device-width, initial-scale=1">
+-  <title>EIC Autonom Agent v0.8.2</title>
+-  <link rel="stylesheet" href="sidepanel.css">
++<meta charset="utf-8"/>
++<meta content="width=device-width, initial-scale=1" name="viewport"/>
++<title>EIC Autonom Agent v0.8.2</title>
++<link href="sidepanel.css" rel="stylesheet"/>
+ </head>
+-<body>
+-  <main class="shell">
+-    <header class="app-header">
+-      <img class="brand-icon" src="icons/icon48.png" alt="" width="40" height="40">
+-      <div>
+-        <p class="eyebrow">LOCAL CONTINUATION CONTROL</p>
+-        <h1>EIC Autonom Agent <small>v0.8.2</small></h1>
+-        <p class="subtitle">Durable kontinuitet för en uttryckligen kopplad ChatGPT-session.</p>
+-      </div>
+-      <span id="runBadge" class="badge idle">IDLE</span>
+-    </header>
+-
+-    <section class="card status-card" aria-labelledby="statusHeading">
+-      <div class="card-heading">
+-        <div>
+-          <h2 id="statusHeading">Körstatus</h2>
+-          <p>Storage-backed state; panelen är UI och Nano-värd.</p>
+-        </div>
+-        <button id="refreshButton" class="button text" type="button">Uppdatera</button>
+-      </div>
+-      <dl class="status-grid">
+-        <div><dt>Chrome-fönster</dt><dd id="windowStatus">—</dd></div>
+-        <div><dt>Målflik</dt><dd id="targetStatus">Ej vald</dd></div>
+-        <div><dt>State</dt><dd id="stateStatus">IDLE</dd></div>
+-        <div><dt>Pausursprung</dt><dd id="pauseStatus">—</dd></div>
+-        <div><dt>Senaste åtgärd</dt><dd id="lastActionStatus">—</dd></div>
+-        <div><dt>Nästa recovery</dt><dd id="nextRecoveryStatus">—</dd></div>
+-        <div><dt>Bakgrundsarbete</dt><dd id="backgroundStatus">—</dd></div>
+-        <div><dt>Väntetid</dt><dd id="waitAgeStatus">—</dd></div>
+-        <div><dt>Timeout</dt><dd id="timeoutStatus">Normal</dd></div>
+-        <div><dt>Senaste evidens</dt><dd id="lastEvidenceStatus">—</dd></div>
+-        <div><dt>Fliklivscykel</dt><dd id="tabLifecycleStatus">—</dd></div>
+-      </dl>
+-      <p id="runtimeDetail" class="detail">Ingen aktiv körning.</p>
+-    </section>
+-
+-    <section class="card" aria-labelledby="nanoHeading">
+-      <div class="card-heading">
+-        <div>
+-          <h2 id="nanoHeading">Chrome Nano</h2>
+-          <p>Lokal analysvärd. Durable run state ligger inte i modellen.</p>
+-        </div>
+-        <span id="nanoBadge" class="badge neutral">OKÄND</span>
+-      </div>
+-      <div class="progress-wrap">
+-        <progress id="nanoProgress" max="1" value="0"></progress>
+-        <span id="nanoProgressText">Ej kontrollerad</span>
+-      </div>
+-      <p id="nanoDetail" class="detail">Aktivera Nano med användarklick. Vid modellförlust bevaras körning och kontinuitet.</p>
+-      <dl class="status-grid compact-grid" aria-label="Nano pipeline">
+-        <div><dt>Pipeline</dt><dd id="nanoPipelineStatus">—</dd></div>
+-        <div><dt>Request</dt><dd id="nanoRequestStatus">—</dd></div>
+-        <div><dt>Analystid</dt><dd id="nanoDurationStatus">—</dd></div>
+-        <div><dt>Input</dt><dd id="nanoInputStatus">—</dd></div>
+-        <div><dt>Resultat</dt><dd id="nanoResultStatus">—</dd></div>
+-      </dl>
+-      <button id="activateNanoButton" class="button secondary" type="button">Kontrollera / aktivera Nano</button>
+-    </section>
+-
+-    <section class="card" aria-labelledby="tabHeading">
+-      <div class="card-heading">
+-        <div>
+-          <h2 id="tabHeading">Kopplade ChatGPT-flikar</h2>
+-          <p>Endast uttryckligen kopplade flikar visas eller styrs.</p>
+-        </div>
+-        <span id="tabBadge" class="badge neutral">EJ KOPPLAD</span>
+-      </div>
+-
+-      <div class="row">
+-        <button id="linkActiveTabButton" class="button secondary" type="button">Koppla aktiv flik</button>
+-        <button id="detachActiveTabButton" class="button secondary" type="button">Koppla bort aktiv flik</button>
+-        <select id="linkedTabSelect" aria-label="Vald kopplad flik">
+-          <option value="">Ingen kopplad flik</option>
+-        </select>
+-      </div>
+-
+-      <fieldset class="mode-switch">
+-        <legend>Målläget</legend>
+-        <label><input type="radio" name="targetMode" value="FOLLOW"> Följ</label>
+-        <label><input type="radio" name="targetMode" value="LOCKED" checked> Låst</label>
+-      </fieldset>
+-      <p class="detail compact">
++<body class="mission-control-body">
++<main class="mission-control-shell"><div class="mission-topbar"><header class="app-header mission-header">
++<img alt="" class="brand-icon" height="40" src="icons/icon48.png" width="40"/>
++<div>
++<p class="eyebrow">MISSION CONTROL</p>
++<h1>EIC Autonom Agent <small>v0.8.2</small></h1>
++<p class="subtitle">Manuell, evidensbunden kontroll av uppdrag, webbytor och körning.</p>
++</div>
++<div aria-live="polite" class="mission-header-context"><strong id="missionModeStatus">INGET UPPDRAG</strong><span id="missionStateStatus">IDLE</span><span id="missionStepStatus">Ingen aktiv arbetsenhet</span></div><span class="badge idle" id="runBadge">IDLE</span></header><nav aria-label="Mission Control" class="mission-nav" role="tablist"><button aria-controls="missionViewRun" aria-selected="true" class="mission-nav-button" data-mission-view="RUN" id="navRunButton" role="tab" tabindex="0" type="button">Körning</button><button aria-controls="missionViewSurfaces" aria-selected="false" class="mission-nav-button" data-mission-view="SURFACES" id="navSurfacesButton" role="tab" tabindex="-1" type="button">Webbytor</button><button aria-controls="missionViewEvidence" aria-selected="false" class="mission-nav-button" data-mission-view="EVIDENCE" id="navEvidenceButton" role="tab" tabindex="-1" type="button">Evidens</button><button aria-controls="missionViewMissions" aria-selected="false" class="mission-nav-button" data-mission-view="MISSIONS" id="navMissionsButton" role="tab" tabindex="-1" type="button">Uppdrag</button><button aria-controls="missionViewSettings" aria-selected="false" class="mission-nav-button" data-mission-view="SETTINGS" id="navSettingsButton" role="tab" tabindex="-1" type="button">Inställningar</button></nav></div><div class="mission-views"><section aria-labelledby="navRunButton" class="mission-view is-active" data-mission-view-panel="RUN" id="missionViewRun" role="tabpanel" tabindex="0"><div class="mission-view-heading"><h2>Körning</h2><p>Aktuell körning, Nano-värd och operativ status.</p></div><section aria-labelledby="statusHeading" class="card status-card">
++<div class="card-heading">
++<div>
++<h2 id="statusHeading">Körstatus</h2>
++<p>Storage-backed state; panelen är UI och Nano-värd.</p>
++</div>
++<button class="button text" id="refreshButton" type="button">Uppdatera</button>
++</div>
++<dl class="status-grid">
++<div><dt>Chrome-fönster</dt><dd id="windowStatus">—</dd></div>
++<div><dt>Målflik</dt><dd id="targetStatus">Ej vald</dd></div>
++<div><dt>State</dt><dd id="stateStatus">IDLE</dd></div>
++<div><dt>Pausursprung</dt><dd id="pauseStatus">—</dd></div>
++<div><dt>Senaste åtgärd</dt><dd id="lastActionStatus">—</dd></div>
++<div><dt>Nästa recovery</dt><dd id="nextRecoveryStatus">—</dd></div>
++<div><dt>Bakgrundsarbete</dt><dd id="backgroundStatus">—</dd></div>
++<div><dt>Väntetid</dt><dd id="waitAgeStatus">—</dd></div>
++<div><dt>Timeout</dt><dd id="timeoutStatus">Normal</dd></div>
++<div><dt>Senaste evidens</dt><dd id="lastEvidenceStatus">—</dd></div>
++<div><dt>Fliklivscykel</dt><dd id="tabLifecycleStatus">—</dd></div>
++</dl>
++<p class="detail" id="runtimeDetail">Ingen aktiv körning.</p>
++</section><section aria-labelledby="nanoHeading" class="card">
++<div class="card-heading">
++<div>
++<h2 id="nanoHeading">Chrome Nano</h2>
++<p>Lokal analysvärd. Durable run state ligger inte i modellen.</p>
++</div>
++<span class="badge neutral" id="nanoBadge">OKÄND</span>
++</div>
++<div class="progress-wrap">
++<progress id="nanoProgress" max="1" value="0"></progress>
++<span id="nanoProgressText">Ej kontrollerad</span>
++</div>
++<p class="detail" id="nanoDetail">Aktivera Nano med användarklick. Vid modellförlust bevaras körning och kontinuitet.</p>
++<dl aria-label="Nano pipeline" class="status-grid compact-grid">
++<div><dt>Pipeline</dt><dd id="nanoPipelineStatus">—</dd></div>
++<div><dt>Request</dt><dd id="nanoRequestStatus">—</dd></div>
++<div><dt>Analystid</dt><dd id="nanoDurationStatus">—</dd></div>
++<div><dt>Input</dt><dd id="nanoInputStatus">—</dd></div>
++<div><dt>Resultat</dt><dd id="nanoResultStatus">—</dd></div>
++</dl>
++<button class="button secondary" id="activateNanoButton" type="button">Kontrollera / aktivera Nano</button>
++</section></section><section aria-labelledby="navSurfacesButton" class="mission-view" data-mission-view-panel="SURFACES" hidden="" id="missionViewSurfaces" role="tabpanel" tabindex="0"><div class="mission-view-heading"><h2>Webbytor</h2><p>Explicita controller- och targetytor utan implicit cross-tab-styrning.</p></div><section aria-labelledby="surfaceRolesHeading" class="card surface-role-card"><div class="card-heading"><div><h2 id="surfaceRolesHeading">Ytroller</h2><p>WP02:s explicita roller visas utan att skapa nya browserkopplingar.</p></div><span class="badge neutral">2 ROLLER</span></div><dl class="status-grid surface-role-grid"><div><dt>CHATGPT_CONTROLLER</dt><dd id="controllerSurfaceStatus">Ej bunden</dd></div><div><dt>WEB_TARGET</dt><dd id="webTargetSurfaceStatus">Ej bunden</dd></div></dl><p class="detail compact">selectedTabId är endast legacy-bindning. WP05 äger faktisk controller/target-parning.</p></section><section aria-labelledby="tabHeading" class="card">
++<div class="card-heading">
++<div>
++<h2 id="tabHeading">Kopplade ChatGPT-flikar</h2>
++<p>Endast uttryckligen kopplade flikar visas eller styrs.</p>
++</div>
++<span class="badge neutral" id="tabBadge">EJ KOPPLAD</span>
++</div>
++<div class="row">
++<button class="button secondary" id="linkActiveTabButton" type="button">Koppla aktiv flik</button>
++<button class="button secondary" id="detachActiveTabButton" type="button">Koppla bort aktiv flik</button>
++<select aria-label="Vald kopplad flik" id="linkedTabSelect">
++<option value="">Ingen kopplad flik</option>
++</select>
++</div>
++<fieldset class="mode-switch">
++<legend>Målläget</legend>
++<label><input name="targetMode" type="radio" value="FOLLOW"/> Följ</label>
++<label><input checked="" name="targetMode" type="radio" value="LOCKED"/> Låst</label>
++</fieldset>
++<p class="detail compact">
+         Följ flyttar endast målet när den nya aktiva fliken redan är kopplad. Låst behåller vald målflik.
+         En flik som flyttas till ett annat Chrome-fönster blir aldrig automatiskt vald där.
+       </p>
+-    </section>
+-
+-    <section class="card primary-contracts" aria-labelledby="contractsHeading">
+-      <div class="card-heading">
+-        <div>
+-          <h2 id="contractsHeading">Tre separata kärnytor</h2>
+-          <p>Ägarskap och promptgränser är explicita.</p>
+-        </div>
+-        <span class="badge neutral">3 YTOR</span>
+-      </div>
+-
+-      <label for="scenarioPreset">
+-        <strong>Snabbprofil för hela appen</strong>
+-        <span class="ownership">Väljer kompatibla standardprofiler för kärnyta 1–3</span>
+-      </label>
+-      <select id="scenarioPreset" aria-label="Snabbprofil för kärnytorna"></select>
+-
+-      <label for="nanoMandate">
+-        <strong>1. Nano only — kärnmandat och stående regel</strong>
+-        <span class="ownership">Privat för Nano · skickas aldrig till målsessionen</span>
+-      </label>
+-      <select id="nanoMandateProfile" aria-label="Standardläge för Nano-kärnmandat"></select>
+-      <textarea id="nanoMandate" data-primary-instruction="nano" rows="12" maxlength="24000"></textarea>
+-
+-      <label for="targetMandate">
+-        <strong>2. EIC/AI only — målsessionens kärnmandat</strong>
+-        <span class="ownership">Infogas som header i varje Nano-levererad prompt</span>
+-      </label>
+-      <select id="targetMandateProfile" aria-label="Standardläge för målsessionens kärnmandat"></select>
+-      <div class="inline-fields">
+-        <input id="targetMandateVersion" type="text" maxlength="120" aria-label="Målmandatets version">
+-        <select id="targetAuthorityScope" aria-label="Målmandatets scope">
+-          <option value="GENERIC">Normal AI-session</option>
+-          <option value="EIC">EIC-session</option>
+-        </select>
+-      </div>
+-      <textarea id="targetMandate" data-primary-instruction="target" rows="10" maxlength="24000"></textarea>
+-
+-      <label for="continuityData">
+-        <strong>3. Nano — kontinuitetsdata</strong>
+-        <span class="ownership">Kompakt vad/varför-transkript · verifierade fakta separeras från inferenser</span>
+-      </label>
+-      <select id="continuityViewProfile" aria-label="Visningsläge för kontinuitetsdata"></select>
+-      <textarea id="continuityData" data-primary-instruction="continuity" rows="15" readonly></textarea>
+-      <p class="detail compact">Kontinuiteten skrivs av orkestratorn, kompakteras deterministiskt och används för anti-loop-korrigering. Den är inte ett rått samtalstranskript.</p>
+-    </section>
+-
+-    <section class="card start-session-card" aria-labelledby="newSessionHeading">
+-      <div class="card-heading">
+-        <div>
+-          <h2 id="newSessionHeading">Starta Ny Session</h2>
+-          <p>Separat engångsprompt. Användaren förbereder och länkar rätt ChatGPT-session i Chrome; Nano levererar prompten exakt en gång i den valda fliken och skapar aldrig en ny flik eller session.</p>
+-        </div>
+-        <span class="badge warning">EN GÅNG / SESSION</span>
+-      </div>
+-      <label for="newSessionPrompt"><strong>Ny sessions engångsstartprompt</strong></label>
+-      <textarea id="newSessionPrompt" rows="14" maxlength="120000" placeholder="Klistra in den fullständiga startprompten. Förbered först rätt ChatGPT-session i Chrome, koppla och välj fliken. Prompten lagras lokalt, analyseras chunkvis av Nano vid behov och får bara levereras en gång i den valda sessionen."></textarea>
+-      <p id="startPromptMeta" class="detail compact">0 tecken.</p>
+-      <button id="startNewSessionButton" class="button primary" type="button">Starta Ny Session</button>
+-    </section>
+-
+-    <section class="card" aria-labelledby="autonomyHeading">
+-      <div class="card-heading">
+-        <div>
+-          <h2 id="autonomyHeading">Autonom kontroll</h2>
+-          <p>Start i vänteläge påverkar inte en pågående AI-generation.</p>
+-        </div>
+-      </div>
+-
+-      <label class="check max-mode">
+-        <input id="maxAutonomousMode" type="checkbox">
+-        <span>
+-          <strong>Max Autonomous Mode</strong>
+-          <small>Fortsätt genom recoverable pauser och bounded alternativ tills verklig dead end eller hård gräns.</small>
+-        </span>
+-      </label>
+-
+-      <label class="check max-mode">
+-        <input id="backgroundWaitEnabled" type="checkbox" checked>
+-        <span>
+-          <strong>TTL-fritt bakgrundsvänteläge</strong>
+-          <small>Verifierat ChatGPT-bakgrundsarbete väntas utan applikationsdeadline. Stoppa är alltid aktiv.</small>
+-        </span>
+-      </label>
+-
+-      <div class="grid settings-grid">
+-        <label>Checkpoint efter turer
+-          <input id="maxTurns" type="number" min="3" max="100" value="30">
+-        </label>
+-        <label>Svarstimeout
++</section></section><section aria-labelledby="navEvidenceButton" class="mission-view" data-mission-view-panel="EVIDENCE" hidden="" id="missionViewEvidence" role="tabpanel" tabindex="0"><div class="mission-view-heading"><h2>Evidens</h2><p>Lokala delegeringskvitton och kronologisk körningslogg.</p></div><section aria-labelledby="mjolnarHeading" class="card">
++<div class="card-heading">
++<div>
++<h2 id="mjolnarHeading">Mjölnar Operator Proxy</h2>
++<p>Lokal delegeringskontroll. D2 är ett explicit opt-in för registrerade högrisk-handoffs.</p>
++</div>
++<span class="badge neutral" id="mjolnarBadge">AV</span>
++</div>
++<label class="check">
++<input id="mjolnarEnabled" type="checkbox"/>
++<span>
++<strong>Aktivera lokal Mjölnar</strong>
++<small>Bedömer endast trusted lokala kandidater och får aldrig skapa nya permissions.</small>
++</span>
++</label>
++<label>Rollout
++        <select id="mjolnarRolloutMode">
++<option value="SHADOW">Shadow — ingen dispatch</option>
++<option value="D0_LIVE">D0 live — rutin/read/reconnect</option>
++<option value="D1_LIVE">D1 live — registrerade rollback/readback-actions</option>
++<option value="D2_LIVE">D2 live — auth/permissions/merge/release/deploy</option>
++</select>
++</label>
++<dl class="status-grid">
++<div><dt>State</dt><dd id="mjolnarState">IDLE</dd></div>
++<div><dt>Klass</dt><dd id="mjolnarClass">—</dd></div>
++<div><dt>Verdict</dt><dd id="mjolnarVerdict">—</dd></div>
++<div><dt>Action</dt><dd id="mjolnarAction">—</dd></div>
++<div><dt>Target</dt><dd id="mjolnarTarget">—</dd></div>
++<div><dt>Dispatch/readback</dt><dd id="mjolnarDispatch">—</dd></div>
++<div><dt>Destruktivitet</dt><dd id="destructivenessLevel">1/10 · READ_ONLY</dd></div>
++<div><dt>Hjalmar mental kontroll</dt><dd id="hjalmarMentalControl">NOT_REQUIRED</dd></div>
++<div><dt>Bias check</dt><dd id="mjolnarBias">—</dd></div>
++<div><dt>Verklig PAUS</dt><dd id="mjolnarHumanReason">—</dd></div>
++</dl>
++<p class="guardrail">D2 dispatchar endast registrerade owner-route-handoffs med exakt mål, mandat, rollback och readback. Login, CAPTCHA, credentials, secrets, permanent delete och okänd blast radius förblir HUMAN_REQUIRED.</p>
++</section><section aria-labelledby="logHeading" class="card">
++<div class="card-heading">
++<div>
++<h2 id="logHeading">Körningslogg</h2>
++<p id="turnCounter">0 turer</p>
++</div>
++<button class="button text" id="clearLogButton" type="button">Rensa</button>
++</div>
++<ol aria-live="polite" class="event-log" id="eventLog"></ol>
++</section></section><section aria-labelledby="navMissionsButton" class="mission-view" data-mission-view-panel="MISSIONS" hidden="" id="missionViewMissions" role="tabpanel" tabindex="0"><div class="mission-view-heading"><h2>Uppdrag</h2><p>Befintliga v0.8.2-startlägen visas i den nya appskalet; funktionsmigrering sker först i WP04.</p></div><section aria-labelledby="newSessionHeading" class="card start-session-card">
++<div class="card-heading">
++<div>
++<h2 id="newSessionHeading">Starta Ny Session</h2>
++<p>Separat engångsprompt. Användaren förbereder och länkar rätt ChatGPT-session i Chrome; Nano levererar prompten exakt en gång i den valda fliken och skapar aldrig en ny flik eller session.</p>
++</div>
++<span class="badge warning">EN GÅNG / SESSION</span>
++</div>
++<label for="newSessionPrompt"><strong>Ny sessions engångsstartprompt</strong></label>
++<textarea id="newSessionPrompt" maxlength="120000" placeholder="Klistra in den fullständiga startprompten. Förbered först rätt ChatGPT-session i Chrome, koppla och välj fliken. Prompten lagras lokalt, analyseras chunkvis av Nano vid behov och får bara levereras en gång i den valda sessionen." rows="14"></textarea>
++<p class="detail compact" id="startPromptMeta">0 tecken.</p>
++<button class="button primary" id="startNewSessionButton" type="button">Starta Ny Session</button>
++</section><section aria-labelledby="autonomyHeading" class="card">
++<div class="card-heading">
++<div>
++<h2 id="autonomyHeading">Autonom kontroll</h2>
++<p>Start i vänteläge påverkar inte en pågående AI-generation.</p>
++</div>
++</div>
++<label class="check max-mode">
++<input id="maxAutonomousMode" type="checkbox"/>
++<span>
++<strong>Max Autonomous Mode</strong>
++<small>Fortsätt genom recoverable pauser och bounded alternativ tills verklig dead end eller hård gräns.</small>
++</span>
++</label>
++<label class="check max-mode">
++<input checked="" id="backgroundWaitEnabled" type="checkbox"/>
++<span>
++<strong>TTL-fritt bakgrundsvänteläge</strong>
++<small>Verifierat ChatGPT-bakgrundsarbete väntas utan applikationsdeadline. Stoppa är alltid aktiv.</small>
++</span>
++</label>
++<div class="grid settings-grid">
++<label>Checkpoint efter turer
++          <input id="maxTurns" max="100" min="3" type="number" value="30"/>
++</label>
++<label>Svarstimeout
+           <select id="responseTimeout">
+-            <option value="1800000">30 minuter</option>
+-            <option value="3600000">60 minuter</option>
+-            <option value="7200000" selected>120 minuter</option>
+-            <option value="10800000">180 minuter</option>
+-            <option value="14400000">240 minuter</option>
+-          </select>
+-        </label>
+-      </div>
+-
+-      <div id="archaeologySection" class="app-audit archaeology">
+-        <h3>ARCHAEOLOGY_LONG — forskning och reverse engineering</h3>
+-        <p class="guardrail">
++<option value="1800000">30 minuter</option>
++<option value="3600000">60 minuter</option>
++<option selected="" value="7200000">120 minuter</option>
++<option value="10800000">180 minuter</option>
++<option value="14400000">240 minuter</option>
++</select>
++</label>
++</div>
++<div class="app-audit archaeology" id="archaeologySection">
++<h3>ARCHAEOLOGY_LONG — forskning och reverse engineering</h3>
++<p class="guardrail">
+           Isolerat analysläge. Det får inte implementera, patcha, committa, merga, releasa,
+           deploya, ändra permissions, migrera schema/data eller mutera forskningsobjektet.
+           Workspace används för discovery, materialisering, read-only analys, evidens och export.
+         </p>
+-        <label class="field">
+-          <span>Forskningsscenario</span>
+-          <select id="archaeologyScenario"></select>
+-        </label>
+-        <label class="field">
+-          <span>Forskningsfråga</span>
+-          <textarea id="archaeologyQuestion" rows="3" placeholder="Vilken exakt fråga ska undersökas eller reverse-engineeras?"></textarea>
+-        </label>
+-        <label class="field">
+-          <span>Kontext och avgränsning</span>
+-          <textarea id="archaeologyContext" rows="4" placeholder="System, generation, källor, miljö, read-only-gränser och kända locators."></textarea>
+-        </label>
+-        <label class="toggle"><input id="archaeologyAllowWorkspaceEvidence" type="checkbox" checked> Tillåt ephemeral Workspace-evidens och checkpoints</label>
+-        <label class="toggle"><input id="archaeologyAllowExport" type="checkbox" checked> Tillåt avgränsad forskningsrapport/evidensexport</label>
+-        <button id="startArchaeologyButton" class="button primary" type="button">Starta ARCHAEOLOGY_LONG</button>
+-        <dl class="audit-facts">
+-          <dt>Scenario</dt><dd id="archaeologyActiveScenario">—</dd>
+-          <dt>Fas</dt><dd id="archaeologyPhase">—</dd>
+-          <dt>Steg</dt><dd id="archaeologyStep">—</dd>
+-          <dt>Hypoteser</dt><dd id="archaeologyHypotheses">—</dd>
+-          <dt>Evidenslocators</dt><dd id="archaeologyEvidence">—</dd>
+-          <dt>Workspace-förslag</dt><dd id="archaeologyWorkspace">—</dd>
+-          <dt>Senaste grind</dt><dd id="archaeologyGate">—</dd>
+-        </dl>
+-      </div>
+-
+-      <div id="appAuditSection" class="app-audit">
+-        <h3>Systematisk appgranskning — lång körning</h3>
+-        <p class="guardrail">
++<label class="field">
++<span>Forskningsscenario</span>
++<select id="archaeologyScenario"></select>
++</label>
++<label class="field">
++<span>Forskningsfråga</span>
++<textarea id="archaeologyQuestion" placeholder="Vilken exakt fråga ska undersökas eller reverse-engineeras?" rows="3"></textarea>
++</label>
++<label class="field">
++<span>Kontext och avgränsning</span>
++<textarea id="archaeologyContext" placeholder="System, generation, källor, miljö, read-only-gränser och kända locators." rows="4"></textarea>
++</label>
++<label class="toggle"><input checked="" id="archaeologyAllowWorkspaceEvidence" type="checkbox"/> Tillåt ephemeral Workspace-evidens och checkpoints</label>
++<label class="toggle"><input checked="" id="archaeologyAllowExport" type="checkbox"/> Tillåt avgränsad forskningsrapport/evidensexport</label>
++<button class="button primary" id="startArchaeologyButton" type="button">Starta ARCHAEOLOGY_LONG</button>
++<dl class="audit-facts">
++<dt>Scenario</dt><dd id="archaeologyActiveScenario">—</dd>
++<dt>Fas</dt><dd id="archaeologyPhase">—</dd>
++<dt>Steg</dt><dd id="archaeologyStep">—</dd>
++<dt>Hypoteser</dt><dd id="archaeologyHypotheses">—</dd>
++<dt>Evidenslocators</dt><dd id="archaeologyEvidence">—</dd>
++<dt>Workspace-förslag</dt><dd id="archaeologyWorkspace">—</dd>
++<dt>Senaste grind</dt><dd id="archaeologyGate">—</dd>
++</dl>
++</div>
++<div class="app-audit" id="appAuditSection">
++<h3>Systematisk appgranskning — lång körning</h3>
++<p class="guardrail">
+           Förbered först rätt ChatGPT-session i Chrome, koppla och välj fliken. Ange därefter endast testbehov och kontext. Projekt, repo, target, commit och owner routes
+           löses av EIC. Auditdata skrivs av <code>scripts/eic_app_audit.py</code> i EIC:s
+           kodyta genom Workbenchen — addonen skapar aldrig en ny ChatGPT-flik eller session.
+         </p>
+-        <label class="field">
+-          <span>Testbehov</span>
+-          <textarea id="appAuditTestNeed" rows="2" placeholder="Kort beskrivning av vad som ska testas."></textarea>
+-        </label>
+-        <label class="field">
+-          <span>Kontext</span>
+-          <textarea id="appAuditContext" rows="3" placeholder="App, miljö, begränsningar och relevanta testuppgifter."></textarea>
+-        </label>
+-        <label class="toggle"><input id="appAuditTargetReadOnly" type="checkbox" checked> Målapplikationen är read-only</label>
+-        <label class="toggle"><input id="appAuditAllowWorkbenchFiles" type="checkbox" checked disabled> Workbench-auditfiler skapas (krävs för ledgerläget)</label>
+-        <label class="toggle"><input id="appAuditAllowForgejoSink" type="checkbox" checked> Accepterade major findings får loggas till Forgejo</label>
+-        <button id="startAppAuditButton" class="button primary" type="button">Starta systematisk granskning</button>
+-        <dl class="audit-facts">
+-          <dt>Fas</dt><dd id="appAuditPhase">—</dd>
+-          <dt>Steg</dt><dd id="appAuditStep">—</dd>
+-          <dt>Coverage</dt><dd id="appAuditCoverage">—</dd>
+-          <dt>Fynd (målpåstådda)</dt><dd id="appAuditFindings">—</dd>
+-          <dt>Senaste grind</dt><dd id="appAuditGate">—</dd>
+-        </dl>
+-      </div>
+-
+-      <div class="controls">
+-        <button id="startWaitingButton" class="button primary" type="button">Start/Continue i vänteläge</button>
+-        <button id="pauseButton" class="button secondary" type="button" disabled>Pausa addon</button>
+-        <button id="resumeButton" class="button secondary" type="button" disabled>Återuppta</button>
+-        <button id="stopButton" class="button danger" type="button" disabled>Stoppa addon</button>
+-      </div>
+-
+-      <div id="boundaryAuthorization" class="boundary-authorization" hidden>
+-        <h3>Nivå-10-gräns / USER_PAUSE kräver operatörsbeslut</h3>
+-        <p class="guardrail">
++<label class="field">
++<span>Testbehov</span>
++<textarea id="appAuditTestNeed" placeholder="Kort beskrivning av vad som ska testas." rows="2"></textarea>
++</label>
++<label class="field">
++<span>Kontext</span>
++<textarea id="appAuditContext" placeholder="App, miljö, begränsningar och relevanta testuppgifter." rows="3"></textarea>
++</label>
++<label class="toggle"><input checked="" id="appAuditTargetReadOnly" type="checkbox"/> Målapplikationen är read-only</label>
++<label class="toggle"><input id="appAuditAllowWorkbenchFiles" type="checkbox" checked="" disabled=""/> Workbench-auditfiler skapas (krävs för ledgerläget)</label>
++<label class="toggle"><input checked="" id="appAuditAllowForgejoSink" type="checkbox"/> Accepterade major findings får loggas till Forgejo</label>
++<button class="button primary" id="startAppAuditButton" type="button">Starta systematisk granskning</button>
++<dl class="audit-facts">
++<dt>Fas</dt><dd id="appAuditPhase">—</dd>
++<dt>Steg</dt><dd id="appAuditStep">—</dd>
++<dt>Coverage</dt><dd id="appAuditCoverage">—</dd>
++<dt>Fynd (målpåstådda)</dt><dd id="appAuditFindings">—</dd>
++<dt>Senaste grind</dt><dd id="appAuditGate">—</dd>
++</dl>
++</div>
++<div class="boundary-authorization" hidden="" id="boundaryAuthorization">
++<h3>Nivå-10-gräns / USER_PAUSE kräver operatörsbeslut</h3>
++<p class="guardrail">
+           Detta är den enda vägen förbi en nivå-10-gräns. Den finns endast lokalt i panelen.
+           Text i målsessionen kan aldrig auktorisera en gräns — då skulle målsessionen kunna
+           auktorisera sin egen eskalering.
+         </p>
+-        <dl class="boundary-facts">
+-          <dt>Ursprung</dt><dd id="boundaryOrigin">—</dd>
+-          <dt>Nivå</dt><dd id="boundaryLevel">—</dd>
+-          <dt>Exakt mål</dt><dd id="boundaryTarget">—</dd>
+-          <dt>Klassificerare</dt><dd id="boundaryClassifier">—</dd>
+-        </dl>
+-        <p class="boundary-rationale" id="boundaryRationale">—</p>
+-        <label class="field">
+-          <span>Motivering (minst 12 tecken, skrivs till continuity)</span>
+-          <textarea id="boundaryJustification" rows="3" placeholder="Ange varför denna exakta åtgärd är auktoriserad."></textarea>
+-        </label>
+-        <button id="authorizeBoundaryButton" class="button danger" type="button">Auktorisera denna exakta gräns och fortsätt</button>
+-      </div>
+-
+-      <p class="guardrail">
++<dl class="boundary-facts">
++<dt>Ursprung</dt><dd id="boundaryOrigin">—</dd>
++<dt>Nivå</dt><dd id="boundaryLevel">—</dd>
++<dt>Exakt mål</dt><dd id="boundaryTarget">—</dd>
++<dt>Klassificerare</dt><dd id="boundaryClassifier">—</dd>
++</dl>
++<p class="boundary-rationale" id="boundaryRationale">—</p>
++<label class="field">
++<span>Motivering (minst 12 tecken, skrivs till continuity)</span>
++<textarea id="boundaryJustification" placeholder="Ange varför denna exakta åtgärd är auktoriserad." rows="3"></textarea>
++</label>
++<button class="button danger" id="authorizeBoundaryButton" type="button">Auktorisera denna exakta gräns och fortsätt</button>
++</div>
++<p class="guardrail">
+         Start/Continue läser endast en baseline och väntar på nästa kompletta AI-svar. Den skickar ingen prompt,
+         klickar inte Stop och avbryter aldrig pågående tänkande. Direkt operatörsstopp, autentisering, CAPTCHA,
+         behörighet, sekretess, policy/säkerhet och bekräftelsekrävande högriskåtgärder kan aldrig kringgås.
+       </p>
+-    </section>
+-
+-    <section class="card" aria-labelledby="mjolnarHeading">
+-      <div class="card-heading">
+-        <div>
+-          <h2 id="mjolnarHeading">Mjölnar Operator Proxy</h2>
+-          <p>Lokal delegeringskontroll. D2 är ett explicit opt-in för registrerade högrisk-handoffs.</p>
+-        </div>
+-        <span id="mjolnarBadge" class="badge neutral">AV</span>
+-      </div>
+-      <label class="check">
+-        <input id="mjolnarEnabled" type="checkbox">
+-        <span>
+-          <strong>Aktivera lokal Mjölnar</strong>
+-          <small>Bedömer endast trusted lokala kandidater och får aldrig skapa nya permissions.</small>
+-        </span>
+-      </label>
+-      <label>Rollout
+-        <select id="mjolnarRolloutMode">
+-          <option value="SHADOW">Shadow — ingen dispatch</option>
+-          <option value="D0_LIVE">D0 live — rutin/read/reconnect</option>
+-          <option value="D1_LIVE">D1 live — registrerade rollback/readback-actions</option>
+-          <option value="D2_LIVE">D2 live — auth/permissions/merge/release/deploy</option>
+-        </select>
+-      </label>
+-      <dl class="status-grid">
+-        <div><dt>State</dt><dd id="mjolnarState">IDLE</dd></div>
+-        <div><dt>Klass</dt><dd id="mjolnarClass">—</dd></div>
+-        <div><dt>Verdict</dt><dd id="mjolnarVerdict">—</dd></div>
+-        <div><dt>Action</dt><dd id="mjolnarAction">—</dd></div>
+-        <div><dt>Target</dt><dd id="mjolnarTarget">—</dd></div>
+-        <div><dt>Dispatch/readback</dt><dd id="mjolnarDispatch">—</dd></div>
+-        <div><dt>Destruktivitet</dt><dd id="destructivenessLevel">1/10 · READ_ONLY</dd></div>
+-        <div><dt>Hjalmar mental kontroll</dt><dd id="hjalmarMentalControl">NOT_REQUIRED</dd></div>
+-        <div><dt>Bias check</dt><dd id="mjolnarBias">—</dd></div>
+-        <div><dt>Verklig PAUS</dt><dd id="mjolnarHumanReason">—</dd></div>
+-      </dl>
+-      <p class="guardrail">D2 dispatchar endast registrerade owner-route-handoffs med exakt mål, mandat, rollback och readback. Login, CAPTCHA, credentials, secrets, permanent delete och okänd blast radius förblir HUMAN_REQUIRED.</p>
+-    </section>
+-
+-    <section class="card" aria-labelledby="dataHeading">
+-      <div class="card-heading">
+-        <div>
+-          <h2 id="dataHeading">Data och recovery</h2>
+-          <p>Export/import inkluderar mandat, continuity och konfiguration.</p>
+-        </div>
+-      </div>
+-      <div class="controls">
+-        <button id="exportButton" class="button ghost" type="button">Exportera</button>
+-        <label class="button ghost file-button">Importera<input id="importInput" type="file" accept=".json,application/json"></label>
+-        <button id="resetWindowButton" class="button danger ghost-danger" type="button">Återställ fönsterkontext</button>
+-      </div>
+-    </section>
+-
+-    <section class="card" aria-labelledby="logHeading">
+-      <div class="card-heading">
+-        <div>
+-          <h2 id="logHeading">Körningslogg</h2>
+-          <p id="turnCounter">0 turer</p>
+-        </div>
+-        <button id="clearLogButton" class="button text" type="button">Rensa</button>
+-      </div>
+-      <ol id="eventLog" class="event-log" aria-live="polite"></ol>
+-    </section>
+-
+-    <footer>
+-      <p>Local-first. Ingen privat ChatGPT-kanal, ingen credentialhantering och ingen dold cross-tab-automation.</p>
+-    </footer>
+-  </main>
+-  <script type="module" src="sidepanel.js"></script>
++</section></section><section aria-labelledby="navSettingsButton" class="mission-view" data-mission-view-panel="SETTINGS" hidden="" id="missionViewSettings" role="tabpanel" tabindex="0"><div class="mission-view-heading"><h2>Inställningar</h2><p>Mandat, kontinuitetsprofiler och lokal data/recovery.</p></div><section aria-labelledby="contractsHeading" class="card primary-contracts">
++<div class="card-heading">
++<div>
++<h2 id="contractsHeading">Tre separata kärnytor</h2>
++<p>Ägarskap och promptgränser är explicita.</p>
++</div>
++<span class="badge neutral">3 YTOR</span>
++</div>
++<label for="scenarioPreset">
++<strong>Snabbprofil för hela appen</strong>
++<span class="ownership">Väljer kompatibla standardprofiler för kärnyta 1–3</span>
++</label>
++<select aria-label="Snabbprofil för kärnytorna" id="scenarioPreset"></select>
++<label for="nanoMandate">
++<strong>1. Nano only — kärnmandat och stående regel</strong>
++<span class="ownership">Privat för Nano · skickas aldrig till målsessionen</span>
++</label>
++<select aria-label="Standardläge för Nano-kärnmandat" id="nanoMandateProfile"></select>
++<textarea data-primary-instruction="nano" id="nanoMandate" maxlength="24000" rows="12"></textarea>
++<label for="targetMandate">
++<strong>2. EIC/AI only — målsessionens kärnmandat</strong>
++<span class="ownership">Infogas som header i varje Nano-levererad prompt</span>
++</label>
++<select aria-label="Standardläge för målsessionens kärnmandat" id="targetMandateProfile"></select>
++<div class="inline-fields">
++<input aria-label="Målmandatets version" id="targetMandateVersion" maxlength="120" type="text"/>
++<select aria-label="Målmandatets scope" id="targetAuthorityScope">
++<option value="GENERIC">Normal AI-session</option>
++<option value="EIC">EIC-session</option>
++</select>
++</div>
++<textarea data-primary-instruction="target" id="targetMandate" maxlength="24000" rows="10"></textarea>
++<label for="continuityData">
++<strong>3. Nano — kontinuitetsdata</strong>
++<span class="ownership">Kompakt vad/varför-transkript · verifierade fakta separeras från inferenser</span>
++</label>
++<select aria-label="Visningsläge för kontinuitetsdata" id="continuityViewProfile"></select>
++<textarea data-primary-instruction="continuity" id="continuityData" readonly="" rows="15"></textarea>
++<p class="detail compact">Kontinuiteten skrivs av orkestratorn, kompakteras deterministiskt och används för anti-loop-korrigering. Den är inte ett rått samtalstranskript.</p>
++</section><section aria-labelledby="dataHeading" class="card">
++<div class="card-heading">
++<div>
++<h2 id="dataHeading">Data och recovery</h2>
++<p>Export/import inkluderar mandat, continuity och konfiguration.</p>
++</div>
++</div>
++<div class="controls">
++<button class="button ghost" id="exportButton" type="button">Exportera</button>
++<label class="button ghost file-button">Importera<input accept=".json,application/json" id="importInput" type="file"/></label>
++<button class="button danger ghost-danger" id="resetWindowButton" type="button">Återställ fönsterkontext</button>
++</div>
++</section></section></div><aside aria-label="Körningsåtgärder" class="action-dock"><div class="action-dock-status"><span>Aktiv kontroll</span><strong id="actionDockState">Ingen aktiv körning</strong></div><div class="controls action-dock-controls">
++<button class="button primary" id="startWaitingButton" type="button">Start/Continue i vänteläge</button>
++<button class="button secondary" disabled="" id="pauseButton" type="button">Pausa addon</button>
++<button class="button secondary" disabled="" id="resumeButton" type="button">Återuppta</button>
++<button class="button danger" disabled="" id="stopButton" type="button">Stoppa addon</button>
++</div></aside><footer>
++<p>Local-first. Ingen privat ChatGPT-kanal, ingen credentialhantering och ingen dold cross-tab-automation.</p>
++</footer></main>
++<script src="sidepanel.js" type="module"></script>
+ </body>
+ </html>
+--- a/sidepanel.js
++++ b/sidepanel.js
+@@ -45,6 +45,11 @@
+ import { ARCHAEOLOGY_SCENARIOS } from "./lib/archaeology-contract.mjs";
+ import { readUiSnapshotModel } from "./lib/ui-contract.mjs";
+ import { createUiRuntimeClient } from "./lib/ui-runtime-client.mjs";
++import {
++  MISSION_CONTROL_VIEW_IDS,
++  createMissionControlShell,
++  missionShellSummary
++} from "./lib/mission-control-shell.mjs";
+ 
+ const POLL_MS = 1_500;
+ const START_CHUNK_CHARS = 10_000;
+@@ -250,7 +255,11 @@
+   "archaeologySection", "archaeologyScenario", "archaeologyQuestion", "archaeologyContext",
+   "archaeologyAllowWorkspaceEvidence", "archaeologyAllowExport", "startArchaeologyButton",
+   "archaeologyActiveScenario", "archaeologyPhase", "archaeologyStep",
+-  "archaeologyHypotheses", "archaeologyEvidence", "archaeologyWorkspace", "archaeologyGate"
++  "archaeologyHypotheses", "archaeologyEvidence", "archaeologyWorkspace", "archaeologyGate",
++  "missionModeStatus", "missionStateStatus", "missionStepStatus",
++  "controllerSurfaceStatus", "webTargetSurfaceStatus", "actionDockState",
++  "navRunButton", "navSurfacesButton", "navEvidenceButton", "navMissionsButton", "navSettingsButton",
++  "missionViewRun", "missionViewSurfaces", "missionViewEvidence", "missionViewMissions", "missionViewSettings"
+ ].map((id) => [id, document.querySelector(`#${id}`)]));
+ 
+ const state = {
+@@ -288,6 +297,38 @@
+   getWindowId: () => state.windowId
+ });
+ 
++let missionControlShell = null;
++
++function initializeMissionControlShell() {
++  missionControlShell?.destroy?.();
++  missionControlShell = createMissionControlShell({
++    buttons: {
++      [MISSION_CONTROL_VIEW_IDS.RUN]: elements.navRunButton,
++      [MISSION_CONTROL_VIEW_IDS.SURFACES]: elements.navSurfacesButton,
++      [MISSION_CONTROL_VIEW_IDS.EVIDENCE]: elements.navEvidenceButton,
++      [MISSION_CONTROL_VIEW_IDS.MISSIONS]: elements.navMissionsButton,
++      [MISSION_CONTROL_VIEW_IDS.SETTINGS]: elements.navSettingsButton
++    },
++    panels: {
++      [MISSION_CONTROL_VIEW_IDS.RUN]: elements.missionViewRun,
++      [MISSION_CONTROL_VIEW_IDS.SURFACES]: elements.missionViewSurfaces,
++      [MISSION_CONTROL_VIEW_IDS.EVIDENCE]: elements.missionViewEvidence,
++      [MISSION_CONTROL_VIEW_IDS.MISSIONS]: elements.missionViewMissions,
++      [MISSION_CONTROL_VIEW_IDS.SETTINGS]: elements.missionViewSettings
++    }
++  });
++}
++
++function renderMissionControlSummary(missions, run) {
++  const summary = missionShellSummary(missions, run);
++  elements.missionModeStatus.textContent = summary.modeLabel;
++  elements.missionStateStatus.textContent = summary.stateLabel;
++  elements.missionStepStatus.textContent = summary.stepLabel;
++  elements.controllerSurfaceStatus.textContent = summary.controllerSurfaceLabel;
++  elements.webTargetSurfaceStatus.textContent = summary.webTargetSurfaceLabel;
++  elements.actionDockState.textContent = `${summary.modeLabel} · ${summary.stateLabel}`;
++}
++
+ function uiModel(snapshot = state.snapshot) {
+   return readUiSnapshotModel(snapshot);
+ }
+@@ -743,6 +784,7 @@
+   const config = model.config || {};
+   const windowContext = model.window || {};
+   const run = windowContext.run;
++  renderMissionControlSummary(model.missions, run);
+   const [runLabel, runToneName] = runTone(run);
+   setBadge(elements.runBadge, runLabel, runToneName);
+ 
+@@ -2136,6 +2178,7 @@
+ async function initialize() {
+   const windowInfo = await chrome.windows.getCurrent();
+   state.windowId = windowInfo.id;
++  initializeMissionControlShell();
+   populateProfileSelects();
+   bindEvents();
+   await loadBuildInfo();
+@@ -2147,6 +2190,7 @@
+ }
+ 
+ window.addEventListener("beforeunload", () => {
++  missionControlShell?.destroy?.();
+   clearInterval(state.pollTimer);
+   clearTimeout(state.saveTimer);
+   stopNanoExecutionTimers();
+--- a/tests/v090-wp00-contract.test.mjs
++++ b/tests/v090-wp00-contract.test.mjs
+@@ -32,9 +32,7 @@
+     assert.match(text, new RegExp(`WP${String(index).padStart(2, "0")}`));
+   }
+   assert.match(text, /\| WP00 \|.*\| IMPLEMENTED \|/);
+-  assert.match(text, /\| WP01 \|.*\| IMPLEMENTED \|/);
+-  assert.match(text, /\| WP02 \|.*\| IMPLEMENTED \|/);
+-  assert.match(text, /\| WP03 \|.*\| WAITING_APPROVAL \|/);
++  assert.match(text, /## WP00 receipt[\s\S]*WP01 remains blocked\s*until the operator explicitly approves it/);
+ });
+ 
+ test("WP00 architecture and inventory documents exist", () => {
+--- a/tests/v090-wp01-ui-boundary.test.mjs
++++ b/tests/v090-wp01-ui-boundary.test.mjs
+@@ -207,8 +207,7 @@
+   const ledger = read("docs/V0_9_0_EXECUTION_LEDGER.md");
+   const contract = read("docs/V0_9_0_WP01_UI_RUNTIME_BOUNDARY.md");
+   assert.match(ledger, /\| WP01 \|.*\| IMPLEMENTED \|/);
+-  assert.match(ledger, /\| WP02 \|.*\| IMPLEMENTED \|/);
+-  assert.match(ledger, /\| WP03 \|.*\| WAITING_APPROVAL \|/);
++  assert.match(ledger, /## WP01 receipt[\s\S]*WP02 remains blocked until explicit operator approval/);
+   assert.match(contract, /uiSnapshot/);
+   assert.match(contract, /No Mission Control visual redesign/i);
+   assert.match(contract, /WP02/i);
+--- a/tests/v090-wp02-mission-domain.test.mjs
++++ b/tests/v090-wp02-mission-domain.test.mjs
+@@ -304,7 +304,7 @@
+   const ledger = read("docs/V0_9_0_EXECUTION_LEDGER.md");
+   const contract = read("docs/V0_9_0_WP02_MISSION_DOMAIN.md");
+   assert.match(ledger, /\| WP02 \|.*\| IMPLEMENTED \|/);
+-  assert.match(ledger, /\| WP03 \|.*\| WAITING_APPROVAL \|/);
++  assert.match(ledger, /## WP02 receipt[\s\S]*WP03 remains blocked until explicit operator approval/);
+   assert.match(contract, /Mission domain/i);
+   assert.match(contract, /No Mission Control visual redesign/i);
+   assert.match(contract, /WP03/i);
+--- /dev/null
++++ b/tests/v090-wp03-mission-control-shell.test.mjs
+@@ -0,0 +1,194 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import fs from "node:fs";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++
++import {
++  DEFAULT_MISSION_CONTROL_VIEW,
++  MISSION_CONTROL_SHELL_SCHEMA,
++  MISSION_CONTROL_VIEW_IDS,
++  MISSION_CONTROL_VIEW_REGISTRY,
++  createMissionControlShell,
++  missionShellSummary,
++  resolveMissionControlView
++} from "../lib/mission-control-shell.mjs";
++
++const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
++const read = (name) => fs.readFileSync(path.join(root, name), "utf8");
++
++class FakeClassList {
++  constructor() { this.values = new Set(); }
++  toggle(name, enabled) {
++    if (enabled) this.values.add(name);
++    else this.values.delete(name);
++  }
++  contains(name) { return this.values.has(name); }
++}
++
++class FakeNode {
++  constructor() {
++    this.attributes = new Map();
++    this.listeners = new Map();
++    this.classList = new FakeClassList();
++    this.focused = false;
++  }
++  setAttribute(name, value) { this.attributes.set(name, String(value)); }
++  getAttribute(name) { return this.attributes.get(name); }
++  toggleAttribute(name, force) {
++    if (force) this.attributes.set(name, "");
++    else this.attributes.delete(name);
++  }
++  hasAttribute(name) { return this.attributes.has(name); }
++  addEventListener(type, listener) {
++    const current = this.listeners.get(type) || [];
++    current.push(listener);
++    this.listeners.set(type, current);
++  }
++  removeEventListener(type, listener) {
++    this.listeners.set(type, (this.listeners.get(type) || []).filter((item) => item !== listener));
++  }
++  emit(type, extra = {}) {
++    const event = { key: "", preventDefault() {}, ...extra };
++    for (const listener of this.listeners.get(type) || []) listener(event);
++  }
++  focus() { this.focused = true; }
++}
++
++function fakeShell() {
++  const buttons = {};
++  const panels = {};
++  for (const id of Object.values(MISSION_CONTROL_VIEW_IDS)) {
++    buttons[id] = new FakeNode();
++    panels[id] = new FakeNode();
++  }
++  return { buttons, panels };
++}
++
++test("WP03 closed view registry exposes exactly the five approved views", () => {
++  assert.equal(MISSION_CONTROL_SHELL_SCHEMA, "eic.autonom.mission-control-shell.v1");
++  assert.deepEqual(Object.keys(MISSION_CONTROL_VIEW_REGISTRY), [
++    "RUN", "SURFACES", "EVIDENCE", "MISSIONS", "SETTINGS"
++  ]);
++  assert.equal(DEFAULT_MISSION_CONTROL_VIEW, "RUN");
++});
++
++test("WP03 view resolution fails closed for unknown views", () => {
++  assert.equal(resolveMissionControlView("RUN").label, "Körning");
++  assert.throws(() => resolveMissionControlView("BROWSER"), /MISSION_CONTROL_VIEW_UNKNOWN/);
++});
++
++test("WP03 shell activates exactly one panel and one selected tab", () => {
++  const { buttons, panels } = fakeShell();
++  const shell = createMissionControlShell({ buttons, panels });
++  assert.equal(shell.getActiveView(), "RUN");
++  assert.equal(buttons.RUN.getAttribute("aria-selected"), "true");
++  assert.equal(panels.RUN.hasAttribute("hidden"), false);
++  for (const id of ["SURFACES", "EVIDENCE", "MISSIONS", "SETTINGS"]) {
++    assert.equal(buttons[id].getAttribute("aria-selected"), "false");
++    assert.equal(panels[id].hasAttribute("hidden"), true);
++  }
++  buttons.EVIDENCE.emit("click");
++  assert.equal(shell.getActiveView(), "EVIDENCE");
++  assert.equal(panels.EVIDENCE.classList.contains("is-active"), true);
++  assert.equal(panels.RUN.hasAttribute("hidden"), true);
++});
++
++test("WP03 shell supports bounded keyboard navigation", () => {
++  const { buttons, panels } = fakeShell();
++  const shell = createMissionControlShell({ buttons, panels });
++  buttons.RUN.emit("keydown", { key: "ArrowLeft", preventDefault() {} });
++  assert.equal(shell.getActiveView(), "SETTINGS");
++  buttons.SETTINGS.emit("keydown", { key: "Home", preventDefault() {} });
++  assert.equal(shell.getActiveView(), "RUN");
++  buttons.RUN.emit("keydown", { key: "End", preventDefault() {} });
++  assert.equal(shell.getActiveView(), "SETTINGS");
++  buttons.SETTINGS.emit("keydown", { key: "ArrowRight", preventDefault() {} });
++  assert.equal(shell.getActiveView(), "RUN");
++});
++
++test("WP03 Mission summary renders only the active WP02 Mission", () => {
++  const summary = missionShellSummary({
++    activeMissionId: "mission-1",
++    missions: {
++      "mission-1": {
++        missionId: "mission-1",
++        modeId: "APP_AUDIT_LONG",
++        state: "RUNNING",
++        currentStep: "Inventory",
++        surfaceRoles: {
++          CHATGPT_CONTROLLER: "controller:tab-7",
++          WEB_TARGET: null
++        }
++      }
++    }
++  });
++  assert.equal(summary.modeLabel, "APP_AUDIT_LONG");
++  assert.equal(summary.stateLabel, "RUNNING");
++  assert.equal(summary.stepLabel, "Inventory");
++  assert.equal(summary.controllerSurfaceLabel, "controller:tab-7");
++  assert.equal(summary.webTargetSurfaceLabel, "Ej bunden");
++});
++
++test("WP03 Mission summary has a bounded legacy fallback", () => {
++  const summary = missionShellSummary(null, {
++    mode: "WAITING_CONTINUE",
++    state: "PAUSED",
++    activeWorkUnit: "Read owner state"
++  });
++  assert.equal(summary.activeMissionId, null);
++  assert.equal(summary.modeLabel, "WAITING_CONTINUE");
++  assert.equal(summary.stateLabel, "PAUSED");
++  assert.equal(summary.stepLabel, "Read owner state");
++  assert.equal(summary.controllerSurfaceLabel, "Ej bunden");
++});
++
++test("WP03 HTML contains the five accessible views", () => {
++  const html = read("sidepanel.html");
++  assert.match(html, /class="mission-topbar"/);
++  assert.match(html, /role="tablist"/);
++  for (const [viewId, spec] of Object.entries(MISSION_CONTROL_VIEW_REGISTRY)) {
++    assert.match(html, new RegExp(`data-mission-view="${viewId}"`));
++    assert.match(html, new RegExp(`id="${spec.panelId}"`));
++    assert.match(html, new RegExp(`data-mission-view-panel="${viewId}"`));
++  }
++});
++
++test("WP03 preserves the four run command controls in the persistent action dock", () => {
++  const html = read("sidepanel.html");
++  const dock = html.slice(html.indexOf('class="action-dock"'));
++  for (const id of ["startWaitingButton", "pauseButton", "resumeButton", "stopButton"]) {
++    assert.equal((html.match(new RegExp(`id="${id}"`, "g")) || []).length, 1);
++    assert.match(dock, new RegExp(`id="${id}"`));
++  }
++});
++
++test("WP03 CSS makes header/navigation and action dock sticky and responsive", () => {
++  const css = read("sidepanel.css");
++  assert.match(css, /\.mission-topbar\s*\{[\s\S]*position:\s*sticky/);
++  assert.match(css, /\.action-dock\s*\{[\s\S]*position:\s*sticky/);
++  assert.match(css, /\.mission-view\[hidden\]/);
++  assert.match(css, /@media \(max-width: 520px\)/);
++});
++
++test("WP03 panel reads the Mission summary without changing command transport", () => {
++  const panel = read("sidepanel.js");
++  assert.match(panel, /createMissionControlShell/);
++  assert.match(panel, /missionShellSummary\(missions, run\)/);
++  assert.match(panel, /renderMissionControlSummary\(model\.missions, run\)/);
++  assert.doesNotMatch(panel, /type:\s*"EIC_UI_COMMAND"/);
++});
++
++test("WP03 contract blocks WP04 semantics and browser enablement", () => {
++  const contract = read("docs/V0_9_0_WP03_MISSION_CONTROL_SHELL.md");
++  assert.match(contract, /WP04 owns the semantic migration/);
++  assert.match(contract, /does not:[\s\S]*enable `AI_WEB_RESEARCH`/);
++  assert.match(contract, /does not:[\s\S]*add browser permissions/);
++});
++
++test("WP03 ledger closes the shell gate and blocks WP04", () => {
++  const ledger = read("docs/V0_9_0_EXECUTION_LEDGER.md");
++  assert.match(ledger, /\| WP03 \|.*\| IMPLEMENTED \|/);
++  assert.match(ledger, /\| WP04 \|.*\| WAITING_APPROVAL \|/);
++  assert.match(ledger, /## WP03 receipt/);
++});

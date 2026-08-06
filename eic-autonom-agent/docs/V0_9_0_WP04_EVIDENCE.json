@@ -1,0 +1,65 @@
+{
+  "schema": "eic.autonom.wp-gate-evidence.v1",
+  "workPackage": "WP04",
+  "recordedAt": "2026-08-04T08:42:14.627907Z",
+  "baseline": {
+    "workPackage": "WP03",
+    "sourceSha256": "b062d4ffd49a063ed9a764c0d8315bef893d27d8d83ec1c7d2a1819e4dde5fd1",
+    "preChangeTests": {
+      "passed": 421,
+      "total": 421,
+      "exitCode": 0
+    },
+    "preChangeValidate": {
+      "result": "PASS",
+      "exitCode": 0
+    }
+  },
+  "implementation": {
+    "executionOwner": "MISSION",
+    "legacyAdapter": "LEGACY_RUN_V8",
+    "uiStartCommand": "START_MISSION",
+    "standardMissionModes": [
+      "CHATGPT_CONTINUATION",
+      "CHATGPT_NEW_SESSION",
+      "APP_AUDIT_LONG",
+      "ARCHAEOLOGY_LONG"
+    ],
+    "disabledModes": [
+      "AI_WEB_RESEARCH"
+    ],
+    "baselineInteractiveControlsRetained": 44
+  },
+  "verification": {
+    "focused": {
+      "passed": 15,
+      "total": 15,
+      "exitCode": 0
+    },
+    "fullRegression": {
+      "passed": 436,
+      "total": 436,
+      "exitCode": 0
+    },
+    "validate": {
+      "result": "PASS",
+      "exitCode": 0
+    },
+    "backgroundSmoke": {
+      "result": "PASS",
+      "exitCode": 0
+    },
+    "syntax": {
+      "passed": 98,
+      "total": 98,
+      "exitCode": 0
+    }
+  },
+  "claimBoundary": {
+    "desktopChromeRuntime": "NOT_RUN_FOR_WP04",
+    "repositoryPersistence": "NOT_CLAIMED",
+    "installedExtension": "NOT_CLAIMED",
+    "artifactStorage": "NOT_CLAIMED",
+    "wp05": "NOT_STARTED"
+  }
+}

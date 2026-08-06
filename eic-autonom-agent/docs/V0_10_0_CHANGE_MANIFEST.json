@@ -1,0 +1,73 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "targetVersion": "0.10.0",
+  "baseline": {
+    "file": "eic-autonom-agent-v0.9.11-source.zip",
+    "sha256": "987282a2abe7c7c02336e9e9fae51a3211db3568c4296497d0a5b95a12deded2",
+    "sizeBytes": 933596,
+    "zipEntries": 348,
+    "crc": "PASS",
+    "unsafePaths": 0,
+    "symlinks": 0,
+    "encryptedEntries": 0,
+    "tests": "703/703 PASS",
+    "validator": "PASS",
+    "syntax": "126/126 PASS"
+  },
+  "riskProfile": "STRICT_AUDIT",
+  "forwardOnly": true,
+  "releaseEffectsAllowed": false,
+  "units": [
+    "EIC-AA/5 operator action and completion protocol",
+    "level-10 acknowledgement discriminating fixture and minimum owning-chain fix only if reproduced",
+    "IndexedDB Session Capture and Session Memory current-only stores",
+    "transcript-only incremental capture with provenance, gaps and untrusted-history boundary",
+    "four whole-app quick profiles with VERIFIED_ANALYSIS default",
+    "UI, export v18, validator, docs, tests and packages"
+  ],
+  "protectedInvariants": [
+    "globalThis.LanguageModel only",
+    "English expectedOutputs attestation",
+    "gesture-synchronous LanguageModel.create",
+    "canaryVerified before mission",
+    "trusted-session, claim, owner-route, effect and safety gates",
+    "no release, installation, deployment or publication"
+  ],
+  "plannedPaths": {
+    "new": [
+      "lib/operator-action.mjs",
+      "lib/session-db.mjs",
+      "lib/session-capture.mjs",
+      "lib/session-memory.mjs",
+      "lib/quick-profiles.mjs",
+      "tests/v010-operator-action.test.mjs",
+      "tests/v010-level10-ack.test.mjs",
+      "tests/v010-session-capture.test.mjs",
+      "tests/v010-session-memory.test.mjs",
+      "tests/v010-quick-profiles.test.mjs",
+      "docs/V0_10_0_ARCHITECTURE.md",
+      "docs/CHANGELOG_V0_10_0.md",
+      "docs/VERIFICATION_V0_10_0.md",
+      "docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_0.md"
+    ],
+    "modify": [
+      "EIC.md",
+      "README.md",
+      "PRIVACY.md",
+      "package.json",
+      "manifest.json",
+      "lib/contracts.mjs",
+      "lib/prompt-contract.mjs",
+      "lib/state-machine.mjs",
+      "lib/core-profiles.mjs",
+      "lib/ui-contract.mjs",
+      "background.js",
+      "content.js",
+      "sidepanel.js",
+      "sidepanel.html",
+      "scripts/validate.mjs",
+      "scripts/package.mjs"
+    ]
+  },
+  "frozenAt": "2026-08-06T04:23:00Z"
+}

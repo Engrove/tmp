@@ -1,0 +1,32 @@
+{
+  "schema": "eic.autonom.wp07-evidence.v1",
+  "workPackage": "WP07",
+  "status": "SOURCE_GATE_CANDIDATE",
+  "executionMode": "AUTONOMOUS_STRICT_WP",
+  "baseline": {
+    "wp06SourceSha256": "ba213f5c5065f7bdd4a03825c8518b8f6ab26b803feda7203d88e54105cc0c5f",
+    "tests": "465/465 PASS",
+    "validate": "PASS"
+  },
+  "contracts": {
+    "store": "eic.autonom.evidence-store.v1",
+    "item": "eic.autonom.evidence-item.v1",
+    "observation": "eic.autonom.evidence-observation.v1",
+    "durableItemLimit": 200,
+    "durableByteLimit": 1500000,
+    "screenshotLimit": 4,
+    "screenshotDecodedByteLimit": 4000000,
+    "rawScreenshotStorage": "chrome.storage.session",
+    "responseBodies": false,
+    "arbitraryJavaScript": false,
+    "browserActions": false
+  },
+  "verification": {
+    "focused": "17/17 PASS",
+    "regression": "482/482 PASS"
+  },
+  "claimBoundary": [
+    "No live Chrome evidence body was captured by this source gate.",
+    "No screenshot attachment, browser action execution, repository, release or deployment claim is made."
+  ]
+}

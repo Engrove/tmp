@@ -1,0 +1,41 @@
+{
+  "schema": "eic.autonom.wp05-evidence.v1",
+  "workPackage": "WP05",
+  "executionMethod": "MANUAL",
+  "autonomousAddonUsed": false,
+  "baseline": {
+    "sourceFile": "eic-autonom-agent-v0.9.0-wp04-candidate-source.zip",
+    "sha256": "b2137ad2a325113686a52a7935b93ca50c9b3a91a07ff0644a26a76e0f267e6c",
+    "preChangeTests": "436/436 PASS",
+    "preChangeValidate": "PASS"
+  },
+  "implementation": {
+    "pairSchema": "eic.autonom.surface-pair.v1",
+    "surfaceSchema": "eic.autonom.surface.v1",
+    "roles": [
+      "CHATGPT_CONTROLLER",
+      "WEB_TARGET"
+    ],
+    "uiCommands": [
+      "BIND_ACTIVE_WEB_TARGET",
+      "DETACH_WEB_TARGET"
+    ],
+    "webTargetPermissionState": "NOT_REQUESTED",
+    "webTargetDebuggerState": "NOT_AVAILABLE_WP05",
+    "aiWebResearchEnabled": false,
+    "wp06Started": false
+  },
+  "verification": {
+    "focused": "17/17 PASS",
+    "fullRegression": "453/453 PASS",
+    "validate": "PASS",
+    "backgroundSmoke": "PASS",
+    "syntax": "100/100 PASS"
+  },
+  "claimBoundary": [
+    "Source contracts, local tests, validation, background boot smoke and syntax are verified in the isolated working copy.",
+    "No Desktop Chrome rendering/runtime, installed extension, Git/repository, release, deployment, debugger/CDP or origin-grant claim is made.",
+    "WP06 has not started."
+  ],
+  "createdAt": "2026-08-04T13:16:00+03:00"
+}

@@ -1,0 +1,145 @@
+{
+  "schema": "eic.autonom.v090.wp01.evidence.v1",
+  "generatedAt": "2026-08-04T07:37:41.229537+00:00",
+  "projectId": 63,
+  "executionMode": "manual_operator_approval_per_wp",
+  "operatorApproval": {
+    "instruction": "Godkänn WP01",
+    "approved": true
+  },
+  "baseline": {
+    "source": "v0.9.0 WP00 candidate",
+    "sha256": "e0928fc6ba8fd8cb5a2386675f5379146ae159599db232d6de68d4cb314b7b7c",
+    "version": "0.8.2",
+    "tests": {
+      "command": "npm test",
+      "exitCode": 0,
+      "pass": 388,
+      "fail": 0
+    },
+    "validation": {
+      "command": "npm run validate",
+      "exitCode": 0,
+      "verdict": "PASS"
+    }
+  },
+  "scope": {
+    "deliverables": [
+      "versioned uiSnapshot read model",
+      "closed versioned UI command registry and dispatcher",
+      "panel runtime transport adapter",
+      "requestId and command-bound response validation"
+    ],
+    "explicitNonGoals": [
+      "Mission Control visual redesign",
+      "Mission domain or persistence migration",
+      "new browser permissions or host permissions",
+      "controller/target pairing, CDP or browser execution",
+      "WP02 implementation"
+    ]
+  },
+  "delta": {
+    "addedFiles": [
+      "docs/V0_9_0_WP01_EVIDENCE.json",
+      "docs/V0_9_0_WP01_UI_RUNTIME_BOUNDARY.md",
+      "docs/evidence/v0.9.0-wp01/node-check-final.log",
+      "docs/evidence/v0.9.0-wp01/npm-package-final.log",
+      "docs/evidence/v0.9.0-wp01/npm-test-final.log",
+      "docs/evidence/v0.9.0-wp01/npm-validate-final.log",
+      "docs/evidence/v0.9.0-wp01/wp01-focused-final.log",
+      "docs/evidence/v0.9.0-wp01/wp01-source.patch",
+      "lib/ui-contract.mjs",
+      "lib/ui-runtime-client.mjs",
+      "tests/v090-wp01-ui-boundary.test.mjs"
+    ],
+    "modifiedFiles": [
+      "background.js",
+      "build-info.json",
+      "docs/V0_9_0_EXECUTION_LEDGER.md",
+      "docs/V0_9_0_STATE_MAP.md",
+      "scripts/validate.mjs",
+      "sidepanel.js",
+      "tests/nano-runtime-regression.test.mjs",
+      "tests/v065-incident-regression.test.mjs",
+      "tests/v071-false-level10.test.mjs",
+      "tests/v074-app-audit.test.mjs",
+      "tests/v075-regressions.test.mjs",
+      "tests/v078-nano-continuity-regressions.test.mjs",
+      "tests/v090-wp00-contract.test.mjs"
+    ],
+    "removedFiles": [],
+    "protectedFiles": {
+      "manifest.json": {
+        "unchanged": true,
+        "sha256": "a44c3c176bad25f4477a6d533db593c8e094bab1ffa08d67f104e28a0caa7f6b"
+      },
+      "package.json": {
+        "unchanged": true,
+        "sha256": "3771875a343b9da22b45964d6f4b31d9d4ad69140c97aea8db0e819325d72a04"
+      },
+      "lib/contracts.mjs": {
+        "unchanged": true,
+        "sha256": "acc9e2c8767282013f3f01452551bb8b2fbaf49f84befea4e6fd0e52647b88c7"
+      },
+      "sidepanel.html": {
+        "unchanged": true,
+        "sha256": "4807b6bf0b44a298381dd1ae9610c778957124cde2fc264d1d76c81502bf56f0"
+      },
+      "sidepanel.css": {
+        "unchanged": true,
+        "sha256": "ad4e4268480e806f5a94a35a77bd65b217ad49869e09a7124121779846ce4180"
+      }
+    }
+  },
+  "verification": {
+    "focusedTest": {
+      "command": "node --test tests/v090-wp01-ui-boundary.test.mjs",
+      "exitCode": 0,
+      "pass": 10,
+      "fail": 0
+    },
+    "fullRegression": {
+      "command": "npm test",
+      "exitCode": 0,
+      "pass": 398,
+      "fail": 0
+    },
+    "validation": {
+      "command": "npm run validate",
+      "exitCode": 0,
+      "verdict": "PASS"
+    },
+    "syntax": {
+      "command": "node --check <13 changed JavaScript modules/tests>",
+      "exitCode": 0,
+      "pass": 13,
+      "fail": 0
+    },
+    "package": {
+      "command": "npm run package",
+      "exitCode": 0,
+      "verdict": "PASS",
+      "buildDigest": "795b25381a059ba63d17d3c438353b46841b2f445596ef587159af6348c0b5ae",
+      "runtimeFileCount": 119,
+      "buildInfoHashesVerified": true
+    },
+    "remediatedCheck": {
+      "firstFullRunFailCount": 7,
+      "class": "architecture_fixture_expected_old_switch_router",
+      "detail": "Static tests were updated to assert the closed UI_COMMAND_HANDLERS registry and dispatchUiCommand path. No runtime behavior defect was found."
+    },
+    "revisionPatch": {
+      "path": "docs/evidence/v0.9.0-wp01/wp01-source.patch",
+      "sha256": "0c27a106a554ce37174796f918b3a7cb05b80b32da22b6fb58c8139adf5c6ed0",
+      "sizeBytes": 52172,
+      "scope": "functional and contract delta; generated logs and build-info excluded"
+    }
+  },
+  "claimBoundary": {
+    "sourceContractVerified": true,
+    "desktopChromeRuntimeVerifiedInThisGate": false,
+    "visualRenderingVerifiedInThisGate": false,
+    "repositoryPersisted": false,
+    "nextGate": "WP02_WAITING_OPERATOR_APPROVAL"
+  }
+}

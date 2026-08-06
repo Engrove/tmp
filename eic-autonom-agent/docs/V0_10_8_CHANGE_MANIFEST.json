@@ -1,0 +1,47 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.10.8",
+  "baseline": {
+    "version": "0.10.7",
+    "source_sha256": "2d7fa3263f020c71b5d66a9361a80e90d681ab593725205815609d4767f87460"
+  },
+  "scope": {
+    "added": [
+      "lib/main-task-guard.mjs",
+      "tests/v0108-main-task-audit.test.mjs",
+      "docs/V0_10_8_ARCHITECTURE.md",
+      "docs/CHANGELOG_V0_10_8.md",
+      "docs/VERIFICATION_V0_10_8.md",
+      "docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_8.md",
+      "docs/V0_10_8_CHANGE_MANIFEST.json"
+    ],
+    "modified": [
+      "background.js",
+      "sidepanel.js",
+      "lib/full-audit-log.mjs",
+      "lib/nano-pipeline.mjs",
+      "lib/continuity.mjs",
+      "lib/core-profiles.mjs",
+      "lib/contracts.mjs",
+      "content.js",
+      "manifest.json",
+      "package.json",
+      "scripts/package.mjs",
+      "scripts/validate.mjs",
+      "README.md",
+      "EIC.md",
+      "PRIVACY.md",
+      "current-version regression assertions"
+    ],
+    "removed": []
+  },
+  "effects": [
+    "operator-selected full-audit handle verified by permission and write/readback/delete probe",
+    "version-neutral audit sink state and retention",
+    "mandatory Nano main-task baseline intake when absent",
+    "80/20 and global-skill inventory in baseline",
+    "on-track, justified-detour, drift and insufficient-context classification",
+    "protocol fast path withheld until baseline exists"
+  ],
+  "claim_boundary": "Local source/package candidate only; installed Chrome runtime, Forgejo, release, deployment and publication remain unverified."
+}

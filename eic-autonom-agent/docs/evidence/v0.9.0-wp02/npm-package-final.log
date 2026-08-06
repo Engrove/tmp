@@ -1,0 +1,14 @@
+$ npm run package
+exit_code=0
+
+STDOUT
+
+> eic-autonom-agent@0.8.2 package
+> node scripts/package.mjs
+
+BUILD DIGEST: 3d5dbe4f23b28e72fa878cb4f14cc4aa15efd988fff25694f47248dfc0f9cfe5 (122 filer)
+PACKAGE PASS: /mnt/data/eic-autonom-agent-v0.8.2-dist/eic-autonom-agent-v0.8.2.zip
+SOURCE PACKAGE PASS: /mnt/data/eic-autonom-agent-v0.8.2-dist/eic-autonom-agent-v0.8.2-source.zip
+
+STDERR
+

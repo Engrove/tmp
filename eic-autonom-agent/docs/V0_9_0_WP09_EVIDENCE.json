@@ -1,0 +1,37 @@
+{
+  "schema": "eic.autonom.wp09-source-evidence.v1",
+  "projectId": 63,
+  "workPackage": "WP09",
+  "status": "SOURCE_GATE_IMPLEMENTED",
+  "executionMode": "AUTONOMOUS_STRICT_WP",
+  "autonomousAddonUsed": false,
+  "baseline": {
+    "wp08SourceSha256": "1c4a44acc9b935a0d6187926fe7d7215666211824876fc2d5c06e66f8df5b132",
+    "tests": "506/506 PASS",
+    "validate": "PASS"
+  },
+  "implementation": {
+    "browserLoopSchema": "eic.autonom.browser-loop.v1",
+    "attachmentReceiptSchema": "eic.autonom.browser-attachment-receipt.v1",
+    "controllerResponseBarrier": true,
+    "actionBarrier": "WP08 PENDING_DISPATCH",
+    "promptBarrier": true,
+    "composerAttachmentReadbackRequired": true,
+    "rawScreenshotDurableStorage": false,
+    "aiWebResearchEnabled": false,
+    "wp10Started": false
+  },
+  "verification": {
+    "focused": "15/15 PASS",
+    "regression": "521/521 PASS",
+    "validate": "PASS",
+    "backgroundSmoke": "PASS",
+    "syntax": "115/115 PASS"
+  },
+  "claimBoundary": [
+    "No live WEB_TARGET action was executed.",
+    "No screenshot pixels were attached to ChatGPT in this source gate.",
+    "No Desktop Chrome runtime, installed extension, repository persistence, release, deployment or artifact storage is claimed."
+  ],
+  "createdAt": "2026-08-04T14:40:00+03:00"
+}

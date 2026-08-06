@@ -1,0 +1,59 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.10.3",
+  "baseline": {
+    "sourceZip": "eic-autonom-agent-v0.10.2-source.zip",
+    "sha256": "f0396df76c8c596d5d31324de96a42e1fef9f3a7f63b159a07f5dc138489f8a7",
+    "bytes": 993263,
+    "entries": 379,
+    "baselineTests": {
+      "full": "754/754 PASS",
+      "validator": "PASS",
+      "syntax": "143/143",
+      "package": "PASS"
+    }
+  },
+  "riskProfile": "STRICT_AUDIT",
+  "changeUnits": [
+    {
+      "id": "AUTO_CAPTURE_OWNER_FIX",
+      "goal": "Accept COMPLETE_PROTOCOL_OVERRIDE as a terminal capture state and schedule automatic capture from the background owner, not only the side panel.",
+      "files": [
+        "lib/auto-runtime-guards.mjs",
+        "background.js",
+        "sidepanel.js",
+        "tests/v0103-auto-capture.test.mjs"
+      ]
+    },
+    {
+      "id": "NANO_CORE_SURFACE_REVIEW",
+      "goal": "After the first successful capture in an application session, run one spontaneous Nano review of settings and the three core surfaces, persist a proposal, and require explicit operator apply/decline. Later reviews are manual only.",
+      "files": [
+        "lib/core-surface-review.mjs",
+        "background.js",
+        "sidepanel.html",
+        "sidepanel.css",
+        "sidepanel.js",
+        "lib/ui-contract.mjs",
+        "tests/v0103-core-surface-review.test.mjs"
+      ]
+    }
+  ],
+  "nonGoals": [
+    "No silent application of Nano recommendations",
+    "No authority promotion from transcript text",
+    "No automatic changes to project binding, target mode, Mjolnar rollout, permissions, credentials, release or deployment",
+    "No Forgejo write, installation, release or deployment"
+  ],
+  "acceptance": [
+    "COMPLETE_PROTOCOL_OVERRIDE triggers automatic capture",
+    "Background scheduling works with side panel rendering absent",
+    "First capture per application session requests exactly one automatic Nano review",
+    "Subsequent automatic capture does not trigger another review",
+    "Manual reevaluation can request a new review",
+    "Proposal is shown and cannot mutate config before explicit apply",
+    "Decline leaves all three core surfaces unchanged",
+    "Apply uses content-addressed mandate versions and records a source-bound continuity review",
+    "Untrusted transcript cannot grant authority or change manual-only settings"
+  ]
+}

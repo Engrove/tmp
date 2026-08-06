@@ -1,0 +1,77 @@
+$ node --test tests/v090-wp01-ui-boundary.test.mjs
+exit=0
+
+STDOUT
+TAP version 13
+# Subtest: WP01 command registry is closed and declares response kinds
+ok 1 - WP01 command registry is closed and declares response kinds
+  ---
+  duration_ms: 1.398823
+  type: 'test'
+  ...
+# Subtest: WP01 command envelope keeps payload separate from routing metadata
+ok 2 - WP01 command envelope keeps payload separate from routing metadata
+  ---
+  duration_ms: 1.867969
+  type: 'test'
+  ...
+# Subtest: WP01 uiSnapshot is versioned and detached from runtime objects
+ok 3 - WP01 uiSnapshot is versioned and detached from runtime objects
+  ---
+  duration_ms: 2.23307
+  type: 'test'
+  ...
+# Subtest: WP01 dispatcher returns a bound snapshot result
+ok 4 - WP01 dispatcher returns a bound snapshot result
+  ---
+  duration_ms: 0.536825
+  type: 'test'
+  ...
+# Subtest: WP01 dispatcher keeps heartbeat acknowledgement separate from uiSnapshot
+ok 5 - WP01 dispatcher keeps heartbeat acknowledgement separate from uiSnapshot
+  ---
+  duration_ms: 0.217172
+  type: 'test'
+  ...
+# Subtest: WP01 runtime client creates and validates the full request/result round trip
+ok 6 - WP01 runtime client creates and validates the full request/result round trip
+  ---
+  duration_ms: 1.138948
+  type: 'test'
+  ...
+# Subtest: WP01 result validation rejects cross-request response confusion
+ok 7 - WP01 result validation rejects cross-request response confusion
+  ---
+  duration_ms: 0.355637
+  type: 'test'
+  ...
+# Subtest: WP01 source wiring centralizes dispatch outside the DOM renderer
+ok 8 - WP01 source wiring centralizes dispatch outside the DOM renderer
+  ---
+  duration_ms: 2.105281
+  type: 'test'
+  ...
+# Subtest: WP01 keeps version, permissions and persistent schemas unchanged
+ok 9 - WP01 keeps version, permissions and persistent schemas unchanged
+  ---
+  duration_ms: 0.468255
+  type: 'test'
+  ...
+# Subtest: WP01 documentation stops before WP02
+ok 10 - WP01 documentation stops before WP02
+  ---
+  duration_ms: 0.5736
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 72.260672
+
+STDERR
+

@@ -1,0 +1,179 @@
+{
+  "schema": "eic.autonom.v090.wp03.evidence.v1",
+  "generatedAt": "2026-08-04T08:14:19.633678+00:00",
+  "projectId": 63,
+  "executionMode": "manual_operator_approval_per_wp",
+  "operatorApproval": {
+    "instruction": "Godkänt",
+    "boundTo": "WP03 after WP02 gate",
+    "approved": true
+  },
+  "baseline": {
+    "source": "v0.9.0 WP02 candidate",
+    "sha256": "82c9cf69ac86b1bd2bc50e4fc6fa2ee54d64baeea78861fbf7b59c64b099f83d",
+    "sizeBytes": 681756,
+    "version": "0.8.2",
+    "tests": {
+      "command": "npm test",
+      "exitCode": 0,
+      "pass": 409,
+      "fail": 0
+    },
+    "validation": {
+      "command": "npm run validate",
+      "exitCode": 0,
+      "verdict": "PASS"
+    }
+  },
+  "scope": {
+    "deliverables": [
+      "sticky Mission Control topbar",
+      "closed five-view navigation",
+      "read-only active Mission and surface-role summary",
+      "persistent action dock using existing command controls",
+      "responsive and keyboard-accessible side-panel shell"
+    ],
+    "explicitNonGoals": [
+      "semantic migration of legacy functions into Mission execution",
+      "enabling AI_WEB_RESEARCH",
+      "controller/target pairing",
+      "new permissions, host permissions, origin grants or CDP",
+      "persistent schema or package version change",
+      "Desktop Chrome rendering or runtime acceptance"
+    ]
+  },
+  "delta": {
+    "functionalAddedFiles": [
+      "docs/V0_9_0_WP03_MISSION_CONTROL_SHELL.md",
+      "lib/mission-control-shell.mjs",
+      "tests/v090-wp03-mission-control-shell.test.mjs"
+    ],
+    "functionalModifiedFiles": [
+      "EIC.md",
+      "README.md",
+      "docs/V0_9_0_EXECUTION_LEDGER.md",
+      "scripts/validate.mjs",
+      "sidepanel.css",
+      "sidepanel.html",
+      "sidepanel.js",
+      "tests/v090-wp00-contract.test.mjs",
+      "tests/v090-wp01-ui-boundary.test.mjs",
+      "tests/v090-wp02-mission-domain.test.mjs"
+    ],
+    "removedFiles": [],
+    "evidenceFiles": [
+      "docs/V0_9_0_WP03_EVIDENCE.json",
+      "docs/evidence/v0.9.0-wp03/background-smoke-final.log",
+      "docs/evidence/v0.9.0-wp03/node-check-final.log",
+      "docs/evidence/v0.9.0-wp03/npm-test-final.log",
+      "docs/evidence/v0.9.0-wp03/npm-validate-final.log",
+      "docs/evidence/v0.9.0-wp03/wp03-focused-final.log",
+      "docs/evidence/v0.9.0-wp03/wp03-source.patch"
+    ],
+    "protectedFiles": {
+      "manifest.json": {
+        "unchanged": true,
+        "sha256": "a44c3c176bad25f4477a6d533db593c8e094bab1ffa08d67f104e28a0caa7f6b"
+      },
+      "package.json": {
+        "unchanged": true,
+        "sha256": "3771875a343b9da22b45964d6f4b31d9d4ad69140c97aea8db0e819325d72a04"
+      },
+      "background.js": {
+        "unchanged": true,
+        "sha256": "82d096af799c73eed20706a5e713bf34a34957604f88e5b21914790c823f107a"
+      },
+      "content.js": {
+        "unchanged": true,
+        "sha256": "4e4e4c0cd6c3b1ef3506dcb474243a95a60ec843149fe5bed222645484071a0f"
+      },
+      "lib/contracts.mjs": {
+        "unchanged": true,
+        "sha256": "d0adb61a90a6724373e1c5622e83d66306c35e268a67a5bd805453db419f3b5d"
+      },
+      "lib/ui-contract.mjs": {
+        "unchanged": true,
+        "sha256": "631a9545222a4d8dfb252e08cf2091e3f4631f489547a149e719e2162d038f54"
+      },
+      "lib/mission-contract.mjs": {
+        "unchanged": true,
+        "sha256": "34a244518b4fce45db8d8beceff01273d450380584b9b5a623a10ef2ea9ca96a"
+      },
+      "lib/mission-state-machine.mjs": {
+        "unchanged": true,
+        "sha256": "2e8a9f002bccc04a90944f6d5a72f673c013b4fd33582b0734c80fa46849139e"
+      },
+      "lib/migration-v8-v9.mjs": {
+        "unchanged": true,
+        "sha256": "1b5917429280984e4d85b063f4f2ca9341303b70cc7004bb29b6cecc87b09aa7"
+      }
+    }
+  },
+  "verification": {
+    "focusedTest": {
+      "command": "node --test tests/v090-wp03-mission-control-shell.test.mjs",
+      "exitCode": 0,
+      "pass": 12,
+      "fail": 0
+    },
+    "fullRegression": {
+      "command": "npm test",
+      "exitCode": 0,
+      "pass": 421,
+      "fail": 0
+    },
+    "validation": {
+      "command": "npm run validate",
+      "exitCode": 0,
+      "verdict": "PASS"
+    },
+    "backgroundSmoke": {
+      "command": "node scripts/background-smoke.mjs",
+      "exitCode": 0,
+      "verdict": "PASS"
+    },
+    "syntax": {
+      "command": "node --check <all JavaScript and MJS files>",
+      "exitCode": 0,
+      "pass": 96,
+      "fail": 0
+    },
+    "htmlIntegrity": {
+      "uniqueIds": 127,
+      "duplicateIds": 0,
+      "approvedViewCount": 5
+    },
+    "remediatedCheck": {
+      "firstFullRunFailCount": 2,
+      "classes": [
+        "historical_fixture_attribute_order_regex",
+        "historical_fixture_frozen_wp03_waiting_ledger_state"
+      ],
+      "detail": "The legacy static checks were updated to preserve their original invariants without freezing current ledger progression or HTML attribute ordering. No runtime behavior defect was identified."
+    },
+    "revisionPatch": {
+      "path": "docs/evidence/v0.9.0-wp03/wp03-source.patch",
+      "sha256": "a97d4869601b4be71148516636e00d4eec8db37b8d6021a113f63c77a3cf58c8",
+      "sizeBytes": 72416,
+      "scope": "functional and contract delta; generated logs, evidence JSON and build-info excluded"
+    }
+  },
+  "securityBoundary": {
+    "aiWebResearchEnabled": false,
+    "newPermissions": false,
+    "newHostPermissions": false,
+    "debuggerPermission": false,
+    "browserExecutor": false,
+    "arbitraryJavaScript": false,
+    "backgroundRuntimeChanged": false,
+    "contentBridgeChanged": false
+  },
+  "claimBoundary": {
+    "sourceContractVerified": true,
+    "visualRenderingVerifiedInThisGate": false,
+    "desktopChromeRuntimeVerifiedInThisGate": false,
+    "repositoryPersisted": false,
+    "artifactPersisted": false,
+    "nextGate": "WP04_WAITING_OPERATOR_APPROVAL"
+  }
+}
