@@ -65,7 +65,7 @@ test("v0.9.3 declares a forward-only current-version policy", () => {
 });
 
 test("v0.9.3 current schemas are the only accepted state schemas", () => {
-  assert.equal(APP_VERSION, "0.10.11");
+  assert.equal(APP_VERSION, "0.10.12");
   assert.equal(CONFIG_SCHEMA, "eic.autonom.config.v13");
   assert.equal(RUNTIME_SCHEMA, "eic.autonom.runtime.v13");
   assert.equal(EXPORT_SCHEMA, "eic.autonom.export.v20");

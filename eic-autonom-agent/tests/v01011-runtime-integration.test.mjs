@@ -30,7 +30,11 @@ import {
 const WINDOW_ID = 9001;
 const TAB_ID = 1001;
 
-const page = createFakePage({ contentScriptVersion: CONTENT_SCRIPT_VERSION });
+// v0.10.12: the fake bridge reports the version from the shipped content.js, not
+// the contract. If those two drift apart again — as they did in v0.10.11 — the
+// background rejects the bridge here exactly as it does in Chrome, and this
+// suite fails instead of silently agreeing with itself.
+const page = createFakePage();
 const chrome = createFakeChrome({ onTabMessage: (tabId, message) => page.handle(message) });
 chrome.__tabs.set(TAB_ID, createTab({ tabId: TAB_ID, windowId: WINDOW_ID }));
 globalThis.chrome = chrome;
@@ -97,6 +101,14 @@ test("v0.10.11 runtime: background.js startar och armerar sin watchdog", async (
   await settle(150);
   assert.ok(chrome.__alarms.size >= 1, "watchdog-alarmet måste vara skapat");
   assert.ok(chrome.__storage.has("eicAutonomAgent.v106.runtime"));
+  // v0.10.12: the harness bridge derives its version from the shipped content.js.
+  // If that drifts from the contract, LINK_ACTIVE_TAB below fails exactly as it
+  // did in the field, instead of the harness agreeing with itself.
+  assert.equal(
+    page.state().version,
+    CONTENT_SCRIPT_VERSION,
+    "content.js-literalen och CONTENT_SCRIPT_VERSION måste vara identiska"
+  );
   await send("GET_SNAPSHOT");
   await send("LINK_ACTIVE_TAB");
   await send("SAVE_CONFIG", { config: { settleMs: 1 } });
@@ -202,16 +214,20 @@ test("v0.10.11 runtime: en oleverererad observation bokförs inte som processad"
   const run = await runState();
   // The failed generation never produced an effect, so the response identity must
   // stay reconcilable. In v0.10.10 it was consumed here, which is what made the
-  // resume plan's "changed response identity" requirement unsatisfiable.
-  assert.equal(run.effectJournal.length, 0);
+  // resume plan's "changed response identity" requirement unsatisfiable — the
+  // agent was told to wait for evidence only it could have produced.
+  assert.equal(run.effectJournal.length, 0, "inget levererat effektkvitto ska finnas");
+
+  const observedHash = String(run.responseCandidate?.hash || "");
+  assert.ok(observedHash, "en observation måste ha setts för att testet ska vara meningsfullt");
   assert.notEqual(
-    run.lastProcessedResponseIdentity,
-    run.responseCandidate ? `${run.conversationKey}|` : "sentinel"
+    run.lastProcessedAssistantHash,
+    observedHash,
+    "hashen för en oskickad observation får inte markeras som processad"
   );
   assert.ok(
-    !run.lastProcessedResponseIdentity ||
-    !run.lastProcessedResponseIdentity.includes(String(run.responseCandidate?.hash || " ")),
-    "hashen för en oskickad observation får inte markeras som processad"
+    !String(run.lastProcessedResponseIdentity || "").includes(observedHash),
+    "response identity för en oskickad observation får inte konsumeras"
   );
 });
 

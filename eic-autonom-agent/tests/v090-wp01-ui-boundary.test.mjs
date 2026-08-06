@@ -25,7 +25,7 @@ const json = (relative) => JSON.parse(read(relative));
 
 function sampleSnapshot() {
   return createUiSnapshot({
-    appVersion: "0.10.11",
+    appVersion: "0.10.12",
     windowId: 7,
     snapshotId: "ui-snapshot-test",
     capturedAt: "2026-08-04T07:00:00.000Z",
@@ -84,7 +84,7 @@ test("WP01 uiSnapshot is versioned and detached from runtime objects", () => {
   const config = { nested: { value: 1 } };
   const window = { run: { state: "IDLE" } };
   const snapshot = createUiSnapshot({
-    appVersion: "0.10.11",
+    appVersion: "0.10.12",
     windowId: 7,
     snapshotId: "snapshot-1",
     capturedAt: "2026-08-04T07:00:00.000Z",
@@ -200,8 +200,8 @@ test("WP01 keeps application and manifest versions synchronized with standard pe
   const manifest = json("manifest.json");
   const pkg = json("package.json");
   const contract = read("docs/V0_9_0_WP01_UI_RUNTIME_BOUNDARY.md");
-  assert.equal(pkg.version, "0.10.11");
-  assert.equal(manifest.version, "0.10.11");
+  assert.equal(pkg.version, "0.10.12");
+  assert.equal(manifest.version, "0.10.12");
   assert.deepEqual(manifest.permissions, ["sidePanel", "storage", "tabs", "scripting", "alarms"]);
   assert.deepEqual(manifest.host_permissions, ["https://chatgpt.com/*", "https://chat.openai.com/*"]);
   assert.match(contract, /does not create the Mission domain, change persistent storage schemas/i);

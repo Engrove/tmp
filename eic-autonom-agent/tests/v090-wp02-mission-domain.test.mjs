@@ -157,7 +157,7 @@ test("WP02 uiSnapshot v3 exposes only the current model", () => {
     }
   };
   const snapshot = createUiSnapshot({
-    appVersion: "0.10.11",
+    appVersion: "0.10.12",
     windowId: 7,
     snapshotId: "snapshot-v3",
     capturedAt: new Date(NOW).toISOString(),
@@ -183,8 +183,8 @@ test("WP02 persistence contracts retain schemas while release version and permis
   assert.equal(EXPORT_SCHEMA, "eic.autonom.export.v20");
   assert.equal(EXPORT_VERSION, 20);
   assert.equal(createDefaultRuntime().missionStore.schema, MISSION_STORE_SCHEMA);
-  assert.equal(pkg.version, "0.10.11");
-  assert.equal(manifest.version, "0.10.11");
+  assert.equal(pkg.version, "0.10.12");
+  assert.equal(manifest.version, "0.10.12");
   assert.deepEqual(manifest.permissions, ["sidePanel", "storage", "tabs", "scripting", "alarms"]);
   assert.deepEqual(manifest.host_permissions, ["https://chatgpt.com/*", "https://chat.openai.com/*"]);
 });

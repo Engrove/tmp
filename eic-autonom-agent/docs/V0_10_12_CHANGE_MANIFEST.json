@@ -1,0 +1,37 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.10.12",
+  "baseline": {
+    "version": "0.10.11",
+    "source_sha256": "(superseded before field acceptance; see V0_10_12_INCIDENT_ANALYSIS.md)"
+  },
+  "added": [
+    "docs/V0_10_12_ARCHITECTURE.md",
+    "docs/V0_10_12_CHANGE_MANIFEST.json",
+    "docs/V0_10_12_INCIDENT_ANALYSIS.md",
+    "docs/CHANGELOG_V0_10_12.md",
+    "docs/VERIFICATION_V0_10_12.md",
+    "docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_12.md",
+    "lib/release-identity.mjs",
+    "tests/helpers/fake-dom.mjs",
+    "tests/v01012-release-identity.test.mjs"
+  ],
+  "modified": [
+    "content.js",
+    "sidepanel.js",
+    "lib/contracts.mjs",
+    "lib/autostart-transaction.mjs",
+    "manifest.json",
+    "package.json",
+    "scripts/validate.mjs",
+    "scripts/package.mjs",
+    "tests/helpers/fake-chrome.mjs",
+    "tests/v01011-runtime-integration.test.mjs",
+    "tests/v090-wp14-release.test.mjs",
+    "tests/v075-regressions.test.mjs",
+    "EIC.md",
+    "README.md"
+  ],
+  "removed": [],
+  "claim_boundary": "Source/package candidate. The content bridge is executed and pinged, including the copy inside the built browser ZIP. Installed Desktop Chrome behaviour, and the v0.10.11 dispatch/liveness work it gates, still require owner-visible acceptance."
+}

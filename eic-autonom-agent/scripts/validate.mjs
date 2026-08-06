@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {
+  evaluateReleaseIdentity,
+  parseContentScriptVersion,
+  releaseIdentityFailureDetail
+} from "../lib/release-identity.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
@@ -45,17 +50,17 @@ const packageScript = read("scripts/package.mjs");
 const eic = read("EIC.md");
 const readme = read("README.md");
 
-check(exists("docs/V0_10_11_ARCHITECTURE.md") &&
-  exists("docs/V0_10_11_CHANGE_MANIFEST.json") &&
-  exists("docs/CHANGELOG_V0_10_11.md") &&
-  exists("docs/VERIFICATION_V0_10_11.md") &&
-  exists("docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_11.md") &&
-  exists("docs/V0_10_11_INCIDENT_ANALYSIS.md"),
-  "v0.10.11 current documents missing.");
-check(pkg.version === "0.10.11", "package.json must be 0.10.11.");
-check(manifest.version === "0.10.11", "manifest.json must be 0.10.11.");
-check(contracts.includes('APP_VERSION = "0.10.11"'), "APP_VERSION 0.10.11 missing.");
-check(contracts.includes('CONTENT_SCRIPT_VERSION = "0.10.11"'), "content version 0.10.11 missing.");
+check(exists("docs/V0_10_12_ARCHITECTURE.md") &&
+  exists("docs/V0_10_12_CHANGE_MANIFEST.json") &&
+  exists("docs/CHANGELOG_V0_10_12.md") &&
+  exists("docs/VERIFICATION_V0_10_12.md") &&
+  exists("docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_12.md") &&
+  exists("docs/V0_10_12_INCIDENT_ANALYSIS.md"),
+  "v0.10.12 current documents missing.");
+check(pkg.version === "0.10.12", "package.json must be 0.10.12.");
+check(manifest.version === "0.10.12", "manifest.json must be 0.10.12.");
+check(contracts.includes('APP_VERSION = "0.10.12"'), "APP_VERSION 0.10.12 missing.");
+check(contracts.includes('CONTENT_SCRIPT_VERSION = "0.10.12"'), "content version 0.10.12 missing.");
 check(sessionContextInit.includes('SESSION_CONTEXT_INIT_SCHEMA = "eic.autonom.session-context-init.v1"') &&
   sessionContextInit.includes("WAITING_CHAT_READY") &&
   sessionContextInit.includes("CATCH_ARMED") &&
@@ -371,6 +376,16 @@ check(background.includes("retrySessionContextInitialization") &&
   sidepanel.includes("renderSessionContextInitFailure") &&
   attentionRouter.includes("SESSION_CONTEXT_INIT_FAILED"),
   "operator route for a failed session-context initialization missing.");
+check(packageScript.includes("evaluateReleaseIdentity") &&
+  packageScript.includes("RELEASE_IDENTITY_MISMATCH"),
+  "the package script must refuse to build a version-inconsistent package.");
+check(autostartTransaction.includes("evaluateAutostartPrecondition") &&
+  autostartTransaction.includes("AUTOSTART_PRECONDITION_FAILED") &&
+  sidepanel.includes("abortNanoHostCreate(AUTOSTART_ABORT_REASON.AUTOSTART_PRECONDITION_FAILED)") &&
+  autostartBlock.includes("evaluateAutostartPrecondition") &&
+  autostartBlock.indexOf("evaluateAutostartPrecondition") <
+    autostartBlock.indexOf("beginNanoCreateFromGestureWithConfig"),
+  "Autostart must precheck synchronously and classify its rollback as a precondition failure.");
 check(autoRuntimeGuards.includes("autoCaptureDeferDelayMs") &&
   autoRuntimeGuards.includes("AUTO_CAPTURE_DEFER_BACKOFF_MAX_MS") &&
   background.includes("autoCaptureDefers") &&
@@ -416,18 +431,21 @@ for (const name of [
   "tests/v0101-runtime-fixes.test.mjs",
   "tests/v01011-deterministic-dispatch-liveness.test.mjs",
   "tests/v01011-runtime-integration.test.mjs",
-  "tests/helpers/fake-chrome.mjs"
+  "tests/helpers/fake-chrome.mjs",
+  "tests/helpers/fake-dom.mjs",
+  "tests/v01012-release-identity.test.mjs",
+  "lib/release-identity.mjs"
 ]) check(exists(name), `required current-version file missing: ${name}`);
 
 check(/no backward compatibility/i.test(eic), "EIC.md must codify no backward compatibility.");
 check(/no backward compatibility/i.test(readme), "README must codify no backward compatibility.");
 check(!/aliasZip|unversioned/i.test(packageScript), "package script still creates compatibility alias.");
-check(packageScript.includes("CHANGELOG_V0_10_11.md") &&
-  packageScript.includes("VERIFICATION_V0_10_11.md") &&
-  packageScript.includes("DESKTOP_CHROME_ACCEPTANCE_V0_10_11.md") &&
-  packageScript.includes("V0_10_11_ARCHITECTURE.md") &&
-  packageScript.includes("V0_10_11_CHANGE_MANIFEST.json") &&
-  packageScript.includes("V0_10_11_INCIDENT_ANALYSIS.md") &&
+check(packageScript.includes("CHANGELOG_V0_10_12.md") &&
+  packageScript.includes("VERIFICATION_V0_10_12.md") &&
+  packageScript.includes("DESKTOP_CHROME_ACCEPTANCE_V0_10_12.md") &&
+  packageScript.includes("V0_10_12_ARCHITECTURE.md") &&
+  packageScript.includes("V0_10_12_CHANGE_MANIFEST.json") &&
+  packageScript.includes("V0_10_12_INCIDENT_ANALYSIS.md") &&
   packageScript.includes("V0_10_6_REMEDIATION_MATRIX.md") &&
   packageScript.includes("V0_9_11_LANGUAGE_ATTESTATION.md"),
   "current release documents missing from package roots.");

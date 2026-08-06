@@ -275,8 +275,8 @@ test("WP04 preserves schemas and standard permissions in the final release", () 
   const manifest = json("manifest.json");
   const pkg = json("package.json");
   const contracts = read("lib/contracts.mjs");
-  assert.equal(manifest.version, "0.10.11");
-  assert.equal(pkg.version, "0.10.11");
+  assert.equal(manifest.version, "0.10.12");
+  assert.equal(pkg.version, "0.10.12");
   assert.deepEqual(manifest.permissions, ["sidePanel", "storage", "tabs", "scripting", "alarms"]);
   assert.deepEqual(manifest.host_permissions, ["https://chatgpt.com/*", "https://chat.openai.com/*"]);
   assert.doesNotMatch(JSON.stringify(manifest), /debugger/);

@@ -1,11 +1,13 @@
-# EIC Autonom Agent v0.10.11
+# EIC Autonom Agent v0.10.12
 
 Chrome MV3 extension for bounded autonomous continuation of an operator-owned task.
 
-v0.10.11 is current-version-only under the forward-only law introduced in v0.9.3. It does not migrate or emulate earlier storage, export, UI, prompt, capture, memory or operator-action contracts. No backward compatibility is required or preserved.
+v0.10.12 is current-version-only under the forward-only law introduced in v0.9.3. It does not migrate or emulate earlier storage, export, UI, prompt, capture, memory or operator-action contracts. No backward compatibility is required or preserved.
 
 ## Current behavior
 
+- Release identity is a build gate: `package.json`, `manifest.json`, `APP_VERSION`, `CONTENT_SCRIPT_VERSION` and the `const VERSION` literal inside `content.js` must all be the same string, checked by the validator, by the package script before it copies a single file, and by an executed `EIC_PING` against the real content bridge.
+- An Autostart rollback is reported as `AUTOSTART_PRECONDITION_FAILED`, never as an operator abort, and a synchronous precondition check runs inside the operator gesture before native model activation.
 - The deterministic baseline/protocol decision is applied **in-band**, inside the same serialized operation that persisted its dispatch state. No prompt-critical step runs from a detached callback, and a dispatch exception is persisted, audited and written to the application log instead of reaching only the service-worker console.
 - The session-context initialization gate is **live-bounded**: its transient controller-owned phases fail to an explicit `FAILED` state with an operator retry, instead of blocking every prompt indefinitely.
 - An observation is recorded as processed only when it actually produced a delivered turn, so a baseline question that was never sent can never make its own retry evidence unreachable.
@@ -53,7 +55,7 @@ v0.10.11 is current-version-only under the forward-only law introduced in v0.9.3
 
 ## Preserved Chrome Prompt API contract
 
-v0.10.11 preserves the verified v0.9.11 activation path and v0.10.1–v0.10.2 lifecycle/UI fixes:
+v0.10.12 preserves the verified v0.9.11 activation path and v0.10.1–v0.10.2 lifecycle/UI fixes:
 
 - use only `globalThis.LanguageModel`;
 - require Chrome 138 or later;
@@ -70,7 +72,7 @@ See [v0.9.11 Prompt API activation](docs/V0_9_11_LANGUAGE_ATTESTATION.md).
 
 | Surface | Contract |
 |---|---|
-| App/content | 0.10.11 |
+| App/content | 0.10.12 |
 | Config/runtime | v13 |
 | Continuity | v4 |
 | Export | v20 |

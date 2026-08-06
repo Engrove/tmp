@@ -84,9 +84,11 @@ import {
   getAutostartPreset
 } from "./lib/autostart-presets.mjs";
 import {
+  AUTOSTART_ABORT_REASON,
   assertAutostartTabBinding,
   autostartActivationOutcome,
-  evaluateAutostartConfirmation
+  evaluateAutostartConfirmation,
+  evaluateAutostartPrecondition
 } from "./lib/autostart-transaction.mjs";
 import { deriveAttentionTarget } from "./lib/attention-router.mjs";
 import {
@@ -2815,16 +2817,33 @@ function beginNanoCreateFromGestureWithConfig(configOverride = null) {
   return operation;
 }
 
-function abortNanoHostCreate(reason = "OPERATOR_ABORT") {
+// v0.10.12: the abort reason is no longer cosmetic. v0.10.11's Autostart
+// rollback called this with the default, so a failed Autostart precondition —
+// including the content-bridge version mismatch that made every start
+// impossible — was reported as "avbröts av operatören". The export then blamed
+// the operator for an abort the operator never requested.
+const NANO_ABORT_DETAIL = Object.freeze({
+  [AUTOSTART_ABORT_REASON.OPERATOR_ABORT]:
+    "LanguageModel-aktiveringen avbröts av operatören.",
+  [AUTOSTART_ABORT_REASON.AUTOSTART_PRECONDITION_FAILED]:
+    "LanguageModel-aktiveringen rullades tillbaka eftersom en Autostart-precondition " +
+    "misslyckades. Operatören avbröt inte."
+});
+
+function abortNanoHostCreate(reason = AUTOSTART_ABORT_REASON.OPERATOR_ABORT) {
   if (!state.modelCreateAbortController) return false;
-  try { state.modelCreateAbortController.abort(reason); } catch {}
+  const reasonCode = String(reason || AUTOSTART_ABORT_REASON.OPERATOR_ABORT);
+  try { state.modelCreateAbortController.abort(reasonCode); } catch {}
   state.modelStatus = NANO_HOST_STATUS.ABORTED;
   state.modelAvailability = NANO_HOST_STATUS.UNKNOWN;
   state.modelDownloadProgress = null;
-  state.modelStaleReason = "CREATE_ABORTED";
-  state.modelStaleDetail = "LanguageModel-aktiveringen avbröts av operatören.";
+  state.modelStaleReason = reasonCode === AUTOSTART_ABORT_REASON.AUTOSTART_PRECONDITION_FAILED
+    ? "AUTOSTART_PRECONDITION_FAILED"
+    : "CREATE_ABORTED";
+  state.modelStaleDetail = NANO_ABORT_DETAIL[reasonCode] ||
+    NANO_ABORT_DETAIL[AUTOSTART_ABORT_REASON.OPERATOR_ABORT];
   renderNano();
-  scheduleNanoHostReport({ event: "abort-requested", reasonCode: reason }, 0);
+  scheduleNanoHostReport({ event: "abort-requested", reasonCode }, 0);
   return true;
 }
 
@@ -3815,6 +3834,17 @@ async function autostartClick() {
   selectMissionMode(plan.missionModeId || MISSION_MODE_IDS.CHATGPT_CONTINUATION);
 
   const preparedConfig = { ...uiConfig(), ...plan.configPatch };
+  // v0.10.12: a synchronous precondition check on cached state, before create().
+  // It cannot perform the bridge handshake — that needs an await, and the
+  // v0.9.11 law requires create() to run before the first await — but it does
+  // catch "no ChatGPT tab selected" and "selected tab is not a ChatGPT session"
+  // without spending a model activation on a start that cannot succeed.
+  const precondition = evaluateAutostartPrecondition(
+    state.snapshot ? uiModel().window || {} : {}
+  );
+  if (!precondition.ok) {
+    throw new Error(`${precondition.code}: ${precondition.detail}`);
+  }
   // Native LanguageModel.create() begins in this exact operator click. The
   // outcome handler is attached synchronously so a rejected create cannot become
   // an unhandled promise while config and tab readback are completed.
@@ -3844,7 +3874,13 @@ async function autostartClick() {
       renderSnapshot(snapshot, { preserveInputs: true });
     }
   } catch (error) {
-    if (plan.activateNano && state.modelCreatePromise) abortNanoHostCreate();
+    // The rollback is caused by a failed Autostart precondition — tab binding
+    // readback, the content-bridge version handshake, or mission start — never
+    // by the operator. Classifying it correctly is what makes the export
+    // readable: v0.10.11 recorded a bridge-version mismatch as an operator abort.
+    if (plan.activateNano && state.modelCreatePromise) {
+      abortNanoHostCreate(AUTOSTART_ABORT_REASON.AUTOSTART_PRECONDITION_FAILED);
+    }
     throw error;
   }
 }

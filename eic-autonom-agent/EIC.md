@@ -1,4 +1,4 @@
-# EIC.md — EIC Autonom Agent v0.10.11 current contract
+# EIC.md — EIC Autonom Agent v0.10.12 current contract
 
 ## Authority
 
@@ -22,6 +22,14 @@ v0.9.3 and every later version are **current-version-only**.
 - Historical files describe history; they do not constrain current implementation.
 - Current schemas and rejection behavior are defined in `docs/V0_9_3_FORWARD_ONLY_POLICY.md`.
 
+## Release identity law (v0.10.12)
+
+- Five surfaces carry the runtime version: `package.json`, `manifest.json`, `APP_VERSION`, `CONTENT_SCRIPT_VERSION` and the `const VERSION` literal in `content.js`. They must be identical, and the equality must be *computed*, never assumed by a hard-coded assertion.
+- A per-file hash manifest is not a release-identity gate. It proves a file was packaged unchanged, including a file that is wrong.
+- Every release must execute the shipped content bridge and read its `EIC_PING` answer. A version the runtime never asks for is not verified.
+- Packaging must fail before staging when identity is inconsistent.
+- A rollback must name its own cause. Operator-attributed aborts are reserved for aborts the operator actually requested.
+
 ## Prompt-critical delivery law (v0.10.11)
 
 - Every step between a persisted dispatch state and a journalled effect runs inside the same serialized operation. A prompt-critical step must never depend on a detached timer callback surviving.
@@ -33,7 +41,7 @@ v0.9.3 and every later version are **current-version-only**.
 
 ## Native model provider law
 
-v0.10.11 preserves the v0.9.11-verified Chrome extension Prompt API surface and the v0.10.1–v0.10.2 lifecycle and UI hotfix contracts.
+v0.10.12 preserves the v0.9.11-verified Chrome extension Prompt API surface and the v0.10.1–v0.10.2 lifecycle and UI hotfix contracts.
 
 - Select only `globalThis.LanguageModel`.
 - Do not use, probe or emulate `globalThis.ai.languageModel`.

@@ -4,7 +4,7 @@ import {
   CURRENT_TARGET_MANDATE
 } from "./core-profiles.mjs";
 
-export const APP_VERSION = "0.10.11";
+export const APP_VERSION = "0.10.12";
 export const CONFIG_SCHEMA = "eic.autonom.config.v13";
 export const CONTINUITY_SCHEMA = "eic.nano.continuity.v4";
 export const RUNTIME_SCHEMA = "eic.autonom.runtime.v13";
@@ -13,7 +13,7 @@ export const CONFIG_VERSION = 13;
 export const RUNTIME_VERSION = 13;
 export const AUDIT_VERSION = 13;
 export const EXPORT_VERSION = 20;
-export const CONTENT_SCRIPT_VERSION = "0.10.11";
+export const CONTENT_SCRIPT_VERSION = "0.10.12";
 
 export const STORAGE_KEYS = Object.freeze({
   CONFIG: "eicAutonomAgent.v106.config",

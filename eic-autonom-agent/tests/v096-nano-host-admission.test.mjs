@@ -98,7 +98,7 @@ test("v0.9.8 timeout and abort are distinct visible states", () => {
 test("v0.9.8 activation binding changes with version, mandate or system prompt", () => {
   const base = {
     trustedSession: "window:1|host:a",
-    version: "0.10.11",
+    version: "0.10.12",
     modelKind: "LanguageModel",
     languages: ["en"],
     mandateVersion: "nano-core-v4",
@@ -183,7 +183,7 @@ test("v0.9.8 manifest pins one stable unpacked extension identity", async () => 
   const manifest = JSON.parse(
     await readFile(new URL("../manifest.json", import.meta.url), "utf8")
   );
-  assert.equal(manifest.version, "0.10.11");
+  assert.equal(manifest.version, "0.10.12");
   assert.equal(typeof manifest.key, "string");
   assert.ok(manifest.key.length > 300);
   assert.match(manifest.key, /^[A-Za-z0-9+/=]+$/u);

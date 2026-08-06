@@ -27,8 +27,8 @@ test("v0.10.2 hotfix remains aligned in current app/content versions", async () 
   const manifest = JSON.parse(read("../manifest.json"));
   const pkg = JSON.parse(read("../package.json"));
   const contracts = await import("../lib/contracts.mjs");
-  assert.equal(manifest.version, "0.10.11");
-  assert.equal(pkg.version, "0.10.11");
-  assert.equal(contracts.APP_VERSION, "0.10.11");
-  assert.equal(contracts.CONTENT_SCRIPT_VERSION, "0.10.11");
+  assert.equal(manifest.version, "0.10.12");
+  assert.equal(pkg.version, "0.10.12");
+  assert.equal(contracts.APP_VERSION, "0.10.12");
+  assert.equal(contracts.CONTENT_SCRIPT_VERSION, "0.10.12");
 });

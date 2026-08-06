@@ -216,10 +216,10 @@ test("v0.10.0 telemetry records user activation and canary evidence", () => {
 });
 
 test("v0.10.0 extension baseline matches the official stable extension floor", () => {
-  assert.equal(manifest.version, "0.10.11");
+  assert.equal(manifest.version, "0.10.12");
   assert.equal(manifest.minimum_chrome_version, "138");
-  assert.equal(contracts.APP_VERSION, "0.10.11");
-  assert.equal(contracts.CONTENT_SCRIPT_VERSION, "0.10.11");
+  assert.equal(contracts.APP_VERSION, "0.10.12");
+  assert.equal(contracts.CONTENT_SCRIPT_VERSION, "0.10.12");
   assert.equal(contracts.EXPORT_SCHEMA, "eic.autonom.export.v20");
   assert.equal(contracts.EXPORT_VERSION, 20);
 });

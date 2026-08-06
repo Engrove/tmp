@@ -21,6 +21,7 @@ import {
   createMjolnarLedgerEntry
 } from "../lib/mjolnar.mjs";
 import { buildAppAuditStartPrompt } from "../lib/app-audit-prompt.mjs";
+import { parseContentScriptVersion } from "../lib/release-identity.mjs";
 
 const background = await readFile(new URL("../background.js", import.meta.url), "utf8");
 const content = await readFile(new URL("../content.js", import.meta.url), "utf8");
@@ -296,9 +297,13 @@ test("v0.7.5 projection emergency pass may trim optional lists below the soft fl
 });
 
 test("v0.9.8 reports the same version across all bridge and UI runtime surfaces", () => {
-  assert.equal(APP_VERSION, "0.10.11");
-  assert.equal(CONTENT_SCRIPT_VERSION, "0.10.11");
-  assert.match(content, /const VERSION = "0\.10\.10";/);
+  // v0.10.12: "the same version" is now actually asserted. The previous form
+  // matched a hard-coded 0.10.10 literal in content.js and passed happily while
+  // the contract said 0.10.11 — the exact skew that blocked every mission start.
+  assert.equal(APP_VERSION, "0.10.12");
+  assert.equal(CONTENT_SCRIPT_VERSION, "0.10.12");
+  assert.equal(parseContentScriptVersion(content), APP_VERSION);
+  assert.equal(parseContentScriptVersion(content), CONTENT_SCRIPT_VERSION);
   assert.match(sidepanelHtml, /id="appVersion">v—<\/small>/);
   assert.match(sidepanel, /eic-autonom-agent-v\$\{APP_VERSION\}-export-/);
 });

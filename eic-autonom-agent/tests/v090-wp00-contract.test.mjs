@@ -11,8 +11,8 @@ const json = (relative) => JSON.parse(read(relative));
 test("v0.9.8 release keeps the standard permission baseline unchanged", () => {
   const manifest = json("manifest.json");
   const pkg = json("package.json");
-  assert.equal(manifest.version, "0.10.11");
-  assert.equal(pkg.version, "0.10.11");
+  assert.equal(manifest.version, "0.10.12");
+  assert.equal(pkg.version, "0.10.12");
   assert.deepEqual(manifest.permissions, ["sidePanel", "storage", "tabs", "scripting", "alarms"]);
   assert.equal(manifest.permissions.includes("debugger"), false);
   assert.deepEqual(manifest.host_permissions, ["https://chatgpt.com/*", "https://chat.openai.com/*"]);

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "EIC Autonom Agent",
   "description": "Lokal Chrome Mission Control för verifierad ChatGPT-kontinuitet och valbar AI_WEB_RESEARCH med separata controller/target-roller, bounded evidens, exakt en validerad browseråtgärd per AI-svar och fail-closed recovery.",
-  "version": "0.10.11",
+  "version": "0.10.12",
   "minimum_chrome_version": "138",
   "permissions": [
     "sidePanel",

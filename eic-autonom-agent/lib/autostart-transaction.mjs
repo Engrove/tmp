@@ -57,6 +57,68 @@ export function autostartActivationOutcome(promise) {
   );
 }
 
+export const AUTOSTART_ABORT_REASON = Object.freeze({
+  /** The operator pressed the activation control again to cancel. */
+  OPERATOR_ABORT: "OPERATOR_ABORT",
+  /** A precondition of the Autostart transaction failed after activation began. */
+  AUTOSTART_PRECONDITION_FAILED: "AUTOSTART_PRECONDITION_FAILED"
+});
+
+/**
+ * v0.10.12: a **synchronous** precondition check, safe to call inside the
+ * operator gesture before `LanguageModel.create()`.
+ *
+ * The v0.9.11 activation law requires create() to run in the click before any
+ * await, so the bridge handshake — which needs a message round trip — cannot
+ * precede it. What can precede it is everything already known from the cached
+ * snapshot: is a ChatGPT tab selected at all, and is it a supported host. That
+ * catches the common Autostart misfire without spending a model activation, and
+ * without touching the gesture contract.
+ *
+ * The remaining, genuinely asynchronous preconditions (tab binding readback and
+ * the content-bridge version handshake) still run after create(); when they
+ * fail, the rollback is classified as AUTOSTART_PRECONDITION_FAILED rather than
+ * an operator abort.
+ */
+export function evaluateAutostartPrecondition(windowContext = {}, {
+  supportedHosts = ["chatgpt.com", "chat.openai.com"]
+} = {}) {
+  const selectedTabId = Number(windowContext?.selectedTabId);
+  if (!Number.isInteger(selectedTabId)) {
+    return {
+      ok: false,
+      code: "AUTOSTART_PRECONDITION_FAILED",
+      reason: "NO_SELECTED_TAB",
+      detail: "Ingen ChatGPT-flik är vald. Välj och koppla målfliken innan Autostart."
+    };
+  }
+  const linked = windowContext?.linkedTabs?.[String(selectedTabId)] || null;
+  const url = String(linked?.url || "");
+  if (!url) {
+    return {
+      ok: true,
+      code: "",
+      reason: "TAB_URL_UNKNOWN",
+      detail: "Flikens URL är ännu inte känd; kontrollen görs i stället efter readback."
+    };
+  }
+  let hostname = "";
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    hostname = "";
+  }
+  if (hostname && !supportedHosts.includes(hostname)) {
+    return {
+      ok: false,
+      code: "AUTOSTART_PRECONDITION_FAILED",
+      reason: "UNSUPPORTED_TARGET_HOST",
+      detail: `Vald flik är ${hostname}, inte en ChatGPT-session. Autostart avbröts före modellaktivering.`
+    };
+  }
+  return { ok: true, code: "", reason: "PRECONDITION_SATISFIED", detail: "" };
+}
+
 export function assertAutostartTabBinding(windowContext = {}) {
   const selectedTabId = Number(windowContext?.selectedTabId);
   const linked = Number.isInteger(selectedTabId)

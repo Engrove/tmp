@@ -15,16 +15,33 @@ import {
   detectBuildProfile
 } from "../lib/build-profile.mjs";
 
+import {
+  evaluateReleaseIdentity,
+  parseContentScriptVersion,
+  releaseIdentityFailureDetail
+} from "../lib/release-identity.mjs";
+
 const root = path.resolve(import.meta.dirname, "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const json = (relative) => JSON.parse(read(relative));
 
 test("v0.9.8 synchronizes package, manifest and runtime versions", () => {
-  assert.equal(json("package.json").version, "0.10.11");
-  assert.equal(json("manifest.json").version, "0.10.11");
-  assert.equal(APP_VERSION, "0.10.11");
-  assert.equal(CONTENT_SCRIPT_VERSION, "0.10.11");
-  assert.match(read("content.js"), /const VERSION = "0\.10\.10";/);
+  // v0.10.12: this test is named for a property it did not check. It asserted a
+  // hard-coded `const VERSION = "0.10.10";` in content.js while the contract had
+  // moved on, so it codified the very skew that made v0.10.11 unstartable.
+  // The literal is now compared to the contract instead of to a constant.
+  assert.equal(json("package.json").version, "0.10.12");
+  assert.equal(json("manifest.json").version, "0.10.12");
+  assert.equal(APP_VERSION, "0.10.12");
+  assert.equal(CONTENT_SCRIPT_VERSION, "0.10.12");
+  const verdict = evaluateReleaseIdentity({
+    packageVersion: json("package.json").version,
+    manifestVersion: json("manifest.json").version,
+    appVersion: APP_VERSION,
+    contentScriptVersion: CONTENT_SCRIPT_VERSION,
+    contentSourceVersion: parseContentScriptVersion(read("content.js"))
+  });
+  assert.equal(verdict.ok, true, releaseIdentityFailureDetail(verdict));
   assert.match(read("sidepanel.html"), /id="appVersion">v—<\/small>/);
 });
 

@@ -8,10 +8,35 @@ import {
   createManifestForProfile,
   detectBuildProfile
 } from "../lib/build-profile.mjs";
+import {
+  evaluateReleaseIdentity,
+  parseContentScriptVersion,
+  releaseIdentityFailureDetail
+} from "../lib/release-identity.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const baseManifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8"));
 const packageVersion = baseManifest.version;
+// v0.10.12: refuse to build before anything is copied. A per-file SHA-256
+// manifest cannot catch a version skew — it faithfully records the wrong file.
+// v0.10.11 was packaged three times with a content bridge that identified itself
+// as 0.10.10, which made every mission start impossible.
+const contractsSource = fs.readFileSync(path.join(root, "lib", "contracts.mjs"), "utf8");
+const releaseIdentity = evaluateReleaseIdentity({
+  packageVersion,
+  manifestVersion: baseManifest.version,
+  appVersion: /APP_VERSION = "([^"]+)"/.exec(contractsSource)?.[1] || "",
+  contentScriptVersion: /CONTENT_SCRIPT_VERSION = "([^"]+)"/.exec(contractsSource)?.[1] || "",
+  contentSourceVersion: parseContentScriptVersion(
+    fs.readFileSync(path.join(root, "content.js"), "utf8")
+  )
+});
+if (!releaseIdentity.ok) {
+  console.error(releaseIdentityFailureDetail(releaseIdentity));
+  process.exit(1);
+}
+console.log(`RELEASE IDENTITY PASS: v${releaseIdentity.version} across ${Object.keys(releaseIdentity.surfaces).length} surfaces.`);
+
 const dist = path.resolve(root, "..", `eic-autonom-agent-v${packageVersion}-dist`);
 fs.mkdirSync(dist, { recursive: true });
 
@@ -95,7 +120,13 @@ const runtimeRoots = [
   "docs/V0_10_11_INCIDENT_ANALYSIS.md",
   "docs/CHANGELOG_V0_10_11.md",
   "docs/VERIFICATION_V0_10_11.md",
-  "docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_11.md"
+  "docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_11.md",
+  "docs/V0_10_12_ARCHITECTURE.md",
+  "docs/V0_10_12_CHANGE_MANIFEST.json",
+  "docs/V0_10_12_INCIDENT_ANALYSIS.md",
+  "docs/CHANGELOG_V0_10_12.md",
+  "docs/VERIFICATION_V0_10_12.md",
+  "docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_12.md"
 ];
 
 function walkRuntimeFiles(baseRoot) {
@@ -166,6 +197,15 @@ function createStage(profile) {
   const manifest = createManifestForProfile(baseManifest, profile);
   fs.writeFileSync(path.join(stage, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   if (detectBuildProfile(manifest) !== profile) throw new Error(`BUILD_PROFILE_READBACK_FAILED:${profile}`);
+  const stagedContentVersion = parseContentScriptVersion(
+    fs.readFileSync(path.join(stage, "content.js"), "utf8")
+  );
+  if (stagedContentVersion !== manifest.version) {
+    throw new Error(
+      `RELEASE_IDENTITY_MISMATCH: staged content.js reports ${stagedContentVersion || "(none)"}, ` +
+      `manifest reports ${manifest.version}`
+    );
+  }
   const info = writeBuildInfo(stage, profile);
   return { stage, info };
 }

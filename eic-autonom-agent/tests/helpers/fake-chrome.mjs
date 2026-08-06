@@ -12,6 +12,8 @@
  * nothing more. It is a test double, not a Chrome emulator.
  */
 
+import { readFileSync } from "node:fs";
+
 const clone = (value) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
 
 class FakeEvent {
@@ -332,10 +334,27 @@ export function createTab({
  * every prompt the background actually submits. `submittedPrompts` is the
  * harness's proof of delivery — the thing the v0.10.10 run never produced.
  */
+/**
+ * v0.10.12: the bridge version is read from the real `content.js`, never passed in.
+ *
+ * The v0.10.11 harness accepted `contentScriptVersion` as a parameter and every
+ * caller passed `CONTENT_SCRIPT_VERSION` from the contract. The fake bridge
+ * therefore always agreed with the background by construction, and the harness
+ * could not have detected the version skew that made the real release
+ * unstartable. Deriving it from the shipped file removes that blind spot: if the
+ * literal drifts from the contract again, the integration suite stops booting.
+ */
+export function contentScriptRuntimeVersion(root = new URL("../../", import.meta.url)) {
+  const source = readFileSync(new URL("content.js", root), "utf8");
+  const match = /^\s*const\s+VERSION\s*=\s*"([^"]+)"\s*;\s*$/m.exec(source);
+  if (!match) throw new Error("CONTENT_SCRIPT_VERSION_LITERAL_NOT_FOUND");
+  return match[1];
+}
+
 export function createFakePage({
   conversationKey = "chatgpt.com:c:conv-fake-0001",
   assistantText = "Ett stabilt assistantsvar utan EIC-trailer.",
-  contentScriptVersion
+  contentScriptVersion = contentScriptRuntimeVersion()
 } = {}) {
   const page = {
     conversationKey,
