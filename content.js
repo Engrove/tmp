@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.13";
+  const VERSION = "0.12.14";
   const MAX_PROMPT_CHARS = 160_000;
   const MAX_ATTACHMENT_BYTES = 4_000_000;
   const ALLOWED_HOSTS = new Set(["chatgpt.com", "chat.openai.com"]);

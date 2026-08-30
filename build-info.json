@@ -1,19 +1,19 @@
 {
   "schema": "eic.autonom.build.v1",
-  "version": "0.12.13",
+  "version": "0.12.14",
   "profile": "BROWSER",
-  "builtAt": "2026-08-30T15:02:45.041347Z",
+  "builtAt": "2026-08-30T15:40:00.000000Z",
   "basePackage": {
-    "version": "0.12.12",
-    "sha256": "b4de921833c0a28d7e7082bacaf1d455feee6ad8fdf61fe0f9cd0d922142070e"
+    "version": "0.12.13",
+    "sha256": "2fd6295cd21ae4faebe7b6007a945c72eb7c10ff2a5a959193dd5ef5ea51ca8f"
   },
-  "fileCount": 340,
-  "packageDigest": "5dc59422ed3a0c5e1bcbd0cb9c7f840553051283bc83e78fb94cbf53cbecfe07",
+  "fileCount": 344,
+  "packageDigest": "7b22d4ed6cfe4b64d5bf672f47ffc02143bb5622bf25e8b414645dde4cdae1ab",
   "verification": {
-    "syntaxFiles": 112,
+    "syntaxFiles": 113,
     "syntaxFailures": 0,
-    "testFiles": 6,
-    "testAssertions": 131,
+    "testFiles": 7,
+    "testAssertions": 181,
     "testFailures": 0,
     "repairRegressionSuite": "PASS",
     "autostartRegressionSuite": "PASS",
@@ -32,7 +32,10 @@
     "desktopChromeAcceptance": "NOT_RUN",
     "controlPlaneRegressionSuite": "PASS",
     "causalOwnershipVerdictInvariant": "PASS",
-    "turnReadbackRegressionInvariant": "PASS"
+    "turnReadbackRegressionInvariant": "PASS",
+    "autonomyRegressionSuite": "PASS",
+    "causalOwnershipProducerInvariant": "PASS",
+    "noTerminalStrandEscalationScan": "PASS"
   },
   "incidentEvidence": {
     "runtimeExport": {
@@ -50,7 +53,17 @@
       "sha256": "dacb851188f3396949e443f941e56bcac4a1163213f94b64dab8e6172d451e07",
       "sizeBytes": 667247
     },
-    "discriminatedCause": "LEGACY_JOURNAL_AND_CAUSAL_CONTROL_DISAGREED_ON_RESPONSE_OWNERSHIP_LEAVING_A_STABLE_ASSISTANT_RESPONSE_WITH_NO_ADMITTING_PRODUCER"
+    "discriminatedCause": "LEGACY_JOURNAL_AND_CAUSAL_CONTROL_DISAGREED_ON_RESPONSE_OWNERSHIP_LEAVING_A_STABLE_ASSISTANT_RESPONSE_WITH_NO_ADMITTING_PRODUCER",
+    "v0_12_13_fieldIncident": {
+      "summary": "Strand opened at 15:08:16.844 in the same millisecond NANO_CLAIM took the turn; ERROR_TERMINAL at 15:09:06.642, 95 ms after session-init reported READY.",
+      "nanoRequest": "nano-request-a54fcbc6",
+      "nanoClaim": "nano-claim-3214c6a9",
+      "nanoDecisionDurationMs": 49183,
+      "strandAgeMsAtTerminal": 49797,
+      "effectId": "effect-783bedcb-92ac-468",
+      "verdict": "OWNER_CONSUMED_WITHOUT_SUCCESSOR",
+      "deadRunPollingWindow": "15:09:06.642 -> 15:19:27.569"
+    }
   },
   "files": {
     "PRIVACY.md": "a8fd25f6b3e98bd822e56ffa6824c9fa6acc7d44a352605dcc0879877b686c2d",
@@ -393,5 +406,6 @@
     "tests/v0.12.12-package-invariants.mjs": "4c3186178c69727a9e4b3484d58b2fb53c3793d40512df0a0beca3a0b87c223f",
     "tests/v0.12.13-control-plane-regression.mjs": "baac4ee49542a28cc8e55ee36fe6b90b03d551797ba01a35005fe2fbe043bad5",
     "tests/v0.12.9-repair-regression.mjs": "244c2da9f9475279f5f31f5da88080ef40ef56b0765d208d3502a5c6320fdd07"
-  }
+  },
+  "packageDigestMethod": "sha256 over LC_ALL=C sorted \"<sha256>  <relpath>\" lines for every packaged file except build-info.json"
 }

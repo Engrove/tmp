@@ -286,10 +286,10 @@ await test("window removal does not create window context before existence check
 });
 
 await test("release identity is current across manifest/contracts/content", () => {
-  assert.equal(manifest.version,"0.12.13");
-  assert.match(contracts,/APP_VERSION = "0\.12\.13"/);
+  assert.equal(manifest.version,"0.12.14");
+  assert.match(contracts,/APP_VERSION = "0\.12\.14"/);
   const content=fs.readFileSync(path.join(ROOT,"content.js"),"utf8");
-  assert.match(content,/VERSION = "0\.12\.13"/);
+  assert.match(content,/VERSION = "0\.12\.14"/);
 });
 
 console.log(JSON.stringify({total:results.length,passed,failed:results.length-passed,results},null,2));

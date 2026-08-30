@@ -45,10 +45,10 @@ await test("release identity agrees across manifest/contracts/content", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8"));
   const contracts = fs.readFileSync(path.join(ROOT, "lib/contracts.mjs"), "utf8");
   const content = fs.readFileSync(path.join(ROOT, "content.js"), "utf8");
-  assert.equal(manifest.version, "0.12.13");
-  assert.match(contracts, /APP_VERSION = "0\.12\.13"/u);
-  assert.match(contracts, /CONTENT_SCRIPT_VERSION = "0\.12\.13"/u);
-  assert.match(content, /VERSION = "0\.12\.13"/u);
+  assert.equal(manifest.version, "0.12.14");
+  assert.match(contracts, /APP_VERSION = "0\.12\.14"/u);
+  assert.match(contracts, /CONTENT_SCRIPT_VERSION = "0\.12\.14"/u);
+  assert.match(content, /VERSION = "0\.12\.14"/u);
 });
 
 await test("manifest entry points and icon files exist", () => {

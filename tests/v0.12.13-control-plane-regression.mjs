@@ -277,13 +277,13 @@ const background = await fs.readFile(new URL("../background.js", import.meta.url
 
 check(
   background.includes("const postReconcileCausalOwnership = classifyCausalOwnership(run, reconciledEffect);") &&
-  background.includes("postReconcileCausalOwnership.admissible &&"),
+  background.includes("(postReconcileCausalOwnership.admissible || postReconcileRearmAdmits) &&"),
   "The admission gate must derive from the shared causal verdict, not from the legacy journal alone."
 );
 check(
   background.includes("const causalOwnership = classifyCausalOwnership(run, effect);") &&
-  background.includes("const effectReady = causalOwnership.admissible;"),
-  "The candidate gate must consume the identical verdict."
+  background.includes("const effectReady = causalOwnership.admissible || causalRearmAdmits;"),
+  "The candidate gate must consume the identical verdict, including the identical re-arm grant."
 );
 check(
   !background.includes('!["CLOSED","CANCELLED","FAILED"].includes(currentCausalEffect?.status || "")'),
@@ -295,14 +295,14 @@ check(
   "The preflight must compare against the effect's own causal status."
 );
 check(
-  background.includes("if (preflightOwnership.desynced) {") &&
+  background.includes("if (causalOwnerStranded) {") &&
   background.includes("Kausalt ägarskap strandat utan efterföljare"),
   "A stranded owner must be audited on first detection instead of retried silently."
 );
 check(
-  background.includes("if (causalStrandLiveness.overdue) {") &&
+  background.includes("const causalStrandPlan = planCausalOwnershipRecovery({") &&
   background.includes("CAUSAL_OWNERSHIP_STRAND_CODE}: legacy-journalen"),
-  "The bounded strand must terminalize the run with a typed invariant."
+  "The bounded strand must resolve through a typed remedy plan rather than an open-ended wait."
 );
 check(
   background.includes("const controlTrailerIncomplete = Boolean(") &&
@@ -340,23 +340,27 @@ const timeline = [
   { at: now + 70_000, hash: HASH_FINAL, seq: SEQ_FINAL }
 ];
 let strand = null;
-let terminalized = false;
+let bounded = false;
 for (const frame of timeline) {
   const verdict = classifyCausalOwnership(strandedRun, legacyEffect);
   if (verdict.desynced) {
     strand = openCausalOwnershipStrand(strand, verdict, {
       now: frame.at, turnId: TURN, responseHash: frame.hash
     });
-    if (evaluateCausalOwnershipStrand(strand, { now: frame.at }).overdue) terminalized = true;
+    if (evaluateCausalOwnershipStrand(strand, { now: frame.at }).overdue) bounded = true;
   }
 }
 check(
   strand !== null && strand.observations === timeline.length,
   "Every frame of the incident must be recorded against one strand."
 );
+// v0.12.14 amends this assertion. v0.12.13 required the replay to *terminalize*,
+// which is exactly the behaviour the 15:08 field log disqualified: the remedy
+// must be bounded, not human-gated. The bound is still required to be reached;
+// what happens at the bound is asserted by the v0.12.14 autonomy suite.
 check(
-  terminalized === true,
-  "Replaying 469f -> a37a -> 4bb78cf4 against a stranded owner must terminalize, never sit silently in WAITING_FOR_RESPONSE."
+  bounded === true,
+  "Replaying 469f -> a37a -> 4bb78cf4 against a stranded owner must reach the liveness bound, never sit silently in WAITING_FOR_RESPONSE."
 );
 
 console.log(`v0.12.13 control-plane regression: ${assertions}/${assertions} PASS`);

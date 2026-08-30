@@ -77,10 +77,19 @@ import {
   responseContractForBoundControl
 } from "./lib/causal-transition-authority.mjs";
 import {
+  CAUSAL_OWNERSHIP_PRODUCER,
+  CAUSAL_OWNERSHIP_RECOVERY_ACTION,
   CAUSAL_OWNERSHIP_STRAND_CODE,
-  openCausalOwnershipStrand,
+  CAUSAL_OWNERSHIP_STRAND_MAX_REARM,
+  causalOwnershipRearmAdmits,
+  causalOwnershipStrandFailure,
+  classifyCausalOwnershipProducer,
+  clearCausalOwnershipStrand,
   evaluateCausalOwnershipStrand,
-  causalOwnershipStrandFailure
+  grantCausalOwnershipRearm,
+  markCausalOwnershipRearm,
+  openCausalOwnershipStrand,
+  planCausalOwnershipRecovery
 } from "./lib/causal-ownership-liveness.mjs";
 import {
   NANO_TASK_STATUS,
@@ -7589,8 +7598,76 @@ async function tickWindowUnlocked(windowId, reason = "watchdog") {
   // v0.12.0 causal preflight: keep transport/effect truth separate from
   // response ownership. A later human/material user event invalidates any stale
   // ACKED control response claim before assistant parsing can occur.
+  //
+  // v0.12.14 restructure. v0.12.13 nested every strand decision inside
+  // `if (causalLegacyEffect?.effectId)`, so the only path that cleared
+  // `run.causalOwnershipStrand` was its healthy branch. When a turn finished
+  // and `latestEffect(run)` went null, the whole block was skipped, the strand
+  // survived untouched, and the escalation below — which ran unconditionally —
+  // kept ageing it toward a deadline nothing could still repair. Classification
+  // is therefore computed first and clearing is unconditional.
   const causalLegacyEffect = latestEffect(run);
-  if (causalLegacyEffect?.effectId) {
+  const preflightOwnership = causalLegacyEffect?.effectId
+    ? classifyCausalOwnership(run, causalLegacyEffect)
+    : null;
+  const preflightPageState = classifyChatGptPage(page)?.state || "";
+  const causalProducer = classifyCausalOwnershipProducer(run, {
+    legacyEffect: causalLegacyEffect,
+    pageGenerating: [
+      CHATGPT_RESPONSE_STATES.GENERATING_FOREGROUND,
+      CHATGPT_RESPONSE_STATES.WAITING_BACKGROUND
+    ].includes(preflightPageState)
+  });
+  // The failure this strand reports is literally NO_PRODUCER, so a producer
+  // being active is dispositive. At 15:08:16.844 v0.12.13 opened a strand in
+  // the same millisecond NANO_CLAIM took ownership of this exact turn; Nano
+  // then ran for 49 s and returned ACCEPT into a run the strand had killed.
+  const causalOwnerStranded = Boolean(preflightOwnership?.desynced) && !causalProducer.active;
+
+  if (causalOwnerStranded) {
+    const priorStrand = run.causalOwnershipStrand || null;
+    run.causalOwnershipStrand = openCausalOwnershipStrand(priorStrand, preflightOwnership, {
+      now,
+      turnId: causalLegacyEffect.turnId || run.currentTurn?.turnId || "",
+      responseHash: page?.latestAssistantHash || ""
+    });
+    if (!priorStrand || priorStrand.effectId !== preflightOwnership.effectId) {
+      addAudit(audit, {
+        kind: "warning",
+        title: "Kausalt ägarskap strandat utan efterföljare",
+        detail:
+          `${preflightOwnership.verdict} · effect=${sanitizeText(preflightOwnership.effectId, 24)} · ` +
+          `legacy=${preflightOwnership.legacyStatus} · causal=${preflightOwnership.causalStatus}` +
+          `${preflightOwnership.closeReason ? ` (${preflightOwnership.closeReason})` : ""} · ` +
+          `ingen producent äger nästa steg; bunden liveness startad.`,
+        windowId,
+        tabId: run.targetTabId,
+        runId: run.runId
+      });
+    }
+  } else if (run.causalOwnershipStrand) {
+    const clearedStrand = run.causalOwnershipStrand;
+    run.causalOwnershipStrand = clearCausalOwnershipStrand();
+    run.causalOwnershipRearm = null;
+    addAudit(audit, {
+      kind: "info",
+      title: "Kausalt ägarskap-strand rensat",
+      detail:
+        `effect=${sanitizeText(clearedStrand.effectId, 24)} · ` +
+        `orsak=${causalProducer.active
+          ? `producent ${causalProducer.producer}${causalProducer.detail ? ` (${causalProducer.detail})` : ""}`
+          : preflightOwnership
+            ? `ägarskap återsynkat (${preflightOwnership.verdict})`
+            : "ingen legacy-effect kvar"} · ` +
+        `observationer=${Number(clearedStrand.observations || 0)} · ` +
+        `rearms=${Number(clearedStrand.rearmCount || 0)}`,
+      windowId,
+      tabId: run.targetTabId,
+      runId: run.runId
+    });
+  }
+
+  if (preflightOwnership && !preflightOwnership.desynced) {
     // v0.12.13: classify before mutating. v0.12.12 re-registered unconditionally,
     // but EFFECT_REGISTER refuses a terminal effect, so a consumed owner produced
     // EFFECT_ALREADY_TERMINAL on every tick. The follow-up guard then read
@@ -7598,94 +7675,136 @@ async function tickWindowUnlocked(windowId, reason = "watchdog") {
     // passed in exactly the case it was written to block, whereupon EFFECT_STATUS
     // was rejected as terminal too. Both rejections were silent, so the plane
     // divergence was never repaired and never reported.
-    const preflightOwnership = classifyCausalOwnership(run, causalLegacyEffect);
-    if (preflightOwnership.desynced) {
-      const priorStrand = run.causalOwnershipStrand || null;
-      run.causalOwnershipStrand = openCausalOwnershipStrand(priorStrand, preflightOwnership, {
-        now,
-        turnId: causalLegacyEffect.turnId || run.currentTurn?.turnId || "",
-        responseHash: page?.latestAssistantHash || ""
-      });
-      if (!priorStrand || priorStrand.effectId !== preflightOwnership.effectId) {
-        addAudit(audit, {
-          kind: "warning",
-          title: "Kausalt ägarskap strandat utan efterföljare",
-          detail:
-            `${preflightOwnership.verdict} · effect=${sanitizeText(preflightOwnership.effectId, 24)} · ` +
-            `legacy=${preflightOwnership.legacyStatus} · causal=${preflightOwnership.causalStatus}` +
-            `${preflightOwnership.closeReason ? ` (${preflightOwnership.closeReason})` : ""} · ` +
-            `ingen aktiv kausal effect äger nästa steg; bunden liveness startad.`,
-          windowId,
-          tabId: run.targetTabId,
-          runId: run.runId
-        });
-      }
-    } else {
-      run.causalOwnershipStrand = null;
-      const register = commitCausalControl(run, {
-        type: CAUSAL_EVENT.EFFECT_REGISTER,
+    const register = commitCausalControl(run, {
+      type: CAUSAL_EVENT.EFFECT_REGISTER,
+      effectId: causalLegacyEffect.effectId,
+      turnId: causalLegacyEffect.turnId,
+      effectClass: causalLegacyEffect.effectClass || causalLegacyEffect.turnKind || "CONTROL_EFFECT",
+      correlationId: causalLegacyEffect.effectId,
+      responseContract: run.currentTurn?.responseContract || START_RESPONSE_CONTRACTS.TURN_BOUND_5,
+      sourceObservationIdentity: causalLegacyEffect.sourceObservationIdentity || ""
+    }, { now });
+    run = register.run;
+    const mapped = mapLegacyEffectStatus(causalLegacyEffect.status);
+    // Compare against this effect's own causal status, never against a
+    // possibly-absent active effect.
+    const postRegisterOwnership = classifyCausalOwnership(run, causalLegacyEffect);
+    const currentCausalStatus = postRegisterOwnership.causalStatus;
+    const terminalCausalStatus = ["CLOSED", "CANCELLED", "FAILED", "RESPONSE_CONSUMED"]
+      .includes(currentCausalStatus);
+    if (mapped && currentCausalStatus !== mapped && !terminalCausalStatus) {
+      const statusCommit = commitCausalControl(run, {
+        type: CAUSAL_EVENT.EFFECT_STATUS,
         effectId: causalLegacyEffect.effectId,
-        turnId: causalLegacyEffect.turnId,
-        effectClass: causalLegacyEffect.effectClass || causalLegacyEffect.turnKind || "CONTROL_EFFECT",
-        correlationId: causalLegacyEffect.effectId,
-        responseContract: run.currentTurn?.responseContract || START_RESPONSE_CONTRACTS.TURN_BOUND_5,
-        sourceObservationIdentity: causalLegacyEffect.sourceObservationIdentity || ""
+        status: mapped,
+        reason: `LEGACY_EFFECT_STATUS:${causalLegacyEffect.status}`
       }, { now });
-      run = register.run;
-      const mapped = mapLegacyEffectStatus(causalLegacyEffect.status);
-      // Compare against this effect's own causal status, never against a
-      // possibly-absent active effect.
-      const postRegisterOwnership = classifyCausalOwnership(run, causalLegacyEffect);
-      const currentCausalStatus = postRegisterOwnership.causalStatus;
-      const terminalCausalStatus = ["CLOSED", "CANCELLED", "FAILED", "RESPONSE_CONSUMED"]
-        .includes(currentCausalStatus);
-      if (mapped && currentCausalStatus !== mapped && !terminalCausalStatus) {
-        const statusCommit = commitCausalControl(run, {
-          type: CAUSAL_EVENT.EFFECT_STATUS,
-          effectId: causalLegacyEffect.effectId,
-          status: mapped,
-          reason: `LEGACY_EFFECT_STATUS:${causalLegacyEffect.status}`
-        }, { now });
-        run = statusCommit.run;
-      }
+      run = statusCommit.run;
     }
   }
 
-  // v0.12.13 bounded liveness for a stranded causal owner. The admission gates
-  // now agree, so the autonomous recovery block above is reachable again and
-  // gets every tick inside the bound to resolve this. If it cannot, the run
-  // terminalizes with a typed invariant instead of waiting on a response that
-  // no subsystem is able to admit. This is the bound v0.12.12 lacked: its only
-  // response-liveness deadline hung off run.responseCandidate, which is exactly
-  // the object that never gets created while ownership is stranded.
-  const causalStrandLiveness = evaluateCausalOwnershipStrand(run.causalOwnershipStrand, { now });
-  if (causalStrandLiveness.overdue) {
+  // v0.12.14 autonomous remedy ladder for a stranded causal owner.
+  //
+  // v0.12.13 escalated an overdue strand straight to ERROR_TERMINAL. That
+  // traded a silent deadlock for a loud stop, which for an agent whose entire
+  // purpose is autonomy is only half the job — and in the field it fired
+  // 95 ms after session-init had logged READY and cleared the run to continue.
+  // The remedy is now: hold inside the bound, then grant a bounded one-shot
+  // admission re-arm, then hand the turn to the recovery ladder that already
+  // owns escalation. Nothing on this path ends the run or waits for a human.
+  // Re-arms only accumulate while the run is making no progress. A processed
+  // observation advances lastProgressAt and zeroes the ladder, so a healthy run
+  // that hits this divergence once a day never drifts toward recovery.
+  const causalRearmLedger = run.causalOwnershipRearmLedger || null;
+  const causalPriorRearms = causalRearmLedger?.sinceProgressAt === run.lastProgressAt
+    ? Math.max(0, Number(causalRearmLedger.total || 0))
+    : 0;
+  const causalStrandPlan = planCausalOwnershipRecovery({
+    strand: run.causalOwnershipStrand,
+    producer: causalProducer,
+    ownership: preflightOwnership,
+    now,
+    priorRearms: causalPriorRearms,
+    maxRearm: CAUSAL_OWNERSHIP_STRAND_MAX_REARM
+  });
+
+  if (causalStrandPlan.action === CAUSAL_OWNERSHIP_RECOVERY_ACTION.REARM) {
+    run.causalOwnershipRearm = grantCausalOwnershipRearm(run.causalOwnershipStrand, page, { now });
+    run.causalOwnershipStrand = markCausalOwnershipRearm(run.causalOwnershipStrand, { now });
+    run.causalOwnershipRearmLedger = {
+      total: causalPriorRearms + 1,
+      sinceProgressAt: run.lastProgressAt || null
+    };
+    run.causalOwnershipFailure = null;
+    // The consumed owner is what makes both gates refuse. Retiring the legacy
+    // claim lets the next tick classify NO_EFFECT and admit a genuinely new
+    // response on its own merits; the grant covers the tick in between.
+    run.effectJournal = [];
+    run.responseDeadlineAt = null;
+    run.timeoutSuspended = false;
+    addAudit(audit, {
+      kind: "warning",
+      title: "Kausalt ägarskap återarmat autonomt",
+      detail:
+        `${CAUSAL_OWNERSHIP_STRAND_CODE} · försök ${Number(run.causalOwnershipRearm?.attempt || 1)}/${CAUSAL_OWNERSHIP_STRAND_MAX_REARM} · ` +
+        `effect=${sanitizeText(run.causalOwnershipRearm?.effectId, 24)} · ` +
+        `konsumerad=${sanitizeText(run.causalOwnershipRearm?.consumedResponseHash, 12) || "ingen"} · ` +
+        `observerad=${sanitizeText(run.causalOwnershipRearm?.observedResponseHash, 12) || "ingen"} · ` +
+        `ageMs=${Number(causalStrandPlan.ageMs || 0)} · ingen människa krävs.`,
+      windowId,
+      tabId: run.targetTabId,
+      runId: run.runId
+    });
+    // Durable before the tick continues: the grant and the ledger increment are
+    // what keep this bounded, so losing them to an early return further down
+    // would let the same divergence re-arm without limit.
+    context.run = run;
+    await writeRuntimeBundle(runtime, continuity, audit);
+    await notifyPanels(windowId);
+  } else if (causalStrandPlan.action === CAUSAL_OWNERSHIP_RECOVERY_ACTION.RECOVER) {
+    // Re-arming did not produce a successor. The turn goes to the recovery
+    // ladder with a typed reason; its attempt budget and exclusions decide what
+    // happens next. The strand is closed here so recovery starts unencumbered.
     run.causalOwnershipFailure = causalOwnershipStrandFailure(run.causalOwnershipStrand, page, { now });
-    await clearResponseStabilityProbe(windowId);
-    run = transitionRun(run, STATES.ERROR_TERMINAL, {
-      origin: PAUSE_ORIGINS.INTERNAL_INVARIANT,
-      reason: `${CAUSAL_OWNERSHIP_STRAND_CODE}: legacy-journalen rapporterade en levande ägare medan causal control saknade aktiv effect; ingen producent kunde processa svaret.`,
+    run.causalOwnershipStrand = clearCausalOwnershipStrand();
+    run.causalOwnershipRearm = null;
+    run.causalOwnershipRearmLedger = null;
+    run.effectJournal = [];
+    run.recovery ||= { attempts: [], exclusions: [], consecutiveNoProgress: 0 };
+    run = transitionRun(run, STATES.RECOVERING, {
+      reason:
+        `${CAUSAL_OWNERSHIP_STRAND_CODE}: legacy-journalen rapporterade en levande ägare medan causal control saknade aktiv effect. ` +
+        `Bunden återarmning (${causalPriorRearms}) gav ingen efterföljare; turen lämnas till autonom recovery.`,
+      // Recovery must be schedulable on the very next tick; transitionRun's
+      // default would null this out again.
+      nextRecoveryAt: nowIso(now),
+      now,
       force: true
     });
+    run.timeoutSuspended = false;
     context.run = run;
     addAudit(audit, {
-      kind: "error",
-      title: "Kausalt ägarskap terminaliserat av bunden liveness",
+      kind: "warning",
+      title: "Kausalt ägarskap lämnat till autonom recovery",
       detail:
         `${CAUSAL_OWNERSHIP_STRAND_CODE} · ${sanitizeText(run.causalOwnershipFailure?.verdict, 48)} · ` +
         `effect=${sanitizeText(run.causalOwnershipFailure?.effectId, 24)} · ` +
         `legacy=${sanitizeText(run.causalOwnershipFailure?.legacyStatus, 32)} · ` +
         `causal=${sanitizeText(run.causalOwnershipFailure?.causalStatus, 32)} · ` +
         `hash=${sanitizeText(run.causalOwnershipFailure?.responseHash, 24)} · ` +
+        `rearms=${causalPriorRearms} · ` +
         `ageMs=${Number(run.causalOwnershipFailure?.ageMs || 0)}`,
       windowId,
       tabId: run.targetTabId,
       runId: run.runId
     });
     await writeRuntimeBundle(runtime, continuity, audit);
-    await setTabIndicator(run.targetTabId, "ERROR", CAUSAL_OWNERSHIP_STRAND_CODE);
+    await setTabIndicator(run.targetTabId, "RECOVERING", CAUSAL_OWNERSHIP_STRAND_CODE);
     await notifyPanels(windowId);
     return snapshotForWindow(windowId);
+  } else if (!run.causalOwnershipStrand && run.causalOwnershipRearm) {
+    // The strand resolved; an unconsumed grant must not outlive it.
+    run.causalOwnershipRearm = null;
   }
 
   // v0.12.4 migration/recovery: v0.12.3 could immediately classify its own
@@ -8633,8 +8752,14 @@ async function tickWindowUnlocked(windowId, reason = "watchdog") {
   // this log line report admission=1 for two and a half minutes while the
   // candidate gate silently refused the same response.
   const postReconcileCausalOwnership = classifyCausalOwnership(run, reconciledEffect);
+  // v0.12.14: an outstanding one-shot re-arm grant admits this generation even
+  // though the consumed owner still refuses it — but only for the effect the
+  // grant names, and only for a response hash that is not the consumed one.
+  const postReconcileRearmAdmits = causalOwnershipRearmAdmits(
+    run.causalOwnershipRearm, reconciledEffect, page
+  );
   const newResponseAdmissionReady = Boolean(
-    postReconcileCausalOwnership.admissible &&
+    (postReconcileCausalOwnership.admissible || postReconcileRearmAdmits) &&
     isAssistantResponseCandidate(page) &&
     postReconcilePageResponseIdentity &&
     postReconcileOwnership.allowCandidateAdmission
@@ -8643,14 +8768,14 @@ async function tickWindowUnlocked(windowId, reason = "watchdog") {
     newResponseAdmissionReady ||
     (
       responseSettlePriority.priority &&
-      postReconcileCausalOwnership.admissible
+      (postReconcileCausalOwnership.admissible || postReconcileRearmAdmits)
     )
   );
   if (responseSettlePriorityReady) {
     addAudit(audit, {
       kind: "info",
       title: "Response-owner drain prioriterad",
-      detail: `${sanitizeText(run.responseCandidate?.hash || page.latestAssistantHash, 24)} · admission=${newResponseAdmissionReady ? "1" : "0"} · due=${responseSettlePriority.due ? "1" : "0"} · overdue=${responseSettlePriority.overdue ? "1" : "0"} · owner=${postReconcileCausalOwnership.verdict} · autonomous recovery/Nano skjuts upp tills den kausala response-generationen processats eller typed-failat.`,
+      detail: `${sanitizeText(run.responseCandidate?.hash || page.latestAssistantHash, 24)} · admission=${newResponseAdmissionReady ? "1" : "0"} · due=${responseSettlePriority.due ? "1" : "0"} · overdue=${responseSettlePriority.overdue ? "1" : "0"} · owner=${postReconcileCausalOwnership.verdict}${postReconcileRearmAdmits ? " · rearm=1" : ""} · autonomous recovery/Nano skjuts upp tills den kausala response-generationen processats eller typed-failat.`,
       windowId,
       tabId: run.targetTabId,
       runId: run.runId
@@ -9480,7 +9605,10 @@ async function tickWindowUnlocked(windowId, reason = "watchdog") {
   // v0.12.13: identical verdict to the admission gate above. See
   // classifyCausalOwnership() for why these must never diverge.
   const causalOwnership = classifyCausalOwnership(run, effect);
-  const effectReady = causalOwnership.admissible;
+  // Same one-shot grant, same question. These two gates diverging is what
+  // v0.12.13 was written to stop; the re-arm must therefore reach both.
+  const causalRearmAdmits = causalOwnershipRearmAdmits(run.causalOwnershipRearm, effect, page);
+  const effectReady = causalOwnership.admissible || causalRearmAdmits;
   const pageResponseIdentity = assistantResponseIdentity(page);
   const baselineReobserveEligible = shouldReobserveAckedBaselineResponse(run, {
     responseIdentity: pageResponseIdentity,
