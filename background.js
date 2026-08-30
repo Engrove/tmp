@@ -64,6 +64,9 @@ import {
   CAUSAL_EVENT,
   CAUSAL_PLANES,
   activeCausalEffect,
+  classifyCausalOwnership,
+  causalOwnershipDesynced,
+  CAUSAL_OWNERSHIP_VERDICT,
   causalPolicyFenceActive,
   causalRecoveryBlocked,
   causalWaitIsQuiescent,
@@ -73,6 +76,12 @@ import {
   mapLegacyEffectStatus,
   responseContractForBoundControl
 } from "./lib/causal-transition-authority.mjs";
+import {
+  CAUSAL_OWNERSHIP_STRAND_CODE,
+  openCausalOwnershipStrand,
+  evaluateCausalOwnershipStrand,
+  causalOwnershipStrandFailure
+} from "./lib/causal-ownership-liveness.mjs";
 import {
   NANO_TASK_STATUS,
   claimNanoTaskHarness,
@@ -1797,6 +1806,7 @@ async function prepareChatControlContinuation(runValue, {
     requireTurnMarker: true,
     sourceObservationHash: boundObservation?.responseHash || "",
     sourceObservationIdentity: boundObservation?.responseIdentity || "",
+    sourceObservationTurnSeq: Number(boundObservation?.latestAssistantTurnSeq || 0),
     // A document epoch is a rendering/lifecycle detail, not a semantic owner
     // change.  Chat-control wakes are cancelled only by a changed assistant
     // response hash or an actively generating target.
@@ -6598,8 +6608,15 @@ async function executePreparedEffectUnlocked(windowId) {
       return snapshotForWindow(windowId);
     }
 
-    if (preparedObservation?.disposition === PREPARED_EFFECT_OBSERVATION_DISPOSITION.OWNER_IDENTITY_UNREADABLE) {
-      effect.ownerReadbackStatus = "UNREADABLE";
+    // v0.12.13: a regressed turn readback keeps the prepared effect for the same
+    // reason an unreadable owner does. The page is showing an older turn than the
+    // one this effect was prepared from, so it carries no information about a new
+    // owner; discarding here is what killed the protocol repair mid-incident.
+    if (preparedObservation?.disposition === PREPARED_EFFECT_OBSERVATION_DISPOSITION.OWNER_IDENTITY_UNREADABLE ||
+        preparedObservation?.disposition === PREPARED_EFFECT_OBSERVATION_DISPOSITION.OWNER_READBACK_REGRESSED) {
+      const readbackRegressed =
+        preparedObservation.disposition === PREPARED_EFFECT_OBSERVATION_DISPOSITION.OWNER_READBACK_REGRESSED;
+      effect.ownerReadbackStatus = readbackRegressed ? "REGRESSED" : "UNREADABLE";
       effect.ownerReadbackReason = preparedObservation.reason;
       effect.ownerReadbackAt = nowIso();
       effect.preSubmitWaitStartedAt ||= effect.ownerReadbackAt;
@@ -6615,12 +6632,22 @@ async function executePreparedEffectUnlocked(windowId) {
       context.run = run;
       addAudit(audit, {
         kind: "warning",
-        title: "Promptsubmit väntar på verifierbar response-owner",
-        detail: `${preparedObservation.reason} · prepared effect ${effect.effectId}`,
+        title: readbackRegressed
+          ? "Promptsubmit väntar på att target-DOM slutar visa ett äldre turn"
+          : "Promptsubmit väntar på verifierbar response-owner",
+        detail: readbackRegressed
+          ? `${preparedObservation.reason} · turnSeq ${preparedObservation.sourceTurnSeq} → ${preparedObservation.currentTurnSeq} · prepared effect ${effect.effectId}`
+          : `${preparedObservation.reason} · prepared effect ${effect.effectId}`,
         windowId, tabId, runId: run.runId
       });
       await writeRuntimeBundle(runtime, continuity, audit);
-      await setTabIndicator(tabId, "WAITING", "Verifierar samma response-owner före promptsubmit");
+      await setTabIndicator(
+        tabId,
+        "WAITING",
+        readbackRegressed
+          ? "Target-DOM visar ett äldre turn; väntar på aktuell response-owner"
+          : "Verifierar samma response-owner före promptsubmit"
+      );
       await notifyPanels(windowId);
       const ownerWaitStartedAt = Date.parse(effect.preSubmitWaitStartedAt || "");
       const ownerWaitAgeMs = Number.isFinite(ownerWaitStartedAt)
@@ -7564,27 +7591,101 @@ async function tickWindowUnlocked(windowId, reason = "watchdog") {
   // ACKED control response claim before assistant parsing can occur.
   const causalLegacyEffect = latestEffect(run);
   if (causalLegacyEffect?.effectId) {
-    const register = commitCausalControl(run, {
-      type: CAUSAL_EVENT.EFFECT_REGISTER,
-      effectId: causalLegacyEffect.effectId,
-      turnId: causalLegacyEffect.turnId,
-      effectClass: causalLegacyEffect.effectClass || causalLegacyEffect.turnKind || "CONTROL_EFFECT",
-      correlationId: causalLegacyEffect.effectId,
-      responseContract: run.currentTurn?.responseContract || START_RESPONSE_CONTRACTS.TURN_BOUND_5,
-      sourceObservationIdentity: causalLegacyEffect.sourceObservationIdentity || ""
-    }, { now });
-    run = register.run;
-    const mapped = mapLegacyEffectStatus(causalLegacyEffect.status);
-    const currentCausalEffect = activeCausalEffect(run);
-    if (mapped && currentCausalEffect?.status !== mapped && !["CLOSED","CANCELLED","FAILED"].includes(currentCausalEffect?.status || "")) {
-      const statusCommit = commitCausalControl(run, {
-        type: CAUSAL_EVENT.EFFECT_STATUS,
+    // v0.12.13: classify before mutating. v0.12.12 re-registered unconditionally,
+    // but EFFECT_REGISTER refuses a terminal effect, so a consumed owner produced
+    // EFFECT_ALREADY_TERMINAL on every tick. The follow-up guard then read
+    // `.status` off a null activeCausalEffect(), tested includes("") === false and
+    // passed in exactly the case it was written to block, whereupon EFFECT_STATUS
+    // was rejected as terminal too. Both rejections were silent, so the plane
+    // divergence was never repaired and never reported.
+    const preflightOwnership = classifyCausalOwnership(run, causalLegacyEffect);
+    if (preflightOwnership.desynced) {
+      const priorStrand = run.causalOwnershipStrand || null;
+      run.causalOwnershipStrand = openCausalOwnershipStrand(priorStrand, preflightOwnership, {
+        now,
+        turnId: causalLegacyEffect.turnId || run.currentTurn?.turnId || "",
+        responseHash: page?.latestAssistantHash || ""
+      });
+      if (!priorStrand || priorStrand.effectId !== preflightOwnership.effectId) {
+        addAudit(audit, {
+          kind: "warning",
+          title: "Kausalt ägarskap strandat utan efterföljare",
+          detail:
+            `${preflightOwnership.verdict} · effect=${sanitizeText(preflightOwnership.effectId, 24)} · ` +
+            `legacy=${preflightOwnership.legacyStatus} · causal=${preflightOwnership.causalStatus}` +
+            `${preflightOwnership.closeReason ? ` (${preflightOwnership.closeReason})` : ""} · ` +
+            `ingen aktiv kausal effect äger nästa steg; bunden liveness startad.`,
+          windowId,
+          tabId: run.targetTabId,
+          runId: run.runId
+        });
+      }
+    } else {
+      run.causalOwnershipStrand = null;
+      const register = commitCausalControl(run, {
+        type: CAUSAL_EVENT.EFFECT_REGISTER,
         effectId: causalLegacyEffect.effectId,
-        status: mapped,
-        reason: `LEGACY_EFFECT_STATUS:${causalLegacyEffect.status}`
+        turnId: causalLegacyEffect.turnId,
+        effectClass: causalLegacyEffect.effectClass || causalLegacyEffect.turnKind || "CONTROL_EFFECT",
+        correlationId: causalLegacyEffect.effectId,
+        responseContract: run.currentTurn?.responseContract || START_RESPONSE_CONTRACTS.TURN_BOUND_5,
+        sourceObservationIdentity: causalLegacyEffect.sourceObservationIdentity || ""
       }, { now });
-      run = statusCommit.run;
+      run = register.run;
+      const mapped = mapLegacyEffectStatus(causalLegacyEffect.status);
+      // Compare against this effect's own causal status, never against a
+      // possibly-absent active effect.
+      const postRegisterOwnership = classifyCausalOwnership(run, causalLegacyEffect);
+      const currentCausalStatus = postRegisterOwnership.causalStatus;
+      const terminalCausalStatus = ["CLOSED", "CANCELLED", "FAILED", "RESPONSE_CONSUMED"]
+        .includes(currentCausalStatus);
+      if (mapped && currentCausalStatus !== mapped && !terminalCausalStatus) {
+        const statusCommit = commitCausalControl(run, {
+          type: CAUSAL_EVENT.EFFECT_STATUS,
+          effectId: causalLegacyEffect.effectId,
+          status: mapped,
+          reason: `LEGACY_EFFECT_STATUS:${causalLegacyEffect.status}`
+        }, { now });
+        run = statusCommit.run;
+      }
     }
+  }
+
+  // v0.12.13 bounded liveness for a stranded causal owner. The admission gates
+  // now agree, so the autonomous recovery block above is reachable again and
+  // gets every tick inside the bound to resolve this. If it cannot, the run
+  // terminalizes with a typed invariant instead of waiting on a response that
+  // no subsystem is able to admit. This is the bound v0.12.12 lacked: its only
+  // response-liveness deadline hung off run.responseCandidate, which is exactly
+  // the object that never gets created while ownership is stranded.
+  const causalStrandLiveness = evaluateCausalOwnershipStrand(run.causalOwnershipStrand, { now });
+  if (causalStrandLiveness.overdue) {
+    run.causalOwnershipFailure = causalOwnershipStrandFailure(run.causalOwnershipStrand, page, { now });
+    await clearResponseStabilityProbe(windowId);
+    run = transitionRun(run, STATES.ERROR_TERMINAL, {
+      origin: PAUSE_ORIGINS.INTERNAL_INVARIANT,
+      reason: `${CAUSAL_OWNERSHIP_STRAND_CODE}: legacy-journalen rapporterade en levande ägare medan causal control saknade aktiv effect; ingen producent kunde processa svaret.`,
+      force: true
+    });
+    context.run = run;
+    addAudit(audit, {
+      kind: "error",
+      title: "Kausalt ägarskap terminaliserat av bunden liveness",
+      detail:
+        `${CAUSAL_OWNERSHIP_STRAND_CODE} · ${sanitizeText(run.causalOwnershipFailure?.verdict, 48)} · ` +
+        `effect=${sanitizeText(run.causalOwnershipFailure?.effectId, 24)} · ` +
+        `legacy=${sanitizeText(run.causalOwnershipFailure?.legacyStatus, 32)} · ` +
+        `causal=${sanitizeText(run.causalOwnershipFailure?.causalStatus, 32)} · ` +
+        `hash=${sanitizeText(run.causalOwnershipFailure?.responseHash, 24)} · ` +
+        `ageMs=${Number(run.causalOwnershipFailure?.ageMs || 0)}`,
+      windowId,
+      tabId: run.targetTabId,
+      runId: run.runId
+    });
+    await writeRuntimeBundle(runtime, continuity, audit);
+    await setTabIndicator(run.targetTabId, "ERROR", CAUSAL_OWNERSHIP_STRAND_CODE);
+    await notifyPanels(windowId);
+    return snapshotForWindow(windowId);
   }
 
   // v0.12.4 migration/recovery: v0.12.3 could immediately classify its own
@@ -8527,8 +8628,13 @@ async function tickWindowUnlocked(windowId, reason = "watchdog") {
     now,
     maxAgeMs: RESPONSE_SETTLE_MAX_AGE_MS
   });
+  // v0.12.13: both admission gates now ask exactly one question. Asking the
+  // legacy journal here and causal control at the candidate gate is what let
+  // this log line report admission=1 for two and a half minutes while the
+  // candidate gate silently refused the same response.
+  const postReconcileCausalOwnership = classifyCausalOwnership(run, reconciledEffect);
   const newResponseAdmissionReady = Boolean(
-    (!reconciledEffect || reconciledEffect.status === "ACKED") &&
+    postReconcileCausalOwnership.admissible &&
     isAssistantResponseCandidate(page) &&
     postReconcilePageResponseIdentity &&
     postReconcileOwnership.allowCandidateAdmission
@@ -8537,14 +8643,14 @@ async function tickWindowUnlocked(windowId, reason = "watchdog") {
     newResponseAdmissionReady ||
     (
       responseSettlePriority.priority &&
-      (!reconciledEffect || reconciledEffect.status === "ACKED")
+      postReconcileCausalOwnership.admissible
     )
   );
   if (responseSettlePriorityReady) {
     addAudit(audit, {
       kind: "info",
       title: "Response-owner drain prioriterad",
-      detail: `${sanitizeText(run.responseCandidate?.hash || page.latestAssistantHash, 24)} · admission=${newResponseAdmissionReady ? "1" : "0"} · due=${responseSettlePriority.due ? "1" : "0"} · overdue=${responseSettlePriority.overdue ? "1" : "0"} · autonomous recovery/Nano skjuts upp tills den kausala response-generationen processats eller typed-failat.`,
+      detail: `${sanitizeText(run.responseCandidate?.hash || page.latestAssistantHash, 24)} · admission=${newResponseAdmissionReady ? "1" : "0"} · due=${responseSettlePriority.due ? "1" : "0"} · overdue=${responseSettlePriority.overdue ? "1" : "0"} · owner=${postReconcileCausalOwnership.verdict} · autonomous recovery/Nano skjuts upp tills den kausala response-generationen processats eller typed-failat.`,
       windowId,
       tabId: run.targetTabId,
       runId: run.runId
@@ -9371,12 +9477,10 @@ async function tickWindowUnlocked(windowId, reason = "watchdog") {
   }
 
   const effect = latestEffect(run);
-  const causalEffect = activeCausalEffect(run);
-  const effectReady = !effect || Boolean(
-    causalEffect &&
-    causalEffect.effectId === effect.effectId &&
-    causalEffect.status === CAUSAL_EFFECT_STATUS.ACKED
-  );
+  // v0.12.13: identical verdict to the admission gate above. See
+  // classifyCausalOwnership() for why these must never diverge.
+  const causalOwnership = classifyCausalOwnership(run, effect);
+  const effectReady = causalOwnership.admissible;
   const pageResponseIdentity = assistantResponseIdentity(page);
   const baselineReobserveEligible = shouldReobserveAckedBaselineResponse(run, {
     responseIdentity: pageResponseIdentity,
@@ -9584,6 +9688,41 @@ async function tickWindowUnlocked(windowId, reason = "watchdog") {
         ? (run.currentTurn?.responseExpectedTurnId || run.currentTurn?.turnId || null)
         : null;
       const targetResult = parseTargetResult(page.latestAssistant, expectedTurnId, { allowTurnless });
+
+      // v0.12.13: do not consume a CONTROL owner on soft stability alone.
+      // responseEligibleForNano() returns GENERAL_DYNAMIC_STABILITY_ALLOWED for
+      // every non-specialized mode, so three stable reads over four seconds were
+      // enough to treat a still-streaming answer as settled. v0.12.12 then ran
+      // RESPONSE_CONSUME regardless of the parse outcome, closing the causal
+      // effect while ChatGPT was still writing the trailer. When the real answer
+      // finally landed, its owner had already been consumed and no producer
+      // remained. An incomplete trailer that the page cannot confirm as terminal
+      // means "still growing", so keep observing; the candidate keeps its bounded
+      // settle deadline, so this cannot wait forever.
+      const controlTrailerIncomplete = Boolean(
+        responseContract === START_RESPONSE_CONTRACTS.TURN_BOUND_5 &&
+        !targetResult.valid &&
+        targetResult.reason === "PROTOCOL_TRAILER_NOT_EXACT" &&
+        page.latestAssistantComplete !== true &&
+        !terminalResponseAuthoritative
+      );
+      if (controlTrailerIncomplete) {
+        addAudit(audit, {
+          kind: "info",
+          title: "CONTROL-response fortsätter observeras",
+          detail:
+            `${targetResult.reason} · hash=${sanitizeText(page.latestAssistantHash, 24)} · ` +
+            `complete=${page.latestAssistantComplete === true ? "1" : "0"} · ` +
+            `owner behålls; soft stability räcker inte för att konsumera en TURN_BOUND_5-response.`,
+          windowId,
+          tabId: run.targetTabId,
+          runId: run.runId
+        });
+        context.run = run;
+        await writeRuntimeBundle(runtime, continuity, audit);
+        return snapshotForWindow(windowId);
+      }
+
       if (effect?.effectId) {
         const consume = commitCausalControl(run, {
           type: CAUSAL_EVENT.RESPONSE_CONSUME,
@@ -9716,6 +9855,7 @@ async function tickWindowUnlocked(windowId, reason = "watchdog") {
         latestMessageHash: page.latestMessageHash || page.latestAssistantHash,
         completionDetection: completionPolicy.reason,
         documentEpoch: page.documentEpoch,
+        latestAssistantTurnSeq: Number(page.latestAssistantTurnSeq || 0),
         observedAt: nowIso(),
         targetResult,
         protocolReminderRequired: !targetResult.valid
@@ -15144,6 +15284,9 @@ async function applyNanoDecisionCommandUnlocked(windowId, payload) {
       sourceObservationHash: observation?.responseHash || "",
       sourceObservationIdentity: observation?.responseIdentity || "",
       sourceObservationEpoch: observation?.documentEpoch || "",
+      // v0.12.13: direction of travel for the owner readback. See
+      // classifyPreparedEffectObservation().
+      sourceObservationTurnSeq: Number(observation?.latestAssistantTurnSeq || 0),
       mandateVersion: turn.mandate.version,
       mandateSha256: turn.mandate.sha256,
       mandateDelivery: turn.mandate.delivery,

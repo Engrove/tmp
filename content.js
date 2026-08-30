@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.12";
+  const VERSION = "0.12.13";
   const MAX_PROMPT_CHARS = 160_000;
   const MAX_ATTACHMENT_BYTES = 4_000_000;
   const ALLOWED_HOSTS = new Set(["chatgpt.com", "chat.openai.com"]);
@@ -367,6 +367,52 @@
     })).filter((record) => Boolean(record.text));
   }
 
+  // v0.12.13 monotonic assistant turn identity.
+  //
+  // assistantRecords.at(-1) is purely positional. ChatGPT virtualizes older DOM
+  // nodes, so the last visible assistant node can step BACKWARDS to an earlier
+  // turn. v0.12.12 saw only "the hash changed" and concluded "a newer response
+  // owns the page", which discarded a live prepared effect mid-incident. Turn
+  // identity has to carry a direction, so every assistant message id is stamped
+  // with a monotonically increasing sequence the first time it is seen, in DOM
+  // order. A lower sequence than before is a stale readback, not a new owner.
+  const assistantTurnLedger = new Map();
+  let assistantTurnLedgerKey = "";
+  let assistantTurnSeqCounter = 0;
+
+  function assistantRecordTurnId(record) {
+    const node = record?.node;
+    if (!node) return "";
+    const owner = messageTurnOwner(node);
+    return String(
+      node.getAttribute?.("data-message-id") ||
+      owner?.getAttribute?.("data-turn-id") ||
+      ""
+    ).trim();
+  }
+
+  function registerAssistantTurnSequence(records, conversationKeyValue) {
+    if (assistantTurnLedgerKey !== conversationKeyValue) {
+      assistantTurnLedger.clear();
+      assistantTurnSeqCounter = 0;
+      assistantTurnLedgerKey = conversationKeyValue;
+    }
+    // Registered in DOM order, which is chronological, so relative order is
+    // preserved even when several turns first become visible in the same read.
+    for (const record of records) {
+      const id = assistantRecordTurnId(record);
+      if (!id || assistantTurnLedger.has(id)) continue;
+      assistantTurnSeqCounter += 1;
+      assistantTurnLedger.set(id, assistantTurnSeqCounter);
+    }
+  }
+
+  function assistantTurnSequence(record) {
+    const id = assistantRecordTurnId(record);
+    if (!id) return 0;
+    return assistantTurnLedger.get(id) || 0;
+  }
+
   function getAssistantMessages() {
     return getMessageRecords("assistant").map((record) => record.text);
   }
@@ -630,6 +676,9 @@
     const composer = getComposer();
     const backgroundSignals = detectBackgroundSignals();
     const currentConversationKey = conversationKey();
+    registerAssistantTurnSequence(assistantRecords, currentConversationKey);
+    const latestAssistantTurnId = assistantRecordTurnId(latestAssistantRecord);
+    const latestAssistantTurnSeq = assistantTurnSequence(latestAssistantRecord);
     const latestUserHash = latestUser ? await sha256(latestUser) : "";
     const latestAssistantHash = latestAssistant ? await sha256(latestAssistant) : "";
     const latestMessageHash = latestMessage.text ? await sha256(latestMessage.text) : "";
@@ -667,6 +716,8 @@
       version: VERSION,
       documentEpoch: DOCUMENT_EPOCH,
       conversationKey: currentConversationKey,
+      latestAssistantTurnId,
+      latestAssistantTurnSeq,
       sessionExists: isSupportedPage() && Boolean(composer),
       url: location.href,
       title: document.title,
