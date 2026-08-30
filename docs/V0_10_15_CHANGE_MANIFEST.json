@@ -1,0 +1,14 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.10.15",
+  "baselineVersion": "0.10.14",
+  "riskProfile": "STRICT_AUDIT",
+  "changes": [
+    "NANO_DECISION UI contract admits bounded baselineAnalysis and forensics",
+    "NANO_FAILURE UI contract admits bounded forensics",
+    "typed/bounded transport validation preserves fail-closed unknown-key policy",
+    "secondary terminal receipt failure emits bounded fallback audit diagnostic",
+    "claimed baseline Nano heartbeat stale guard requeues or fails visibly",
+    "end-to-end UI runtime/contract/background regression coverage"
+  ]
+}

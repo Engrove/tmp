@@ -1,0 +1,63 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.14",
+  "baseVersion": "0.11.13",
+  "scope": "BROWSER",
+  "changes": [
+    {
+      "path": "lib/destructiveness.mjs",
+      "type": "modified",
+      "reason": "Separate structured USER_PAUSE control semantics from lexical level-10 effect hazards."
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "type": "modified",
+      "reason": "Bump current version/schema and rotate current-only storage namespace to v114."
+    },
+    {
+      "path": "content.js",
+      "type": "modified",
+      "reason": "Bump content bridge version."
+    },
+    {
+      "path": "manifest.json",
+      "type": "modified",
+      "reason": "Bump extension version."
+    },
+    {
+      "path": "README.md",
+      "type": "modified",
+      "reason": "Document protocol-marker false-positive repair and current release documents."
+    },
+    {
+      "path": "docs/V0_11_14_ARCHITECTURE.md",
+      "type": "added",
+      "reason": "Document root cause and structured-vs-lexical control semantics."
+    },
+    {
+      "path": "docs/VERIFICATION_V0_11_14.md",
+      "type": "added",
+      "reason": "Define focused false-positive and safety-preservation verification."
+    },
+    {
+      "path": "docs/DESKTOP_CHROME_ACCEPTANCE_V0_11_14.md",
+      "type": "added",
+      "reason": "Define focused Chrome false-block and human-boundary acceptance."
+    },
+    {
+      "path": "docs/CHANGELOG_V0_11_14.md",
+      "type": "added",
+      "reason": "Record release changes."
+    }
+  ],
+  "preserved": [
+    "v0.11.13 owner-bound human-wait transition invariant",
+    "v0.11.12 immediate OPERATOR_ACTION_REQUIRED latch",
+    "v0.11.11 typed one-shot diagnostics.localState",
+    "v0.11.10 cross-boundary local-rearm bridge",
+    "v0.11.8 session-init baseline correction generation fence",
+    "v0.11.7 typed Nano JSON completeness and one format repair",
+    "v0.11.6 schema-derived output hard bound and 6000 soft threshold",
+    "v0.11.5 actor/capability topology and Nano-failure diagnostic suppression"
+  ]
+}

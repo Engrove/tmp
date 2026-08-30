@@ -1,0 +1,43 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.3",
+  "baseVersion": "0.11.2",
+  "changes": [
+    {
+      "surface": "lib/nano-baseline-analysis.mjs",
+      "change": "Make baseline ACCEPT a typed commit-only decision: future nextHighLeverageAction remains unlock routing context and is never projected into current requestedAction."
+    },
+    {
+      "surface": "lib/session-init-causal-model.mjs",
+      "change": "Add pure causal guards for exact baseline Nano ownership, pre-READY ordinary-Nano admission, baseline response re-observation, target-only delivery regulation and causal wait validity."
+    },
+    {
+      "surface": "background.js",
+      "change": "Bypass ordinary continuation grounding for accepted baseline analysis and return after typed baseline commit/READY handoff."
+    },
+    {
+      "surface": "background.js",
+      "change": "Reject wrong-type ordinary Nano/recovery mutation before READY unless performing exact commit replay; enforce exact baseline request identity."
+    },
+    {
+      "surface": "background.js",
+      "change": "Resolve execution disposition before delivery regulation; material delivery regulation now applies only to TARGET_DISPATCH."
+    },
+    {
+      "surface": "background.js",
+      "change": "Allow ACKED baseline reconciliation to re-observe the lifecycle-owned baseline response even if a generic processed marker matches the same identity."
+    },
+    {
+      "surface": "background.js",
+      "change": "Use a common terminal Nano ownership finalizer and causal-wake guard for waiting states."
+    },
+    {
+      "surface": "tests/v0113-causal-session-init.test.mjs",
+      "change": "Add typed-owner, metamorphic, response-lifecycle, routing-order and causal-wait property tests."
+    },
+    {
+      "surface": "tests/v01016-step2-baseline-commit.test.mjs",
+      "change": "Add a live-shaped meta-verb baseline integration twin and make repeated local no-delta testing independent of the removed accidental baseline ordinary-action side effect."
+    }
+  ]
+}

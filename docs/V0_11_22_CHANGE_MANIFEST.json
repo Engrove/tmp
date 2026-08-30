@@ -1,0 +1,101 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.22",
+  "preimage": {
+    "version": "0.11.21",
+    "zipSha256": "1cbe668b248e45bd2d856e9280a145fda91a0a9603ccfa26400fa963f19bbcfd"
+  },
+  "changes": [
+    {
+      "path": "content.js",
+      "kind": "modified",
+      "reason": "assistant presentation-chrome normalization: speaker labels and completed reasoning-duration disclosure removed from canonical semantic response/Capture"
+    },
+    {
+      "path": "lib/protocol-fast-path.mjs",
+      "kind": "modified",
+      "reason": "single bounded protocol-repair fence; valid repair fast-path, invalid repair REPAIR_EXHAUSTED and never ordinary Nano"
+    },
+    {
+      "path": "background.js",
+      "kind": "modified",
+      "reason": "typed PROTOCOL_REPAIR_EXHAUSTED terminalization and owner-enforced post-READY Nano discrimination gate with one internal repair"
+    },
+    {
+      "path": "sidepanel.js",
+      "kind": "modified",
+      "reason": "eic.nano.microdecision.v3 schema and deliberation fields"
+    },
+    {
+      "path": "lib/nano-pipeline.mjs",
+      "kind": "modified",
+      "reason": "v14 Nano prompt requires typed bounded deliberation and discrimination repair contract"
+    },
+    {
+      "path": "lib/runtime-hardening.mjs",
+      "kind": "modified",
+      "reason": "material-action comparison plus owner-derived DELIBERATIVE_ACCEPT/VALIDATOR_ACCEPT discrimination verdict"
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "kind": "modified",
+      "reason": "v0.11.22 config/runtime/export/storage identities"
+    },
+    {
+      "path": "lib/session-db.mjs",
+      "kind": "modified",
+      "reason": "v0.11.22 Session DB and pointer namespaces"
+    },
+    {
+      "path": "lib/response-settle-liveness.mjs",
+      "kind": "modified",
+      "reason": "v0.11.22 response-settle alarm namespace"
+    },
+    {
+      "path": "lib/destructiveness.mjs",
+      "kind": "modified",
+      "reason": "v0.11.22 classifier identity"
+    },
+    {
+      "path": "manifest.json",
+      "kind": "modified",
+      "reason": "release version 0.11.22"
+    },
+    {
+      "path": "README.md",
+      "kind": "modified",
+      "reason": "v0.11.22 correlated loop/Nano deliberation architecture"
+    },
+    {
+      "path": "docs/CHANGELOG_V0_11_22.md",
+      "kind": "added",
+      "reason": "release changes"
+    },
+    {
+      "path": "docs/V0_11_22_ARCHITECTURE.md",
+      "kind": "added",
+      "reason": "loop root cause, transport ownership and Nano deliberation architecture"
+    },
+    {
+      "path": "docs/V0_11_22_CHANGE_MANIFEST.json",
+      "kind": "added",
+      "reason": "preimage/change accounting"
+    },
+    {
+      "path": "docs/V0_11_22_STATE_REGISTRY.json",
+      "kind": "added",
+      "reason": "current release state registry identity"
+    },
+    {
+      "path": "docs/VERIFICATION_V0_11_22.md",
+      "kind": "added",
+      "reason": "source/package verification contract"
+    },
+    {
+      "path": "docs/DESKTOP_CHROME_ACCEPTANCE_V0_11_22.md",
+      "kind": "added",
+      "reason": "live acceptance oracles"
+    }
+  ],
+  "claimBoundary": "Source/package candidate only. No Desktop Chrome installed-byte, runtime, repository/deployment or production acceptance claim."
+}

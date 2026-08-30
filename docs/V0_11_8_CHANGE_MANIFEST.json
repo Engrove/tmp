@@ -1,0 +1,49 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.8",
+  "baseVersion": "0.11.7",
+  "scope": "BROWSER",
+  "changes": [
+    {
+      "path": "background.js",
+      "type": "modified",
+      "reason": "Enforce one baseline correction per session-init episode and terminalize the second non-ACCEPT before third target dispatch."
+    },
+    {
+      "path": "lib/session-baseline-correction-fence.mjs",
+      "type": "added",
+      "reason": "Pure episode-keyed correction-generation fence and bounded diagnostic state."
+    },
+    {
+      "path": "lib/session-context-init.mjs",
+      "type": "modified",
+      "reason": "Persist correction fence state and add BASELINE_CORRECTION_EXHAUSTED failure/overlay semantics."
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "type": "modified",
+      "reason": "Bump current version/storage namespace to v0.11.8/v108."
+    },
+    {
+      "path": "content.js",
+      "type": "modified",
+      "reason": "Bump content bridge version."
+    },
+    {
+      "path": "manifest.json",
+      "type": "modified",
+      "reason": "Bump extension version."
+    },
+    {
+      "path": "README.md",
+      "type": "modified",
+      "reason": "Document v0.11.8 correction-liveness contract and release docs."
+    }
+  ],
+  "preserved": [
+    "v0.11.7 typed Nano JSON completeness and one format repair",
+    "v0.11.6 schema-derived output hard bound and 6000 soft threshold",
+    "v0.11.5 actor/capability topology",
+    "v0.11.5 terminal diagnostic one-per-generation suppression"
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.17",
+  "preimage": {
+    "version": "0.11.16",
+    "zipSha256": "5e0ae5dccb2e5096f2e324d30aee51d94b1a2f9f9cb018cf424df492ab2c60cc"
+  },
+  "changes": [
+    {
+      "path": "lib/response-observation-cycle.mjs",
+      "kind": "added",
+      "reason": "exclusive response lifecycle, identity-first matching, atomic retire/transfer helpers and ownership invariants"
+    },
+    {
+      "path": "lib/control-plane-phase.mjs",
+      "kind": "added",
+      "reason": "central precedence model for terminal/human/safety/effect/response/session-init/Nano/recovery/delivery ownership"
+    },
+    {
+      "path": "lib/effect-journal.mjs",
+      "kind": "modified",
+      "reason": "explicit effect-journal status registry used by control-plane/state-space verification"
+    },
+    {
+      "path": "background.js",
+      "kind": "modified",
+      "reason": "causal ownership preflight, atomic candidate->observation transfer, source response identity binding, owner-gated liveness and response admission"
+    },
+    {
+      "path": "lib/state-machine.mjs",
+      "kind": "modified",
+      "reason": "response observation cycle state plus terminal parent/child closure"
+    },
+    {
+      "path": "lib/mission-state-machine.mjs",
+      "kind": "modified",
+      "reason": "explicit projection for PROGRAM_BLOCKED/PROGRAM_DONE and human-bound waiting states"
+    },
+    {
+      "path": "lib/response-settle-liveness.mjs",
+      "kind": "modified",
+      "reason": "v0.11.17 durable alarm namespace; timeout semantics preserved only for current active owner"
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "kind": "modified",
+      "reason": "v0.11.17 current-only config/runtime/export schemas and storage namespace"
+    },
+    {
+      "path": "content.js",
+      "kind": "modified",
+      "reason": "content-script release identity"
+    },
+    {
+      "path": "manifest.json",
+      "kind": "modified",
+      "reason": "release identity"
+    },
+    {
+      "path": "lib/destructiveness.mjs",
+      "kind": "modified",
+      "reason": "classifier release label only"
+    },
+    {
+      "path": "README.md",
+      "kind": "modified",
+      "reason": "current architectural behavior and release documentation"
+    },
+    {
+      "path": "docs/V0_11_17_STATE_REGISTRY.json",
+      "kind": "added",
+      "reason": "source-derived registry of state/status/mode/disposition enums used by systematic state-space verification"
+    },
+    {
+      "path": "docs/V0_11_17_ARCHITECTURE.md",
+      "kind": "added",
+      "reason": "root-cause and ownership architecture"
+    },
+    {
+      "path": "docs/CHANGELOG_V0_11_17.md",
+      "kind": "added",
+      "reason": "release delta"
+    },
+    {
+      "path": "docs/VERIFICATION_V0_11_17.md",
+      "kind": "added",
+      "reason": "source/package verification contract"
+    },
+    {
+      "path": "docs/DESKTOP_CHROME_ACCEPTANCE_V0_11_17.md",
+      "kind": "added",
+      "reason": "separate live runtime acceptance contract"
+    }
+  ],
+  "claimBoundary": "Source/package candidate only until exact v0.11.17 Desktop Chrome owner/runtime acceptance."
+}

@@ -1,0 +1,45 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.9",
+  "baseVersion": "0.11.8",
+  "scope": "BROWSER",
+  "changes": [
+    {
+      "path": "lib/execution-routing.mjs",
+      "type": "modified",
+      "reason": "Collapse volatile side-band response identity/hash/turn ids into a semantic material identity while preserving genuine material rearm."
+    },
+    {
+      "path": "background.js",
+      "type": "modified",
+      "reason": "Bind local rearm and Nano failure fence observation keys to run-aware side-band material identity."
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "type": "modified",
+      "reason": "Bump current version/storage namespace to v0.11.9/v109."
+    },
+    {
+      "path": "content.js",
+      "type": "modified",
+      "reason": "Bump content bridge version."
+    },
+    {
+      "path": "manifest.json",
+      "type": "modified",
+      "reason": "Bump extension version."
+    },
+    {
+      "path": "README.md",
+      "type": "modified",
+      "reason": "Document v0.11.9 semantic side-band material identity and release docs."
+    }
+  ],
+  "preserved": [
+    "v0.11.8 session-init baseline correction generation fence",
+    "v0.11.7 typed Nano JSON completeness and one format repair",
+    "v0.11.6 schema-derived output hard bound and 6000 soft threshold",
+    "v0.11.5 actor/capability topology",
+    "v0.11.5 terminal diagnostic one-per-generation suppression"
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.10.7",
+  "baseline": {
+    "version": "0.10.6",
+    "source_zip_sha256": "ff7a6a4136b178c4fbd35fb476f61e906fcc93e43682729df82a6cebfbf0938c"
+  },
+  "verification_profile": "STRICT_HOTFIX",
+  "scope": {
+    "added": [
+      "docs/CHANGELOG_V0_10_7.md",
+      "docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_7.md",
+      "docs/V0_10_7_ARCHITECTURE.md",
+      "docs/V0_10_7_CHANGE_MANIFEST.json",
+      "docs/VERIFICATION_V0_10_7.md",
+      "tests/v0107-delivery-regulator.test.mjs"
+    ],
+    "modified": [
+      "EIC.md",
+      "PRIVACY.md",
+      "README.md",
+      "background.js",
+      "content.js",
+      "lib/attention-router.mjs",
+      "lib/contracts.mjs",
+      "lib/delivery-kernel.mjs",
+      "lib/fallback-planner.mjs",
+      "manifest.json",
+      "package.json",
+      "scripts/package.mjs",
+      "scripts/validate.mjs",
+      "tests/v0102-ui-hotfix.test.mjs",
+      "tests/v0104-attention-router.test.mjs",
+      "tests/v0105-autostart-recovery.test.mjs",
+      "tests/v075-regressions.test.mjs",
+      "tests/v090-wp00-contract.test.mjs",
+      "tests/v090-wp01-ui-boundary.test.mjs",
+      "tests/v090-wp02-mission-domain.test.mjs",
+      "tests/v090-wp04-mission-mode-migration.test.mjs",
+      "tests/v090-wp14-release.test.mjs",
+      "tests/v0911-language-attestation.test.mjs",
+      "tests/v093-forward-delivery-context.test.mjs",
+      "tests/v096-nano-host-admission.test.mjs"
+    ],
+    "removed": []
+  },
+  "claim_boundary": "Local source/package candidate only; no installed Desktop Chrome runtime, Forgejo, merge, tag, release, deployment, installation or publication claim."
+}

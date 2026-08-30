@@ -1,0 +1,43 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.7",
+  "baseVersion": "0.11.6",
+  "scope": "BROWSER",
+  "changes": [
+    {
+      "path": "sidepanel.js",
+      "type": "modified",
+      "reason": "Enforce typed schema-bound JSON completeness inside promptNano and use validated complete-object extraction."
+    },
+    {
+      "path": "lib/nano-json-completeness.mjs",
+      "type": "added",
+      "reason": "Pure typed completeness contract for streaming/request Nano output."
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "type": "modified",
+      "reason": "Bump current version/storage namespace to v0.11.7/v107."
+    },
+    {
+      "path": "content.js",
+      "type": "modified",
+      "reason": "Bump content bridge version."
+    },
+    {
+      "path": "manifest.json",
+      "type": "modified",
+      "reason": "Bump extension version."
+    },
+    {
+      "path": "README.md",
+      "type": "modified",
+      "reason": "Document current v0.11.7 behavior and release docs."
+    }
+  ],
+  "preserved": [
+    "v0.11.6 schema-derived output hard bound",
+    "v0.11.5 actor/capability topology",
+    "v0.11.5 terminal diagnostic one-per-generation suppression"
+  ]
+}

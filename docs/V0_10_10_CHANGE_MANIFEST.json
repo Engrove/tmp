@@ -1,0 +1,32 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.10.10",
+  "baseline": {
+    "version": "0.10.9",
+    "source_sha256": "8c839b568c7db0a31fbc3b1aec887703969ef21c7933686aa6bc50d2ef85b6e2"
+  },
+  "added": [
+    "docs/V0_10_10_ARCHITECTURE.md",
+    "docs/V0_10_10_CHANGE_MANIFEST.json",
+    "docs/CHANGELOG_V0_10_10.md",
+    "docs/VERIFICATION_V0_10_10.md",
+    "docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_10.md",
+    "tests/v01010-core-review-replay.test.mjs"
+  ],
+  "modified": [
+    "background.js",
+    "sidepanel.js",
+    "content.js",
+    "lib/core-surface-review.mjs",
+    "lib/contracts.mjs",
+    "EIC.md",
+    "README.md",
+    "PRIVACY.md",
+    "manifest.json",
+    "package.json",
+    "scripts/package.mjs",
+    "scripts/validate.mjs"
+  ],
+  "removed": [],
+  "claim_boundary": "Source/package candidate only. Installed Desktop Chrome replay behavior requires separate owner-visible acceptance."
+}

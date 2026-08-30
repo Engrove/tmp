@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+
+<html lang="sv">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>EIC Autonom Agent</title>
+<link href="sidepanel.css" rel="stylesheet"/>
+</head>
+<body class="mission-control-body">
+<a class="skip-link" href="#missionViewRun">Hoppa till aktiv vy</a>
+<main class="mission-control-shell"><div class="mission-topbar"><header class="app-header mission-header">
+<img alt="" class="brand-icon" height="40" src="icons/icon48.png" width="40"/>
+<div>
+<p class="eyebrow">MISSION CONTROL</p>
+<h1>EIC Autonom Agent <small id="appVersion">v—</small></h1>
+<p class="subtitle">Manuell, evidensbunden kontroll av uppdrag, webbytor och körning.</p>
+</div>
+<div aria-live="polite" class="mission-header-context"><strong id="missionModeStatus">INGET UPPDRAG</strong><span id="missionStateStatus">IDLE</span><span id="missionStepStatus">Ingen aktiv arbetsenhet</span></div><div class="mission-header-actions"><button aria-keyshortcuts="Alt+F" aria-pressed="false" class="button focus-mode-button" id="focusModeButton" type="button"><span id="focusModeStatus">Fokus av</span></button><span class="badge idle" id="runBadge">IDLE</span></div></header><nav aria-label="Mission Control" class="mission-nav" role="tablist"><button aria-controls="missionViewRun" aria-selected="true" class="mission-nav-button" data-mission-view="RUN" id="navRunButton" role="tab" tabindex="0" type="button">Körning</button><button aria-controls="missionViewSurfaces" aria-selected="false" class="mission-nav-button" data-mission-view="SURFACES" id="navSurfacesButton" role="tab" tabindex="-1" type="button">Webbytor</button><button aria-controls="missionViewEvidence" aria-selected="false" class="mission-nav-button" data-mission-view="EVIDENCE" id="navEvidenceButton" role="tab" tabindex="-1" type="button">Evidens</button><button aria-controls="missionViewMissions" aria-selected="false" class="mission-nav-button" data-mission-view="MISSIONS" id="navMissionsButton" role="tab" tabindex="-1" type="button">Uppdrag</button><button aria-controls="missionViewSettings" aria-selected="false" class="mission-nav-button" data-mission-view="SETTINGS" id="navSettingsButton" role="tab" tabindex="-1" type="button">Inställningar</button></nav></div><button aria-live="polite" class="attention-banner attention-none" id="attentionBanner" type="button"><span class="attention-dot" aria-hidden="true"></span><span class="attention-copy"><strong id="attentionLabel">Ingen åtgärd krävs</strong><small id="attentionDetail">Inga väntande operatorbeslut, Nano-förslag eller recoveryobjekt.</small></span><span class="attention-route" id="attentionRoute">Öppna</span></button><p aria-atomic="true" aria-live="assertive" class="sr-only" id="missionStatusAnnouncer"></p><div class="mission-views"><section aria-labelledby="navRunButton" class="mission-view is-active" data-mission-view-panel="RUN" id="missionViewRun" role="tabpanel" tabindex="0"><div class="mission-view-heading"><h2>Körning</h2><p>Aktuell körning, Nano-värd och operativ status.</p></div><section aria-labelledby="statusHeading" class="card status-card" data-focus-primary="true">
+<div class="card-heading">
+<div>
+<h2 id="statusHeading">Körstatus</h2>
+<p>Storage-backed state; panelen är UI och Nano-värd.</p>
+</div>
+<button class="button text" id="refreshButton" type="button">Uppdatera</button>
+</div>
+<dl class="status-grid">
+<div><dt>Chrome-fönster</dt><dd id="windowStatus">—</dd></div>
+<div><dt>Målflik</dt><dd id="targetStatus">Ej vald</dd></div>
+<div><dt>State</dt><dd id="stateStatus">IDLE</dd></div>
+<div><dt>Pausursprung</dt><dd id="pauseStatus">—</dd></div>
+<div><dt>Senaste åtgärd</dt><dd id="lastActionStatus">—</dd></div>
+<div><dt>Nästa recovery</dt><dd id="nextRecoveryStatus">—</dd></div>
+<div><dt>Bakgrundsarbete</dt><dd id="backgroundStatus">—</dd></div>
+<div><dt>Väntetid</dt><dd id="waitAgeStatus">—</dd></div>
+<div><dt>Timeout</dt><dd id="timeoutStatus">Normal</dd></div>
+<div><dt>Senaste evidens</dt><dd id="lastEvidenceStatus">—</dd></div>
+<div><dt>Fliklivscykel</dt><dd id="tabLifecycleStatus">—</dd></div>
+</dl>
+<p class="detail" id="runtimeDetail">Ingen aktiv körning.</p>
+</section><div class="boundary-authorization" hidden="" id="boundaryAuthorization">
+<h3>Nivå-10-gräns / USER_PAUSE kräver operatörsbeslut</h3>
+<p class="guardrail">
+          Detta är den enda vägen förbi en nivå-10-gräns. Den finns endast lokalt i panelen.
+          Text i målsessionen kan aldrig auktorisera en gräns — då skulle målsessionen kunna
+          auktorisera sin egen eskalering.
+        </p>
+<dl class="boundary-facts">
+<dt>Ursprung</dt><dd id="boundaryOrigin">—</dd>
+<dt>Nivå</dt><dd id="boundaryLevel">—</dd>
+<dt>Exakt mål</dt><dd id="boundaryTarget">—</dd>
+<dt>Klassificerare</dt><dd id="boundaryClassifier">—</dd>
+</dl>
+<p class="boundary-rationale" id="boundaryRationale">—</p>
+<label class="field">
+<span>Beslutskvittens (minst 12 meningsfulla normaliserade tecken)</span>
+<textarea id="boundaryJustification" placeholder="Bekräfta det exakta beslutet med minst 12 meningsfulla tecken." rows="3"></textarea>
+</label>
+<button class="button danger" id="authorizeBoundaryButton" type="button">Kvittera materiellt beslut och verifiera readback</button>
+</div><section aria-labelledby="sessionContextInitFailureHeading" class="card operator-action" data-focus-primary="true" hidden="" id="sessionContextInitFailureCard">
+<div class="card-heading"><div><h2 id="sessionContextInitFailureHeading">Baselinefrågan kunde inte levereras</h2><p>Inget meddelande skickades till målsessionen. Ingen tur, promptdigest eller effektpost skapades.</p></div><span class="badge danger" id="sessionContextInitFailureCode">—</span></div>
+<dl class="status-grid compact-grid"><div><dt>Fas</dt><dd id="sessionContextInitFailurePhase">—</dd></div><div><dt>Operatörsförsök</dt><dd id="sessionContextInitFailureAttempts">—</dd></div></dl>
+<p class="detail" id="sessionContextInitFailureDetail">—</p>
+<div class="row"><button class="button primary" id="retrySessionContextInitButton" type="button">Försök igen</button><button class="button secondary" id="showSessionContextInitErrorButton" type="button">Visa fel</button></div>
+</section><section aria-labelledby="operatorActionHeading" class="card operator-action" data-focus-primary="true" hidden="" id="operatorActionCard">
+<div class="card-heading"><div><h2 id="operatorActionHeading">Mekanisk operatörsåtgärd krävs</h2><p>Ingen ny Nano-request eller vanlig svarstimeout körs innan exakt kvitto godkänts.</p></div><span class="badge warning" id="operatorActionStatus">PENDING</span></div>
+<dl class="status-grid compact-grid"><div><dt>Action ID</dt><dd id="operatorActionId">—</dd></div><div><dt>Typ</dt><dd id="operatorActionType">—</dd></div><div><dt>Mål</dt><dd id="operatorActionTarget">—</dd></div><div><dt>Förväntad evidens</dt><dd id="operatorActionEvidence">—</dd></div></dl>
+<p class="detail" id="operatorActionInstruction">—</p>
+<label class="field"><span>Observerbart kvitto</span><textarea id="operatorActionReceipt" placeholder="Beskriv vad som observerades efter den exakta åtgärden." rows="3"></textarea></label>
+<button class="button primary" id="submitOperatorActionButton" type="button">Skicka bundet operator-action-kvitto</button>
+</section><section aria-labelledby="browserApprovalHeading" class="card browser-approval" data-focus-primary="true" hidden="" id="browserApprovalCard">
+<div class="card-heading"><div><h2 id="browserApprovalHeading">Browseråtgärd kräver operatörsbeslut</h2><p>Godkännandet binds till exakt action, controllersvar och targetidentitet.</p></div><span class="badge warning" id="browserApprovalLevel">—</span></div>
+<dl class="status-grid compact-grid"><div><dt>Åtgärd</dt><dd id="browserApprovalAction">—</dd></div><div><dt>Skäl</dt><dd id="browserApprovalReasons">—</dd></div></dl>
+<label class="field"><span>Motivering (minst 12 tecken)</span><textarea id="browserApprovalJustification" placeholder="Varför får exakt denna åtgärd utföras?" rows="3"></textarea></label>
+<div class="row"><button class="button danger" id="approveBrowserActionButton" type="button">Godkänn exakt åtgärd</button><button class="button secondary" id="denyBrowserActionButton" type="button">Neka</button></div>
+</section><section aria-labelledby="browserRecoveryHeading" class="card browser-recovery" data-focus-primary="true" hidden="" id="browserRecoveryCard">
+<div class="card-heading"><div><h2 id="browserRecoveryHeading">Browser recovery krävs</h2><p>Ingen pending browseråtgärd återspelas. Bind mål, originbehörighet, CDP och evidenssession på nytt.</p></div><span class="badge warning" id="browserRecoveryState">—</span></div>
+<dl class="status-grid compact-grid"><div><dt>Orsak</dt><dd id="browserRecoveryReason">—</dd></div><div><dt>Target</dt><dd id="browserRecoveryTarget">—</dd></div><div><dt>Pending action</dt><dd id="browserRecoveryPendingAction">—</dd></div></dl>
+<button class="button secondary" id="resumeBrowserRecoveryButton" type="button">Verifiera och återuppta utan replay</button>
+</section><section aria-labelledby="nanoHeading" class="card" data-focus-secondary="true" id="nanoHostCard">
+<div class="card-heading">
+<div>
+<h2 id="nanoHeading">Chrome on-device LanguageModel</h2>
+<p>Lokal analysvärd. Durable run state ligger inte i modellen.</p>
+</div>
+<span class="badge neutral" id="nanoBadge">OKÄND</span>
+</div>
+<div class="progress-wrap">
+<progress id="nanoProgress" max="1" value="0"></progress>
+<span id="nanoProgressText">Ej kontrollerad</span>
+</div>
+<p class="detail" id="nanoDetail">Aktivera Nano med användarklick. Vid modellförlust bevaras körning och kontinuitet.</p>
+<dl aria-label="Nano pipeline" class="status-grid compact-grid">
+<div><dt>Pipeline</dt><dd id="nanoPipelineStatus">—</dd></div>
+<div><dt>Request</dt><dd id="nanoRequestStatus">—</dd></div>
+<div><dt>Analystid</dt><dd id="nanoDurationStatus">—</dd></div>
+<div><dt>Input</dt><dd id="nanoInputStatus">—</dd></div>
+<div><dt>Resultat</dt><dd id="nanoResultStatus">—</dd></div>
+</dl>
+<button class="button secondary" id="activateNanoButton" type="button">Kontrollera / aktivera LanguageModel</button>
+</section></section><section aria-labelledby="navSurfacesButton" class="mission-view" data-mission-view-panel="SURFACES" hidden="" id="missionViewSurfaces" role="tabpanel" tabindex="0"><div class="mission-view-heading"><h2>Webbytor</h2><p>Explicita controller- och targetytor utan implicit cross-tab-styrning.</p></div><section aria-labelledby="surfaceRolesHeading" class="card surface-role-card"><div class="card-heading"><div><h2 id="surfaceRolesHeading">Ytpar</h2><p>Explicita roller med stabil identitet, exakt originbehörighet och bounded CDP-session.</p></div><span class="badge neutral" id="pairStateStatus">EMPTY</span></div><dl class="status-grid surface-role-grid"><div><dt>Build profile</dt><dd id="buildProfileStatus">STANDARD</dd></div><div><dt>Pair ID</dt><dd id="pairIdStatus">—</dd></div><div><dt>CHATGPT_CONTROLLER</dt><dd id="controllerSurfaceStatus">Ej bunden</dd></div><div><dt>Controller lifecycle</dt><dd id="controllerLifecycleStatus">DETACHED</dd></div><div><dt>Controller epoch</dt><dd id="controllerEpochStatus">—</dd></div><div><dt>WEB_TARGET</dt><dd id="webTargetSurfaceStatus">Ej bunden</dd></div><div><dt>Target lifecycle</dt><dd id="targetLifecycleStatus">DETACHED</dd></div><div><dt>Target origin</dt><dd id="targetOriginStatus">—</dd></div><div><dt>Target epoch</dt><dd id="targetEpochStatus">—</dd></div><div><dt>Origin grant</dt><dd id="targetPermissionStatus">NOT_REQUESTED</dd></div><div><dt>Debugger</dt><dd id="targetDebuggerStatus">DETACHED</dd></div></dl><div class="row"><button class="button secondary" id="bindActiveWebTargetButton" type="button">Koppla aktiv webbyta</button><button class="button secondary" id="detachWebTargetButton" type="button">Koppla bort webbyta</button></div><div class="row"><button class="button secondary" id="requestWebTargetPermissionButton" type="button">Bevilja exakt origin</button><button class="button secondary" id="revokeWebTargetPermissionButton" type="button">Återkalla origin</button><button class="button secondary" id="attachWebTargetDebuggerButton" type="button">Anslut CDP</button><button class="button secondary" id="detachWebTargetDebuggerButton" type="button">Koppla från CDP</button></div><p class="detail compact">Standardprofilen saknar debugger och generell webbhost. Browserprofilen begär endast målytans exakta origin. CDP-sessionen binds till tab, surfaceId, documentEpoch och origin och stängs fail-closed vid identitetsändring.</p></section><section aria-labelledby="tabHeading" class="card">
+<div class="card-heading">
+<div>
+<h2 id="tabHeading">Kopplade ChatGPT-flikar</h2>
+<p>Endast uttryckligen kopplade flikar visas eller styrs.</p>
+</div>
+<span class="badge neutral" id="tabBadge">EJ KOPPLAD</span>
+</div>
+<div class="row">
+<button class="button secondary" id="linkActiveTabButton" type="button">Koppla aktiv flik</button>
+<button class="button secondary" id="detachActiveTabButton" type="button">Koppla bort aktiv flik</button>
+<select aria-label="Vald kopplad flik" id="linkedTabSelect">
+<option value="">Ingen kopplad flik</option>
+</select>
+</div>
+<fieldset class="mode-switch">
+<legend>Målläget</legend>
+<label><input name="targetMode" type="radio" value="FOLLOW"/> Följ</label>
+<label><input checked="" name="targetMode" type="radio" value="LOCKED"/> Låst</label>
+</fieldset>
+<p class="detail compact">
+        Följ flyttar endast målet när den nya aktiva fliken redan är kopplad. Låst behåller vald målflik.
+        En flik som flyttas till ett annat Chrome-fönster blir aldrig automatiskt vald där.
+      </p>
+</section></section><section aria-labelledby="navEvidenceButton" class="mission-view" data-mission-view-panel="EVIDENCE" hidden="" id="missionViewEvidence" role="tabpanel" tabindex="0"><div class="mission-view-heading"><h2>Evidens</h2><p>Redigerad browserobservation, sessionsbundna screenshots, delegeringskvitton och kronologisk logg.</p></div><section aria-labelledby="browserEvidenceHeading" class="card browser-evidence-card">
+<div class="card-heading">
+<div>
+<h2 id="browserEvidenceHeading">Browser-evidens</h2>
+<p>WP07 samlar bounded DOM/AX, screenshot, console, network och navigation från en explicit ansluten WEB_TARGET.</p>
+</div>
+<span class="badge neutral" id="evidenceObservationBadge">INACTIVE</span>
+</div>
+<dl class="status-grid">
+<div><dt>Observation</dt><dd id="evidenceObservationStatus">INACTIVE</dd></div>
+<div><dt>Poster</dt><dd id="evidenceCountStatus">0</dd></div>
+<div><dt>Durable bytes</dt><dd id="evidenceBytesStatus">0</dd></div>
+<div><dt>Screenshots</dt><dd id="evidenceScreenshotStatus">0</dd></div>
+<div><dt>Senaste typ</dt><dd id="evidenceLatestTypeStatus">—</dd></div>
+<div><dt>Senaste tid</dt><dd id="evidenceLatestTimeStatus">—</dd></div>
+</dl>
+<div class="button-row evidence-actions">
+<button class="button secondary" id="startEvidenceObservationButton" type="button">Starta observation</button>
+<button class="button primary" id="captureEvidenceSnapshotButton" type="button">Fånga AX/DOM/skärmbild</button>
+<button class="button secondary" id="stopEvidenceObservationButton" type="button">Stoppa observation</button>
+<button class="button text danger" id="clearBrowserEvidenceButton" type="button">Rensa browser-evidens</button>
+</div>
+<p class="guardrail">Rå screenshotkropp lagras endast i <code>chrome.storage.session</code> och måste matcha digest vid readback. Durable data redigeras och innehåller aldrig cookies, authheaders, passwordvärden eller response bodies.</p>
+<ol aria-live="polite" class="event-log evidence-log" id="browserEvidenceList"></ol>
+</section><section aria-labelledby="mjolnarHeading" class="card" data-focus-secondary="true">
+<div class="card-heading">
+<div>
+<h2 id="mjolnarHeading">Mjölnar Operator Proxy</h2>
+<p>Lokal delegeringskontroll. D2 är ett explicit opt-in för registrerade högrisk-handoffs.</p>
+</div>
+<span class="badge neutral" id="mjolnarBadge">AV</span>
+</div>
+
+
+<dl class="status-grid">
+<div><dt>State</dt><dd id="mjolnarState">IDLE</dd></div>
+<div><dt>Klass</dt><dd id="mjolnarClass">—</dd></div>
+<div><dt>Verdict</dt><dd id="mjolnarVerdict">—</dd></div>
+<div><dt>Action</dt><dd id="mjolnarAction">—</dd></div>
+<div><dt>Target</dt><dd id="mjolnarTarget">—</dd></div>
+<div><dt>Dispatch/readback</dt><dd id="mjolnarDispatch">—</dd></div>
+<div><dt>Destruktivitet</dt><dd id="destructivenessLevel">1/10 · READ_ONLY</dd></div>
+<div><dt>Hjalmar mental kontroll</dt><dd id="hjalmarMentalControl">NOT_REQUIRED</dd></div>
+<div><dt>Bias check</dt><dd id="mjolnarBias">—</dd></div>
+<div><dt>Verklig PAUS</dt><dd id="mjolnarHumanReason">—</dd></div>
+</dl>
+<p class="guardrail">D2 dispatchar endast registrerade owner-route-handoffs med exakt mål, mandat, rollback och readback. Login, CAPTCHA, credentials, secrets, permanent delete och okänd blast radius förblir HUMAN_REQUIRED.</p>
+</section><section aria-labelledby="logHeading" class="card" data-focus-secondary="true">
+<div class="card-heading">
+<div>
+<h2 id="logHeading">Körningslogg</h2>
+<p id="turnCounter">0 turer</p>
+</div>
+<button class="button text" id="clearLogButton" type="button">Rensa</button>
+</div>
+<ol aria-live="polite" class="event-log" id="eventLog"></ol>
+</section></section><section aria-labelledby="navMissionsButton" class="mission-view" data-mission-view-panel="MISSIONS" hidden="" id="missionViewMissions" role="tabpanel" tabindex="0"><div class="mission-view-heading"><h2>Uppdrag</h2><p>Välj ett versionerat Mission mode. Samtliga v0.8.2-startflöden går genom samma slutna Mission-startkontrakt.</p></div><section aria-labelledby="missionModePickerHeading" class="card mission-mode-picker"><div class="card-heading"><div><h2 id="missionModePickerHeading">Mission mode</h2><p>Välj uppdragstyp. Action dock startar exakt det valda läget.</p></div><span class="badge neutral" id="missionModeAvailability">STANDARD</span></div><label for="missionModeSelect"><strong>Valt uppdrag</strong></label><select aria-label="Valt Mission mode" id="missionModeSelect"></select><p class="detail compact" id="missionModeDescription">Vänta på nästa kompletta assistantsvar i en redan förberedd ChatGPT/EIC-session.</p></section><section aria-labelledby="continuationHeading" class="card mission-mode-panel" data-mission-mode-panel="CHATGPT_CONTINUATION" id="missionModePanelContinuation"><div class="card-heading"><div><h2 id="continuationHeading">Fortsätt befintlig session</h2><p>Läser baseline och väntar på nästa stabila assistantsvar utan att skicka en ny startprompt.</p></div><span class="badge neutral">WAIT / CONTINUE</span></div><p class="guardrail">Kräver en uttryckligen kopplad och vald ChatGPT-flik. Pågående generation lämnas orörd.</p></section><section aria-labelledby="newSessionHeading" class="card start-session-card mission-mode-panel" data-mission-mode-panel="CHATGPT_NEW_SESSION" id="missionModePanelNewSession">
+<div class="card-heading">
+<div>
+<h2 id="newSessionHeading">Starta Ny Session</h2>
+<p>Separat engångsprompt. Användaren förbereder och länkar rätt ChatGPT-session i Chrome; Nano levererar prompten exakt en gång i den valda fliken och skapar aldrig en ny flik eller session.</p>
+</div>
+<span class="badge warning">EN GÅNG / SESSION</span>
+</div>
+<label for="newSessionPrompt"><strong>Ny sessions engångsstartprompt</strong></label>
+<textarea id="newSessionPrompt" maxlength="120000" placeholder="Klistra in den fullständiga startprompten. Förbered först rätt ChatGPT-session i Chrome, koppla och välj fliken. Prompten lagras lokalt, analyseras chunkvis av Nano vid behov och får bara levereras en gång i den valda sessionen." rows="14"></textarea>
+<p class="detail compact" id="startPromptMeta">0 tecken.</p>
+<button class="button primary" id="startNewSessionButton" type="button">Starta Ny Session</button>
+</section><section aria-labelledby="specialMissionsHeading" class="card"><div class="card-heading"><div><h2 id="specialMissionsHeading">Specialiserade Mission modes</h2><p>Långgranskning och arkeologi använder samma Mission-startkontrakt som övriga lägen.</p></div></div>
+
+
+
+
+<div class="app-audit archaeology" data-mission-mode-panel="ARCHAEOLOGY_LONG" id="archaeologySection">
+<h3>ARCHAEOLOGY_LONG — forskning och reverse engineering</h3>
+<p class="guardrail">
+          Isolerat analysläge. Det får inte implementera, patcha, committa, merga, releasa,
+          deploya, ändra permissions, migrera schema/data eller mutera forskningsobjektet.
+          Workspace används för discovery, materialisering, read-only analys, evidens och export.
+        </p>
+<label class="field">
+<span>Forskningsscenario</span>
+<select id="archaeologyScenario"></select>
+</label>
+<label class="field">
+<span>Forskningsfråga</span>
+<textarea id="archaeologyQuestion" placeholder="Vilken exakt fråga ska undersökas eller reverse-engineeras?" rows="3"></textarea>
+</label>
+<label class="field">
+<span>Kontext och avgränsning</span>
+<textarea id="archaeologyContext" placeholder="System, generation, källor, miljö, read-only-gränser och kända locators." rows="4"></textarea>
+</label>
+<label class="toggle"><input checked="" id="archaeologyAllowWorkspaceEvidence" type="checkbox"/> Tillåt ephemeral Workspace-evidens och checkpoints</label>
+<label class="toggle"><input checked="" id="archaeologyAllowExport" type="checkbox"/> Tillåt avgränsad forskningsrapport/evidensexport</label>
+<button class="button primary" id="startArchaeologyButton" type="button">Starta ARCHAEOLOGY_LONG</button>
+<dl class="audit-facts">
+<dt>Scenario</dt><dd id="archaeologyActiveScenario">—</dd>
+<dt>Fas</dt><dd id="archaeologyPhase">—</dd>
+<dt>Steg</dt><dd id="archaeologyStep">—</dd>
+<dt>Hypoteser</dt><dd id="archaeologyHypotheses">—</dd>
+<dt>Evidenslocators</dt><dd id="archaeologyEvidence">—</dd>
+<dt>Workspace-förslag</dt><dd id="archaeologyWorkspace">—</dd>
+<dt>Senaste grind</dt><dd id="archaeologyGate">—</dd>
+</dl>
+</div>
+<div class="app-audit" data-mission-mode-panel="APP_AUDIT_LONG" id="appAuditSection">
+<h3>Systematisk appgranskning — lång körning</h3>
+<p class="guardrail">
+          Förbered först rätt ChatGPT-session i Chrome, koppla och välj fliken. Ange därefter endast testbehov och kontext. Projekt, repo, target, commit och owner routes
+          löses av EIC. Auditdata skrivs av <code>scripts/eic_app_audit.py</code> i EIC:s
+          kodyta genom Workbenchen — addonen skapar aldrig en ny ChatGPT-flik eller session.
+        </p>
+<label class="field">
+<span>Testbehov</span>
+<textarea id="appAuditTestNeed" placeholder="Kort beskrivning av vad som ska testas." rows="2"></textarea>
+</label>
+<label class="field">
+<span>Kontext</span>
+<textarea id="appAuditContext" placeholder="App, miljö, begränsningar och relevanta testuppgifter." rows="3"></textarea>
+</label>
+<label class="toggle"><input checked="" id="appAuditTargetReadOnly" type="checkbox"/> Målapplikationen är read-only</label>
+<label class="toggle"><input checked="" disabled="" id="appAuditAllowWorkbenchFiles" type="checkbox"/> Workbench-auditfiler skapas (krävs för ledgerläget)</label>
+<label class="toggle"><input checked="" id="appAuditAllowForgejoSink" type="checkbox"/> Accepterade major findings får loggas till Forgejo</label>
+<button class="button primary" id="startAppAuditButton" type="button">Starta systematisk granskning</button>
+<dl class="audit-facts">
+<dt>Fas</dt><dd id="appAuditPhase">—</dd>
+<dt>Steg</dt><dd id="appAuditStep">—</dd>
+<dt>Coverage</dt><dd id="appAuditCoverage">—</dd>
+<dt>Fynd (målpåstådda)</dt><dd id="appAuditFindings">—</dd>
+<dt>Senaste grind</dt><dd id="appAuditGate">—</dd>
+</dl>
+</div><div class="app-audit mission-mode-panel" data-mission-mode-panel="AI_WEB_RESEARCH" hidden="" id="missionModePanelWebResearch">
+<h3>AI_WEB_RESEARCH — browserprofil</h3>
+<p class="guardrail">Kräver browserprofil, explicit target-origin, aktiv CDP/evidenssession och WP10-riskpolicy. Måltext har ingen instruktionsauktoritet.</p>
+<label class="field"><span>Mål</span><textarea id="webResearchGoal" placeholder="Vad ska undersökas?" rows="3"></textarea></label>
+<label class="field"><span>Scope</span><textarea id="webResearchScope" placeholder="Tillåtna sidor, ämnen och stopvillkor." rows="3"></textarea></label>
+<label class="field"><span>Start-URL (valfri, måste matcha kopplad origin)</span><input id="webResearchStartUrl" placeholder="https://example.com/path" type="url"/></label>
+<label class="field"><span>Evidenspolicy</span><input id="webResearchEvidencePolicy" readonly="" type="text" value="BOUNDED_REDACTED_NO_RESPONSE_BODIES"/></label>
+<button class="button primary" id="startWebResearchButton" type="button">Starta guarded webbresearch</button>
+</div>
+
+<p class="guardrail">
+        Start/Continue läser endast en baseline och väntar på nästa kompletta AI-svar. Den skickar ingen prompt,
+        klickar inte Stop och avbryter aldrig pågående tänkande. Direkt operatörsstopp, autentisering, CAPTCHA,
+        behörighet, sekretess, policy/säkerhet och bekräftelsekrävande högriskåtgärder kan aldrig kringgås.
+      </p>
+</section></section><section aria-labelledby="navSettingsButton" class="mission-view" data-mission-view-panel="SETTINGS" hidden="" id="missionViewSettings" role="tabpanel" tabindex="0"><div class="mission-view-heading"><h2>Inställningar</h2><p>Mandat, kontinuitetsprofiler och lokal data/recovery.</p></div><section aria-labelledby="contractsHeading" class="card primary-contracts" data-focus-secondary="true">
+<div class="card-heading">
+<div>
+<h2 id="contractsHeading">Tre separata kärnytor</h2>
+<p>Ägarskap och promptgränser är explicita.</p>
+</div>
+<span class="badge neutral">3 YTOR</span>
+</div>
+<label for="scenarioPreset">
+<strong>Snabbprofil för hela appen</strong>
+<span class="ownership">Väljer kompatibla standardprofiler för kärnyta 1–3</span>
+</label>
+<select aria-label="Snabbprofil för kärnytorna" id="scenarioPreset"></select>
+<label for="nanoMandate">
+<strong>1. Nano only — kärnmandat och stående regel</strong>
+<span class="ownership">Privat för Nano · skickas aldrig till målsessionen</span>
+</label>
+<select aria-label="Standardläge för Nano-kärnmandat" id="nanoMandateProfile"></select>
+<input aria-label="Nano-mandatets version" id="nanoMandateVersion" maxlength="160" type="text"/>
+<textarea data-primary-instruction="nano" id="nanoMandate" maxlength="24000" rows="12"></textarea>
+<label for="targetMandate">
+<strong>2. EIC/AI only — målsessionens kärnmandat</strong>
+<span class="ownership">Infogas som header i varje Nano-levererad prompt</span>
+</label>
+<select aria-label="Standardläge för målsessionens kärnmandat" id="targetMandateProfile"></select>
+<div class="inline-fields">
+<input aria-label="Aktivt Core project ID" id="activeTaskProjectId" min="1" step="1" type="number" value="63"/>
+<input aria-label="Målmandatets version" id="targetMandateVersion" maxlength="120" type="text"/>
+<select aria-label="Målmandatets scope" id="targetAuthorityScope">
+<option value="GENERIC">Normal AI-session</option>
+<option value="EIC">EIC-session</option>
+</select>
+</div>
+<textarea data-primary-instruction="target" id="targetMandate" maxlength="24000" rows="10"></textarea>
+<label for="continuityData">
+<strong>3. Nano — kontinuitetsdata</strong>
+<span class="ownership">Kompakt vad/varför-transkript · verifierade fakta separeras från inferenser</span>
+</label>
+<select aria-label="Visningsläge för kontinuitetsdata" id="continuityViewProfile"></select>
+<textarea data-primary-instruction="continuity" id="continuityData" readonly="" rows="15"></textarea>
+<p class="detail compact">Kontinuiteten skrivs av orkestratorn, kompakteras deterministiskt och används för anti-loop-korrigering. Den är inte ett rått samtalstranskript.</p>
+</section>
+<section aria-labelledby="coreSurfaceReviewHeading" class="card core-surface-review" id="coreSurfaceReviewCard">
+<div class="card-heading">
+<div>
+<h2 id="coreSurfaceReviewHeading">Nano-granskning av inställningar och kärnytor</h2>
+<p>Efter sessionens första lyckade capture körs en spontan granskning en gång. Senare omvärderingar startas endast manuellt.</p>
+</div>
+<span class="badge neutral" id="coreSurfaceReviewBadge">INTE KÖRD</span>
+</div>
+<label class="check"><input checked="" id="autoApplyCoreSurfaceReviewEnabled" type="checkbox"/><span><strong>Autoapplicera säkra Nano-förslag efter 5 minuter</strong><small>Avmarkera för att alltid kräva manuellt godkännande. Högrisk- och manuellt ägda inställningar kan aldrig autoappliceras.</small></span></label>
+<div class="core-review-notice" hidden="" id="coreSurfaceReviewNotice" role="status">
+<strong id="coreSurfaceReviewTitle">Nano har granskat inställningarna.</strong>
+<p id="coreSurfaceReviewSummary"></p>
+<ul id="coreSurfaceReviewChanges"></ul>
+<details>
+<summary>Visa granskningsdetaljer</summary>
+<pre id="coreSurfaceReviewDetails"></pre>
+</details>
+</div>
+<p class="detail compact" id="coreSurfaceReviewStatus">En full eller delta-capture krävs innan Nano kan analysera sessionens inställningar och de tre kärnytorna.</p>
+<div class="button-row">
+<button class="button secondary" id="reevaluateCoreSurfacesButton" type="button">Omvärdera med Nano</button>
+<button class="button primary" disabled="" id="applyCoreSurfaceReviewButton" type="button">Acceptera och tillämpa</button>
+<button class="button danger" disabled="" id="declineCoreSurfaceReviewButton" type="button">Neka förslaget</button>
+</div>
+</section>
+<section aria-labelledby="autonomySettingsHeading" class="card"><div class="card-heading"><div><h2 id="autonomySettingsHeading">Autonomi och tidsgränser</h2><p>Körningspolicy för alla Mission modes i standardbygget.</p></div></div><label class="check max-mode">
+<input id="maxAutonomousMode" type="checkbox"/>
+<span>
+<strong>Max Autonomous Mode</strong>
+<small>Fortsätt genom recoverable pauser och bounded alternativ tills verklig dead end eller hård gräns.</small>
+</span>
+</label><label class="check max-mode">
+<input checked="" id="backgroundWaitEnabled" type="checkbox"/>
+<span>
+<strong>TTL-fritt bakgrundsvänteläge</strong>
+<small>Verifierat ChatGPT-bakgrundsarbete väntas utan applikationsdeadline. Stoppa är alltid aktiv.</small>
+</span>
+</label><label class="check max-mode">
+<input checked="" id="autoRestartNanoOnChange" type="checkbox"/>
+<span>
+<strong>Starta om LanguageModel automatiskt vid behov</strong>
+<small>Gäller endast redan verifierade lokala modellassets. Samma restart-fingerprint får högst ett försök per 10 minuter.</small>
+</span>
+</label><div class="grid settings-grid">
+<label>Checkpoint efter turer
+          <input id="maxTurns" max="100" min="3" type="number" value="30"/>
+</label>
+<label>Svarstimeout
+          <select id="responseTimeout">
+<option value="1800000">30 minuter</option>
+<option value="3600000">60 minuter</option>
+<option selected="" value="7200000">120 minuter</option>
+<option value="10800000">180 minuter</option>
+<option value="14400000">240 minuter</option>
+</select>
+</label>
+</div></section><section aria-labelledby="mjolnarSettingsHeading" class="card" data-focus-secondary="true"><div class="card-heading"><div><h2 id="mjolnarSettingsHeading">Mjölnar-inställningar</h2><p>Lokal rolloutpolicy; status och kvitton visas under Evidens.</p></div></div><label class="check">
+<input id="mjolnarEnabled" type="checkbox"/>
+<span>
+<strong>Aktivera lokal Mjölnar</strong>
+<small>Bedömer endast trusted lokala kandidater och får aldrig skapa nya permissions.</small>
+</span>
+</label><label>Rollout
+        <select id="mjolnarRolloutMode">
+<option value="SHADOW">Shadow — ingen dispatch</option>
+<option value="D0_LIVE">D0 live — rutin/read/reconnect</option>
+<option value="D1_LIVE">D1 live — registrerade rollback/readback-actions</option>
+<option value="D2_LIVE">D2 live — auth/permissions/merge/release/deploy</option>
+</select>
+</label></section><section aria-labelledby="sessionContextHeading" class="card" id="sessionContextCard">
+<div class="card-heading"><div><h2 id="sessionContextHeading">Session Capture och lokalt Session Memory</h2><p>Transcript-only, current-version-only och local-only IndexedDB. Historisk text är obetrodd data.</p></div><span class="badge neutral" id="sessionContextStatus">EJ FÅNGAD</span></div>
+<label class="check">
+<input checked="" id="autoSessionCaptureEnabled" type="checkbox"/>
+<span><strong>Automatisk capture</strong><small>Full capture första gången och därefter delta när ett nytt stabilt svar observeras. Fungerar utan aktiv mission.</small></span>
+</label>
+<dl class="status-grid compact-grid"><div><dt>Capture</dt><dd id="sessionCaptureStatus">—</dd></div><div><dt>Memory</dt><dd id="sessionMemoryStatus">—</dd></div></dl>
+<div class="row"><button class="button secondary" id="captureSessionButton" type="button">Capture / delta</button><button class="button secondary" id="fullCaptureSessionButton" type="button">Full refresh</button><button class="button secondary" id="exportRawSessionContextButton" type="button">Export Raw Session Context</button><button class="button danger" id="purgeSessionContextButton" type="button">Rensa lokalt sessionskontext</button></div>
+</section><section aria-labelledby="dataHeading" class="card">
+<div class="card-heading">
+<div>
+<h2 id="dataHeading">Data och recovery</h2>
+<p>Export/import inkluderar mandat, continuity och konfiguration.</p>
+</div>
+</div>
+<label class="check">
+<input id="fullAuditLoggingEnabled" type="checkbox"/>
+<span><strong>Full audit till C:\temp</strong><small>Avstängd som standard. Kräver att operatören väljer den redan existerande mappen C:\temp. Mappen skapas aldrig av tillägget; loggning är redigerad, roterad och fail-soft.</small></span>
+</label>
+<div class="row"><button class="button secondary" id="selectFullAuditDirectoryButton" type="button">Välj C:\temp</button><button class="button secondary" id="flushFullAuditButton" type="button">Skriv audit nu</button><span class="badge neutral" id="fullAuditSinkStatus">AVSTÄNGD</span></div>
+<div class="controls">
+<button class="button ghost" id="exportButton" type="button">Exportera</button>
+<label class="button ghost file-button">Importera<input accept=".json,application/json" id="importInput" type="file"/></label>
+<button class="button ghost" disabled="" id="rollbackImportedStateButton" type="button">Ångra senaste import</button>
+<button class="button danger ghost-danger" id="resetWindowButton" type="button">Återställ fönsterkontext</button>
+</div>
+</section></section></div><aside aria-label="Körningsåtgärder" class="action-dock"><div class="action-dock-status"><span>Aktiv kontroll</span><strong id="actionDockState">Ingen aktiv körning</strong></div><div class="autostart-control"><label for="autostartPresetSelect">Autostart</label><select id="autostartPresetSelect" aria-label="Autostartpreset"></select><button class="button primary" id="autostartButton" type="button">Autostart</button></div><div class="controls action-dock-controls">
+<button class="button secondary" id="startWaitingButton" type="button">Starta valt uppdrag</button>
+<button class="button secondary" disabled="" id="pauseButton" type="button">Pausa addon</button>
+<button class="button secondary" disabled="" id="resumeButton" type="button">Återuppta</button>
+<button class="button danger" disabled="" id="stopButton" type="button">Stoppa addon</button>
+</div></aside><footer>
+<p>Local-first. Ingen privat ChatGPT-kanal, ingen credentialhantering och ingen dold cross-tab-automation.</p>
+</footer></main>
+<script src="sidepanel.js" type="module"></script>
+</body>
+</html>

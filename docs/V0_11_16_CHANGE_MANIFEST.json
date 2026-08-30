@@ -1,0 +1,51 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.16",
+  "preimage": {
+    "version": "0.11.15",
+    "zipSha256": "a98d0b876afa4e24c551b3b8ad68e5d6d3fd874e927a56e00b558500c264c03a"
+  },
+  "changes": [
+    {
+      "path": "lib/response-settle-liveness.mjs",
+      "kind": "modified",
+      "reason": "due/overdue authoritative response owner-drain priority helper and v0.11.16 durable alarm namespace"
+    },
+    {
+      "path": "background.js",
+      "kind": "modified",
+      "reason": "post-effect response-settle priority drain before autonomous early returns plus bounded authoritative terminal failure paths"
+    },
+    {
+      "path": "lib/core-surface-review.mjs",
+      "kind": "modified",
+      "reason": "finding-supported config patches and explicit NO_CHANGE dominance for idempotent no-op reviews"
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "kind": "modified",
+      "reason": "v0.11.16 current-only config/runtime schemas and storage namespace"
+    },
+    {
+      "path": "content.js",
+      "kind": "modified",
+      "reason": "content-script release identity"
+    },
+    {
+      "path": "manifest.json",
+      "kind": "modified",
+      "reason": "release identity"
+    },
+    {
+      "path": "lib/destructiveness.mjs",
+      "kind": "modified",
+      "reason": "classifier release label only; v0.11.14 lexical USER_PAUSE semantics preserved"
+    },
+    {
+      "path": "README.md",
+      "kind": "modified",
+      "reason": "current release documentation"
+    }
+  ],
+  "claimBoundary": "Source/package candidate only until clean Desktop Chrome owner/runtime acceptance."
+}

@@ -1,0 +1,67 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.12",
+  "baseVersion": "0.11.11",
+  "scope": "BROWSER",
+  "changes": [
+    {
+      "path": "lib/protocol-fast-path.mjs",
+      "type": "modified",
+      "reason": "Add explicit OPERATOR_ACTION_REQUIRED human-boundary eligibility and defensive fast-path support."
+    },
+    {
+      "path": "background.js",
+      "type": "modified",
+      "reason": "Latch valid operator-action responses immediately after parsing, hard-stop prepared dispatch, clear pending autonomous work, and preserve processed-response identity across resume."
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "type": "modified",
+      "reason": "Bump current version and rotate current-only storage namespace to v112."
+    },
+    {
+      "path": "content.js",
+      "type": "modified",
+      "reason": "Bump content bridge version."
+    },
+    {
+      "path": "manifest.json",
+      "type": "modified",
+      "reason": "Bump extension version."
+    },
+    {
+      "path": "README.md",
+      "type": "modified",
+      "reason": "Document operator-action dominance and release documentation."
+    },
+    {
+      "path": "docs/V0_11_12_ARCHITECTURE.md",
+      "type": "added",
+      "reason": "Document the dominant operator-action latch and resume invariant."
+    },
+    {
+      "path": "docs/VERIFICATION_V0_11_12.md",
+      "type": "added",
+      "reason": "Define local source/package verification and claim boundary."
+    },
+    {
+      "path": "docs/DESKTOP_CHROME_ACCEPTANCE_V0_11_12.md",
+      "type": "added",
+      "reason": "Define Desktop Chrome live acceptance for operator-action dominance."
+    },
+    {
+      "path": "docs/CHANGELOG_V0_11_12.md",
+      "type": "added",
+      "reason": "Record release changes."
+    }
+  ],
+  "preserved": [
+    "v0.11.11 typed one-shot diagnostics.localState",
+    "v0.11.10 cross-boundary local-rearm bridge",
+    "v0.11.9 side-band semantic identity",
+    "v0.11.8 session-init baseline correction generation fence",
+    "v0.11.7 typed Nano JSON completeness and one format repair",
+    "v0.11.6 schema-derived output hard bound and 6000 soft threshold",
+    "v0.11.5 actor/capability topology and Nano-failure diagnostic suppression"
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.4",
+  "baseVersion": "0.11.3",
+  "changes": [
+    {
+      "surface": "lib/operator-action.mjs",
+      "change": "Add EIC_AI_SESSION to the EIC-AA/5 next-actor vocabulary."
+    },
+    {
+      "surface": "lib/prompt-contract.mjs",
+      "change": "Accept and emit EIC_AI_SESSION in exact EIC-AA/5 response contracts."
+    },
+    {
+      "surface": "content.js",
+      "change": "Accept EIC_AI_SESSION in terminal trailer detection and report content version 0.11.4."
+    },
+    {
+      "surface": "lib/execution-routing.mjs",
+      "change": "Add universal actor/capability topology, executor-bound micro-actions, WAIT_EXTERNAL_EVENT, actor-first action filtering and fail-closed compatibility routing."
+    },
+    {
+      "surface": "lib/nano-pipeline.mjs",
+      "change": "Supply Nano with capabilityTopology and require executor-capability classification before micro-action selection."
+    },
+    {
+      "surface": "lib/core-profiles.mjs",
+      "change": "Teach every built-in Nano/target profile the universal actor boundary; bump built-in mandate versions."
+    },
+    {
+      "surface": "background.js",
+      "change": "Prevent true external dependencies from creating chat-control; fail them closed to PROGRAM_BLOCKED with explicit external capability status."
+    },
+    {
+      "surface": "lib/contracts.mjs",
+      "change": "Bump app/content version and default standard mandate versions."
+    },
+    {
+      "surface": "sidepanel.js",
+      "change": "Use actor-aware built-in mandate versions as UI fallbacks."
+    },
+    {
+      "surface": "README.md",
+      "change": "Document v0.11.4 actor/capability behavior and external-system boundary."
+    }
+  ]
+}

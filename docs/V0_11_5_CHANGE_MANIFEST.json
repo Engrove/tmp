@@ -1,0 +1,27 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.5",
+  "baseVersion": "0.11.4",
+  "changes": [
+    {
+      "surface": "background.js",
+      "change": "Capture bounded terminal Nano root diagnostic, emit it once, persist one-shot diagnostic receipt and block repeated identical failure wakes."
+    },
+    {
+      "surface": "lib/execution-routing.mjs",
+      "change": "Add pure bounded Nano diagnostic construction, diagnostic-key input and one-shot emission gate helpers."
+    },
+    {
+      "surface": "lib/prompt-contract.mjs",
+      "change": "Carry optional bounded diagnostics.nanoFailure in the canonical EIC-AA/5 JSON envelope."
+    },
+    {
+      "surface": "manifest.json/content.js/lib/contracts.mjs",
+      "change": "Bump application/content version to 0.11.5."
+    },
+    {
+      "surface": "README.md/docs",
+      "change": "Document terminal Nano failure diagnostic and no-repeat wake semantics."
+    }
+  ]
+}

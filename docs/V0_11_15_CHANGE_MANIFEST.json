@@ -1,0 +1,46 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.15",
+  "preimage": {
+    "version": "0.11.14",
+    "zipSha256": "f1f45936241015a0554756dc19d10420bb942aa22967db1c89c14ca516297724"
+  },
+  "changes": [
+    {
+      "path": "lib/response-settle-liveness.mjs",
+      "kind": "added",
+      "reason": "durable response-settle owner/liveness helpers"
+    },
+    {
+      "path": "background.js",
+      "kind": "modified",
+      "reason": "durable MV3 response wake, foreground normalization, bounded failure, side-band ACK synchronization"
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "kind": "modified",
+      "reason": "v0.11.15 current-only schemas/storage namespace"
+    },
+    {
+      "path": "content.js",
+      "kind": "modified",
+      "reason": "content-script release identity"
+    },
+    {
+      "path": "manifest.json",
+      "kind": "modified",
+      "reason": "release identity"
+    },
+    {
+      "path": "lib/destructiveness.mjs",
+      "kind": "modified",
+      "reason": "classifier release label only; v0.11.14 semantics preserved"
+    },
+    {
+      "path": "README.md",
+      "kind": "modified",
+      "reason": "current release documentation"
+    }
+  ],
+  "claimBoundary": "Source/package candidate only until Desktop Chrome owner/runtime acceptance."
+}

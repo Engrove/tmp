@@ -1,0 +1,623 @@
+{
+  "schema": "eic.autonom.state-registry-audit.v1",
+  "version": "0.11.22",
+  "generatedFrom": "source-enum-scan + v0.11.22 current-only release identity",
+  "groups": {
+    "task-integrity.mjs:DECISION_OWNERS": {
+      "file": "lib/task-integrity.mjs",
+      "enum": "DECISION_OWNERS",
+      "values": [
+        "NANO_HOST",
+        "LOCAL_PROTOCOL",
+        "LOCAL_DETERMINISTIC_RECOVERY"
+      ],
+      "count": 3
+    },
+    "chatgpt-state-classifier.mjs:CHATGPT_RESPONSE_STATES": {
+      "file": "lib/chatgpt-state-classifier.mjs",
+      "enum": "CHATGPT_RESPONSE_STATES",
+      "values": [
+        "GENERATING_FOREGROUND",
+        "WAITING_BACKGROUND",
+        "COMPLETE_STABLE",
+        "COMPLETE_DYNAMIC_CANDIDATE",
+        "COMPLETE_PROTOCOL_OVERRIDE",
+        "EXPLICIT_PAUSE",
+        "ERROR",
+        "CANCELLED",
+        "AUTH_REQUIRED",
+        "UNKNOWN_RECONCILE"
+      ],
+      "count": 10
+    },
+    "operator-action.mjs:EIC_AUTONOMY_STATES": {
+      "file": "lib/operator-action.mjs",
+      "enum": "EIC_AUTONOMY_STATES",
+      "values": [
+        "CONTINUE",
+        "OPERATOR_ACTION_REQUIRED",
+        "USER_PAUSE",
+        "DONE"
+      ],
+      "count": 4
+    },
+    "operator-action.mjs:PROGRAM_STATES": {
+      "file": "lib/operator-action.mjs",
+      "enum": "PROGRAM_STATES",
+      "values": [
+        "RUNNING",
+        "AWAITING_OPERATOR_ACTION",
+        "AWAITING_OPERATOR_DECISION",
+        "PROGRAM_BLOCKED",
+        "PROGRAM_DONE"
+      ],
+      "count": 5
+    },
+    "operator-action.mjs:OPERATOR_ACTION_STATUS": {
+      "file": "lib/operator-action.mjs",
+      "enum": "OPERATOR_ACTION_STATUS",
+      "values": [
+        "PENDING",
+        "RECEIPT_ACCEPTED",
+        "COMPLETED",
+        "EXPIRED",
+        "REJECTED"
+      ],
+      "count": 5
+    },
+    "execution-routing.mjs:EXECUTION_DISPOSITIONS": {
+      "file": "lib/execution-routing.mjs",
+      "enum": "EXECUTION_DISPOSITIONS",
+      "values": [
+        "LOCAL_EXECUTE",
+        "TARGET_DISPATCH",
+        "CHAT_CONTROL_CONTINUATION",
+        "EXTERNAL_OWNER_EXECUTE",
+        "WAIT_EXTERNAL_EVENT",
+        "WAIT_OWNER_EVENT",
+        "TERMINAL"
+      ],
+      "count": 7
+    },
+    "nano-host-admission.mjs:NANO_HOST_STATUS": {
+      "file": "lib/nano-host-admission.mjs",
+      "enum": "NANO_HOST_STATUS",
+      "values": [
+        "unknown",
+        "checking",
+        "ready_to_create",
+        "downloadable",
+        "preparing_assets",
+        "downloading",
+        "loading",
+        "verifying",
+        "available",
+        "unavailable",
+        "error",
+        "timeout",
+        "stalled",
+        "external_model_asset_blocker",
+        "aborted"
+      ],
+      "count": 15
+    },
+    "tab-attachment.mjs:TAB_ATTACHMENT_STATES": {
+      "file": "lib/tab-attachment.mjs",
+      "enum": "TAB_ATTACHMENT_STATES",
+      "values": [
+        "ATTACHED",
+        "DETACHED"
+      ],
+      "count": 2
+    },
+    "nano-pipeline.mjs:NANO_REQUEST_STATUS": {
+      "file": "lib/nano-pipeline.mjs",
+      "enum": "NANO_REQUEST_STATUS",
+      "values": [
+        "PENDING",
+        "DETERMINISTIC_PENDING",
+        "RUNNING",
+        "COMPLETED",
+        "FAILED"
+      ],
+      "count": 5
+    },
+    "nano-pipeline.mjs:NANO_REQUEST_MODE": {
+      "file": "lib/nano-pipeline.mjs",
+      "enum": "NANO_REQUEST_MODE",
+      "values": [
+        "CONTINUATION_ANALYSIS",
+        "TAKEOVER_BOOTSTRAP",
+        "OPERATOR_RESUME"
+      ],
+      "count": 3
+    },
+    "nano-pipeline.mjs:NANO_ANALYSIS_MODES": {
+      "file": "lib/nano-pipeline.mjs",
+      "enum": "NANO_ANALYSIS_MODES",
+      "values": [
+        "TAKEOVER_BOOTSTRAP",
+        "CONTINUATION_ANALYSIS",
+        "OPERATOR_RESUME"
+      ],
+      "count": 3
+    },
+    "nano-pipeline.mjs:NANO_CLAIM_LEASE_STATE": {
+      "file": "lib/nano-pipeline.mjs",
+      "enum": "NANO_CLAIM_LEASE_STATE",
+      "values": [
+        "ACTIVE",
+        "EXPIRED",
+        "INVALID"
+      ],
+      "count": 3
+    },
+    "mjolnar.mjs:MJOLNAR_STATES": {
+      "file": "lib/mjolnar.mjs",
+      "enum": "MJOLNAR_STATES",
+      "values": [
+        "IDLE",
+        "CANDIDATE_DETECTED",
+        "REQUEST_BUILT",
+        "ADJUDICATING",
+        "READ_REQUIRED",
+        "DELEGATED_PENDING_DISPATCH",
+        "DISPATCHING",
+        "READBACK_PENDING",
+        "VERIFIED_EFFECT",
+        "HUMAN_REQUIRED",
+        "REJECTED",
+        "INCONCLUSIVE",
+        "ERROR_PAUSED"
+      ],
+      "count": 13
+    },
+    "mjolnar.mjs:MJOLNAR_ROLLOUT_MODES": {
+      "file": "lib/mjolnar.mjs",
+      "enum": "MJOLNAR_ROLLOUT_MODES",
+      "values": [
+        "SHADOW",
+        "D0_LIVE",
+        "D1_LIVE",
+        "D2_LIVE"
+      ],
+      "count": 4
+    },
+    "state-machine.mjs:STATES": {
+      "file": "lib/state-machine.mjs",
+      "enum": "STATES",
+      "values": [
+        "IDLE",
+        "RUNNING",
+        "PREPARING",
+        "WAITING_FOR_RESPONSE",
+        "WAITING_FOREGROUND",
+        "WAITING_BACKGROUND",
+        "ASSESSING",
+        "CONTINUING",
+        "RECOVERING",
+        "SOFT_PAUSED",
+        "PROGRAM_BLOCKED",
+        "PROGRAM_DONE",
+        "STOPPED",
+        "ERROR_RETRYABLE",
+        "ERROR_TERMINAL",
+        "MJOLNAR_ADJUDICATING",
+        "MJOLNAR_DISPATCH",
+        "MJOLNAR_READBACK",
+        "AWAITING_OPERATOR_ACTION",
+        "AWAITING_OPERATOR_DECISION"
+      ],
+      "count": 20
+    },
+    "state-machine.mjs:PAUSE_ORIGINS": {
+      "file": "lib/state-machine.mjs",
+      "enum": "PAUSE_ORIGINS",
+      "values": [
+        "NONE",
+        "OPERATOR_PAUSE",
+        "DIRECT_OPERATOR_STOP",
+        "TARGET_REQUESTED_PAUSE",
+        "USER_PAUSE",
+        "MODEL_UNCERTAINTY",
+        "TRANSIENT_TRANSPORT",
+        "LIFECYCLE_INTERRUPTION",
+        "MAXIMUM_TURN_POLICY",
+        "EVIDENCE_BOUNDARY",
+        "AUTHORIZATION_BOUNDARY",
+        "AUTHENTICATION_OR_CAPTCHA",
+        "DESTRUCTIVE_CONFIRMATION_REQUIRED",
+        "PRIVACY_OR_SECRET_BOUNDARY",
+        "POLICY_OR_SAFETY_BOUNDARY",
+        "TAB_CLOSED",
+        "TAB_MOVED",
+        "TAB_NAVIGATED_AWAY",
+        "WINDOW_CLOSED",
+        "NANO_HOST_REQUIRED",
+        "NANO_GROUNDING_REJECTED",
+        "OBSERVATION_SUPERSEDED",
+        "PROTOCOL_MISSING",
+        "PROTOCOL_AMBIGUOUS",
+        "NO_PROGRESS",
+        "NO_PROGRESS_BUDGET_EXHAUSTED",
+        "GENUINE_DEAD_END",
+        "INTERNAL_INVARIANT",
+        "OPERATOR_PROXY_CANDIDATE",
+        "BACKGROUND_CANCELLED",
+        "BACKGROUND_ERROR",
+        "TARGET_FROZEN_OR_DISCARDED",
+        "PROMPT_REPETITION_GUARD",
+        "STORAGE_PERSISTENCE_FAILURE"
+      ],
+      "count": 34
+    },
+    "browser-risk-policy.mjs:BROWSER_APPROVAL_STATES": {
+      "file": "lib/browser-risk-policy.mjs",
+      "enum": "BROWSER_APPROVAL_STATES",
+      "values": [
+        "NOT_REQUIRED",
+        "PENDING",
+        "APPROVED",
+        "DENIED",
+        "CONSUMED",
+        "EXPIRED"
+      ],
+      "count": 6
+    },
+    "mission-contract.mjs:MISSION_MODE_IDS": {
+      "file": "lib/mission-contract.mjs",
+      "enum": "MISSION_MODE_IDS",
+      "values": [
+        "CHATGPT_CONTINUATION",
+        "CHATGPT_NEW_SESSION",
+        "APP_AUDIT_LONG",
+        "ARCHAEOLOGY_LONG",
+        "AI_WEB_RESEARCH"
+      ],
+      "count": 5
+    },
+    "session-readiness.mjs:SESSION_INIT_STATES": {
+      "file": "lib/session-readiness.mjs",
+      "enum": "SESSION_INIT_STATES",
+      "values": [
+        "PENDING_TAB_READY",
+        "PENDING_COMPOSER_STABLE",
+        "PENDING_PROMPT_ACK",
+        "PENDING_FIRST_RESPONSE",
+        "INITIALIZED",
+        "FAILED_TIMEOUT"
+      ],
+      "count": 6
+    },
+    "session-context-init.mjs:SESSION_CONTEXT_BASELINE_COMMIT_STATUS": {
+      "file": "lib/session-context-init.mjs",
+      "enum": "SESSION_CONTEXT_BASELINE_COMMIT_STATUS",
+      "values": [
+        "DECISION_READY",
+        "COMMITTING",
+        "COMMITTED",
+        "COMMIT_FAILED"
+      ],
+      "count": 4
+    },
+    "session-context-init.mjs:SESSION_CONTEXT_READY_FINALIZATION_STATUS": {
+      "file": "lib/session-context-init.mjs",
+      "enum": "SESSION_CONTEXT_READY_FINALIZATION_STATUS",
+      "values": [
+        "PENDING",
+        "COMMITTING",
+        "READY",
+        "FAILED"
+      ],
+      "count": 4
+    },
+    "session-context-init.mjs:SESSION_CONTEXT_INIT_STATE": {
+      "file": "lib/session-context-init.mjs",
+      "enum": "SESSION_CONTEXT_INIT_STATE",
+      "values": [
+        "WAITING_CHAT_READY",
+        "CATCH_ARMED",
+        "CATCH_CAPTURED",
+        "BASELINE_REQUEST_DISPATCHED",
+        "WAITING_BASELINE_RESPONSE",
+        "NANO_ANALYZING",
+        "READY",
+        "FAILED"
+      ],
+      "count": 8
+    },
+    "browser-permission.mjs:WEB_PERMISSION_STATES": {
+      "file": "lib/browser-permission.mjs",
+      "enum": "WEB_PERMISSION_STATES",
+      "values": [
+        "NOT_APPLICABLE",
+        "UNAVAILABLE_STANDARD_PROFILE",
+        "NOT_REQUESTED",
+        "REQUESTING",
+        "GRANTED",
+        "DENIED",
+        "REVOKED",
+        "ERROR"
+      ],
+      "count": 8
+    },
+    "main-task-guard.mjs:MAIN_TASK_TRACK_STATUS": {
+      "file": "lib/main-task-guard.mjs",
+      "enum": "MAIN_TASK_TRACK_STATUS",
+      "values": [
+        "BASELINE_REQUESTED",
+        "ON_TRACK",
+        "JUSTIFIED_DETOUR",
+        "DRIFT",
+        "INSUFFICIENT_CONTEXT"
+      ],
+      "count": 5
+    },
+    "delivery-kernel.mjs:COMPLETION_STATES": {
+      "file": "lib/delivery-kernel.mjs",
+      "enum": "COMPLETION_STATES",
+      "values": [
+        "UNIT_DONE",
+        "MILESTONE_CONTINUE",
+        "PROGRAM_BLOCKED",
+        "PROGRAM_DONE"
+      ],
+      "count": 4
+    },
+    "delivery-kernel.mjs:DELIVERY_REGULATOR_DISPOSITIONS": {
+      "file": "lib/delivery-kernel.mjs",
+      "enum": "DELIVERY_REGULATOR_DISPOSITIONS",
+      "values": [
+        "ALLOW",
+        "WAIT_FOR_NEW_EVIDENCE"
+      ],
+      "count": 2
+    },
+    "effect-journal.mjs:EFFECT_JOURNAL_STATUS": {
+      "file": "lib/effect-journal.mjs",
+      "enum": "EFFECT_JOURNAL_STATUS",
+      "values": [
+        "PREPARED",
+        "RETRY_PREPARED",
+        "SUBMITTING",
+        "SUBMITTED_UNCONFIRMED",
+        "ACKED",
+        "UNCERTAIN_EXHAUSTED",
+        "CANCELLED_SUPERSEDED",
+        "CANCELLED_OPERATOR_ACTION",
+        "PAYLOAD_INTEGRITY_FAILED",
+        "SESSION_INIT_PROMPT_INTEGRITY_FAILED"
+      ],
+      "count": 10
+    },
+    "decision-grounding.mjs:COMPLETION_DISPOSITIONS": {
+      "file": "lib/decision-grounding.mjs",
+      "enum": "COMPLETION_DISPOSITIONS",
+      "values": [
+        "TERMINATE_STABLE_GOAL",
+        "CONTINUE_NEXT_WORK_UNIT",
+        "PAUSE_NEXT_WORK_UNIT_REQUIRED"
+      ],
+      "count": 3
+    },
+    "control-plane-phase.mjs:CONTROL_PLANE_PHASE": {
+      "file": "lib/control-plane-phase.mjs",
+      "enum": "CONTROL_PLANE_PHASE",
+      "values": [
+        "TERMINAL_OWNER",
+        "HUMAN_OWNER",
+        "SAFETY_OWNER",
+        "EFFECT_OWNER",
+        "RESPONSE_OWNER",
+        "SESSION_INIT_OWNER",
+        "NANO_OWNER",
+        "RECOVERY_OWNER",
+        "DELIVERY_OWNER"
+      ],
+      "count": 9
+    },
+    "response-observation-cycle.mjs:RESPONSE_OBSERVATION_CYCLE_STATUS": {
+      "file": "lib/response-observation-cycle.mjs",
+      "enum": "RESPONSE_OBSERVATION_CYCLE_STATUS",
+      "values": [
+        "IDLE",
+        "OBSERVING",
+        "SETTLED",
+        "CONSUMED",
+        "SUPERSEDED",
+        "FAILED"
+      ],
+      "count": 6
+    },
+    "response-observation-cycle.mjs:RESPONSE_OBSERVATION_OWNER_KIND": {
+      "file": "lib/response-observation-cycle.mjs",
+      "enum": "RESPONSE_OBSERVATION_OWNER_KIND",
+      "values": [
+        "SESSION_CATCH",
+        "EFFECT_RESPONSE",
+        "UNBOUND"
+      ],
+      "count": 3
+    },
+    "response-observation-cycle.mjs:RESPONSE_CANDIDATE_DISPOSITION": {
+      "file": "lib/response-observation-cycle.mjs",
+      "enum": "RESPONSE_CANDIDATE_DISPOSITION",
+      "values": [
+        "NONE",
+        "ACTIVE",
+        "EFFECT_NOT_ACKED",
+        "SOURCE_OBSERVATION",
+        "ALREADY_PROCESSED",
+        "OWNER_MISMATCH",
+        "PAGE_MISMATCH"
+      ],
+      "count": 7
+    },
+    "contracts.mjs:TARGET_MODES": {
+      "file": "lib/contracts.mjs",
+      "enum": "TARGET_MODES",
+      "values": [
+        "FOLLOW",
+        "LOCKED"
+      ],
+      "count": 2
+    },
+    "contracts.mjs:RUN_MODES": {
+      "file": "lib/contracts.mjs",
+      "enum": "RUN_MODES",
+      "values": [
+        "WAITING_CONTINUE",
+        "NEW_SESSION",
+        "APP_AUDIT_LONG",
+        "ARCHAEOLOGY_LONG"
+      ],
+      "count": 4
+    },
+    "core-surface-review.mjs:CORE_SURFACE_REVIEW_STATUS": {
+      "file": "lib/core-surface-review.mjs",
+      "enum": "CORE_SURFACE_REVIEW_STATUS",
+      "values": [
+        "IDLE",
+        "PENDING_ANALYSIS",
+        "ANALYZING",
+        "PROPOSAL_READY",
+        "APPLIED",
+        "DECLINED",
+        "FAILED"
+      ],
+      "count": 7
+    },
+    "browser-controller-loop.mjs:BROWSER_LOOP_STATES": {
+      "file": "lib/browser-controller-loop.mjs",
+      "enum": "BROWSER_LOOP_STATES",
+      "values": [
+        "IDLE",
+        "WAITING_CONTROLLER",
+        "ACTION_PENDING",
+        "ACTION_COMPLETE",
+        "OBSERVATION_PENDING_DELIVERY",
+        "WAITING_CONTROLLER_ACK",
+        "PAUSED",
+        "ERROR"
+      ],
+      "count": 8
+    },
+    "evidence-contract.mjs:EVIDENCE_OBSERVATION_STATES": {
+      "file": "lib/evidence-contract.mjs",
+      "enum": "EVIDENCE_OBSERVATION_STATES",
+      "values": [
+        "INACTIVE",
+        "STARTING",
+        "ACTIVE",
+        "STOPPING",
+        "STALE",
+        "ERROR"
+      ],
+      "count": 6
+    },
+    "browser-recovery.mjs:BROWSER_RECOVERY_STATES": {
+      "file": "lib/browser-recovery.mjs",
+      "enum": "BROWSER_RECOVERY_STATES",
+      "values": [
+        "IDLE",
+        "REQUIRED",
+        "REBIND_REQUIRED",
+        "RECOVERING",
+        "READY",
+        "PAUSED",
+        "FAILED"
+      ],
+      "count": 7
+    },
+    "mission-state-machine.mjs:MISSION_STATES": {
+      "file": "lib/mission-state-machine.mjs",
+      "enum": "MISSION_STATES",
+      "values": [
+        "DRAFT",
+        "READY",
+        "RUNNING",
+        "WAITING_TARGET",
+        "WAITING_EVIDENCE",
+        "RECOVERING",
+        "PAUSED",
+        "BLOCKED",
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED"
+      ],
+      "count": 11
+    },
+    "surface-pair.mjs:SURFACE_LIFECYCLE_STATES": {
+      "file": "lib/surface-pair.mjs",
+      "enum": "SURFACE_LIFECYCLE_STATES",
+      "values": [
+        "DETACHED",
+        "READY",
+        "LOADING",
+        "NAVIGATING",
+        "RECONNECTING",
+        "MOVING",
+        "CLOSED",
+        "UNSUPPORTED"
+      ],
+      "count": 8
+    },
+    "surface-pair.mjs:SURFACE_PAIR_STATES": {
+      "file": "lib/surface-pair.mjs",
+      "enum": "SURFACE_PAIR_STATES",
+      "values": [
+        "EMPTY",
+        "CONTROLLER_ONLY",
+        "TARGET_ONLY",
+        "READY",
+        "DEGRADED"
+      ],
+      "count": 5
+    },
+    "ui-contract.mjs:UI_RESPONSE_KINDS": {
+      "file": "lib/ui-contract.mjs",
+      "enum": "UI_RESPONSE_KINDS",
+      "values": [
+        "SNAPSHOT",
+        "ACK"
+      ],
+      "count": 2
+    },
+    "cdp-session.mjs:CDP_SESSION_STATES": {
+      "file": "lib/cdp-session.mjs",
+      "enum": "CDP_SESSION_STATES",
+      "values": [
+        "DETACHED",
+        "ATTACHING",
+        "ATTACHED",
+        "DETACHING",
+        "STALE_REQUIRES_REATTACH",
+        "ERROR",
+        "UNAVAILABLE_STANDARD_PROFILE"
+      ],
+      "count": 7
+    },
+    "session-memory.mjs:MEMORY_ITEM_STATES": {
+      "file": "lib/session-memory.mjs",
+      "enum": "MEMORY_ITEM_STATES",
+      "values": [
+        "active",
+        "superseded",
+        "historical"
+      ],
+      "count": 3
+    },
+    "session-memory.mjs:SESSION_MEMORY_STATES": {
+      "file": "lib/session-memory.mjs",
+      "enum": "SESSION_MEMORY_STATES",
+      "values": [
+        "FRESH",
+        "STALE",
+        "RESET_REQUIRED"
+      ],
+      "count": 3
+    }
+  },
+  "groupCount": 45,
+  "valueCount": 299
+}

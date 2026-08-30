@@ -1,0 +1,44 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.10.13",
+  "baseline": {
+    "version": "0.10.12",
+    "source_sha256": "0cade4be5fbd5f876be31be665b555f8850f8c0cbf7735af5c1fed5edc658535"
+  },
+  "added": [
+    "docs/V0_10_13_ARCHITECTURE.md",
+    "docs/V0_10_13_CHANGE_MANIFEST.json",
+    "docs/V0_10_13_INCIDENT_ANALYSIS.md",
+    "docs/CHANGELOG_V0_10_13.md",
+    "docs/VERIFICATION_V0_10_13.md",
+    "docs/DESKTOP_CHROME_ACCEPTANCE_V0_10_13.md",
+    "lib/nano-analysis-recovery.mjs",
+    "tests/v01013-nano-storage-recovery.test.mjs"
+  ],
+  "modified": [
+    "EIC.md",
+    "README.md",
+    "background.js",
+    "content.js",
+    "lib/contracts.mjs",
+    "lib/session-context-init.mjs",
+    "manifest.json",
+    "package.json",
+    "scripts/package.mjs",
+    "scripts/validate.mjs",
+    "sidepanel.js",
+    "tests/helpers/fake-chrome.mjs",
+    "tests/v0102-ui-hotfix.test.mjs",
+    "tests/v075-regressions.test.mjs",
+    "tests/v090-wp00-contract.test.mjs",
+    "tests/v090-wp01-ui-boundary.test.mjs",
+    "tests/v090-wp02-mission-domain.test.mjs",
+    "tests/v090-wp04-mission-mode-migration.test.mjs",
+    "tests/v090-wp14-release.test.mjs",
+    "tests/v0911-language-attestation.test.mjs",
+    "tests/v093-forward-delivery-context.test.mjs",
+    "tests/v096-nano-host-admission.test.mjs"
+  ],
+  "removed": [],
+  "claim_boundary": "Source/package candidate. The executable fake-Chrome test covers the v0.10.12 false-wait failure and injected continuity-readback mismatch. Installed Desktop Chrome storage, sidepanel and service-worker behavior still require owner-visible acceptance."
+}

@@ -1,0 +1,121 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.19",
+  "preimage": {
+    "version": "0.11.18",
+    "zipSha256": "a4acca8529994b1950d8fef4aa4fab404580a8d6b9c0fa1706b368c5ecef1e65"
+  },
+  "changes": [
+    {
+      "path": "content.js",
+      "kind": "modified",
+      "reason": "canonical top-level rendered-response extraction, structured payload preservation, shared Capture extraction and placeholder exclusion"
+    },
+    {
+      "path": "background.js",
+      "kind": "modified",
+      "reason": "fresh mission baseline, removal of stale-baseline ordinary-Nano promotion, extraction completeness propagation and passive external wait"
+    },
+    {
+      "path": "lib/scoped-continuity.mjs",
+      "kind": "modified",
+      "reason": "conversation-change rebase clears conversation-owned task state"
+    },
+    {
+      "path": "lib/continuity.mjs",
+      "kind": "modified",
+      "reason": "continuity version 5 current-only identity"
+    },
+    {
+      "path": "lib/session-memory.mjs",
+      "kind": "modified",
+      "reason": "exact conversation/capture provenance and RESET_REQUIRED freshness preservation"
+    },
+    {
+      "path": "lib/session-context-init.mjs",
+      "kind": "modified",
+      "reason": "manual retry rotates needKey and clears exhausted correction fence"
+    },
+    {
+      "path": "lib/response-completion-policy.mjs",
+      "kind": "modified",
+      "reason": "known-incomplete canonical extraction is not Nano-eligible"
+    },
+    {
+      "path": "lib/nano-baseline-analysis.mjs",
+      "kind": "modified",
+      "reason": "response recovery complete claim requires upstream extraction completeness"
+    },
+    {
+      "path": "sidepanel.js",
+      "kind": "modified",
+      "reason": "baseline recovery completeness propagation and WAIT_EXTERNAL_EVENT UI tone"
+    },
+    {
+      "path": "lib/prompt-contract.mjs",
+      "kind": "modified",
+      "reason": "last exact EIC-AA trailer with bounded EIC metadata suffix"
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "kind": "modified",
+      "reason": "v0.11.19 config/runtime/export/storage identities"
+    },
+    {
+      "path": "lib/session-db.mjs",
+      "kind": "modified",
+      "reason": "fresh v0.11.19 Session DB and active pointer namespace"
+    },
+    {
+      "path": "lib/response-settle-liveness.mjs",
+      "kind": "modified",
+      "reason": "v0.11.19 alarm namespace"
+    },
+    {
+      "path": "manifest.json",
+      "kind": "modified",
+      "reason": "release identity"
+    },
+    {
+      "path": "lib/destructiveness.mjs",
+      "kind": "modified",
+      "reason": "classifier release label"
+    },
+    {
+      "path": "README.md",
+      "kind": "modified",
+      "reason": "current release architecture and acceptance boundary"
+    },
+    {
+      "path": "docs/CHANGELOG_V0_11_19.md",
+      "kind": "added",
+      "reason": "release delta"
+    },
+    {
+      "path": "docs/V0_11_19_ARCHITECTURE.md",
+      "kind": "added",
+      "reason": "multi-incident root-cause architecture"
+    },
+    {
+      "path": "docs/V0_11_19_CHANGE_MANIFEST.json",
+      "kind": "added",
+      "reason": "release delta and exact preimage"
+    },
+    {
+      "path": "docs/V0_11_19_STATE_REGISTRY.json",
+      "kind": "added",
+      "reason": "current source-owned state registry"
+    },
+    {
+      "path": "docs/VERIFICATION_V0_11_19.md",
+      "kind": "added",
+      "reason": "source/package verification contract"
+    },
+    {
+      "path": "docs/DESKTOP_CHROME_ACCEPTANCE_V0_11_19.md",
+      "kind": "added",
+      "reason": "separate live acceptance contract including investigative wait"
+    }
+  ],
+  "claimBoundary": "Source/package candidate only until exact v0.11.19 Desktop Chrome owner/runtime acceptance."
+}

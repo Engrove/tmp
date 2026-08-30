@@ -1,0 +1,82 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.13",
+  "baseVersion": "0.11.12",
+  "scope": "BROWSER",
+  "changes": [
+    {
+      "path": "lib/state-machine.mjs",
+      "type": "modified",
+      "reason": "Centralize receipt-authorized owner-bound human-wait transition admission; force cannot bypass."
+    },
+    {
+      "path": "background.js",
+      "type": "modified",
+      "reason": "Guard PAUSE, watchdog/reload, prepared effects and stale Nano callbacks; pass exact accepted receipt identities on owner-specific resume."
+    },
+    {
+      "path": "lib/background-wait-controller.mjs",
+      "type": "modified",
+      "reason": "Route refresh/preserve background state updates through transitionRun so owner-bound source states cannot be bypassed by direct state assignment."
+    },
+    {
+      "path": "lib/nano-analysis-recovery.mjs",
+      "type": "modified",
+      "reason": "Make Nano claim ineligible in both owner-bound human waits."
+    },
+    {
+      "path": "sidepanel.js",
+      "type": "modified",
+      "reason": "Disable Pause/Resume control path on owner-bound waits and render structured operator evidence usefully."
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "type": "modified",
+      "reason": "Bump current version and rotate current-only storage namespace to v113."
+    },
+    {
+      "path": "content.js",
+      "type": "modified",
+      "reason": "Bump content bridge version."
+    },
+    {
+      "path": "manifest.json",
+      "type": "modified",
+      "reason": "Bump extension version."
+    },
+    {
+      "path": "README.md",
+      "type": "modified",
+      "reason": "Document current owner-bound transition invariant and release documents."
+    },
+    {
+      "path": "docs/V0_11_13_ARCHITECTURE.md",
+      "type": "added",
+      "reason": "Document central owner-bound state transition semantics."
+    },
+    {
+      "path": "docs/VERIFICATION_V0_11_13.md",
+      "type": "added",
+      "reason": "Define adversarial source/package verification."
+    },
+    {
+      "path": "docs/DESKTOP_CHROME_ACCEPTANCE_V0_11_13.md",
+      "type": "added",
+      "reason": "Define focused live owner-boundary acceptance."
+    },
+    {
+      "path": "docs/CHANGELOG_V0_11_13.md",
+      "type": "added",
+      "reason": "Record release changes."
+    }
+  ],
+  "preserved": [
+    "v0.11.12 immediate OPERATOR_ACTION_REQUIRED latch",
+    "v0.11.11 typed one-shot diagnostics.localState",
+    "v0.11.10 cross-boundary local-rearm bridge",
+    "v0.11.8 session-init baseline correction generation fence",
+    "v0.11.7 typed Nano JSON completeness and one format repair",
+    "v0.11.6 schema-derived output hard bound and 6000 soft threshold",
+    "v0.11.5 actor/capability topology and Nano-failure diagnostic suppression"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.6",
+  "baseVersion": "0.11.5",
+  "changes": [
+    {
+      "surface": "sidepanel.js",
+      "change": "Replace fatal 6,000-character normal decision/repair boundary with a 6,000 advisory threshold plus schema-derived hard ceiling; close DECISION_SCHEMA object surfaces; preserve hard raw-chunk/deadline controls."
+    },
+    {
+      "surface": "lib/nano-output-bounds.mjs",
+      "change": "Add pure closed-schema serialized upper-bound derivation and output-bound classification helpers."
+    },
+    {
+      "surface": "manifest.json/content.js/lib/contracts.mjs",
+      "change": "Bump application/content version to 0.11.6."
+    },
+    {
+      "surface": "README.md/docs",
+      "change": "Document the NANO_OUTPUT_OVERRUN diagnosis, two-tier output policy, verification contract and Desktop Chrome live oracle."
+    }
+  ]
+}

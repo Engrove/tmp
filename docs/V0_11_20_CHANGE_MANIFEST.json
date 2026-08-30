@@ -1,0 +1,86 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.20",
+  "preimage": {
+    "version": "0.11.19",
+    "zipSha256": "58cc344ece4c7303b7f875ee80a15630b53b980f5944e061865e35a14b3bf5cb"
+  },
+  "changes": [
+    {
+      "path": "background.js",
+      "kind": "modified",
+      "reason": "root-runtime persistence/readback for operator receipts and purge; canonical post-transition boundary identity; bounded model USER_PAUSE internalization; post-READY baseline handoff projection"
+    },
+    {
+      "path": "lib/execution-routing.mjs",
+      "kind": "modified",
+      "reason": "registered no-effect USER_PAUSE control-minimization classifier and post-READY baseline target projection"
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "kind": "modified",
+      "reason": "v0.11.20 config/runtime/export/storage identities"
+    },
+    {
+      "path": "lib/session-db.mjs",
+      "kind": "modified",
+      "reason": "v0.11.20 Session DB and pointer namespaces"
+    },
+    {
+      "path": "lib/response-settle-liveness.mjs",
+      "kind": "modified",
+      "reason": "v0.11.20 alarm namespace"
+    },
+    {
+      "path": "lib/destructiveness.mjs",
+      "kind": "modified",
+      "reason": "v0.11.20 classifier identity"
+    },
+    {
+      "path": "content.js",
+      "kind": "modified",
+      "reason": "v0.11.20 content-script identity"
+    },
+    {
+      "path": "manifest.json",
+      "kind": "modified",
+      "reason": "release version 0.11.20"
+    },
+    {
+      "path": "README.md",
+      "kind": "modified",
+      "reason": "v0.11.20 repair and claim-boundary documentation"
+    },
+    {
+      "path": "docs/CHANGELOG_V0_11_20.md",
+      "kind": "added",
+      "reason": "release changes"
+    },
+    {
+      "path": "docs/V0_11_20_ARCHITECTURE.md",
+      "kind": "added",
+      "reason": "incident/root-cause architecture"
+    },
+    {
+      "path": "docs/V0_11_20_CHANGE_MANIFEST.json",
+      "kind": "added",
+      "reason": "preimage/change accounting"
+    },
+    {
+      "path": "docs/V0_11_20_STATE_REGISTRY.json",
+      "kind": "added",
+      "reason": "current release state registry identity"
+    },
+    {
+      "path": "docs/VERIFICATION_V0_11_20.md",
+      "kind": "added",
+      "reason": "source/package verification contract"
+    },
+    {
+      "path": "docs/DESKTOP_CHROME_ACCEPTANCE_V0_11_20.md",
+      "kind": "added",
+      "reason": "live acceptance oracles"
+    }
+  ],
+  "claimBoundary": "Source/package candidate only. No Desktop Chrome installed-byte, runtime or production acceptance claim."
+}

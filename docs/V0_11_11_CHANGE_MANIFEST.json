@@ -1,0 +1,71 @@
+{
+  "schema": "eic.autonom.change-manifest.v1",
+  "version": "0.11.11",
+  "baseVersion": "0.11.10",
+  "scope": "BROWSER",
+  "changes": [
+    {
+      "path": "lib/prompt-contract.mjs",
+      "type": "modified",
+      "reason": "Add bounded typed diagnostics.localState normalization/validation while preserving nanoFailure and rejecting ambiguous mixed diagnostics."
+    },
+    {
+      "path": "lib/execution-routing.mjs",
+      "type": "modified",
+      "reason": "Add local bridge diagnostic builder, stable generation key and one-shot emission gate."
+    },
+    {
+      "path": "background.js",
+      "type": "modified",
+      "reason": "Emit diagnostics.localState on the LOCAL_STATE_UNCHANGED branch, persist one-shot receipt, and suppress same-generation repeat wake."
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "type": "modified",
+      "reason": "Bump current version and rotate current-only storage namespace to v111."
+    },
+    {
+      "path": "content.js",
+      "type": "modified",
+      "reason": "Bump content bridge version."
+    },
+    {
+      "path": "manifest.json",
+      "type": "modified",
+      "reason": "Bump extension version."
+    },
+    {
+      "path": "README.md",
+      "type": "modified",
+      "reason": "Document v0.11.11 diagnostic protocol and release docs."
+    },
+    {
+      "path": "docs/V0_11_11_ARCHITECTURE.md",
+      "type": "added",
+      "reason": "Document the diagnostic interface repair and one-shot/non-rearm invariants."
+    },
+    {
+      "path": "docs/VERIFICATION_V0_11_11.md",
+      "type": "added",
+      "reason": "Define source/package verification and claim boundary."
+    },
+    {
+      "path": "docs/DESKTOP_CHROME_ACCEPTANCE_V0_11_11.md",
+      "type": "added",
+      "reason": "Define live diagnostic and preserved acceptance oracles."
+    },
+    {
+      "path": "docs/CHANGELOG_V0_11_11.md",
+      "type": "added",
+      "reason": "Record release changes."
+    }
+  ],
+  "preserved": [
+    "v0.11.10 cross-boundary local-rearm bridge",
+    "v0.11.9 side-band semantic identity",
+    "v0.11.8 session-init baseline correction generation fence",
+    "v0.11.7 typed Nano JSON completeness and one format repair",
+    "v0.11.6 schema-derived output hard bound and 6000 soft threshold",
+    "v0.11.5 actor/capability topology and Nano-failure diagnostic suppression"
+  ]
+}
