@@ -1,12 +1,23 @@
-# EIC Autonom Agent Greenfield 1.7.9
+# EIC Autonom Agent Greenfield 1.8.0
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.8.0 bygger ut Greenfields prompt med **EIC Learning & Continuity Control**. Varje FULL-prompt bär ett fristående kontrakt som definierar AIK, Self-learn, Kaizen, Operator Learning, Memory och owner-ytor, deras regler och en routingtabell. Kontraktet utgår från att AI:n inte har någon inbyggd EIC-kunskap och att factual owner alltid vinner. Varje prompt, även COMPACT, bär en dynamisk kapsel `control.learningControl`. I kapseln anger Greenfield deterministiskt projektscope, arbetsblock, detekterade keypoints och vilka kontroller som är obligatoriska just nu. AI:n rapporterar utfallet i det nya valfria svarsfältet `learningControl`. En obligatorisk kontroll som inte rapporterades förs över till nästa prompt. Greenfield hämtar eller skriver inget i AIK/Kaizen själv; kontrollerna körs av EIC-sessionen.
 
 Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfield laddar om samma chatt efter 30, 60 och 90 min. Efter 120 min utan färdigt svar gör en köstyrd körning nu ett fullständigt köbyte: chatten överges och köplatsen parkeras med sin ofärdiga kvant (den obesvarade turen räknas inte). Nästa körbara köplats i listordning startar. När den parkerade GFW:n kommer tillbaka får den veta att föregående prompt saknade färdigt svar och att owner-state ska läsas om. Finns ingen annan körbar plats byter samma GFW till en ny chatt som tidigare. Overlayen i ChatGPT-fliken visar nu också GFW-id, köplats, prioritet, interaktion/kvant, en nedräkning till köbytet och nästa omladdning, tur, session, promptprofil, nästa GFW i kön och eventuell spärr.
 
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.8.0
+
+- **Lager A – kontrakt i varje FULL-prompt.** `responseContract.learningControlContract` innehåller baseline (`You have no built-in knowledge of EIC.`), `THE FACTUAL OWNER WINS` och varje yta med *is / usedFor / isNot*. Där finns också AIK discovery och continuity check, Self-learn-klassning, Kaizen-keypoints, Operator Learning, routing, 3M, origin och stående triggers.
+- **Lager B – dynamisk kapsel i varje prompt.** `control.learningControl` innehåller `project.aikScope` (`project:<id>` ur `Projekt: <id> - … - Gf: <GF-id>`), `workBlockId`, keypoints med trigger och obligationer (`REQUIRED`, `FRESH_RESULT_REUSABLE`, `REQUIRED_AT_DECLARED_KEYPOINT` …), plus `carriedOverObligations` och `previousResult`.
+- **Deterministiska keypoints.** De utlöses av sessionsgräns och ny kvant, föregående blockering, stall eller okänd effekt, blockerare i två svar i följd, operatörsinstruktion och kvantens sista interaktion.
+- **Lager C – resultat.** Det valfria svarsfältet `learningControl` normaliseras till en sluten, avgränsad form. Ett felaktigt värde påverkar aldrig svarets status.
+- **Ingen prefetch, inga nya effekter.** Greenfield läser och skriver inte AIK, Kaizen eller Operator Learning.
+- Se [LEARNING_CONTROL_V1_8_0.md](docs/LEARNING_CONTROL_V1_8_0.md).
 
 ## Nytt i 1.7.7
 
@@ -56,10 +67,11 @@ Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad 
 
 v1.7.3:s mixed-language model safety, v1.7.2:s multi-turn-liveness, v1.7.1:s dispatch-reconciliation och v1.7.0:s semantiska modellgolv bevaras.
 
-Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.7.8, se [UPPDATERA_TILL_1_7_9.md](UPPDATERA_TILL_1_7_9.md); från äldre versioner, se även [UPPDATERA_TILL_1_7_8.md](UPPDATERA_TILL_1_7_8.md) och [UPPDATERA_TILL_1_7_7.md](UPPDATERA_TILL_1_7_7.md).
+Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.7.9, se [UPPDATERA_TILL_1_8_0.md](UPPDATERA_TILL_1_8_0.md); från äldre versioner, se även [UPPDATERA_TILL_1_7_9.md](UPPDATERA_TILL_1_7_9.md), [UPPDATERA_TILL_1_7_8.md](UPPDATERA_TILL_1_7_8.md) och [UPPDATERA_TILL_1_7_7.md](UPPDATERA_TILL_1_7_7.md).
 
 | Underlag | Innehåll |
 |---|---|
+| [LEARNING_CONTROL_V1_8_0.md](docs/LEARNING_CONTROL_V1_8_0.md) | EIC Learning & Continuity Control: tre lager, keypoints, obligationer, risker |
 | [RUNTIME_CONTROL_V1_7_7.md](docs/RUNTIME_CONTROL_V1_7_7.md) | AI runtime-control, riskanalys, FULL/COMPACT-promptprofil |
 | [OWNER_STATE_CURRENT_FOCUS_V1_7_6.md](docs/OWNER_STATE_CURRENT_FOCUS_V1_7_6.md) | Owner-state/current_focus restart- och replay-kontrakt |
 | [STORAGE_RETENTION_V1_7_5.md](docs/STORAGE_RETENTION_V1_7_5.md) | Autonom high-water-retention och checkpointkompaktering |
@@ -75,6 +87,7 @@ Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.7.8, 
 
 ```sh
 npm test
+node --test tests/v180-learning-control.test.mjs
 node --test tests/v179-stale-rotation-overlay.test.mjs
 node --test tests/v178-prompt-continuity.test.mjs
 node --test tests/v177-runtime-control.test.mjs tests/v177-runtime-control-e2e.test.mjs
@@ -85,4 +98,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.7.9.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.0.

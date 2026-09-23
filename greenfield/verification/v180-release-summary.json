@@ -1,0 +1,82 @@
+{
+  "schema": "eic.greenfield.v180-release-summary.v1",
+  "version": "1.8.0",
+  "generatedAt": "2026-09-23T12:25:19.940263+00:00",
+  "source": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.7.9.zip",
+    "version": "1.7.9",
+    "sha256": "08b5fe982cdcfabb661937f1b666f9eb9e7cc6b216662755a94274e125d90e1f",
+    "sizeBytes": 768339,
+    "embeddedIntegrity": {
+      "records": 256,
+      "mismatches": 0,
+      "rootDigest": "9313fc8611bb8a7cebcc6bea4173ee56b8557876f97204907d5aa8c31728a2cd"
+    }
+  },
+  "change": {
+    "purpose": "Operator request: extend Greenfield's prompt only with the EIC Learning & Continuity Control (AIK, Self-learn, Kaizen, Operator Learning). No prefetch, no new effect paths; the EIC session executes the checks.",
+    "layerA": "responseContract.learningControlContract (eic.greenfield.learning-contract.v1) in every FULL prompt: no built-in EIC knowledge, THE FACTUAL OWNER WINS, surfaces with is/usedFor/isNot, AIK discovery/continuity, Self-learn closure, 9-row routing, Kaizen keypoints, Operator Learning, Memory, 3M, origin, standing triggers, closure output.",
+    "layerB": "control.learningControl (EIC_LEARNING_CONTEXT, eic.greenfield.learning-context.v1) in every prompt incl. COMPACT: project scope from the mission header, workBlockId, deterministic keypoints with triggers, obligations, carriedOverObligations, freshChecksReusable, previousResult.",
+    "layerC": "optional response field learningControl normalized to a closed bounded shape (max 8000 JSON chars, else {malformed:true}); never affects response status; used only to build the next capsule.",
+    "promptSize": {
+      "fixture": "queue-managed CONTINUATION, same fixture for both versions",
+      "fullChars": {
+        "v1.7.9": 26920,
+        "v1.8.0": 45715
+      },
+      "compactChars": {
+        "v1.7.9": 5801,
+        "v1.8.0": 6834
+      },
+      "contractChars": 14737,
+      "capsuleChars": 670,
+      "resultSchemaChars": 2919
+    }
+  },
+  "gates": {
+    "CONTRACT_SELF_CONTAINED_PASS": true,
+    "FULL_CARRIES_CONTRACT_COMPACT_CARRIES_CAPSULE_PASS": true,
+    "VALIDATOR_REQUIRES_CAPSULE_PASS": true,
+    "DETERMINISTIC_KEYPOINTS_PASS": true,
+    "FRESH_REUSE_AND_CARRY_OVER_PASS": true,
+    "RESULT_NORMALIZATION_BOUNDED_PASS": true,
+    "MALFORMED_RESULT_KEEPS_STATUS_PASS": true,
+    "E2E_REAL_CAPTURE_PATH_PASS": true,
+    "BASELINE_CONTRACT_PRESERVED_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true,
+    "QUANTUM_END_CLOSURE_VIA_REAL_QUEUE_CONTROL_PASS": true
+  },
+  "executed": {
+    "baselineNpmTestOnV179": {
+      "tests": 543,
+      "pass": 543,
+      "fail": 0
+    },
+    "dedicated": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "output": "verification/v180-learning-control.tap"
+    },
+    "fullNpmTest": {
+      "tests": 554,
+      "pass": 554,
+      "fail": 0,
+      "output": "verification/release-tests.tap"
+    },
+    "syntax": {
+      "files": 128,
+      "pass": 128,
+      "fail": 0,
+      "output": "verification/v180-syntax-check.txt"
+    }
+  },
+  "boundaries": {
+    "liveChromeExtensionAcceptance": "not executed",
+    "liveChatGPTDispatchAcceptance": "not executed",
+    "eicModelConformance": "not measurable locally; Greenfield only sees what the EIC session reports",
+    "prefetch": "none by design; AIK/Kaizen/Operator Learning reachability is not verified by Greenfield",
+    "e2eScope": "real background.js capture -> analysis -> next prompt composition in the Node harness"
+  }
+}

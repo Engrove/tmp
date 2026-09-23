@@ -1,3 +1,15 @@
+# 1.8.0 – EIC Learning & Continuity Control (prompt only)
+
+- Varje FULL-prompt bär ett fristående `responseContract.learningControlContract`: `You have no built-in knowledge of EIC.`, `THE FACTUAL OWNER WINS`, definitioner av AIK Learned/Stream, Self-learn, Kaizen, Operator Learning, Memory, projektkronologi, global skill och owner-ytor, samt AIK-, Kaizen-, Operator Learning- och Self-learn-regler och routingtabell.
+- Varje prompt, även COMPACT, bär `control.learningControl` (`EIC_LEARNING_CONTEXT`). Där anger Greenfield deterministiskt projektscope (`project:<id>` ur uppdragsrubriken), arbetsblock, keypoints med trigger och obligation per kontroll (`REQUIRED`, `FRESH_RESULT_REUSABLE`, `REQUIRED_AT_DECLARED_KEYPOINT` …).
+- Keypoints detekteras från Greenfield-fakta: sessionsgräns/ny kvant, föregående blockering/stall/okänd effekt, blockerare i två svar i följd, operatörsinstruktion och sista interaktionen i kvanten. Keypoints som bara AI:n ser är stående triggers i kontraktet.
+- Nytt valfritt svarsfält `learningControl`. Det normaliseras till en sluten, avgränsad form och ett felaktigt värde påverkar aldrig svarets status. En REQUIRED-kontroll som inte rapporterades överförs till nästa prompt (`carriedOverObligations`). Ett rapporterat discovery-resultat kan återanvändas inom samma arbetsblock.
+- Ingen prefetch och inga nya effektvägar: Greenfield läser eller skriver inte AIK/Kaizen/Operator Learning. Kontrollerna körs av EIC-sessionen.
+- FULL växer från 26 920 till 45 715 tecken och COMPACT från 5 801 till 6 834 tecken (samma fixtur).
+- Lokal Node/static/harness-verifiering är inte samma sak som live Chrome/ChatGPT-acceptans.
+
+---
+
 # 1.7.9 – stale queue rotation and overlay overview
 
 - Efter 120 min utan färdigt svar (efter F5 vid 30 och Ctrl-F5 vid 60/90 min) gör en köstyrd körning ett fullständigt köbyte. Chatten överges, köplatsen parkeras som redo med oförändrad kvantprogress (den obesvarade turen räknas inte) och nästa körbara köplats i listordning aktiveras.

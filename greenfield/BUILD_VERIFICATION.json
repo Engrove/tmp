@@ -1,25 +1,45 @@
 {
   "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.7.9",
-  "releaseChannel": "1.7.9",
-  "generatedAt": "2026-09-23T10:22:18.032413+00:00",
+  "appVersion": "1.8.0",
+  "releaseChannel": "1.8.0",
+  "generatedAt": "2026-09-23T12:25:19.940263+00:00",
   "sourceBaseline": {
-    "source": "Greenfield v1.7.8 release package (this delivery chain)",
-    "file": "EIC_Autonom_Agent_Greenfield_v1.7.8.zip",
-    "version": "1.7.8",
-    "sha256": "bda817978954cf7ce400b99c6102109415e3e820000aba5bfdccf8aab5ab81a5",
-    "sizeBytes": 751246,
+    "source": "Greenfield v1.7.9 release package (this delivery chain)",
+    "file": "EIC_Autonom_Agent_Greenfield_v1.7.9.zip",
+    "version": "1.7.9",
+    "sha256": "08b5fe982cdcfabb661937f1b666f9eb9e7cc6b216662755a94274e125d90e1f",
+    "sizeBytes": 768339,
     "embeddedIntegrity": {
-      "records": 250,
+      "records": 256,
       "mismatches": 0,
-      "rootDigest": "5d3630544b519bf4c52c104ac7568864aac52b9c7895d89248623e865f9f4950"
+      "rootDigest": "9313fc8611bb8a7cebcc6bea4173ee56b8557876f97204907d5aa8c31728a2cd"
     }
   },
   "change": {
-    "purpose": "Operator requests: (1) after 120 stalled minutes a queue-managed run performs a full rotation to the next runnable queue slot; (2) the in-page overlay shows a quick operational overview.",
-    "staleRotation": "STALE_SESSION_120M: park current slot (unfinished quantum preserved, unanswered turn not counted, resume previousDisposition=SESSION_UNRESPONSIVE, sourceResponseState=PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE) and activate the next runnable slot in explicit order; fallback to same-GFW session rotation when no other slot is runnable or the queue is stopped.",
-    "overlay": "GFW id, slot position, priority, interaction/quantum (+ pending quantum), local countdown to 120-minute rotation and next F5/Ctrl-F5, turn, session, activation, prompt profile, next GFW in queue, safety hold; tooltip with ids.",
-    "sharedPark": "parkSlotAndActivateNext used by analysis park and stale rotation",
+    "purpose": "Operator request: extend Greenfield's prompt only with the EIC Learning & Continuity Control (AIK, Self-learn, Kaizen, Operator Learning). No prefetch, no new effect paths; the EIC session executes the checks.",
+    "layerA": "responseContract.learningControlContract (eic.greenfield.learning-contract.v1) in every FULL prompt: no built-in EIC knowledge, THE FACTUAL OWNER WINS, surfaces with is/usedFor/isNot, AIK discovery/continuity, Self-learn closure, 9-row routing, Kaizen keypoints, Operator Learning, Memory, 3M, origin, standing triggers, closure output.",
+    "layerB": "control.learningControl (EIC_LEARNING_CONTEXT, eic.greenfield.learning-context.v1) in every prompt incl. COMPACT: project scope from the mission header, workBlockId, deterministic keypoints with triggers, obligations, carriedOverObligations, freshChecksReusable, previousResult.",
+    "layerC": "optional response field learningControl normalized to a closed bounded shape (max 8000 JSON chars, else {malformed:true}); never affects response status; used only to build the next capsule.",
+    "promptSize": {
+      "fixture": "queue-managed CONTINUATION, same fixture for both versions",
+      "fullChars": {
+        "v1.7.9": 26920,
+        "v1.8.0": 45715
+      },
+      "compactChars": {
+        "v1.7.9": 5801,
+        "v1.8.0": 6834
+      },
+      "contractChars": 14737,
+      "capsuleChars": 670,
+      "resultSchemaChars": 2919
+    },
+    "carriedFrom1_7_9": {
+      "purpose": "Operator requests: (1) after 120 stalled minutes a queue-managed run performs a full rotation to the next runnable queue slot; (2) the in-page overlay shows a quick operational overview.",
+      "staleRotation": "STALE_SESSION_120M: park current slot (unfinished quantum preserved, unanswered turn not counted, resume previousDisposition=SESSION_UNRESPONSIVE, sourceResponseState=PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE) and activate the next runnable slot in explicit order; fallback to same-GFW session rotation when no other slot is runnable or the queue is stopped.",
+      "overlay": "GFW id, slot position, priority, interaction/quantum (+ pending quantum), local countdown to 120-minute rotation and next F5/Ctrl-F5, turn, session, activation, prompt profile, next GFW in queue, safety hold; tooltip with ids.",
+      "sharedPark": "parkSlotAndActivateNext used by analysis park and stale rotation"
+    },
     "carriedFrom1_7_8": {
       "purpose": "Fix FULL/COMPACT prompt continuity: a reload of the same ChatGPT conversation is not a session boundary.",
       "rootCause": "Live v1.7.7 session: a 33.7-minute EIC turn triggered Greenfield's own stale-ladder F5 (tabs.reload of the same /c/ conversation) at 30 minutes; the new content documentId was treated as a session boundary, so turn 2 went out FULL (DOCUMENT_OR_CONVERSATION_CHANGED).",
@@ -47,30 +67,70 @@
     }
   },
   "verification": {
-    "baselineTestCommand": "npm test (on v1.7.8)",
-    "baselineTests": 535,
-    "baselinePass": 535,
+    "baselineTestCommand": "npm test (on v1.7.9)",
+    "baselineTests": 543,
+    "baselinePass": 543,
     "baselineFail": 0,
-    "dedicatedCommand": "node --test tests/v179-stale-rotation-overlay.test.mjs",
-    "dedicatedOutput": "verification/v179-stale-rotation-overlay.tap",
-    "dedicatedTests": 8,
-    "dedicatedPass": 8,
+    "dedicatedCommand": "node --test tests/v180-learning-control.test.mjs",
+    "dedicatedOutput": "verification/v180-learning-control.tap",
+    "dedicatedTests": 11,
+    "dedicatedPass": 11,
     "dedicatedFail": 0,
     "testCommand": "npm test",
     "testOutput": "verification/release-tests.tap",
-    "tests": 543,
-    "pass": 543,
+    "tests": 554,
+    "pass": 554,
     "fail": 0,
     "skipped": 0,
     "syntaxCommand": "node --check <each .js/.mjs/.cjs>",
-    "syntaxOutput": "verification/v179-syntax-check.txt",
-    "syntaxFiles": 126,
-    "syntaxPass": 126,
+    "syntaxOutput": "verification/v180-syntax-check.txt",
+    "syntaxFiles": 128,
+    "syntaxPass": 128,
     "syntaxFail": 0,
     "nodeVersion": "v22.22.2",
     "errors": []
   },
   "regressionMatrix": [
+    {
+      "case": "FULL prompt",
+      "expected": "responseContract.learningControlContract present, self-contained, result schema in jsonSchema.properties.learningControl"
+    },
+    {
+      "case": "COMPACT prompt",
+      "expected": "control.learningControl present, contract absent, compact reminder present"
+    },
+    {
+      "case": "session boundary / new quantum",
+      "expected": "START_RESUME_AFTER_OWNER_BOOTSTRAP; AIK_DISCOVERY and KAIZEN_RETRIEVAL REQUIRED"
+    },
+    {
+      "case": "previous BLOCKED / stall / unknown effect",
+      "expected": "POST_FAILURE_FALSE_BLOCKER_UNKNOWN_EFFECT_RECOVERY"
+    },
+    {
+      "case": "blockers in 2 consecutive responses",
+      "expected": "RECURRING_SOFT_BLOCKER_OR_FAILURE_FAMILY"
+    },
+    {
+      "case": "operator instruction",
+      "expected": "MAJOR_REPLAN_OR_SCOPE_DRIFT_RISK, operatorInstructionOrigin HUMAN_OPERATOR"
+    },
+    {
+      "case": "final interaction in quantum",
+      "expected": "CHECKPOINT_HANDOFF_STOP_OR_TERMINAL_CLOSE; SELF_LEARN_CLOSURE and AIK_CONTINUITY_CHECK REQUIRED"
+    },
+    {
+      "case": "reported discovery, same work block",
+      "expected": "AIK_DISCOVERY FRESH_RESULT_REUSABLE"
+    },
+    {
+      "case": "REQUIRED check not reported",
+      "expected": "listed in carriedOverObligations and REQUIRED again"
+    },
+    {
+      "case": "malformed learningControl",
+      "expected": "{malformed:true}; response status unaffected"
+    },
     {
       "case": "queue-managed turn stalls 120 minutes",
       "expected": "F5, Ctrl-F5, Ctrl-F5 on the same chat, then next runnable slot activated; stalled slot READY with unchanged quantum progress"
@@ -169,8 +229,9 @@
     }
   ],
   "evidenceBoundaries": {
-    "packageSourceAndNodeTests": "verified locally from the v1.7.8 package produced in this delivery chain",
-    "harnessE2E": "real background.js ladder/park/activation in the Node harness; content.js overlay executed in a vm sandbox",
+    "packageSourceAndNodeTests": "verified locally from the v1.7.9 package produced in this delivery chain",
+    "harnessE2E": "real background.js capture -> analysis -> next prompt composition in the Node harness",
+    "eicModelConformance": "not measurable locally",
     "liveChromeExtensionInstall": "not executed in this environment",
     "providerOrChatGPTLiveDispatch": "not executed in this environment"
   }

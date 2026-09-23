@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 import {
+  A2A_LEARNING_CONTROL_NOTE,
   A2A_PROMPT_PROFILE_NOTE,
   A2A_RUNTIME_CONTROL_NOTE,
   buildA2AEnvelope,
@@ -175,7 +176,7 @@ test("session health stays advisory: high proxy pressure does not mutate session
 });
 
 
-test("v1.7.7 preserves the v1.3.1 A2A contract apart from additive health, owner-state, mixed-language/status control, runtime-control/prompt-profile metadata and the intentional 0-300 prompt-gate range", () => {
+test("v1.8.0 preserves the v1.3.1 A2A contract apart from additive health, owner-state, mixed-language/status control, runtime-control/prompt-profile/learning-control metadata and the intentional 0-300 prompt-gate range", () => {
   const baseline = JSON.parse(fs.readFileSync(new URL("./fixtures/v1.3.1-a2a-stable-contract.json", import.meta.url), "utf8"));
   const process = {
     processId: "p",
@@ -199,9 +200,13 @@ test("v1.7.7 preserves the v1.3.1 A2A contract apart from additive health, owner
   delete currentResponseContract.runtimeControlContract;
   currentResponseContract.jsonSchema = JSON.parse(JSON.stringify(currentResponseContract.jsonSchema));
   delete currentResponseContract.jsonSchema.properties.runtimeControl;
+  // v1.8.0 adds the additive EIC Learning & Continuity Control contract/schema.
+  delete currentResponseContract.learningControlContract;
+  delete currentResponseContract.jsonSchema.properties.learningControl;
   currentResponseContract.note = currentResponseContract.note
     .replace(` ${A2A_RUNTIME_CONTROL_NOTE}`, "")
-    .replace(` ${A2A_PROMPT_PROFILE_NOTE}`, "");
+    .replace(` ${A2A_PROMPT_PROFILE_NOTE}`, "")
+    .replace(` ${A2A_LEARNING_CONTROL_NOTE}`, "");
   // v1.7.6 adds the mandatory owner-state/current_focus prompt contract.
   delete currentResponseContract.ownerStateRule;
   // v1.7.4 adds an optional one-shot process-status request without changing
@@ -234,6 +239,7 @@ test("v1.7.7 preserves the v1.3.1 A2A contract apart from additive health, owner
   const currentControl = { ...envelope.control };
   delete currentControl.ownerState;
   delete currentControl.runtimeControl;
+  delete currentControl.learningControl;
   assert.deepEqual(currentControl, baseline.control);
   const expectedResponseContract = JSON.parse(
     JSON.stringify(baseline.responseContract).replaceAll("0-90", "0-300")

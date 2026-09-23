@@ -7,6 +7,7 @@ import {
 } from "./mission-pause.mjs";
 import { validateMissionDelegationRequests } from "./mission-delegation.mjs";
 import { RUNTIME_CONTROL_FIELD, parseRuntimeControlRequest } from "./runtime-control.mjs";
+import { LEARNING_RESULT_FIELD, normalizeLearningControlResult } from "./learning-control.mjs";
 
 const REQUIRED = Object.freeze([
   "schema",
@@ -20,7 +21,7 @@ const REQUIRED = Object.freeze([
 // runtimeControl is admitted structurally here and validated per action by
 // runtime-control.mjs, so a malformed control block yields INVALID receipts
 // instead of hiding the response's status/sessionAction from Greenfield.
-const ALLOWED = new Set([...REQUIRED, "sessionAction", "sessionReason", "pauseSeconds", "missionDelegations", "greenfieldStatusRequest", RUNTIME_CONTROL_FIELD]);
+const ALLOWED = new Set([...REQUIRED, "sessionAction", "sessionReason", "pauseSeconds", "missionDelegations", "greenfieldStatusRequest", RUNTIME_CONTROL_FIELD, LEARNING_RESULT_FIELD]);
 const STATUSES = new Set(["CONTINUE", "DONE", "BLOCKED"]);
 const SESSION_ACTIONS = new Set(["KEEP", "ROTATE_SESSION_NOW", MISSION_PAUSE_ACTION, "BACKGROUND_SLEEP", "YIELD_TO_QUEUE", "STOP_PROCESS"]);
 const PARSE_MODE = Object.freeze({
@@ -593,7 +594,10 @@ function normalizeTargetResponse(value) {
           relation: String(item.relation || "SUPPORTS_CURRENT").trim().toUpperCase()
         }))
       : [],
-    runtimeControl: parseRuntimeControlRequest(value.runtimeControl)
+    runtimeControl: parseRuntimeControlRequest(value.runtimeControl),
+    // v1.8.0: reported learning outcomes are observability data carried into
+    // the next prompt's learning context; they never trigger an effect.
+    learningControl: normalizeLearningControlResult(value.learningControl)
   };
 }
 

@@ -1,0 +1,76 @@
+TAP version 13
+# Subtest: v1.8.0 contract is self-contained: EIC baseline, owner truth, every surface defined with is/usedFor/isNot
+ok 1 - v1.8.0 contract is self-contained: EIC baseline, owner truth, every surface defined with is/usedFor/isNot
+  ---
+  duration_ms: 4.709919
+  type: 'test'
+  ...
+# Subtest: v1.8.0 contract spells out AIK, Self-learn, Kaizen, Operator Learning and routing rules literally
+ok 2 - v1.8.0 contract spells out AIK, Self-learn, Kaizen, Operator Learning and routing rules literally
+  ---
+  duration_ms: 0.407568
+  type: 'test'
+  ...
+# Subtest: v1.8.0 FULL prompts carry the contract and result schema; every prompt carries the dynamic capsule
+ok 3 - v1.8.0 FULL prompts carry the contract and result schema; every prompt carries the dynamic capsule
+  ---
+  duration_ms: 13.463286
+  type: 'test'
+  ...
+# Subtest: v1.8.0 the final interaction of a real queue quantum makes closure REQUIRED in the composed prompt
+ok 4 - v1.8.0 the final interaction of a real queue quantum makes closure REQUIRED in the composed prompt
+  ---
+  duration_ms: 5.833614
+  type: 'test'
+  ...
+# Subtest: v1.8.0 project scope comes from the mission header
+ok 5 - v1.8.0 project scope comes from the mission header
+  ---
+  duration_ms: 1.76639
+  type: 'test'
+  ...
+# Subtest: v1.8.0 session boundaries and new quanta are START_RESUME keypoints with REQUIRED checks
+ok 6 - v1.8.0 session boundaries and new quanta are START_RESUME keypoints with REQUIRED checks
+  ---
+  duration_ms: 0.96895
+  type: 'test'
+  ...
+# Subtest: v1.8.0 failures, unknown effects, recurring blockers, operator replans and quantum end are detected by Greenfield
+ok 7 - v1.8.0 failures, unknown effects, recurring blockers, operator replans and quantum end are detected by Greenfield
+  ---
+  duration_ms: 0.845098
+  type: 'test'
+  ...
+# Subtest: v1.8.0 an executed check in the same work block is reusable; an unreported REQUIRED check is carried over
+ok 8 - v1.8.0 an executed check in the same work block is reusable; an unreported REQUIRED check is carried over
+  ---
+  duration_ms: 0.831717
+  type: 'test'
+  ...
+# Subtest: v1.8.0 learningControl results are normalized into a closed shape and never break response parsing
+ok 9 - v1.8.0 learningControl results are normalized into a closed shape and never break response parsing
+  ---
+  duration_ms: 3.959303
+  type: 'test'
+  ...
+# Subtest: v1.8.0 E2E: the posted first prompt requires discovery; a reported result makes it reusable in the COMPACT follow-up
+ok 10 - v1.8.0 E2E: the posted first prompt requires discovery; a reported result makes it reusable in the COMPACT follow-up
+  ---
+  duration_ms: 767.117161
+  type: 'test'
+  ...
+# Subtest: v1.8.0 E2E: a response that silently skipped the required checks gets them carried over as REQUIRED
+ok 11 - v1.8.0 E2E: a response that silently skipped the required checks gets them carried over as REQUIRED
+  ---
+  duration_ms: 658.395892
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1607.913859
