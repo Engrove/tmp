@@ -1,8 +1,10 @@
-# EIC Autonom Agent Greenfield 1.7.7
+# EIC Autonom Agent Greenfield 1.7.8
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
 
-Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas alltid vid sessionsgräns (ny chatt, rotation, köaktivering, F5/Ctrl-F5, konversationsbyte) och var tionde prompt.
+Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
+
+Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
 
 ## Nytt i 1.7.7
 
@@ -11,7 +13,7 @@ Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad 
 - **Kvant och prioritet.** `SET_QUANTUM` tar heltal 1..15 och gäller från platsens nästa kvant. `SET_PRIORITY` tar `LOW|NORMAL|HIGH|URGENT`, aldrig över operatörens tilldelade prioritet för platsen.
 - **Operatören vinner.** Köändringar som operatören gör efter att prompten skickades avvisar äldre AI-begäran (`OPERATOR_PRECEDENCE`). En väntande operatörsinstruktion stoppar AI-terminal. Panelen skickar bara det fält operatören ändrade.
 - **Kvitton.** `APPLIED`, `ALREADY_APPLIED`, `REJECTED`, `STALE` och `INVALID` visas för AI:n i `control.runtimeControl.lastReceipts`.
-- **FULL/COMPACT-prompter.** `promptProfile` visar profilen. COMPACT används bara med positiv dokument- och konversationskontinuitet och uppgraderas till FULL före utskick om sidan laddats om.
+- **FULL/COMPACT-prompter.** `promptProfile` visar profilen. COMPACT används bara med positiv konversationskontinuitet och uppgraderas till FULL före utskick om konversationen bytts (sedan 1.7.8 inte vid omladdning av samma konversation).
 - **Självläkning.** Om kö-retirement efter DONE inte kunde skrivas görs den om innan kön väljer nästa plats.
 - **`MISSION_RESTORE`** accepteras nu som A2A-meddelandetyp i köns återställningsväg.
 
@@ -52,7 +54,7 @@ Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad 
 
 v1.7.3:s mixed-language model safety, v1.7.2:s multi-turn-liveness, v1.7.1:s dispatch-reconciliation och v1.7.0:s semantiska modellgolv bevaras.
 
-Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.7.6, se [UPPDATERA_TILL_1_7_7.md](UPPDATERA_TILL_1_7_7.md).
+Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.7.7, se [UPPDATERA_TILL_1_7_8.md](UPPDATERA_TILL_1_7_8.md); från 1.7.6, se även [UPPDATERA_TILL_1_7_7.md](UPPDATERA_TILL_1_7_7.md).
 
 | Underlag | Innehåll |
 |---|---|
@@ -71,6 +73,7 @@ Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.7.6, 
 
 ```sh
 npm test
+node --test tests/v178-prompt-continuity.test.mjs
 node --test tests/v177-runtime-control.test.mjs tests/v177-runtime-control-e2e.test.mjs
 node --test tests/v176-owner-state-current-focus.test.mjs
 node --test tests/v175-storage-retention.test.mjs
@@ -79,4 +82,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7 eller 1.7.8.

@@ -2,219 +2,225 @@ TAP version 13
 # Subtest: v1.7.7 E2E: live failure case DONE+STOP_PROCESS retires the logical GFW although Hjalmar says CONTINUE
 ok 1 - v1.7.7 E2E: live failure case DONE+STOP_PROCESS retires the logical GFW although Hjalmar says CONTINUE
   ---
-  duration_ms: 347.326891
+  duration_ms: 339.101103
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: structured COMPLETE_MISSION with the exact target retires only its logical mission
 ok 2 - v1.7.7 E2E: structured COMPLETE_MISSION with the exact target retires only its logical mission
   ---
-  duration_ms: 297.526963
+  duration_ms: 275.050686
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: DONE with a mismatching runtimeControl target fails closed to BLOCKED and retires nothing
 ok 3 - v1.7.7 E2E: DONE with a mismatching runtimeControl target fails closed to BLOCKED and retires nothing
   ---
-  duration_ms: 309.360444
+  duration_ms: 318.238071
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: SET_PRIORITY and SET_QUANTUM mutate only the target slot and the next prompt carries receipts
 ok 4 - v1.7.7 E2E: SET_PRIORITY and SET_QUANTUM mutate only the target slot and the next prompt carries receipts
   ---
-  duration_ms: 254.971074
+  duration_ms: 277.804221
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: an operator edit after the prompt wins over the AI priority request
 ok 5 - v1.7.7 E2E: an operator edit after the prompt wins over the AI priority request
   ---
-  duration_ms: 254.562735
+  duration_ms: 259.895545
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: a normal v1.7.6 CONTINUE response is a runtime-control no-op and the follow-up prompt is COMPACT
 ok 6 - v1.7.7 E2E: a normal v1.7.6 CONTINUE response is a runtime-control no-op and the follow-up prompt is COMPACT
   ---
-  duration_ms: 396.969282
+  duration_ms: 400.202863
   type: 'test'
   ...
-# Subtest: v1.7.7 E2E: F5/Ctrl-F5 before dispatch upgrades a COMPACT follow-up to the FULL prompt
-ok 7 - v1.7.7 E2E: F5/Ctrl-F5 before dispatch upgrades a COMPACT follow-up to the FULL prompt
+# Subtest: v1.7.8 E2E: a reload of the same conversation before dispatch keeps the COMPACT follow-up
+ok 7 - v1.7.8 E2E: a reload of the same conversation before dispatch keeps the COMPACT follow-up
   ---
-  duration_ms: 432.255827
+  duration_ms: 378.936396
+  type: 'test'
+  ...
+# Subtest: v1.7.7 E2E: a conversation change before dispatch upgrades a COMPACT follow-up to the FULL prompt
+ok 8 - v1.7.7 E2E: a conversation change before dispatch upgrades a COMPACT follow-up to the FULL prompt
+  ---
+  duration_ms: 421.54659
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: a pending operator instruction outranks an AI terminal control and the receipt says so
-ok 8 - v1.7.7 E2E: a pending operator instruction outranks an AI terminal control and the receipt says so
+ok 9 - v1.7.7 E2E: a pending operator instruction outranks an AI terminal control and the receipt says so
   ---
-  duration_ms: 232.926785
+  duration_ms: 242.185844
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: a DONE process whose queue retirement did not persist is self-healed before any queue selection
-ok 9 - v1.7.7 E2E: a DONE process whose queue retirement did not persist is self-healed before any queue selection
+ok 10 - v1.7.7 E2E: a DONE process whose queue retirement did not persist is self-healed before any queue selection
   ---
-  duration_ms: 225.196635
+  duration_ms: 272.704408
   type: 'test'
   ...
 # Subtest: v1.7.7 valid COMPLETE_MISSION for the current GFW is accepted and overrides a CONTINUE controller verdict
-ok 10 - v1.7.7 valid COMPLETE_MISSION for the current GFW is accepted and overrides a CONTINUE controller verdict
+ok 11 - v1.7.7 valid COMPLETE_MISSION for the current GFW is accepted and overrides a CONTINUE controller verdict
   ---
-  duration_ms: 3.523448
+  duration_ms: 3.261861
   type: 'test'
   ...
 # Subtest: v1.7.7 completion retires every duplicate slot of the logical mission and nothing else
-ok 11 - v1.7.7 completion retires every duplicate slot of the logical mission and nothing else
+ok 12 - v1.7.7 completion retires every duplicate slot of the logical mission and nothing else
   ---
-  duration_ms: 0.900331
+  duration_ms: 0.9068
   type: 'test'
   ...
 # Subtest: v1.7.7 completion is idempotent at queue and control level
-ok 12 - v1.7.7 completion is idempotent at queue and control level
+ok 13 - v1.7.7 completion is idempotent at queue and control level
   ---
-  duration_ms: 0.264258
+  duration_ms: 0.446811
   type: 'test'
   ...
 # Subtest: v1.7.7 stale or wrong run/turn/queue/item/mission targets are rejected without effect
-ok 13 - v1.7.7 stale or wrong run/turn/queue/item/mission targets are rejected without effect
+ok 14 - v1.7.7 stale or wrong run/turn/queue/item/mission targets are rejected without effect
   ---
-  duration_ms: 0.983611
+  duration_ms: 0.992016
   type: 'test'
   ...
 # Subtest: v1.7.7 valid SET_QUANTUM targets only the current slot and applies from the next quantum
-ok 14 - v1.7.7 valid SET_QUANTUM targets only the current slot and applies from the next quantum
+ok 15 - v1.7.7 valid SET_QUANTUM targets only the current slot and applies from the next quantum
   ---
-  duration_ms: 0.6613
+  duration_ms: 0.567581
   type: 'test'
   ...
 # Subtest: v1.7.7 quantum outside 1..15 or non-integer is rejected, never clamped
-ok 15 - v1.7.7 quantum outside 1..15 or non-integer is rejected, never clamped
+ok 16 - v1.7.7 quantum outside 1..15 or non-integer is rejected, never clamped
   ---
-  duration_ms: 0.560276
+  duration_ms: 0.555366
   type: 'test'
   ...
 # Subtest: v1.7.7 valid SET_PRIORITY lowers and later restores up to the operator ceiling
-ok 16 - v1.7.7 valid SET_PRIORITY lowers and later restores up to the operator ceiling
+ok 17 - v1.7.7 valid SET_PRIORITY lowers and later restores up to the operator ceiling
   ---
-  duration_ms: 0.43173
+  duration_ms: 0.451662
   type: 'test'
   ...
 # Subtest: v1.7.7 priorities outside the whitelist or above the operator ceiling are rejected
-ok 17 - v1.7.7 priorities outside the whitelist or above the operator ceiling are rejected
+ok 18 - v1.7.7 priorities outside the whitelist or above the operator ceiling are rejected
   ---
-  duration_ms: 1.138342
+  duration_ms: 0.285163
   type: 'test'
   ...
 # Subtest: v1.7.7 unknown runtime-control operations are rejected without effect
-ok 18 - v1.7.7 unknown runtime-control operations are rejected without effect
+ok 19 - v1.7.7 unknown runtime-control operations are rejected without effect
   ---
-  duration_ms: 0.599193
+  duration_ms: 0.428783
   type: 'test'
   ...
 # Subtest: v1.7.7 malformed or hostile control yields INVALID receipts and no mutation
-ok 19 - v1.7.7 malformed or hostile control yields INVALID receipts and no mutation
+ok 20 - v1.7.7 malformed or hostile control yields INVALID receipts and no mutation
   ---
-  duration_ms: 2.351982
+  duration_ms: 3.505164
   type: 'test'
   ...
 # Subtest: v1.7.7 an operator edit after the prompt wins over a stale AI request; operator path stamps precedence
-ok 20 - v1.7.7 an operator edit after the prompt wins over a stale AI request; operator path stamps precedence
+ok 21 - v1.7.7 an operator edit after the prompt wins over a stale AI request; operator path stamps precedence
   ---
-  duration_ms: 24.098329
+  duration_ms: 26.393274
   type: 'test'
   ...
 # Subtest: v1.7.7 a normal v1.7.6 response without runtimeControl keeps working and is a control no-op
-ok 21 - v1.7.7 a normal v1.7.6 response without runtimeControl keeps working and is a control no-op
+ok 22 - v1.7.7 a normal v1.7.6 response without runtimeControl keeps working and is a control no-op
   ---
-  duration_ms: 0.512948
+  duration_ms: 0.563919
   type: 'test'
   ...
 # Subtest: v1.7.7 legacy status=DONE and sessionAction=STOP_PROCESS normalize to the same terminal handler
-ok 22 - v1.7.7 legacy status=DONE and sessionAction=STOP_PROCESS normalize to the same terminal handler
+ok 23 - v1.7.7 legacy status=DONE and sessionAction=STOP_PROCESS normalize to the same terminal handler
   ---
-  duration_ms: 0.321814
+  duration_ms: 0.375239
   type: 'test'
   ...
 # Subtest: v1.7.7 Greenfield prompt publishes runtime-control operations, exact schema, target and constraints
-ok 23 - v1.7.7 Greenfield prompt publishes runtime-control operations, exact schema, target and constraints
+ok 24 - v1.7.7 Greenfield prompt publishes runtime-control operations, exact schema, target and constraints
   ---
-  duration_ms: 2.254688
+  duration_ms: 2.700753
   type: 'test'
   ...
 # Subtest: v1.7.7 prompt states that Greenfield validates every request and operator control has precedence
-ok 24 - v1.7.7 prompt states that Greenfield validates every request and operator control has precedence
+ok 25 - v1.7.7 prompt states that Greenfield validates every request and operator control has precedence
   ---
-  duration_ms: 0.229006
+  duration_ms: 0.234735
   type: 'test'
   ...
 # Subtest: v1.7.7 replay of an applied effect is ALREADY_APPLIED; duplicate ops and terminal-less COMPLETE are invalid
-ok 25 - v1.7.7 replay of an applied effect is ALREADY_APPLIED; duplicate ops and terminal-less COMPLETE are invalid
+ok 26 - v1.7.7 replay of an applied effect is ALREADY_APPLIED; duplicate ops and terminal-less COMPLETE are invalid
   ---
-  duration_ms: 0.579974
+  duration_ms: 1.006854
   type: 'test'
   ...
 # Subtest: v1.7.7 terminal supersedes slot controls; inactive, absent or non-queue slots are not mutated
-ok 26 - v1.7.7 terminal supersedes slot controls; inactive, absent or non-queue slots are not mutated
+ok 27 - v1.7.7 terminal supersedes slot controls; inactive, absent or non-queue slots are not mutated
   ---
-  duration_ms: 0.231109
+  duration_ms: 0.27347
   type: 'test'
   ...
 # Subtest: v1.7.7 receipts never claim an effect whose queue write failed and are carried in the next prompt
-ok 27 - v1.7.7 receipts never claim an effect whose queue write failed and are carried in the next prompt
+ok 28 - v1.7.7 receipts never claim an effect whose queue write failed and are carried in the next prompt
   ---
-  duration_ms: 0.297191
+  duration_ms: 0.34555
   type: 'test'
   ...
 # Subtest: v1.7.7 legacy queue items gain an operator ceiling equal to their priority
-ok 28 - v1.7.7 legacy queue items gain an operator ceiling equal to their priority
+ok 29 - v1.7.7 legacy queue items gain an operator ceiling equal to their priority
   ---
-  duration_ms: 0.200016
+  duration_ms: 0.170462
   type: 'test'
   ...
 # Subtest: v1.7.7 prompt profile: session-boundary prompts are FULL, same-conversation follow-ups COMPACT, every 10th FULL
-ok 29 - v1.7.7 prompt profile: session-boundary prompts are FULL, same-conversation follow-ups COMPACT, every 10th FULL
+ok 30 - v1.7.7 prompt profile: session-boundary prompts are FULL, same-conversation follow-ups COMPACT, every 10th FULL
   ---
-  duration_ms: 1.212681
+  duration_ms: 0.922601
   type: 'test'
   ...
-# Subtest: v1.7.7 prompt profile: any session, document or conversation discontinuity forces FULL
-ok 30 - v1.7.7 prompt profile: any session, document or conversation discontinuity forces FULL
+# Subtest: v1.7.8 prompt profile: any session or conversation discontinuity forces FULL; a same-conversation reload does not
+ok 31 - v1.7.8 prompt profile: any session or conversation discontinuity forces FULL; a same-conversation reload does not
   ---
-  duration_ms: 0.44114
+  duration_ms: 0.464764
   type: 'test'
   ...
 # Subtest: v1.7.7 COMPACT envelope keeps every per-turn and safety invariant and validates
-ok 31 - v1.7.7 COMPACT envelope keeps every per-turn and safety invariant and validates
+ok 32 - v1.7.7 COMPACT envelope keeps every per-turn and safety invariant and validates
   ---
-  duration_ms: 1.399808
+  duration_ms: 1.141062
   type: 'test'
   ...
 # Subtest: v1.7.7 MISSION_RESTORE is an admitted A2A message type (queue restore path)
-ok 32 - v1.7.7 MISSION_RESTORE is an admitted A2A message type (queue restore path)
+ok 33 - v1.7.7 MISSION_RESTORE is an admitted A2A message type (queue restore path)
   ---
-  duration_ms: 0.254203
+  duration_ms: 0.29
   type: 'test'
   ...
 # Subtest: v1.7.7 background wires one control point, terminal verdicts, self-heal and dispatch-time FULL upgrade
-ok 33 - v1.7.7 background wires one control point, terminal verdicts, self-heal and dispatch-time FULL upgrade
+ok 34 - v1.7.7 background wires one control point, terminal verdicts, self-heal and dispatch-time FULL upgrade
   ---
-  duration_ms: 1.241655
+  duration_ms: 1.335694
   type: 'test'
   ...
 # Subtest: v1.7.7 receipts identify the mutated slot and an uncommitted terminal is reported as rejected
-ok 34 - v1.7.7 receipts identify the mutated slot and an uncommitted terminal is reported as rejected
+ok 35 - v1.7.7 receipts identify the mutated slot and an uncommitted terminal is reported as rejected
   ---
-  duration_ms: 0.379913
+  duration_ms: 0.340314
   type: 'test'
   ...
 # Subtest: v1.7.7 an operator priority edit is never blocked by an AI-changed quantum on the active slot
-ok 35 - v1.7.7 an operator priority edit is never blocked by an AI-changed quantum on the active slot
+ok 36 - v1.7.7 an operator priority edit is never blocked by an AI-changed quantum on the active slot
   ---
-  duration_ms: 17.980164
+  duration_ms: 20.626536
   type: 'test'
   ...
-1..35
-# tests 35
+1..36
+# tests 36
 # suites 0
-# pass 35
+# pass 36
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 2848.506797
+# duration_ms 3285.697969

@@ -85,19 +85,33 @@ the operator's own edit fail after an AI quantum change.
 - FULL (the complete session-wide contract) at every session boundary:
   `MISSION_START`, `MISSION_RESTORE`, `SESSION_ROTATION` (rotation or queue activation),
   `IDLE_KEEPALIVE`, a new process/run/session/tab/queue slot/mission text,
-  a page reload (F5/Ctrl-F5 → new content `documentId`), or a conversation change.
+  or a conversation change (another `/c/<id>` or a new chat).
 - COMPACT only for `CONTINUATION`/`READ_REQUIRED` with positive evidence that the
-  prompt goes to the same document and conversation as the previous one. It omits
+  prompt goes to the same ChatGPT conversation as the previous one: the
+  conversation in which the previous prompt's causally paired response was
+  captured. It omits
   unchanged session-wide sections (mission text → fingerprint reference,
   presentation, language capsule, response contract body, static queue rules).
   It keeps all per-turn state, the owner-state rule, `control.runtimeControl`
   and, on the final quantum interaction, the checkpoint rule.
 - A FULL prompt is re-sent at ordinals 1, 11, 21, … and whenever the EIC returns
   `greenfieldStatusRequest=FULL_NEXT_PROMPT`.
-- Dispatch-time guard: a COMPACT prompt whose document or conversation changed
-  before the first dispatch is replaced by its precomposed FULL fallback, and the
-  hash-bound gate/capacity reservations are re-armed. Every uncertainty resolves
-  to FULL.
+- Dispatch-time guard: a COMPACT prompt whose conversation changed before the
+  first dispatch is replaced by its precomposed FULL fallback, and the hash-bound
+  gate/capacity reservations are re-armed. Every uncertainty resolves to FULL.
+
+### v1.7.8 correction: a reload of the same conversation is not a boundary
+
+v1.7.7 also treated a changed content `documentId` (any page reload) as a
+boundary. In the live v1.7.7 session, a 33.7-minute EIC turn triggered
+Greenfield's own stale-ladder F5 (`tabs.reload` of the same `/c/<id>`) at 30
+minutes. The next prompt therefore went out FULL (`DOCUMENT_OR_CONVERSATION_CHANGED`),
+and with turns longer than 30 minutes almost every prompt would have been FULL.
+The EIC model context is the server-side conversation, which a reload only
+re-renders. Since v1.7.8 continuity is anchored on the conversation key recorded
+at response capture (`lastResponse.observation.conversationKey`). A reload of the
+same conversation, whether Greenfield's F5/Ctrl-F5 or a manual one, keeps COMPACT.
+A different or new conversation forces FULL (`CONVERSATION_CHANGED`).
 
 ## Also fixed
 

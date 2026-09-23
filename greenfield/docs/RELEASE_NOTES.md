@@ -1,3 +1,13 @@
+# 1.7.8 – same-conversation reload keeps COMPACT prompts
+
+- Rotorsak i live-körd 1.7.7: en tur på 33,7 min utlöste Greenfields egen stale-ladder-F5 (`tabs.reload` av samma `/c/`-konversation) efter 30 min. Nytt `documentId` räknades som sessionsgräns och tur 2 skickades FULL (`DOCUMENT_OR_CONVERSATION_CHANGED`).
+- Kontinuitet förankras nu i konversationen där föregående svar fångades (`lastResponse.observation.conversationKey`), inte i sidans dokument-id.
+- Omladdning av samma konversation, både Greenfields F5/Ctrl-F5 och manuell F5, behåller COMPACT. Ny chatt eller annan konversation ger FULL (`CONVERSATION_CHANGED`). Dispatch-vakten jämför bara konversationen.
+- Regressionstest kör det live-körda förloppet genom verklig svarsfångst samt tolv verkliga turer: FULL exakt vid 1 och 11.
+- Lokal Node/static/harness-verifiering är inte samma sak som live Chrome/ChatGPT-acceptans.
+
+---
+
 # 1.7.7 – AI runtime control and FULL/COMPACT prompts
 
 - Rotorsak 1.7.6: `STOP_PROCESS`/`DONE` klassades som terminala men utan `controllerOverride`, så en lokal Hjalmar-`CONTINUE` kunde köra vidare och kö-retirement nåddes aldrig. Nu verkställs godkänd terminal kontroll.

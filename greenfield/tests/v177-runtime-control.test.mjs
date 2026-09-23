@@ -640,7 +640,7 @@ test("v1.7.7 legacy queue items gain an operator ceiling equal to their priority
 
 test("v1.7.7 prompt profile: session-boundary prompts are FULL, same-conversation follow-ups COMPACT, every 10th FULL", () => {
   const process = { processId: "p", runId: "r", sessionSeq: 1, tabId: 11, goal: "Mission" };
-  const observed = { promptDocumentId: "doc-1", responseDocumentId: "doc-1", conversationKey: "https://chatgpt.com/c/abc" };
+  const observed = { responseConversationKey: "https://chatgpt.com/c/abc" };
   for (const messageType of ["MISSION_START", "MISSION_RESTORE", "SESSION_ROTATION", "IDLE_KEEPALIVE"]) {
     assert.equal(selectPromptProfile({ process, messageType, previous: null, observed }).profile, PROMPT_PROFILE.FULL);
   }
@@ -658,9 +658,9 @@ test("v1.7.7 prompt profile: session-boundary prompts are FULL, same-conversatio
   assert.equal(nextFullOrdinal(11), 21);
 });
 
-test("v1.7.7 prompt profile: any session, document or conversation discontinuity forces FULL", () => {
+test("v1.7.8 prompt profile: any session or conversation discontinuity forces FULL; a same-conversation reload does not", () => {
   const process = { processId: "p", runId: "r", sessionSeq: 1, tabId: 11, goal: "Mission" };
-  const observed = { promptDocumentId: "doc-1", responseDocumentId: "doc-1", conversationKey: "https://chatgpt.com/c/abc" };
+  const observed = { responseConversationKey: "https://chatgpt.com/c/abc" };
   const first = selectPromptProfile({ process, messageType: "MISSION_START" });
   const compact = selectPromptProfile({ process, messageType: "CONTINUATION", previous: first, observed });
   assert.equal(compact.profile, "COMPACT");
@@ -669,11 +669,9 @@ test("v1.7.7 prompt profile: any session, document or conversation discontinuity
     [{ ...process, tabId: 12 }, observed, "SESSION_BOUNDARY"],
     [{ ...process, goal: "Other mission" }, observed, "SESSION_BOUNDARY"],
     [{ ...process, queueContext: { itemId: "slot-2", queueId: "q" } }, observed, "SESSION_BOUNDARY"],
-    [process, { ...observed, responseDocumentId: "doc-2" }, "DOCUMENT_OR_CONVERSATION_CHANGED"],
-    [process, { ...observed, promptDocumentId: "doc-2", responseDocumentId: "doc-2" }, "DOCUMENT_OR_CONVERSATION_CHANGED"],
-    [process, { ...observed, conversationKey: "https://chatgpt.com/c/other" }, "DOCUMENT_OR_CONVERSATION_CHANGED"],
-    [process, { ...observed, conversationKey: "" }, "SESSION_IDENTITY_UNPROVEN"],
-    [process, { ...observed, responseDocumentId: "" }, "SESSION_IDENTITY_UNPROVEN"]
+    [process, { responseConversationKey: "https://chatgpt.com/c/other" }, "CONVERSATION_CHANGED"],
+    [process, { responseConversationKey: "" }, "SESSION_IDENTITY_UNPROVEN"],
+    [process, {}, "SESSION_IDENTITY_UNPROVEN"]
   ];
   for (const [proc, obs, reason] of cases) {
     const next = selectPromptProfile({ process: proc, messageType: "CONTINUATION", previous: compact, observed: obs });
@@ -685,9 +683,12 @@ test("v1.7.7 prompt profile: any session, document or conversation discontinuity
   assert.equal(forced.reason, "AI_REQUESTED_FULL_PROMPT");
 
   const next = selectPromptProfile({ process, messageType: "CONTINUATION", previous: compact, observed });
-  assert.equal(compactPromptStillValid(next, { documentId: "doc-1", conversationKey: "https://chatgpt.com/c/abc" }), true);
-  assert.equal(compactPromptStillValid(next, { documentId: "doc-reloaded", conversationKey: "https://chatgpt.com/c/abc" }), false);
-  assert.equal(compactPromptStillValid(next, { documentId: "doc-1", conversationKey: "https://chatgpt.com/c/new" }), false);
+  assert.equal(next.profile, "COMPACT");
+  assert.equal(next.anchorConversationKey, "https://chatgpt.com/c/abc");
+  assert.equal(Object.hasOwn(next, "anchorDocumentId"), false, "document identity is not a continuity criterion");
+  assert.equal(compactPromptStillValid(next, { conversationKey: "https://chatgpt.com/c/abc" }), true, "reload of the same conversation stays valid");
+  assert.equal(compactPromptStillValid(next, { conversationKey: "https://chatgpt.com/c/new" }), false);
+  assert.equal(compactPromptStillValid(next, { conversationKey: "" }), false, "new chat without /c/ id is not the anchor");
   assert.equal(upgradedFullProfile(next).profile, "FULL");
   assert.notEqual(promptSessionKey(process), promptSessionKey({ ...process, runId: "r2" }));
   assert.match(missionFingerprint("Mission"), /^fnv1a32:[0-9a-f]{8}$/);
@@ -758,7 +759,8 @@ test("v1.7.7 background wires one control point, terminal verdicts, self-heal an
   assert.match(background, /await reconcileTerminalQueueSlot\(current\);/);
   assert.match(background, /await reconcileTerminalQueueSlot\(process\);/);
   assert.match(background, /upgradeCompactPendingPrompt\(process, page\)/);
-  assert.match(background, /dispatchDocumentId:/);
+  assert.match(background, /conversationKey: conversationKey\(page\.url \|\| ""\)/);
+  assert.match(background, /responseConversationKey: process\.lastResponse\?\.observation\?\.conversationKey/);
   assert.match(background, /promptProfile: pending\.promptProfile/);
   assert.doesNotMatch(background, /\beval\(|new Function\(/);
 });

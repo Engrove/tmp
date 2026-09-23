@@ -1660,15 +1660,14 @@ async function buildPendingA2A(process, {
     ? buildFullProcessStatus(virtual, { at: Date.now() })
     : null;
   // v1.7.7: session-boundary prompts are FULL; same-conversation follow-ups may
-  // be COMPACT only with positive document/conversation continuity evidence.
+  // be COMPACT only with positive conversation continuity evidence (v1.7.8:
+  // a reload of the same conversation is not a boundary).
   const promptProfile = selectPromptProfile({
     process: virtual,
     messageType,
     previous: process.lastPrompt?.promptProfile || null,
     observed: {
-      promptDocumentId: process.lastPrompt?.dispatchDocumentId || "",
-      responseDocumentId: process.lastResponse?.observation?.documentId || "",
-      conversationKey: conversationKey(process.lastManagedUrl || "")
+      responseConversationKey: process.lastResponse?.observation?.conversationKey || ""
     },
     forceFull: Boolean(processStatus),
     forceReason: "AI_REQUESTED_FULL_PROMPT"
@@ -3533,9 +3532,7 @@ async function upgradeCompactPendingPrompt(process, page) {
   await audit(upgraded, "PROMPT_PROFILE_UPGRADED_TO_FULL", "a2a", {
     compactPromptHash: pending.hash,
     fullPromptHash: fallback.hash,
-    anchorDocumentId: pending.promptProfile?.anchorDocumentId || "",
     anchorConversationKey: pending.promptProfile?.anchorConversationKey || "",
-    observedDocumentId: page?.documentId || "",
     observedConversationKey: conversationKey(page?.url || ""),
     promptEffectIssued: false
   }).catch(() => undefined);
@@ -3557,14 +3554,13 @@ async function tickSending(process) {
     return enterRecovery(process, error, PHASES.SENDING);
   }
 
-  // v1.7.7: a COMPACT prompt may only be posted into the exact document and
-  // conversation it was composed for. F5/Ctrl-F5 or a conversation change
-  // before the first dispatch upgrades it to its FULL fallback. Hash-bound
-  // prompt-gate/capacity reservations are released and re-armed for the new hash.
+  // v1.7.7: a COMPACT prompt may only be posted into the exact conversation it
+  // was composed for. A conversation change before the first dispatch upgrades
+  // it to its FULL fallback (a reload of the same conversation does not, v1.7.8).
+  // Hash-bound prompt-gate/capacity reservations are released and re-armed.
   if (!pending.dispatch &&
       pending.promptProfile?.profile === PROMPT_PROFILE.COMPACT &&
       !compactPromptStillValid(pending.promptProfile, {
-        documentId: page.documentId || "",
         conversationKey: conversationKey(page.url || "")
       })) {
     return upgradeCompactPendingPrompt(process, page);
@@ -3680,8 +3676,7 @@ async function tickSending(process) {
         dispatchedUserTurnIndex: resolvedUserTurnIndex,
         oneShotInstruction: pending.oneShotInstruction || null,
         a2a: pending.a2a || null,
-        promptProfile: pending.promptProfile || null,
-        dispatchDocumentId: pending.dispatch?.baselineDocumentId || page.documentId || ""
+        promptProfile: pending.promptProfile || null
       },
       sessionHealth: markSessionHealthPromptPosted(process.sessionHealth, {
         sessionSeq: process.sessionSeq,
@@ -4707,6 +4702,9 @@ async function tickWaiting(process) {
     signals: responsePage.signals || {},
     observation: {
       documentId: responsePage.documentId || "",
+      // v1.7.8: conversation of the causally paired response; COMPACT prompt
+      // continuity is anchored on it (see lib/prompt-profile.mjs).
+      conversationKey: conversationKey(page.url || ""),
       messageId: responsePage.lastAssistantId || "",
       ownerKind: responsePage.lastAssistantOwnerKind || "NONE",
       ownerTrusted: responsePage.lastAssistantOwnerTrusted === true,

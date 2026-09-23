@@ -1,63 +1,99 @@
 {
   "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.7.7",
-  "releaseChannel": "1.7.7",
-  "generatedAt": "2026-09-23T08:39:17.332344+00:00",
+  "appVersion": "1.7.8",
+  "releaseChannel": "1.7.8",
+  "generatedAt": "2026-09-23T09:47:44.595061+00:00",
   "sourceBaseline": {
-    "source": "operator-verified Greenfield v1.7.6 release package (user upload)",
-    "file": "EIC_Autonom_Agent_Greenfield_v1.7.6.zip",
-    "version": "1.7.6",
-    "sha256": "1c0118ddfb6d843eb12c602ce75eeda6fc5dddee4561dfe0e391a0d202af05d0",
-    "sizeBytes": 694856,
+    "source": "Greenfield v1.7.7 release package (this delivery chain)",
+    "file": "EIC_Autonom_Agent_Greenfield_v1.7.7.zip",
+    "version": "1.7.7",
+    "sha256": "9602bc28b720b5bb96f8ce53ed3abda681a57b2be7d6fa9e3310aee65e7b1a10",
+    "sizeBytes": 741660,
     "embeddedIntegrity": {
-      "records": 236,
+      "records": 245,
       "mismatches": 0,
-      "rootDigest": "143c775d2c50ebadd8a6044261bc936cc81609463cd34f8594a91db15ea05bc4"
+      "rootDigest": "8654c8e5a226841f779db5826a8f663b21a6a981d0c88307285674dd9ad8f45d"
     }
   },
   "change": {
-    "purpose": "Make AI-requested runtime control a validated, bounded Greenfield-owned control point: enforce EIC terminal controls (retire the logical GFW and all duplicate slots), add whitelisted SET_QUANTUM/SET_PRIORITY, publish the contract in every FULL prompt, and send COMPACT follow-up prompts inside the same conversation.",
-    "rootCause": "resolveGreenfieldControl classified STOP_PROCESS/status=DONE as state DONE without controllerOverride, so a local Hjalmar CONTINUE verdict survived and the DONE commit + logical-GFW queue retirement never ran.",
-    "controlPoint": "background.js evaluateAndApplyRuntimeControl -> lib/runtime-control.mjs",
-    "precedence": "operator runtime control > validated Greenfield owner state > AI runtime-control request",
-    "operations": {
-      "COMPLETE_MISSION": "requires status=DONE or STOP_PROCESS; retires all slots of the logical savedMissionId",
-      "SET_QUANTUM": "integer 1..15, target slot only, effective from next quantum/activation",
-      "SET_PRIORITY": "LOW|NORMAL|HIGH|URGENT, not above operator ceiling, immediate non-preemptive"
-    },
-    "legacyNormalization": "status=DONE / sessionAction=STOP_PROCESS -> COMPLETE_MISSION for the prompt's own target",
-    "promptProfile": "FULL at every session boundary (start/restore/rotation/queue activation/reload/conversation change) and ordinals 1,11,21,...; COMPACT otherwise with dispatch-time FULL upgrade",
-    "alsoFixed": [
-      "MISSION_RESTORE admitted as A2A message type",
-      "terminal queue retirement retry + self-heal",
-      "side panel sends only edited queue field"
-    ]
+    "purpose": "Fix FULL/COMPACT prompt continuity: a reload of the same ChatGPT conversation is not a session boundary.",
+    "rootCause": "Live v1.7.7 session: a 33.7-minute EIC turn triggered Greenfield's own stale-ladder F5 (tabs.reload of the same /c/ conversation) at 30 minutes; the new content documentId was treated as a session boundary, so turn 2 went out FULL (DOCUMENT_OR_CONVERSATION_CHANGED).",
+    "operatorDecision": "Same conversation = COMPACT: a reload of the same ChatGPT conversation (Greenfield stale-ladder F5/Ctrl-F5 or manual F5) is not a prompt-profile boundary.",
+    "continuityAnchor": "lastResponse.observation.conversationKey",
+    "fullTriggers": "mission start/restore, session rotation, queue activation, idle keepalive, new process/run/session/tab/queue slot/mission text, conversation change, ordinals 1,11,21,..., greenfieldStatusRequest=FULL_NEXT_PROMPT",
+    "carriedFrom1_7_7": {
+      "purpose": "Make AI-requested runtime control a validated, bounded Greenfield-owned control point: enforce EIC terminal controls (retire the logical GFW and all duplicate slots), add whitelisted SET_QUANTUM/SET_PRIORITY, publish the contract in every FULL prompt, and send COMPACT follow-up prompts inside the same conversation.",
+      "rootCause": "resolveGreenfieldControl classified STOP_PROCESS/status=DONE as state DONE without controllerOverride, so a local Hjalmar CONTINUE verdict survived and the DONE commit + logical-GFW queue retirement never ran.",
+      "controlPoint": "background.js evaluateAndApplyRuntimeControl -> lib/runtime-control.mjs",
+      "precedence": "operator runtime control > validated Greenfield owner state > AI runtime-control request",
+      "operations": {
+        "COMPLETE_MISSION": "requires status=DONE or STOP_PROCESS; retires all slots of the logical savedMissionId",
+        "SET_QUANTUM": "integer 1..15, target slot only, effective from next quantum/activation",
+        "SET_PRIORITY": "LOW|NORMAL|HIGH|URGENT, not above operator ceiling, immediate non-preemptive"
+      },
+      "legacyNormalization": "status=DONE / sessionAction=STOP_PROCESS -> COMPLETE_MISSION for the prompt's own target",
+      "promptProfile": "FULL at every session boundary (start/restore/rotation/queue activation/reload/conversation change) and ordinals 1,11,21,...; COMPACT otherwise with dispatch-time FULL upgrade",
+      "alsoFixed": [
+        "MISSION_RESTORE admitted as A2A message type",
+        "terminal queue retirement retry + self-heal",
+        "side panel sends only edited queue field"
+      ]
+    }
   },
   "verification": {
-    "baselineTestCommand": "npm test (on unmodified v1.7.6)",
-    "baselineTests": 497,
-    "baselinePass": 497,
+    "baselineTestCommand": "npm test (on v1.7.7)",
+    "baselineTests": 532,
+    "baselinePass": 532,
     "baselineFail": 0,
-    "dedicatedRuntimeControlCommand": "node --test tests/v177-runtime-control.test.mjs tests/v177-runtime-control-e2e.test.mjs",
-    "dedicatedRuntimeControlOutput": "verification/v177-runtime-control.tap",
-    "dedicatedRuntimeControlTests": 35,
-    "dedicatedRuntimeControlPass": 35,
-    "dedicatedRuntimeControlFail": 0,
+    "dedicatedPromptContinuityCommand": "node --test tests/v178-prompt-continuity.test.mjs",
+    "dedicatedPromptContinuityOutput": "verification/v178-prompt-continuity.tap",
+    "dedicatedPromptContinuityTests": 2,
+    "dedicatedPromptContinuityPass": 2,
+    "dedicatedPromptContinuityFail": 0,
+    "runtimeControlCommand": "node --test tests/v177-runtime-control.test.mjs tests/v177-runtime-control-e2e.test.mjs",
+    "runtimeControlOutput": "verification/v177-runtime-control.tap",
+    "runtimeControlTests": 36,
+    "runtimeControlPass": 36,
+    "runtimeControlFail": 0,
     "testCommand": "npm test",
     "testOutput": "verification/release-tests.tap",
-    "tests": 532,
-    "pass": 532,
+    "tests": 535,
+    "pass": 535,
     "fail": 0,
     "skipped": 0,
     "syntaxCommand": "node --check <each .js/.mjs/.cjs>",
-    "syntaxOutput": "verification/v177-syntax-check.txt",
-    "syntaxFiles": 123,
-    "syntaxPass": 123,
+    "syntaxOutput": "verification/v178-syntax-check.txt",
+    "syntaxFiles": 124,
+    "syntaxPass": 124,
     "syntaxFail": 0,
     "nodeVersion": "v22.22.2",
     "errors": []
   },
   "regressionMatrix": [
+    {
+      "case": "Greenfield stale-ladder F5 during a >30 min turn (live v1.7.7 case)",
+      "expected": "next prompt COMPACT, ordinal 2"
+    },
+    {
+      "case": "manual F5 of the same conversation",
+      "expected": "COMPACT"
+    },
+    {
+      "case": "twelve turns in one conversation",
+      "expected": "FULL exactly at ordinals 1 and 11"
+    },
+    {
+      "case": "conversation change before dispatch",
+      "expected": "FULL fallback posted; compact never posted"
+    },
+    {
+      "case": "new chat / rotation / queue activation / new process",
+      "expected": "FULL"
+    },
+    {
+      "case": "missing conversation evidence",
+      "expected": "FULL (SESSION_IDENTITY_UNPROVEN)"
+    },
     {
       "case": "valid COMPLETE_MISSION for current GFW",
       "expected": "terminal accepted; overrides controller CONTINUE; DONE commit"
@@ -111,17 +147,13 @@
       "expected": "operations, format, target, constraints, precedence, validation, terminal and duplicate semantics"
     },
     {
-      "case": "FULL/COMPACT prompts",
-      "expected": "FULL at boundaries and every 10th; F5 before dispatch upgrades to FULL"
-    },
-    {
       "case": "DONE but queue write lost",
       "expected": "self-heal before queue selection"
     }
   ],
   "evidenceBoundaries": {
-    "packageSourceAndNodeTests": "verified locally from the operator-verified v1.7.6 ZIP",
-    "harnessE2E": "real background.js analysis path; offscreen LanguageModel mocked",
+    "packageSourceAndNodeTests": "verified locally from the v1.7.7 package produced in this delivery chain",
+    "harnessE2E": "real background.js send/wait/capture/analyze path in the Node harness; offscreen LanguageModel mocked",
     "liveChromeExtensionInstall": "not executed in this environment",
     "providerOrChatGPTLiveDispatch": "not executed in this environment"
   }

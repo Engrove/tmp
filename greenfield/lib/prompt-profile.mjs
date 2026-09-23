@@ -1,12 +1,18 @@
 // v1.7.7 prompt profile: FULL vs COMPACT Greenfield prompts.
 //
 // The first prompt of every ChatGPT session boundary (mission start/restore,
-// session rotation, queue activation, page reload, conversation change, new
-// Chrome window/tab/process) must carry the complete session-wide contract.
+// session rotation, queue activation, conversation change, new Chrome
+// window/tab/process) must carry the complete session-wide contract.
 // Follow-up prompts inside the exact same conversation may omit unchanged
 // session-wide sections. A FULL prompt is re-sent every
 // FULL_PROMPT_REFRESH_INTERVAL prompts (ordinals 1, 11, 21, ...) and whenever
 // the EIC requests greenfieldStatusRequest=FULL_NEXT_PROMPT.
+//
+// v1.7.8: the EIC model context is the ChatGPT conversation (/c/<id>), not the
+// browser document. A reload of the same conversation - Greenfield's own
+// stale-ladder F5/Ctrl-F5 or a manual F5 - re-renders the same thread and
+// therefore does not break COMPACT continuity. Only a conversation change or a
+// Greenfield session boundary does.
 //
 // Every uncertainty resolves to FULL. COMPACT is only an optimization that
 // requires positive evidence of conversation continuity.
@@ -54,7 +60,7 @@ export function nextFullOrdinal(ordinal) {
   return (Math.floor((n - 1) / FULL_PROMPT_REFRESH_INTERVAL) + 1) * FULL_PROMPT_REFRESH_INTERVAL + 1;
 }
 
-function record(process, { profile, reason, ordinal, lastFullOrdinal, anchorDocumentId = "", anchorConversationKey = "" }) {
+function record(process, { profile, reason, ordinal, lastFullOrdinal, anchorConversationKey = "" }) {
   return {
     schema: PROMPT_PROFILE_SCHEMA,
     profile,
@@ -65,7 +71,6 @@ function record(process, { profile, reason, ordinal, lastFullOrdinal, anchorDocu
     refreshInterval: FULL_PROMPT_REFRESH_INTERVAL,
     sessionKey: promptSessionKey(process),
     missionFingerprint: missionFingerprint(process?.goal),
-    anchorDocumentId: String(anchorDocumentId || ""),
     anchorConversationKey: String(anchorConversationKey || "")
   };
 }
@@ -75,9 +80,10 @@ function record(process, { profile, reason, ordinal, lastFullOrdinal, anchorDocu
  *
  * previous  - promptProfile record of the prompt whose response was captured
  *             (process.lastPrompt.promptProfile);
- * observed  - { promptDocumentId, responseDocumentId, conversationKey }:
- *             the document that received that prompt, the document where its
- *             response was captured and the current managed conversation.
+ * observed  - { responseConversationKey }: the conversation in which that
+ *             prompt's causally paired response was captured. The response is
+ *             paired to the exact user turn Greenfield posted, so this is also
+ *             the conversation that received the prompt.
  */
 export function selectPromptProfile({
   process,
@@ -103,21 +109,18 @@ export function selectPromptProfile({
   if (!prior) return full("NO_PRIOR_PROFILE", 1);
   if (prior.sessionKey !== promptSessionKey(process)) return full("SESSION_BOUNDARY", 1);
 
-  const promptDocumentId = String(observed?.promptDocumentId || "");
-  const responseDocumentId = String(observed?.responseDocumentId || "");
-  const conversation = String(observed?.conversationKey || "");
-  // A FULL prompt's anchor becomes known only after it was dispatched and its
-  // response captured; a COMPACT prompt must stay on its inherited anchor.
-  const anchorDocumentId = prior.profile === PROMPT_PROFILE.FULL ? promptDocumentId : String(prior.anchorDocumentId || "");
-  const anchorConversationKey = prior.profile === PROMPT_PROFILE.FULL ? conversation : String(prior.anchorConversationKey || "");
-  if (!promptDocumentId || !responseDocumentId || !conversation ||
-      !anchorDocumentId || !anchorConversationKey) {
+  const conversation = String(observed?.responseConversationKey || "");
+  // A FULL prompt's conversation becomes known only once its response is
+  // captured (a new chat gets its /c/<id> on first post); a COMPACT prompt
+  // must stay on the conversation it inherited.
+  const anchorConversationKey = prior.profile === PROMPT_PROFILE.FULL
+    ? conversation
+    : String(prior.anchorConversationKey || "");
+  if (!conversation || !anchorConversationKey) {
     return full("SESSION_IDENTITY_UNPROVEN", 1);
   }
-  if (promptDocumentId !== responseDocumentId ||
-      anchorDocumentId !== responseDocumentId ||
-      anchorConversationKey !== conversation) {
-    return full("DOCUMENT_OR_CONVERSATION_CHANGED", 1);
+  if (anchorConversationKey !== conversation) {
+    return full("CONVERSATION_CHANGED", 1);
   }
 
   const ordinal = Math.max(1, Math.floor(Number(prior.ordinal) || 0)) + 1;
@@ -128,28 +131,25 @@ export function selectPromptProfile({
     reason: "SAME_CONVERSATION_FOLLOW_UP",
     ordinal,
     lastFullOrdinal: Math.max(1, Math.floor(Number(prior.lastFullOrdinal) || 1)),
-    anchorDocumentId,
     anchorConversationKey
   });
 }
 
 /**
  * Dispatch-time guard: a COMPACT prompt may only be posted into the exact
- * document and conversation it was composed for. Anything else (F5/Ctrl-F5,
- * navigation to another chat) requires the FULL fallback.
+ * conversation it was composed for. A reload of that conversation keeps it
+ * valid; navigation to another or a new chat requires the FULL fallback.
  */
-export function compactPromptStillValid(profile, { documentId = "", conversationKey = "" } = {}) {
+export function compactPromptStillValid(profile, { conversationKey = "" } = {}) {
   if (!profile || profile.profile !== PROMPT_PROFILE.COMPACT) return true;
   return Boolean(
-    profile.anchorDocumentId &&
     profile.anchorConversationKey &&
-    String(documentId || "") === profile.anchorDocumentId &&
     String(conversationKey || "") === profile.anchorConversationKey
   );
 }
 
 /** The FULL record used when a COMPACT prompt is upgraded before dispatch. */
-export function upgradedFullProfile(profile, reason = "COMPACT_ANCHOR_LOST_BEFORE_DISPATCH") {
+export function upgradedFullProfile(profile, reason = "CONVERSATION_CHANGED_BEFORE_DISPATCH") {
   return {
     ...(profile || {}),
     schema: PROMPT_PROFILE_SCHEMA,
@@ -158,7 +158,6 @@ export function upgradedFullProfile(profile, reason = "COMPACT_ANCHOR_LOST_BEFOR
     ordinal: 1,
     lastFullOrdinal: 1,
     nextFullOrdinal: nextFullOrdinal(1),
-    anchorDocumentId: "",
     anchorConversationKey: ""
   };
 }

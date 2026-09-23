@@ -12,6 +12,7 @@ import {
 } from "../lib/mission-work-queue.mjs";
 import { sha256Hex } from "../lib/common.mjs";
 import { writeNextInstruction } from "../lib/instruction-store.mjs";
+import { conversationKey } from "../lib/restart-recovery.mjs";
 import { ANALYSIS_SCHEMA } from "../lib/contracts.mjs";
 
 // End-to-end through the real background.js analysis path. Only the offscreen
@@ -105,7 +106,7 @@ async function analyzing(h, p, { responseJson, queueItem = null, queue = null })
       text,
       hash: await sha256Hex(text),
       messageId: "assistant-test-1",
-      observation: { documentId: h.page.documentId, messageId: "assistant-test-1" }
+      observation: { documentId: h.page.documentId, conversationKey: conversationKey(h.page.url), messageId: "assistant-test-1" }
     },
     updatedAt: new Date().toISOString()
   };
@@ -284,7 +285,6 @@ test("v1.7.7 E2E: a normal v1.7.6 CONTINUE response is a runtime-control no-op a
   mockAnalyzer(h, hjalmar("CONTINUE"));
   let p = await waitingProcess(h);
   assert.equal(p.lastPrompt.promptProfile.profile, "FULL");
-  assert.equal(p.lastPrompt.dispatchDocumentId, h.page.documentId);
   p = await analyzing(h, p, { responseJson: baseResponse() });
   const next = await h.mod.tickAnalyzing(p);
   assert.equal(next.phase, "SENDING");
@@ -302,7 +302,22 @@ test("v1.7.7 E2E: a normal v1.7.6 CONTINUE response is a runtime-control no-op a
   assert.equal(sent.pendingPrompt.hash, next.pendingPrompt.hash);
 });
 
-test("v1.7.7 E2E: F5/Ctrl-F5 before dispatch upgrades a COMPACT follow-up to the FULL prompt", async () => {
+test("v1.7.8 E2E: a reload of the same conversation before dispatch keeps the COMPACT follow-up", async () => {
+  const h = await harness();
+  mockAnalyzer(h, hjalmar("CONTINUE"));
+  let p = await waitingProcess(h);
+  p = await analyzing(h, p, { responseJson: baseResponse() });
+  let next = await h.mod.tickAnalyzing(p);
+  assert.equal(next.pendingPrompt.promptProfile.profile, "COMPACT");
+  const compactHash = next.pendingPrompt.hash;
+  h.page.documentId = "document-after-manual-f5";
+  next = await sendUntilPosted(h, next, 2);
+  assert.equal(h.sent.length, 2);
+  assert.equal(JSON.parse(h.sent[1].prompt).promptProfile.profile, "COMPACT");
+  assert.equal(next.pendingPrompt.hash, compactHash);
+});
+
+test("v1.7.7 E2E: a conversation change before dispatch upgrades a COMPACT follow-up to the FULL prompt", async () => {
   const h = await harness();
   mockAnalyzer(h, hjalmar("CONTINUE"));
   let p = await waitingProcess(h);
@@ -310,10 +325,13 @@ test("v1.7.7 E2E: F5/Ctrl-F5 before dispatch upgrades a COMPACT follow-up to the
   let next = await h.mod.tickAnalyzing(p);
   assert.equal(next.pendingPrompt.promptProfile.profile, "COMPACT");
   const fullHash = next.pendingPrompt.fullFallback.hash;
-  h.page.documentId = "document-after-reload";
+  const otherConversation = "https://chatgpt.com/g/g-test-eic/c/other-456";
+  h.page.url = otherConversation;
+  h.tab.url = otherConversation;
   next = await h.mod.tickSending(next);
-  assert.equal(h.sent.length, 1, "no compact prompt is posted into the reloaded page");
+  assert.equal(h.sent.length, 1, "no compact prompt is posted into another conversation");
   assert.equal(next.pendingPrompt.promptProfile.profile, "FULL");
+  assert.equal(next.pendingPrompt.promptProfile.reason, "CONVERSATION_CHANGED_BEFORE_DISPATCH");
   assert.equal(next.pendingPrompt.hash, fullHash);
   next = await sendUntilPosted(h, next, 2);
   assert.equal(h.sent.length, 2);

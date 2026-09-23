@@ -1,0 +1,63 @@
+{
+  "schema": "eic.greenfield.v178-release-summary.v1",
+  "version": "1.7.8",
+  "generatedAt": "2026-09-23T09:47:44.595061+00:00",
+  "source": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.7.7.zip",
+    "version": "1.7.7",
+    "sha256": "9602bc28b720b5bb96f8ce53ed3abda681a57b2be7d6fa9e3310aee65e7b1a10",
+    "sizeBytes": 741660,
+    "embeddedIntegrity": {
+      "records": 245,
+      "mismatches": 0,
+      "rootDigest": "8654c8e5a226841f779db5826a8f663b21a6a981d0c88307285674dd9ad8f45d"
+    }
+  },
+  "rootCause": "Live v1.7.7 session: a 33.7-minute EIC turn triggered Greenfield's own stale-ladder F5 (tabs.reload of the same /c/ conversation) at 30 minutes; the new content documentId was treated as a session boundary, so turn 2 went out FULL (DOCUMENT_OR_CONVERSATION_CHANGED).",
+  "operatorDecision": "Same conversation = COMPACT: a reload of the same ChatGPT conversation (Greenfield stale-ladder F5/Ctrl-F5 or manual F5) is not a prompt-profile boundary.",
+  "change": "Prompt continuity anchored on lastResponse.observation.conversationKey (conversation of the causally paired response) instead of content documentId; dispatch guard compares conversation only.",
+  "gates": {
+    "LIVE_REGRESSION_STALE_LADDER_F5_COMPACT_PASS": true,
+    "TWELVE_TURN_FULL_AT_1_AND_11_PASS": true,
+    "CONVERSATION_CHANGE_FORCES_FULL_PASS": true,
+    "SAME_CONVERSATION_RELOAD_BEFORE_DISPATCH_COMPACT_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
+  },
+  "executed": {
+    "baselineNpmTestOnV177": {
+      "tests": 532,
+      "pass": 532,
+      "fail": 0
+    },
+    "dedicatedPromptContinuity": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "output": "verification/v178-prompt-continuity.tap"
+    },
+    "runtimeControlSuite": {
+      "tests": 36,
+      "pass": 36,
+      "fail": 0,
+      "output": "verification/v177-runtime-control.tap"
+    },
+    "fullNpmTest": {
+      "tests": 535,
+      "pass": 535,
+      "fail": 0,
+      "output": "verification/release-tests.tap"
+    },
+    "syntax": {
+      "files": 124,
+      "pass": 124,
+      "fail": 0,
+      "output": "verification/v178-syntax-check.txt"
+    }
+  },
+  "boundaries": {
+    "liveChromeExtensionAcceptance": "not executed",
+    "liveChatGPTDispatchAcceptance": "not executed",
+    "e2eScope": "real background.js send/wait/capture/analyze path in the Node harness; offscreen LanguageModel mocked"
+  }
+}
