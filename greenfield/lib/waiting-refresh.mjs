@@ -262,3 +262,30 @@ export function evaluateWaitingRefresh({
     stage: normalizedStage
   };
 }
+
+// v1.7.9 operator overview: the absolute times of the next stale-ladder action
+// and of the final 120-minute rotation, derived from the same thresholds as
+// evaluateWaitingRefresh. Returns null when no anchor/stage is known.
+const WAITING_REFRESH_NEXT_STEP = Object.freeze({
+  [WAITING_REFRESH_STAGES.NONE]: Object.freeze({ action: WAITING_REFRESH_ACTIONS.F5, intervals: 1 }),
+  [WAITING_REFRESH_STAGES.F5_30]: Object.freeze({ action: WAITING_REFRESH_ACTIONS.CTRL_F5, intervals: 2 }),
+  [WAITING_REFRESH_STAGES.CTRL_F5_60]: Object.freeze({ action: WAITING_REFRESH_ACTIONS.CTRL_F5, intervals: 3 }),
+  [WAITING_REFRESH_STAGES.CTRL_F5_90]: Object.freeze({ action: WAITING_REFRESH_ACTIONS.ROTATE, intervals: 4 })
+});
+
+export function waitingRefreshSchedule({ staleSince = "", stage = "" } = {}) {
+  const anchorMs = parseTime(staleSince);
+  if (anchorMs == null) return null;
+  const normalizedStage = normalizeWaitingRefreshStage(stage);
+  const step = Object.prototype.hasOwnProperty.call(WAITING_REFRESH_NEXT_STEP, normalizedStage)
+    ? WAITING_REFRESH_NEXT_STEP[normalizedStage]
+    : null;
+  if (!step) return null;
+  return {
+    anchorMs,
+    stage: normalizedStage,
+    nextAction: step.action,
+    nextAtMs: anchorMs + step.intervals * WAITING_STALE_INTERVAL_MS,
+    rotateAtMs: anchorMs + 4 * WAITING_STALE_INTERVAL_MS
+  };
+}

@@ -1,3 +1,14 @@
+# 1.7.9 – stale queue rotation and overlay overview
+
+- Efter 120 min utan färdigt svar (efter F5 vid 30 och Ctrl-F5 vid 60/90 min) gör en köstyrd körning ett fullständigt köbyte. Chatten överges, köplatsen parkeras som redo med oförändrad kvantprogress (den obesvarade turen räknas inte) och nästa körbara köplats i listordning aktiveras.
+- Den parkerade GFW:n återupptas senare i ny chatt med `previousDisposition=SESSION_UNRESPONSIVE` och `sourceResponseState=PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE`. FULL-prompten beskriver regeln i `queueControl.staleSessionSemantics`.
+- Utan annan körbar köplats, eller med stoppad kö, byter samma GFW till ny chatt som tidigare.
+- Park-logiken delas nu av analysvägen och stallvägen (`parkSlotAndActivateNext`).
+- Overlayen i fliken visar GFW-id, köplats, prioritet, interaktion/kvant och väntande kvantändring, samt en lokal nedräkning till köbytet och nästa F5/Ctrl-F5. Den visar också tur, session, aktivering, promptprofil, nästa GFW i kön och eventuell spärr. Nedräkningen körs i sidan mellan statussynkar och stoppas när ingen deadline finns.
+- Lokal Node/static/harness-verifiering är inte samma sak som live Chrome/ChatGPT-acceptans.
+
+---
+
 # 1.7.8 – same-conversation reload keeps COMPACT prompts
 
 - Rotorsak i live-körd 1.7.7: en tur på 33,7 min utlöste Greenfields egen stale-ladder-F5 (`tabs.reload` av samma `/c/`-konversation) efter 30 min. Nytt `documentId` räknades som sessionsgräns och tur 2 skickades FULL (`DOCUMENT_OR_CONVERSATION_CHANGED`).

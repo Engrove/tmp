@@ -198,6 +198,7 @@ import {
   settleRuntimeControlReceipts,
   withTerminalReceiptsRejected
 } from "./lib/runtime-control.mjs";
+import { managedOverlayOverview } from "./lib/overlay-summary.mjs";
 import {
   PROMPT_PROFILE,
   compactPromptStillValid,
@@ -773,22 +774,35 @@ async function adoptSchedulerTurnForObservedEffect(process, promptHash, reason) 
 }
 
 
+// v1.7.9: the overlay carries an operator overview (GFW, slot, quantum, stale
+// TTL, next slot, prompt profile). The queue is read-only here; when it cannot
+// be read the overview simply omits queue position and next slot.
+async function managedOverlayPayload(process, { linked = true, reason = "state" } = {}) {
+  let queue = null;
+  if (linked && process.queueContext?.itemId && process.workerId) {
+    queue = await loadMissionWorkQueue(process.windowId, chrome.storage.local, { workerId: process.workerId })
+      .catch(() => null);
+  }
+  return {
+    linked,
+    reason,
+    processId: process.processId,
+    runId: process.runId,
+    generation: process.generation,
+    windowId: process.windowId,
+    tabId: process.tabId,
+    phase: process.phase,
+    overview: linked ? managedOverlayOverview(process, { queue }) : null
+  };
+}
+
 async function syncOverlay(process, reason = "state") {
   if (!process?.tabId) return;
   const linked = !TERMINAL_PHASES.has(process.phase);
   try {
     const overlayResult = await chrome.tabs.sendMessage(process.tabId, {
       type: "EIC_GF_OVERLAY_UPDATE",
-      overlay: {
-        linked,
-        reason,
-        processId: process.processId,
-        runId: process.runId,
-        generation: process.generation,
-        windowId: process.windowId,
-        tabId: process.tabId,
-        phase: process.phase
-      }
+      overlay: await managedOverlayPayload(process, { linked, reason })
     });
     const overlayChanged = overlayResult?.changed !== false;
     if (overlayChanged || reason !== "observation") {
@@ -1430,6 +1444,19 @@ async function maybeEscalateWaitingRefresh(process, page, {
       turn: process.turn,
       staleSessionOnly: true
     });
+    if (process.queueContext?.itemId) {
+      const switched = await parkQueueMissionAfterStale(process);
+      if (switched) {
+        await audit(switched, "WAITING_REFRESH_ROTATE_QUEUE_SWITCHED", "mission-work-queue", {
+          previousProcessId: process.processId,
+          previousQueueItemId: process.queueContext.itemId,
+          nextQueueItemId: switched.queueContext?.itemId || "",
+          unansweredPromptHash: process.lastPrompt?.hash || "",
+          interactionCounted: false
+        }).catch(() => undefined);
+        return { handled: true, process: switched };
+      }
+    }
     const rotated = await armSessionRotation(process, {
       reasonCode: "STALE_SESSION_120M_EXHAUSTED",
       reason: "F5/Ctrl-F5 recovery was exhausted without a completed assistant response.",
@@ -1963,9 +1990,9 @@ async function buildQueueActivationProcess({
   });
   rotation.sourceTabId = Number.isInteger(priorProcess?.tabId) ? priorProcess.tabId : tab.id;
   rotation.targetTabId = tab.id;
-  rotation.sourceResponseState = parkedSnapshotPresent
+  rotation.sourceResponseState = item.resume?.sourceResponseState || (parkedSnapshotPresent
     ? "COMPLETED_RESPONSE_CHECKPOINTED"
-    : "NEW_QUEUE_MISSION";
+    : "NEW_QUEUE_MISSION");
   rotation.queueSwitch = true;
   rotation.queueId = queue.queueId;
   rotation.queueItemId = item.itemId;
@@ -2677,6 +2704,45 @@ async function parkQueueMissionAfterAnalysis({
           ? "QUANTUM_EXHAUSTED"
           : "MISSION_QUEUE_PARKED";
   const summary = String(result.targetResponse?.summary || effectiveDecision?.analysis || "").slice(0, 2000);
+  return parkSlotAndActivateNext({
+    current,
+    queue,
+    settings,
+    item,
+    parkedSnapshot,
+    resume,
+    outcome,
+    summary,
+    resumedQuantumProgress,
+    pauseUntilMs,
+    latestInstruction,
+    parkDetail: {
+      completedInteractions,
+      maxInteractions,
+      quantumReached: quantumReached === true,
+      requestedSessionAction
+    }
+  });
+}
+
+// Shared queue-local park: checkpoint the logical GFW on its slot(s), then
+// activate the next runnable slot in explicit order. Returns null without
+// writing anything when no other slot is runnable, so callers keep their
+// fallback (continue current slot, or same-GFW session rotation).
+async function parkSlotAndActivateNext({
+  current,
+  queue,
+  settings,
+  item,
+  parkedSnapshot,
+  resume,
+  outcome,
+  summary,
+  resumedQuantumProgress,
+  pauseUntilMs = 0,
+  latestInstruction = null,
+  parkDetail = {}
+}) {
   const now = Date.now();
 
   // The scheduling slot owns quantum progress, while savedMissionId owns the
@@ -2714,12 +2780,10 @@ async function parkQueueMissionAfterAnalysis({
     "MISSION_QUEUE_ITEM_PARKED",
     {
       itemId: item.itemId,
-      completedInteractions,
+      ...parkDetail,
       resumedQuantumProgress,
-      maxInteractions,
-      quantumReached: quantumReached === true,
-      requestedSessionAction,
       pauseUntilMs,
+      outcome,
       nextItemId: selected.itemId,
       cursorOrder: queue.cursorOrder,
       checkpointExpected: true
@@ -2841,6 +2905,79 @@ async function reconcileTerminalQueueSlot(process) {
     retiredItemIds: retirement.finalizedSlots.map((candidate) => candidate.itemId)
   }).catch(() => undefined);
   return true;
+}
+
+// v1.7.9: in queue-managed mode, exhausting the 120-minute stale-session ladder
+// (F5 at 30, Ctrl-F5 at 60 and 90 minutes) is a full queue rotation. The
+// unresponsive conversation is abandoned, the slot is parked with its
+// unfinished quantum (the unanswered turn is not counted) and the next runnable
+// slot in explicit order is activated. The parked GFW later resumes in a fresh
+// chat told that its last prompt produced no completed response. Without
+// another runnable slot the caller falls back to a same-GFW session rotation.
+async function parkQueueMissionAfterStale(process) {
+  const { queue, settings } = await missionQueueForWindow(process.windowId);
+  const item = queueItemForProcess(queue, process);
+  if (!queue.enabled || !item) return null;
+
+  const maxInteractions = normalizeMissionQuantumInteractions(process.queueContext?.maxInteractions);
+  const resumedQuantumProgress = Math.min(
+    Math.max(0, maxInteractions - 1),
+    Math.max(0, Number(process.queueContext?.interactionCount || 0))
+  );
+  const objective = String(
+    process.objectiveState?.objective ||
+    process.lastPrompt?.a2a?.objective ||
+    process.goal ||
+    ""
+  ).trim();
+  const resume = {
+    ...queueResumeRecordFromAnalysis({
+      current: process,
+      effectiveNextPrompt: objective,
+      previousDisposition: "SESSION_UNRESPONSIVE",
+      analysisEvidence: null,
+      sessionReason: "STALE_SESSION_120M_EXHAUSTED"
+    }),
+    // The earlier response's one-shot status request was consumed by the
+    // unanswered prompt; it must not be replayed from that older response.
+    processStatusRequest: "",
+    sourceResponseState: "PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE"
+  };
+  const parkedSnapshot = {
+    ...deepClone(process),
+    queueContext: {
+      ...process.queueContext,
+      interactionCount: resumedQuantumProgress,
+      maxInteractions
+    },
+    objectiveState: {
+      ...(process.objectiveState || {}),
+      objective,
+      status: "PARKED_QUEUE",
+      updatedAt: nowIso()
+    },
+    responseCandidate: null,
+    responseInterleave: null,
+    waitingRefresh: null,
+    lastError: null,
+    updatedAt: nowIso()
+  };
+  return parkSlotAndActivateNext({
+    current: process,
+    queue,
+    settings,
+    item,
+    parkedSnapshot,
+    resume,
+    outcome: "STALE_SESSION_120M_QUEUE_ROTATION",
+    summary: "No completed response within 120 minutes after F5/Ctrl-F5 recovery; the conversation was abandoned and the queue advanced.",
+    resumedQuantumProgress,
+    parkDetail: {
+      maxInteractions,
+      staleSession: true,
+      unansweredPromptHash: process.lastPrompt?.hash || ""
+    }
+  });
 }
 
 async function finalizeQueueTerminalAndMaybeAdvance(process) {
@@ -7032,15 +7169,7 @@ async function contentReady(sender) {
   }).catch(() => undefined);
   return {
     ok: true,
-    overlay: {
-      linked: true,
-      processId: process.processId,
-      runId: process.runId,
-      generation: process.generation,
-      windowId: process.windowId,
-      tabId: process.tabId,
-      phase: process.phase
-    }
+    overlay: await managedOverlayPayload(process, { linked: true, reason: "content-ready" })
   };
 }
 

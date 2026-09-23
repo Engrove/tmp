@@ -1,24 +1,24 @@
 {
   "schema": "eic.greenfield.integrity.v1",
-  "appVersion": "1.7.8",
-  "generatedAt": "2026-09-23T09:47:54.731217+00:00",
+  "appVersion": "1.7.9",
+  "generatedAt": "2026-09-23T10:22:18.085030+00:00",
   "algorithm": "SHA-256",
-  "fileCount": 250,
-  "rootDigest": "5d3630544b519bf4c52c104ac7568864aac52b9c7895d89248623e865f9f4950",
+  "fileCount": 256,
+  "rootDigest": "9313fc8611bb8a7cebcc6bea4173ee56b8557876f97204907d5aa8c31728a2cd",
   "scope": "all package files except INTEGRITY.json",
   "rootDigestCanonicalization": "sorted relative path + NUL + sizeBytes + NUL + sha256 + LF",
   "files": {
     "BUILD_VERIFICATION.json": {
-      "sizeBytes": 7252,
-      "sha256": "7c26b9ccee93718cb06e35aee37b5af7189d6e07be0f46c0cf9ad552d4cf3169"
+      "sizeBytes": 8532,
+      "sha256": "610f76b1cf5c995f5211f45b02da7885d12787123b731281d212a73498a53fb5"
     },
     "README.md": {
-      "sizeBytes": 9852,
-      "sha256": "64b317e364270ebfa8941dc7f7913b37cb675e8063d05b9d7966ea00d2d7f6d6"
+      "sizeBytes": 10764,
+      "sha256": "582c17d86154b04c35414415395d24d52b5fde526a85f2e953bd1072d31d527d"
     },
     "START_HERE_SV.md": {
-      "sizeBytes": 8391,
-      "sha256": "506595ffc7fea81eb6ba573f4fcc27118c6d01ab1c73f304f8785c983c3d7dd9"
+      "sizeBytes": 8867,
+      "sha256": "bb32036e0373dad1b6a0da6e8f4ff164ff6cbd53b55c14256c1562af17546153"
     },
     "UPPDATERA_TILL_1_6_1.md": {
       "sizeBytes": 5431,
@@ -60,17 +60,21 @@
       "sizeBytes": 1065,
       "sha256": "92fb0864ec7b10619d118c345650c3cb49e0cd7b3b73c05bed0569a01e6a5f9a"
     },
+    "UPPDATERA_TILL_1_7_9.md": {
+      "sizeBytes": 964,
+      "sha256": "0ec7bf4eae74f53f06cb0c5bc06b7bd48e9a2e01a8077341c17398cfa3663853"
+    },
     "VERSION": {
       "sizeBytes": 6,
-      "sha256": "068eaa526351c4d1f6a42f79ae5fa0a7d2b74501a0824727fb6baa2db3c61cce"
+      "sha256": "a4cf30c4d1be3ac4d5b08bec39be5b55cc4d893a07db84262fbb3fea48983424"
     },
     "background.js": {
-      "sizeBytes": 302205,
-      "sha256": "14dcbc3facbf4cf371e2a8bb4f3618da9987bdd4920c4ecc50e19df1d0440a94"
+      "sizeBytes": 306851,
+      "sha256": "6ce8a9e16889e170b6aad697decd21a6611de437ede21e0c7eec6c07d54c187d"
     },
     "content.js": {
-      "sizeBytes": 42423,
-      "sha256": "ed6f0580f8bca215b198247f19ecbbc744961c6e977b9f72c131db6e89f24ec6"
+      "sizeBytes": 44716,
+      "sha256": "f7d8fbdaf7c17dbc8721faa391c27ee9cf5b761530b139baba74b236b1ef7065"
     },
     "docs/ARCHITECTURE.md": {
       "sizeBytes": 14226,
@@ -201,8 +205,8 @@
       "sha256": "d8b8397f3f277d5cdd1868697a17dcf2af338376b51043e0a305a14c739969c0"
     },
     "docs/RELEASE_NOTES.md": {
-      "sizeBytes": 48645,
-      "sha256": "832d31a0d9e30889df7e82b91a71902d90510de79df3d0ce7c74b3992de79079"
+      "sizeBytes": 49872,
+      "sha256": "2b38af3e600a0f7d05a9aaea9dbb8840b32727d255d562543d688fe82eb94bca"
     },
     "docs/RESPONSE_AND_CAPACITY_LIVENESS_V1_3_8.md": {
       "sizeBytes": 4403,
@@ -337,8 +341,8 @@
       "sha256": "cde635c57d1b947abfe28e90d55b2116c4358c0a3d6f4de5e05306f50125b176"
     },
     "lib/a2a.mjs": {
-      "sizeBytes": 42209,
-      "sha256": "9b51933a4791819a58ce94c20a22b8c4fb85f3dadf4ec013b82687d5233d6beb"
+      "sizeBytes": 42959,
+      "sha256": "e67896c5b94f573f080c6388d03d131b82a2c28b45b2f0249664f4ac7bbf2682"
     },
     "lib/audit-store.mjs": {
       "sizeBytes": 10364,
@@ -358,7 +362,7 @@
     },
     "lib/contracts.mjs": {
       "sizeBytes": 2303,
-      "sha256": "8d1e09cecc9d4c2f2739e6b5bf60d353c7a27a0a863244e41bcd68372bdea879"
+      "sha256": "11a75bd7d1ac9ea2c557407dd640fda1915082541b0d050721cf01202324a452"
     },
     "lib/dispatch-reconciliation.mjs": {
       "sizeBytes": 1974,
@@ -451,6 +455,10 @@
     "lib/operator-settings.mjs": {
       "sizeBytes": 7639,
       "sha256": "0226e962f80f074fc76685260cbb472bfcd35d732c2a1c840fb612ff3cdfb9de"
+    },
+    "lib/overlay-summary.mjs": {
+      "sizeBytes": 5518,
+      "sha256": "723b9c40518c799c9f54d149a8b9435726ab1add87fe38656106ede90841991f"
     },
     "lib/panel-details-state.mjs": {
       "sizeBytes": 604,
@@ -553,8 +561,8 @@
       "sha256": "991eadbc16f0e6e66731e177a85aa9d914f2580d080c94508cd07de0baaebfd5"
     },
     "lib/waiting-refresh.mjs": {
-      "sizeBytes": 7421,
-      "sha256": "abbe67a53307d6321129a701db72adcb3357b7f972db6ab56e8e5f4bbb1926f6"
+      "sizeBytes": 8758,
+      "sha256": "a02a088dbd6f9838fc4c2df750070ad5d7f8b28e2ab37c998088e17945d0fe85"
     },
     "lib/work-mode.mjs": {
       "sizeBytes": 5681,
@@ -566,7 +574,7 @@
     },
     "manifest.json": {
       "sizeBytes": 1399,
-      "sha256": "bc8ebf7cf2c2c208fcb480130040c6984b0bedb16f5a4eaafbd23fa8d601a41f"
+      "sha256": "882ab8fb82001e78504cc072afbaa184857595aeefbea5c5744676d4dfca7ce8"
     },
     "offscreen.html": {
       "sizeBytes": 186,
@@ -578,19 +586,19 @@
     },
     "package.json": {
       "sizeBytes": 169,
-      "sha256": "0808508415275414eb929473bca4f9ca48a06aba053d3667706fa792aa939595"
+      "sha256": "9a4a2bca4a9acce007333cbbd1d36c272550e4285608b1e0d12fdb17265b4bc2"
     },
     "sidepanel.css": {
       "sizeBytes": 20530,
       "sha256": "1e25311b026a20bfbc8b3b7e6a3aa174147aa67af386b374ce993b17a657b25d"
     },
     "sidepanel.html": {
-      "sizeBytes": 22874,
-      "sha256": "8fd93ad75b88c70e789cdaaa7dba1024955aad376f43da12c3010e72f8c7ba5d"
+      "sizeBytes": 22887,
+      "sha256": "2ef2823c97baadbea1fe64f2ded90c96803372eab1aa910420edf5d79a8ea565"
     },
     "sidepanel.js": {
       "sizeBytes": 70948,
-      "sha256": "b31521a1667dc63b2c6daeb10e6a52da612a2245eebfe3af1ad967bf8168bdee"
+      "sha256": "5a986bca6afec8de69cef63063996924e6e33a4f46ae91874abc1c4d789582f2"
     },
     "tests/a2a.test.mjs": {
       "sizeBytes": 8347,
@@ -726,7 +734,7 @@
     },
     "tests/static-contract.test.mjs": {
       "sizeBytes": 24413,
-      "sha256": "3829259d10a9fac279f3709f72088b5059a263d6f5cf4b1a607f845d99303f46"
+      "sha256": "75dfb4800315e0567570f253fd0590b9b227810b40c99a3075a9362cef071af3"
     },
     "tests/turn-causality.test.mjs": {
       "sizeBytes": 2700,
@@ -777,8 +785,8 @@
       "sha256": "190f92d9da1921896c3acac82859c96efd69de30e33c2db30c7d536cc700bc84"
     },
     "tests/v121-owner-fallback-regression.test.mjs": {
-      "sizeBytes": 4423,
-      "sha256": "825d7ac3afca73bc8450c30608eb185fbf074587a385f11fae79903010db621f"
+      "sizeBytes": 4552,
+      "sha256": "b7e00b2aaa4409e7dcb2c3f1f7be1a6815f4bdfbd3345f00fd52b16f109318db"
     },
     "tests/v133-live-regression.test.mjs": {
       "sizeBytes": 3387,
@@ -798,7 +806,7 @@
     },
     "tests/v137-multi-mission-static.test.mjs": {
       "sizeBytes": 3858,
-      "sha256": "8ba21f0916b843b51a920720a3843c5b05debf4ee5cf3e67ab983f02400ff60f"
+      "sha256": "e7c6337f138bd378c3230c0e8c336631c41eb2feae80a099bdc25db5bf98f56f"
     },
     "tests/v138-live-regression.test.mjs": {
       "sizeBytes": 5062,
@@ -884,6 +892,10 @@
       "sizeBytes": 8125,
       "sha256": "9046090346a885455407b8a8489d9758d243365ba169c84c987f54b584b78943"
     },
+    "tests/v179-stale-rotation-overlay.test.mjs": {
+      "sizeBytes": 16863,
+      "sha256": "c498a75cc23cf77c64791ecceca001e9c7fcb119df37ff7663373e4357df3354"
+    },
     "tools/replay-dispatch-audit.mjs": {
       "sizeBytes": 4500,
       "sha256": "6e74c6b93377d67dca1aab444bdef6b989b9255a43dd4616ffe74de496f5b408"
@@ -905,8 +917,8 @@
       "sha256": "dbf6c545172798a49115dffea3345a4fc47cae93297a86ce4707db89bb054137"
     },
     "verification/release-tests.tap": {
-      "sizeBytes": 121346,
-      "sha256": "0fdb1959daf797869521ed2047d2325ff1c688ebc622112ba440e3bcc45319ff"
+      "sizeBytes": 123188,
+      "sha256": "9b41fa2826ec8678eeb9570b0cad967d59eb26dcaf6fefc60eb5be17cfcc98ed"
     },
     "verification/static-verification.json": {
       "sizeBytes": 210,
@@ -1007,6 +1019,18 @@
     "verification/v178-syntax-check.txt": {
       "sizeBytes": 4503,
       "sha256": "564289bf98d301e8bf1008f11c300de84d2839bceaaf23fb2fc50a390fe498d3"
+    },
+    "verification/v179-release-summary.json": {
+      "sizeBytes": 2760,
+      "sha256": "45e0889ed3e10ee70e0f0e048f3a57666cfd0dcde7cb49f3c3b5fe8381ee1a7d"
+    },
+    "verification/v179-stale-rotation-overlay.tap": {
+      "sizeBytes": 1958,
+      "sha256": "3314591bc48e32800c96defba3f176d39b60cb810df3b3d75cfde510f06943e9"
+    },
+    "verification/v179-syntax-check.txt": {
+      "sizeBytes": 4580,
+      "sha256": "06ee2ab925fe6b19528bee5d18bc57dcf70ff216549288ab5a85c86054736cde"
     }
   }
 }

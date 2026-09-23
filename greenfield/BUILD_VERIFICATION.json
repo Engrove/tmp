@@ -1,26 +1,32 @@
 {
   "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.7.8",
-  "releaseChannel": "1.7.8",
-  "generatedAt": "2026-09-23T09:47:44.595061+00:00",
+  "appVersion": "1.7.9",
+  "releaseChannel": "1.7.9",
+  "generatedAt": "2026-09-23T10:22:18.032413+00:00",
   "sourceBaseline": {
-    "source": "Greenfield v1.7.7 release package (this delivery chain)",
-    "file": "EIC_Autonom_Agent_Greenfield_v1.7.7.zip",
-    "version": "1.7.7",
-    "sha256": "9602bc28b720b5bb96f8ce53ed3abda681a57b2be7d6fa9e3310aee65e7b1a10",
-    "sizeBytes": 741660,
+    "source": "Greenfield v1.7.8 release package (this delivery chain)",
+    "file": "EIC_Autonom_Agent_Greenfield_v1.7.8.zip",
+    "version": "1.7.8",
+    "sha256": "bda817978954cf7ce400b99c6102109415e3e820000aba5bfdccf8aab5ab81a5",
+    "sizeBytes": 751246,
     "embeddedIntegrity": {
-      "records": 245,
+      "records": 250,
       "mismatches": 0,
-      "rootDigest": "8654c8e5a226841f779db5826a8f663b21a6a981d0c88307285674dd9ad8f45d"
+      "rootDigest": "5d3630544b519bf4c52c104ac7568864aac52b9c7895d89248623e865f9f4950"
     }
   },
   "change": {
-    "purpose": "Fix FULL/COMPACT prompt continuity: a reload of the same ChatGPT conversation is not a session boundary.",
-    "rootCause": "Live v1.7.7 session: a 33.7-minute EIC turn triggered Greenfield's own stale-ladder F5 (tabs.reload of the same /c/ conversation) at 30 minutes; the new content documentId was treated as a session boundary, so turn 2 went out FULL (DOCUMENT_OR_CONVERSATION_CHANGED).",
-    "operatorDecision": "Same conversation = COMPACT: a reload of the same ChatGPT conversation (Greenfield stale-ladder F5/Ctrl-F5 or manual F5) is not a prompt-profile boundary.",
-    "continuityAnchor": "lastResponse.observation.conversationKey",
-    "fullTriggers": "mission start/restore, session rotation, queue activation, idle keepalive, new process/run/session/tab/queue slot/mission text, conversation change, ordinals 1,11,21,..., greenfieldStatusRequest=FULL_NEXT_PROMPT",
+    "purpose": "Operator requests: (1) after 120 stalled minutes a queue-managed run performs a full rotation to the next runnable queue slot; (2) the in-page overlay shows a quick operational overview.",
+    "staleRotation": "STALE_SESSION_120M: park current slot (unfinished quantum preserved, unanswered turn not counted, resume previousDisposition=SESSION_UNRESPONSIVE, sourceResponseState=PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE) and activate the next runnable slot in explicit order; fallback to same-GFW session rotation when no other slot is runnable or the queue is stopped.",
+    "overlay": "GFW id, slot position, priority, interaction/quantum (+ pending quantum), local countdown to 120-minute rotation and next F5/Ctrl-F5, turn, session, activation, prompt profile, next GFW in queue, safety hold; tooltip with ids.",
+    "sharedPark": "parkSlotAndActivateNext used by analysis park and stale rotation",
+    "carriedFrom1_7_8": {
+      "purpose": "Fix FULL/COMPACT prompt continuity: a reload of the same ChatGPT conversation is not a session boundary.",
+      "rootCause": "Live v1.7.7 session: a 33.7-minute EIC turn triggered Greenfield's own stale-ladder F5 (tabs.reload of the same /c/ conversation) at 30 minutes; the new content documentId was treated as a session boundary, so turn 2 went out FULL (DOCUMENT_OR_CONVERSATION_CHANGED).",
+      "operatorDecision": "Same conversation = COMPACT: a reload of the same ChatGPT conversation (Greenfield stale-ladder F5/Ctrl-F5 or manual F5) is not a prompt-profile boundary.",
+      "continuityAnchor": "lastResponse.observation.conversationKey",
+      "fullTriggers": "mission start/restore, session rotation, queue activation, idle keepalive, new process/run/session/tab/queue slot/mission text, conversation change, ordinals 1,11,21,..., greenfieldStatusRequest=FULL_NEXT_PROMPT"
+    },
     "carriedFrom1_7_7": {
       "purpose": "Make AI-requested runtime control a validated, bounded Greenfield-owned control point: enforce EIC terminal controls (retire the logical GFW and all duplicate slots), add whitelisted SET_QUANTUM/SET_PRIORITY, publish the contract in every FULL prompt, and send COMPACT follow-up prompts inside the same conversation.",
       "rootCause": "resolveGreenfieldControl classified STOP_PROCESS/status=DONE as state DONE without controllerOverride, so a local Hjalmar CONTINUE verdict survived and the DONE commit + logical-GFW queue retirement never ran.",
@@ -41,35 +47,46 @@
     }
   },
   "verification": {
-    "baselineTestCommand": "npm test (on v1.7.7)",
-    "baselineTests": 532,
-    "baselinePass": 532,
+    "baselineTestCommand": "npm test (on v1.7.8)",
+    "baselineTests": 535,
+    "baselinePass": 535,
     "baselineFail": 0,
-    "dedicatedPromptContinuityCommand": "node --test tests/v178-prompt-continuity.test.mjs",
-    "dedicatedPromptContinuityOutput": "verification/v178-prompt-continuity.tap",
-    "dedicatedPromptContinuityTests": 2,
-    "dedicatedPromptContinuityPass": 2,
-    "dedicatedPromptContinuityFail": 0,
-    "runtimeControlCommand": "node --test tests/v177-runtime-control.test.mjs tests/v177-runtime-control-e2e.test.mjs",
-    "runtimeControlOutput": "verification/v177-runtime-control.tap",
-    "runtimeControlTests": 36,
-    "runtimeControlPass": 36,
-    "runtimeControlFail": 0,
+    "dedicatedCommand": "node --test tests/v179-stale-rotation-overlay.test.mjs",
+    "dedicatedOutput": "verification/v179-stale-rotation-overlay.tap",
+    "dedicatedTests": 8,
+    "dedicatedPass": 8,
+    "dedicatedFail": 0,
     "testCommand": "npm test",
     "testOutput": "verification/release-tests.tap",
-    "tests": 535,
-    "pass": 535,
+    "tests": 543,
+    "pass": 543,
     "fail": 0,
     "skipped": 0,
     "syntaxCommand": "node --check <each .js/.mjs/.cjs>",
-    "syntaxOutput": "verification/v178-syntax-check.txt",
-    "syntaxFiles": 124,
-    "syntaxPass": 124,
+    "syntaxOutput": "verification/v179-syntax-check.txt",
+    "syntaxFiles": 126,
+    "syntaxPass": 126,
     "syntaxFail": 0,
     "nodeVersion": "v22.22.2",
     "errors": []
   },
   "regressionMatrix": [
+    {
+      "case": "queue-managed turn stalls 120 minutes",
+      "expected": "F5, Ctrl-F5, Ctrl-F5 on the same chat, then next runnable slot activated; stalled slot READY with unchanged quantum progress"
+    },
+    {
+      "case": "parked stalled GFW resumes",
+      "expected": "SESSION_ROTATION, previousDisposition=SESSION_UNRESPONSIVE, sourceResponseState=PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE"
+    },
+    {
+      "case": "no other runnable slot",
+      "expected": "same-GFW session rotation into a new chat"
+    },
+    {
+      "case": "overlay",
+      "expected": "overview lines with local countdown; idempotent; timer stops without deadline"
+    },
     {
       "case": "Greenfield stale-ladder F5 during a >30 min turn (live v1.7.7 case)",
       "expected": "next prompt COMPACT, ordinal 2"
@@ -152,8 +169,8 @@
     }
   ],
   "evidenceBoundaries": {
-    "packageSourceAndNodeTests": "verified locally from the v1.7.7 package produced in this delivery chain",
-    "harnessE2E": "real background.js send/wait/capture/analyze path in the Node harness; offscreen LanguageModel mocked",
+    "packageSourceAndNodeTests": "verified locally from the v1.7.8 package produced in this delivery chain",
+    "harnessE2E": "real background.js ladder/park/activation in the Node harness; content.js overlay executed in a vm sandbox",
     "liveChromeExtensionInstall": "not executed in this environment",
     "providerOrChatGPTLiveDispatch": "not executed in this environment"
   }

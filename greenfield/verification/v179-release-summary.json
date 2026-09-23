@@ -1,0 +1,64 @@
+{
+  "schema": "eic.greenfield.v179-release-summary.v1",
+  "version": "1.7.9",
+  "generatedAt": "2026-09-23T10:22:18.032413+00:00",
+  "source": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.7.8.zip",
+    "version": "1.7.8",
+    "sha256": "bda817978954cf7ce400b99c6102109415e3e820000aba5bfdccf8aab5ab81a5",
+    "sizeBytes": 751246,
+    "embeddedIntegrity": {
+      "records": 250,
+      "mismatches": 0,
+      "rootDigest": "5d3630544b519bf4c52c104ac7568864aac52b9c7895d89248623e865f9f4950"
+    }
+  },
+  "change": {
+    "purpose": "Operator requests: (1) after 120 stalled minutes a queue-managed run performs a full rotation to the next runnable queue slot; (2) the in-page overlay shows a quick operational overview.",
+    "staleRotation": "STALE_SESSION_120M: park current slot (unfinished quantum preserved, unanswered turn not counted, resume previousDisposition=SESSION_UNRESPONSIVE, sourceResponseState=PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE) and activate the next runnable slot in explicit order; fallback to same-GFW session rotation when no other slot is runnable or the queue is stopped.",
+    "overlay": "GFW id, slot position, priority, interaction/quantum (+ pending quantum), local countdown to 120-minute rotation and next F5/Ctrl-F5, turn, session, activation, prompt profile, next GFW in queue, safety hold; tooltip with ids.",
+    "sharedPark": "parkSlotAndActivateNext used by analysis park and stale rotation"
+  },
+  "gates": {
+    "STALE_120M_QUEUE_ROTATION_PASS": true,
+    "STALE_FALLBACK_SAME_GFW_ROTATION_PASS": true,
+    "RESUME_MARKS_UNANSWERED_PROMPT_PASS": true,
+    "UNANSWERED_TURN_NOT_COUNTED_PASS": true,
+    "SCHEDULE_MATCHES_LADDER_PASS": true,
+    "OVERLAY_OVERVIEW_PASS": true,
+    "CONTENT_OVERLAY_COUNTDOWN_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
+  },
+  "executed": {
+    "baselineNpmTestOnV178": {
+      "tests": 535,
+      "pass": 535,
+      "fail": 0
+    },
+    "dedicated": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "output": "verification/v179-stale-rotation-overlay.tap"
+    },
+    "fullNpmTest": {
+      "tests": 543,
+      "pass": 543,
+      "fail": 0,
+      "output": "verification/release-tests.tap"
+    },
+    "syntax": {
+      "files": 126,
+      "pass": 126,
+      "fail": 0,
+      "output": "verification/v179-syntax-check.txt"
+    }
+  },
+  "boundaries": {
+    "liveChromeExtensionAcceptance": "not executed",
+    "liveChatGPTDispatchAcceptance": "not executed",
+    "abandonedConversation": "an abandoned conversation may still be generating server-side; its effects are unknown and the resumed prompt says so",
+    "e2eScope": "real background.js ladder/park/activation in the Node harness; content.js overlay executed in a vm sandbox"
+  }
+}

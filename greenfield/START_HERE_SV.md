@@ -1,6 +1,6 @@
-# Greenfield 1.7.8 – börja här
+# Greenfield 1.7.9 – börja här
 
-Greenfield 1.7.7 verkställer EIC-AI:ns terminala signal (`DONE`/`STOP_PROCESS`/`COMPLETE_MISSION`) som pensionering av hela den logiska GFW:n. AI:n får också begära validerad kvant- och prioritetsändring för aktuell köplats. Operatören har alltid företräde. Följdprompter i samma konversation kan vara COMPACT; FULL skickas vid varje sessionsgräns och var tionde prompt. Sedan 1.7.8 är en omladdning av samma konversation ingen sessionsgräns, varken Greenfields egen F5/Ctrl-F5 eller en manuell F5.
+Greenfield 1.7.7 verkställer EIC-AI:ns terminala signal (`DONE`/`STOP_PROCESS`/`COMPLETE_MISSION`) som pensionering av hela den logiska GFW:n. AI:n får också begära validerad kvant- och prioritetsändring för aktuell köplats. Operatören har alltid företräde. Följdprompter i samma konversation kan vara COMPACT; FULL skickas vid varje sessionsgräns och var tionde prompt. Sedan 1.7.8 är en omladdning av samma konversation ingen sessionsgräns, varken Greenfields egen F5/Ctrl-F5 eller en manuell F5. Sedan 1.7.9 ger 120 min utan färdigt svar ett köbyte till nästa körbara GFW, och overlayen i fliken visar en snabböversikt med nedräkning.
 
 Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s autonoma lagringsretention och 1.7.6:s fresh project owner-state / `current_focus` reconciliation som explicit A2A-invariant. `current_focus` är en restart/steering pointer, inte factual owner; nyare exakt owner-evidence vinner, stale focus får inte replaya completed effects och focus skrivs bara efter material steering/restart delta.
 
@@ -67,26 +67,28 @@ Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s auton
 - Bounded finska termer för modell-/reasoning-UI stöds.
 - Diagnostiken anger `effortEvidenceSource` så att en operator kan se om beviset kom från `COMPOSER_SELECTED_CONTROL` eller en svagare strukturell fallback.
 
-## Installation över 1.7.7
+## Installation över 1.7.8
 
 1. Pausa nya Greenfield-utskick.
 2. Säkerhetskopiera den uppackade tilläggsmappen.
-3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.7.8.zip`.
+3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.7.9.zip`.
 4. Kopiera innehållet över samma mapp som Chrome redan använder så extension-ID/lokal state bevaras.
 5. I `chrome://extensions`, välj **Läs in igen**.
-6. Verifiera att panelen visar `v1.7.8`.
+6. Verifiera att panelen visar `v1.7.9`.
 7. Återgå till den exakta EIC-konversation som hör till workern.
 8. Kör **Kontrollera modell igen** och exportera diagnostik om safety-hold kvarstår.
 9. Låt Greenfield reconcilea befintlig process-state; gör inget manuellt omskick av en dispatch med okänd effekt.
 
 ## Riktad liveacceptans
 
+- Kontrollera att overlayen i ChatGPT-fliken visar GFW-id, plats, prioritet, interaktion/kvant, en nedräknande TTL och nästa GFW i kön.
+- Om en tur passerar 120 min utan färdigt svar: verifiera att nästa GFW i listordning startar i ny chatt och att den stallade köplatsen ligger kvar som redo med oförändrad kvantprogress.
 - Lägg samma sparade GFW på två köplatser. Låt AI:n svara `DONE` + `STOP_PROCESS` och verifiera att båda platserna hamnar i `Klart/avslutade` medan andra GFW:er ligger kvar.
 - Verifiera att ett AI-svar med `runtimeControl` `SET_PRIORITY` ändrar bara aktuell plats och att nästa prompt visar kvittot `APPLIED`.
 - Ändra prioritet i panelen medan AI:n arbetar och verifiera att ett äldre AI-svar får `OPERATOR_PRECEDENCE`.
 - Låt en tur passera 30 min (Greenfields egen F5) eller tryck F5 mellan två turer. Verifiera att nästa prompt ändå har `promptProfile.profile = COMPACT` i samma konversation.
 - Byt till en annan chatt eller låt Greenfield rotera, och verifiera att nästa prompt har `promptProfile.profile = FULL`.
-- Spara gärna den aktiva kön som ett kö-set innan extension-reload. Om du kopierar 1.7.8 över samma unpacked Chrome-mapp bevaras normalt samma extension-ID/lokal state; ett helt nytt unpacked extension-ID ska inte antas ärva aktiv runtime-kö.
+- Spara gärna den aktiva kön som ett kö-set innan extension-reload. Om du kopierar 1.7.9 över samma unpacked Chrome-mapp bevaras normalt samma extension-ID/lokal state; ett helt nytt unpacked extension-ID ska inte antas ärva aktiv runtime-kö.
 - Starta minst två olika GFW-slots med olika prioritet och verifiera att **listordningen**, inte prioriteten, avgör nästa slot.
 - Sätt en slot till kvant 2 och verifiera `0/2 → 1/2 → byte`, därefter att samma slot vid nästa fulla varv börjar på `0/2`.
 - Avbryt en större kvant tidigt via en kökontroll och verifiera att dess ofärdiga kvant fortsätter från tidigare tal när slotten kommer tillbaka.

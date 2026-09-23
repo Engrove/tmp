@@ -1,7 +1,7 @@
 (() => {
   const BRIDGE = "__EIC_GF_CONTENT_V2__";
   const OVERLAY_ID = "eic-gf-linked-overlay";
-  const CONTENT_VERSION = "1.7.8";
+  const CONTENT_VERSION = "1.7.9";
   const previousBridge = globalThis[BRIDGE] || null;
   const DOCUMENT_ID = previousBridge?.documentId || crypto.randomUUID();
   const dispatchRecords = previousBridge?.dispatchRecords instanceof Map
@@ -14,6 +14,9 @@
   const listeners = [];
   let observer = null;
   let dirtyTimer = null;
+  let overlayInfo = null;
+  let overlayTimer = null;
+  let overlaySignature = "";
 
   function normalizeText(value) {
     return String(value ?? "")
@@ -952,27 +955,82 @@
       "box-shadow:0 10px 28px rgba(0,0,0,.28)",
       "backdrop-filter:blur(8px)",
       "pointer-events:none",
-      "max-width:360px"
+      "white-space:pre-line",
+      "max-width:460px"
     ].join(";");
     document.documentElement.appendChild(root);
     return root;
   }
 
+  // v1.7.9 overview: background sends static lines plus absolute countdown
+  // deadlines; this page ticks the countdown locally between state syncs.
+  function formatRemaining(ms) {
+    const total = Math.max(0, Math.ceil(Number(ms) / 1000));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = String(total % 60).padStart(2, "0");
+    return hours > 0 ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds}` : `${minutes}:${seconds}`;
+  }
+
+  function overlayCountdown(overview) {
+    return (Array.isArray(overview?.countdown) ? overview.countdown : [])
+      .filter((segment) => segment && Number.isFinite(Number(segment.atMs)) && typeof segment.template === "string");
+  }
+
+  function overlayLines(info, now = Date.now()) {
+    const processShort = String(info.processId || "").replace(/^process-/, "").slice(0, 8);
+    const lines = [`EIC Greenfield v${CONTENT_VERSION} · CONNECTED · ${info.phase || "ACTIVE"} · P:${processShort}`];
+    const overview = info.overview && typeof info.overview === "object" ? info.overview : null;
+    if (!overview) return lines;
+    if (overview.mission) lines.push(String(overview.mission));
+    const timed = overlayCountdown(overview)
+      .map((segment) => segment.template.replace("{t}", formatRemaining(Number(segment.atMs) - now)));
+    if (timed.length) lines.push(timed.join(" · "));
+    else if (overview.phaseText) lines.push(String(overview.phaseText));
+    if (overview.status) lines.push(String(overview.status));
+    return lines;
+  }
+
+  function renderOverlay() {
+    if (!overlayInfo) return;
+    const root = overlayElement();
+    const text = overlayLines(overlayInfo).join("\n");
+    if (root.textContent !== text) root.textContent = text;
+  }
+
+  function stopOverlayTimer() {
+    if (overlayTimer) clearInterval(overlayTimer);
+    overlayTimer = null;
+  }
+
   function updateOverlay(info) {
     if (!info?.linked) {
+      stopOverlayTimer();
+      overlayInfo = null;
+      overlaySignature = "";
       const existing = document.getElementById(OVERLAY_ID);
       if (!existing) return false;
       existing.remove();
       forensic("MANAGED_TAB_OVERLAY_CLEARED", { reason: info?.reason || "unlinked" });
       return true;
     }
+    const { reason: _reason, ...stable } = info;
+    const signature = JSON.stringify(stable);
+    overlayInfo = info;
     const root = overlayElement();
-    const processShort = String(info.processId || "").replace(/^process-/, "").slice(0, 8);
-    const nextText = `EIC Greenfield v${CONTENT_VERSION} · CONNECTED · ${info.phase || "ACTIVE"} · P:${processShort}`;
-    const nextTitle = `EIC Autonom Agent\nWindow ${info.windowId ?? "?"}\nTab ${info.tabId ?? "?"}\nProcess ${info.processId || "?"}`;
-    if (root.textContent === nextText && root.title === nextTitle) return false;
-    root.textContent = nextText;
-    root.title = nextTitle;
+    const nextTitle = [
+      "EIC Autonom Agent",
+      info.overview?.title || `Window ${info.windowId ?? "?"}\nTab ${info.tabId ?? "?"}\nProcess ${info.processId || "?"}`
+    ].join("\n");
+    if (root.title !== nextTitle) root.title = nextTitle;
+    renderOverlay();
+    if (overlayCountdown(info.overview).length) {
+      if (!overlayTimer) overlayTimer = setInterval(renderOverlay, 1000);
+    } else {
+      stopOverlayTimer();
+    }
+    if (signature === overlaySignature) return false;
+    overlaySignature = signature;
     forensic("MANAGED_TAB_OVERLAY_RENDERED", {
       processId: info.processId || "",
       phase: info.phase || "",
@@ -1094,6 +1152,8 @@
     dispose() {
       if (dirtyTimer) clearTimeout(dirtyTimer);
       dirtyTimer = null;
+      stopOverlayTimer();
+      overlayInfo = null;
       observer?.disconnect();
       observer = null;
       document.getElementById(OVERLAY_ID)?.remove();

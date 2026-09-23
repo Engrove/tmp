@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: v1.7.9 E2E: 120 minutes without a completed response rotates the queue to the next GFW
+ok 1 - v1.7.9 E2E: 120 minutes without a completed response rotates the queue to the next GFW
+  ---
+  duration_ms: 574.344328
+  type: 'test'
+  ...
+# Subtest: v1.7.9 E2E: with no other runnable slot the stalled GFW rotates into a fresh chat (fallback)
+ok 2 - v1.7.9 E2E: with no other runnable slot the stalled GFW rotates into a fresh chat (fallback)
+  ---
+  duration_ms: 368.343447
+  type: 'test'
+  ...
+# Subtest: v1.7.9 FULL prompt tells a queued EIC what happens after 120 stalled minutes
+ok 3 - v1.7.9 FULL prompt tells a queued EIC what happens after 120 stalled minutes
+  ---
+  duration_ms: 0.994846
+  type: 'test'
+  ...
+# Subtest: v1.7.9 stale-ladder schedule matches the ladder's own thresholds
+ok 4 - v1.7.9 stale-ladder schedule matches the ladder's own thresholds
+  ---
+  duration_ms: 0.596825
+  type: 'test'
+  ...
+# Subtest: v1.7.9 GFW identity is taken from the Gf tag
+ok 5 - v1.7.9 GFW identity is taken from the Gf tag
+  ---
+  duration_ms: 0.191948
+  type: 'test'
+  ...
+# Subtest: v1.7.9 overview: GFW, slot, priority, interaction/quantum, TTL to queue rotation and next slot
+ok 6 - v1.7.9 overview: GFW, slot, priority, interaction/quantum, TTL to queue rotation and next slot
+  ---
+  duration_ms: 0.842235
+  type: 'test'
+  ...
+# Subtest: v1.7.9 overview follows the stale stage, a pending quantum, holds and the no-other-slot fallback
+ok 7 - v1.7.9 overview follows the stale stage, a pending quantum, holds and the no-other-slot fallback
+  ---
+  duration_ms: 1.271578
+  type: 'test'
+  ...
+# Subtest: v1.7.9 content overlay renders the overview lines and counts the TTL down locally
+ok 8 - v1.7.9 content overlay renders the overview lines and counts the TTL down locally
+  ---
+  duration_ms: 5.151183
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1063.090942

@@ -107,7 +107,9 @@ test("v1.2.1 source includes coherent renderer-replica ownership and idempotent 
   assert.match(content, /COHERENT_ROLE_REPLICA/);
   assert.match(content, /coherentRoleReplicaSet/);
   assert.match(content, /stableEntryIndex/);
-  assert.match(content, /if \(root\.textContent === nextText && root\.title === nextTitle\) return false/);
+  // v1.7.9: the overlay text now contains a live countdown, so idempotence is
+  // decided on the stable overlay payload signature instead of rendered text.
+  assert.match(content, /if \(signature === overlaySignature\) return false/);
   assert.match(background, /RESPONSE_CAUSAL_FALLBACK_ADMITTED/);
   assert.match(background, /overlayResult\?\.changed !== false/);
   assert.match(background, /reason !== "observation"/);
