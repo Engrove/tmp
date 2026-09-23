@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "EIC Autonom Agent Greenfield",
   "description": "EIC i Chat med modellkrav, lokal förbrukningsbudget, beständiga körkvitton, skydd mot dubbla utskick och tydlig driftstatus.",
-  "version": "1.7.6",
+  "version": "1.7.7",
   "minimum_chrome_version": "138",
   "permissions": [
     "sidePanel",
@@ -56,5 +56,5 @@
     "128": "icons/icon128.png"
   },
   "incognito": "not_allowed",
-  "version_name": "1.7.6"
+  "version_name": "1.7.7"
 }

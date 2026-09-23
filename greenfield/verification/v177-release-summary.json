@@ -1,0 +1,97 @@
+{
+  "schema": "eic.greenfield.v177-release-summary.v1",
+  "version": "1.7.7",
+  "generatedAt": "2026-09-23T08:39:17.332344+00:00",
+  "source": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.7.6.zip",
+    "sha256": "1c0118ddfb6d843eb12c602ce75eeda6fc5dddee4561dfe0e391a0d202af05d0",
+    "sizeBytes": 694856,
+    "embeddedIntegrityRecords": 236,
+    "embeddedIntegrityMismatches": 0,
+    "embeddedRootDigest": "143c775d2c50ebadd8a6044261bc936cc81609463cd34f8594a91db15ea05bc4"
+  },
+  "rootCause": "resolveGreenfieldControl classified STOP_PROCESS/status=DONE as state DONE without controllerOverride, so a local Hjalmar CONTINUE verdict survived and the DONE commit + logical-GFW queue retirement never ran.",
+  "gates": {
+    "TERMINAL_CONTROL_ENFORCED_PASS": true,
+    "DUPLICATE_SLOT_RETIREMENT_PASS": true,
+    "OTHER_SAVED_MISSION_UNTOUCHED_PASS": true,
+    "COMPLETION_IDEMPOTENT_PASS": true,
+    "STALE_WRONG_TARGET_REJECTED_PASS": true,
+    "QUANTUM_CONTROL_PASS": true,
+    "QUANTUM_BOUNDS_PASS": true,
+    "PRIORITY_CONTROL_PASS": true,
+    "PRIORITY_WHITELIST_CEILING_PASS": true,
+    "UNKNOWN_OPERATION_REJECTED_PASS": true,
+    "MALFORMED_CONTROL_NO_MUTATION_PASS": true,
+    "OPERATOR_PRECEDENCE_PASS": true,
+    "LEGACY_RESPONSE_COMPAT_PASS": true,
+    "LEGACY_DONE_STOP_PROCESS_PASS": true,
+    "PROMPT_RUNTIME_CONTROL_CONTRACT_PASS": true,
+    "PROMPT_VALIDATION_AND_PRECEDENCE_STATED_PASS": true,
+    "PROMPT_PROFILE_FULL_COMPACT_PASS": true,
+    "TERMINAL_RETIREMENT_SELF_HEAL_PASS": true,
+    "A2A_BASELINE_CONTRACT_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
+  },
+  "executed": {
+    "baselineNpmTestOnV176": {
+      "tests": 497,
+      "pass": 497,
+      "fail": 0
+    },
+    "dedicatedRuntimeControl": {
+      "tests": 35,
+      "pass": 35,
+      "fail": 0,
+      "output": "verification/v177-runtime-control.tap",
+      "files": [
+        "tests/v177-runtime-control.test.mjs",
+        "tests/v177-runtime-control-e2e.test.mjs"
+      ]
+    },
+    "fullNpmTest": {
+      "tests": 532,
+      "pass": 532,
+      "fail": 0,
+      "output": "verification/release-tests.tap"
+    },
+    "syntax": {
+      "files": 123,
+      "pass": 123,
+      "fail": 0,
+      "output": "verification/v177-syntax-check.txt"
+    },
+    "versionSurfaces": {
+      "VERSION": true,
+      "package.json": true,
+      "manifest.version": true,
+      "manifest.version_name": true,
+      "lib/contracts.mjs": true,
+      "content.js": true,
+      "sidepanel.js": true,
+      "sidepanel.html": true
+    }
+  },
+  "mentalHjalmar": {
+    "status": "same-session bounded review; reasoning separation only, not owner evidence",
+    "attacked": [
+      "replay/stale response",
+      "wrong-target mutation",
+      "operator precedence",
+      "duplicate-slot completion",
+      "authority widening",
+      "backward compatibility"
+    ],
+    "defectsFoundAndFixed": [
+      "op \"__proto__\" crashed object-literal op table -> Map lookup",
+      "terminal receipt claimed APPLIED while a pending operator instruction prevented the DONE commit -> REJECTED OPERATOR_INSTRUCTION_PENDING",
+      "stale side panel resent old quantum with a priority edit, making an operator edit fail after an AI quantum change -> send only edited field"
+    ]
+  },
+  "boundaries": {
+    "liveChromeExtensionAcceptance": "not executed",
+    "liveChatGPTDispatchAcceptance": "not executed",
+    "e2eScope": "real background.js analysis path in the Node harness; offscreen LanguageModel boundary mocked",
+    "crossWorkerRetirement": "retirement covers the current worker/Chrome-window queue only"
+  }
+}

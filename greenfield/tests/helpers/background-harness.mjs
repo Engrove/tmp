@@ -6,7 +6,7 @@ export function memory(seed={}){
  return {state,async get(keys){if(keys==null)return structuredClone(state);const list=typeof keys==='string'?[keys]:Array.isArray(keys)?keys:Object.keys(keys);return Object.fromEntries(list.filter(k=>Object.hasOwn(state,k)).map(k=>[k,structuredClone(state[k])]));},async set(rows){Object.assign(state,structuredClone(rows));},async remove(keys){for(const k of typeof keys==='string'?[keys]:keys)delete state[k];}};
 }
 let seq=0;
-export async function harness({seed={},sessionSeed={},submitMode='success',storageFactory=memory}={}){
+export async function harness({seed={},sessionSeed={},submitMode='success',storageFactory=memory,extraExports=[]}={}){
  const root='https://chatgpt.com/g/g-test-eic',url=root+'/c/abc-123';
  const listeners=()=>({addListener(){}});
  const tab={id:11,windowId:1,url,status:'complete',active:true};
@@ -59,7 +59,7 @@ export async function harness({seed={},sessionSeed={},submitMode='success',stora
  let source=await readFile(new URL('../../background.js',import.meta.url),'utf8');
  const project=new URL('../../',import.meta.url);
  source=source.replace(/(["'])\.\/lib\/([^"']+)["']/g,(_m,_q,p)=>JSON.stringify(new URL('lib/'+p,project).href));
- source=`const setTimeout=(fn,ms)=>{globalThis.__gfHarnessTimers.push({fn,ms});return globalThis.__gfHarnessTimers.length;};const clearTimeout=()=>{};\n${source}\nexport {runtimeReady,startRun,tickSending,tickWaiting,tickAnalyzing,authorizeDispatch,holdForSafety,hydrateProcesses,fleetStatusSnapshot,panelSafetyAction,tickProcess};\n// harness ${seq++}`;
+ source=`const setTimeout=(fn,ms)=>{globalThis.__gfHarnessTimers.push({fn,ms});return globalThis.__gfHarnessTimers.length;};const clearTimeout=()=>{};\n${source}\nexport {runtimeReady,startRun,tickSending,tickWaiting,tickAnalyzing,authorizeDispatch,holdForSafety,hydrateProcesses,fleetStatusSnapshot,panelSafetyAction,tickProcess${extraExports.length?','+extraExports.join(','):''}};\n// harness ${seq++}`;
  mod=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
  await mod.runtimeReady;
  return {mod,chrome,page,tab,sent,timers,alarms};

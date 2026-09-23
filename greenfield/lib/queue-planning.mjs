@@ -100,3 +100,50 @@ export function applyQueueParkTransition(items, currentItem, {
     };
   });
 }
+
+export function isSameLogicalQueueMission(candidate, item) {
+  const itemId = String(item?.itemId || "");
+  const savedMissionId = String(item?.savedMissionId || "").trim();
+  return candidate?.itemId === itemId ||
+    Boolean(savedMissionId && String(candidate?.savedMissionId || "").trim() === savedMissionId);
+}
+
+/**
+ * Terminal retirement of one logical GFW. Every queue slot that is the same
+ * slot or shares its non-empty savedMissionId moves to history with the
+ * terminal status; slots of any other logical mission are untouched. Pure and
+ * idempotent: a second application finds no remaining slots to retire.
+ */
+export function retireLogicalMissionSlots(queue, item, {
+  queueStatus,
+  completedAt = new Date().toISOString(),
+  lastOutcome = "",
+  lastSummary = "",
+  lastError = null,
+  maxHistory = 30
+} = {}) {
+  const items = Array.isArray(queue?.items) ? queue.items : [];
+  const terminalSlots = items.filter((candidate) => isSameLogicalQueueMission(candidate, item));
+  const finalizedSlots = terminalSlots.map((candidate) => ({
+    ...candidate,
+    status: queueStatus,
+    completedAt,
+    updatedAt: completedAt,
+    processSnapshot: null,
+    resume: null,
+    quantumProgress: 0,
+    blockedSinceMs: 0,
+    blockedRetryAtMs: 0,
+    lastOutcome,
+    lastSummary: candidate.itemId === item?.itemId ? lastSummary : candidate.lastSummary,
+    lastError: lastError ? JSON.parse(JSON.stringify(lastError)) : null
+  }));
+  return {
+    queue: {
+      ...queue,
+      items: items.filter((candidate) => !isSameLogicalQueueMission(candidate, item)),
+      history: [...(Array.isArray(queue?.history) ? queue.history : []), ...finalizedSlots].slice(-maxHistory)
+    },
+    finalizedSlots
+  };
+}

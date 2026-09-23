@@ -1,10 +1,22 @@
-# EIC Autonom Agent Greenfield 1.7.6
+# EIC Autonom Agent Greenfield 1.7.7
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
 
-Version 1.7.6 lägger till **owner-state/current_focus resume safety** i alla Greenfield-genererade A2A-prompter. `project.current_focus` är nu uttryckligen `STEERING_POINTER_NOT_FACT_OWNER`: färsk subject-project state läses/reconcileras före första bounded work package, nyare exakt owner-evidence vinner konflikt, completed effects får inte replayas från stale focus och focus skrivs bara när steering/restart-state faktiskt har ändrats. 1.7.5:s autonoma lagringsretention och 1.7.4:s ordered cyclic queue är oförändrat bevarade.
+Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas alltid vid sessionsgräns (ny chatt, rotation, köaktivering, F5/Ctrl-F5, konversationsbyte) och var tionde prompt.
 
-## Viktigaste ändringarna
+## Nytt i 1.7.7
+
+- **Terminal AI-signal verkställs.** `DONE`/`STOP_PROCESS` normaliseras till `COMPLETE_MISSION` och går genom samma DONE-commit och logiska retirement av alla dubblettplatser med samma `savedMissionId`. Andra GFW:er påverkas inte.
+- **`runtimeControl` i svarskontraktet.** Target (`runId`, `turn`, `queueId`, `itemId`, `savedMissionId`) publiceras i varje prompt och måste kopieras exakt. Stale eller fel target ger `STALE` och ingen effekt. Ett felaktigt target tillsammans med `DONE` blockerar i stället för att pensionera.
+- **Kvant och prioritet.** `SET_QUANTUM` tar heltal 1..15 och gäller från platsens nästa kvant. `SET_PRIORITY` tar `LOW|NORMAL|HIGH|URGENT`, aldrig över operatörens tilldelade prioritet för platsen.
+- **Operatören vinner.** Köändringar som operatören gör efter att prompten skickades avvisar äldre AI-begäran (`OPERATOR_PRECEDENCE`). En väntande operatörsinstruktion stoppar AI-terminal. Panelen skickar bara det fält operatören ändrade.
+- **Kvitton.** `APPLIED`, `ALREADY_APPLIED`, `REJECTED`, `STALE` och `INVALID` visas för AI:n i `control.runtimeControl.lastReceipts`.
+- **FULL/COMPACT-prompter.** `promptProfile` visar profilen. COMPACT används bara med positiv dokument- och konversationskontinuitet och uppgraderas till FULL före utskick om sidan laddats om.
+- **Självläkning.** Om kö-retirement efter DONE inte kunde skrivas görs den om innan kön väljer nästa plats.
+- **`MISSION_RESTORE`** accepteras nu som A2A-meddelandetyp i köns återställningsväg.
+
+## Bevarat från 1.7.6
+
 
 - **`current_focus` är steering pointer, inte factual owner.** Nyare exakt owner-evidence styr alltid sin faktadomän.
 - **Fresh owner-state före bounded work.** Project-bound continuation måste läsa/reconcile färsk subject-project state och `current_focus` före första arbetspaketet.
@@ -40,10 +52,11 @@ Version 1.7.6 lägger till **owner-state/current_focus resume safety** i alla Gr
 
 v1.7.3:s mixed-language model safety, v1.7.2:s multi-turn-liveness, v1.7.1:s dispatch-reconciliation och v1.7.0:s semantiska modellgolv bevaras.
 
-Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.7.5, se [UPPDATERA_TILL_1_7_6.md](UPPDATERA_TILL_1_7_6.md).
+Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.7.6, se [UPPDATERA_TILL_1_7_7.md](UPPDATERA_TILL_1_7_7.md).
 
 | Underlag | Innehåll |
 |---|---|
+| [RUNTIME_CONTROL_V1_7_7.md](docs/RUNTIME_CONTROL_V1_7_7.md) | AI runtime-control, riskanalys, FULL/COMPACT-promptprofil |
 | [OWNER_STATE_CURRENT_FOCUS_V1_7_6.md](docs/OWNER_STATE_CURRENT_FOCUS_V1_7_6.md) | Owner-state/current_focus restart- och replay-kontrakt |
 | [STORAGE_RETENTION_V1_7_5.md](docs/STORAGE_RETENTION_V1_7_5.md) | Autonom high-water-retention och checkpointkompaktering |
 | [ORDERED_LOOP_QUEUE_V1_7_4.md](docs/ORDERED_LOOP_QUEUE_V1_7_4.md) | Ordered cyclic slots, quantum continuity och duplicate-GFW semantics |
@@ -58,6 +71,7 @@ Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.7.5, 
 
 ```sh
 npm test
+node --test tests/v177-runtime-control.test.mjs tests/v177-runtime-control-e2e.test.mjs
 node --test tests/v176-owner-state-current-focus.test.mjs
 node --test tests/v175-storage-retention.test.mjs
 node --test tests/v174-ordered-loop-queue.test.mjs
@@ -65,4 +79,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency har lagts till i 1.7.6. Chrome-behörigheten `unlimitedStorage` har lagts till för autonom retention.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7.

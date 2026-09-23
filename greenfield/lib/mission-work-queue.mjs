@@ -115,6 +115,11 @@ export function normalizeMissionWorkItem(value = {}, { now = Date.now(), default
     label: text(value.label || goal.split(/\r?\n/,1)[0] || "Uppdrag", 120).trim() || "Uppdrag",
     goal,
     priority: normalizeGreenfieldPriority(value.priority || DEFAULT_GREENFIELD_PRIORITY),
+    // v1.7.7: the operator-assigned priority is the ceiling for AI-requested
+    // SET_PRIORITY; operatorEditedAtMs gives operator edits precedence over any
+    // AI runtime-control request formed from an older prompt.
+    operatorPriority: normalizeGreenfieldPriority(value.operatorPriority || value.priority || DEFAULT_GREENFIELD_PRIORITY),
+    operatorEditedAtMs: Math.max(0, Math.floor(Number(value.operatorEditedAtMs || 0))),
     maxInteractions: normalizeMissionQuantumInteractions(value.maxInteractions ?? defaultMaxInteractions),
     quantumProgress: Math.max(
       0,
@@ -353,6 +358,7 @@ export function createQueueContext(queue, item, { interactionCount = null, now =
     interactionCount: restoredProgress,
     maxInteractions: normalizeMissionQuantumInteractions(item?.maxInteractions),
     priority: normalizeGreenfieldPriority(item?.priority),
+    operatorPriority: normalizeGreenfieldPriority(item?.operatorPriority || item?.priority),
     activationCount: Math.max(0, Math.floor(Number(item?.activationCount || 0))),
     responseRoundTripApproxMs: item?.lastSelfRoundTripMs !== null &&
         item?.lastSelfRoundTripMs !== undefined &&
@@ -685,11 +691,16 @@ export async function removeMissionWorkItem(windowId, itemId, storage = null, { 
   queue.items = queue.items.filter((item) => item.itemId !== String(itemId || ""));
   return saveMissionWorkQueue(queue, storage);
 }
-export async function updateMissionWorkItem(windowId, itemId, patch = {}, storage = null, { workerId = "" } = {}) {
+// Operator edit path (side panel UPDATE). Every edit stamps operatorEditedAtMs
+// and re-anchors the AI priority ceiling to the priority the operator left.
+export async function updateMissionWorkItem(windowId, itemId, patch = {}, storage = null, { workerId = "", now = Date.now() } = {}) {
   const queue = await loadMissionWorkQueue(windowId, storage, { workerId });
   const index = queue.items.findIndex((item) => item.itemId === String(itemId || ""));
   if (index < 0) throw new Error("MISSION_WORK_QUEUE_ITEM_NOT_FOUND");
   const current = queue.items[index];
+  // Only fields the operator actually sent are edited; an absent field never
+  // resets a value (v1.7.7: AI runtime control may have changed the other one).
+  patch = Object.fromEntries(Object.entries(patch || {}).filter(([, value]) => value !== undefined && value !== null));
   if (current.status === QUEUE_STATUS.ACTIVE && patch.maxInteractions != null &&
       normalizeMissionQuantumInteractions(patch.maxInteractions) !== current.maxInteractions) {
     const error = new Error("MISSION_WORK_QUEUE_ACTIVE_QUANTUM_IMMUTABLE");
@@ -703,8 +714,10 @@ export async function updateMissionWorkItem(windowId, itemId, patch = {}, storag
     goal: current.goal,
     savedMissionId: current.savedMissionId,
     status: current.status,
-    updatedAt: nowIso()
+    updatedAt: nowIso(now)
   });
+  next.operatorPriority = next.priority;
+  next.operatorEditedAtMs = Math.max(0, Math.floor(Number(now)));
   queue.items[index] = next;
   return saveMissionWorkQueue(queue, storage);
 }

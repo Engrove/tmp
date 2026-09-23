@@ -1,10 +1,19 @@
-# Greenfield 1.7.6 – börja här
+# Greenfield 1.7.7 – börja här
 
-Greenfield 1.7.6 behåller den deterministiska Uppdragskön och 1.7.5:s autonoma lagringsretention men gör fresh project owner-state / `current_focus` reconciliation till en explicit A2A-invariant. `current_focus` är en restart/steering pointer, inte factual owner; nyare exakt owner-evidence vinner, stale focus får inte replaya completed effects och focus skrivs bara efter material steering/restart delta.
+Greenfield 1.7.7 verkställer EIC-AI:ns terminala signal (`DONE`/`STOP_PROCESS`/`COMPLETE_MISSION`) som pensionering av hela den logiska GFW:n. AI:n får också begära validerad kvant- och prioritetsändring för aktuell köplats. Operatören har alltid företräde. Följdprompter i samma konversation kan vara COMPACT; FULL skickas vid varje sessionsgräns och var tionde prompt.
+
+Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s autonoma lagringsretention och 1.7.6:s fresh project owner-state / `current_focus` reconciliation som explicit A2A-invariant. `current_focus` är en restart/steering pointer, inte factual owner; nyare exakt owner-evidence vinner, stale focus får inte replaya completed effects och focus skrivs bara efter material steering/restart delta.
 
 
 
-## Owner-state/current_focus i 1.7.6
+## AI runtime-control i 1.7.7
+
+- AI:n begär; Greenfield äger effekten och validerar target, gränser och operatörsföreträde.
+- `COMPLETE_MISSION` (eller `DONE`/`STOP_PROCESS`) pensionerar alla köplatser med samma `savedMissionId`.
+- `SET_QUANTUM` 1..15 gäller från platsens nästa kvant; `SET_PRIORITY` kan inte gå över operatörens prioritet.
+- Kvitton visas i nästa prompt under `control.runtimeControl.lastReceipts`.
+
+## Owner-state/current_focus (från 1.7.6)
 
 - Före första bounded work package ska färsk subject-project owner-state läsas.
 - Project-bound arbete ska läsa och reconcile `project.current_focus`.
@@ -58,21 +67,25 @@ Greenfield 1.7.6 behåller den deterministiska Uppdragskön och 1.7.5:s autonoma
 - Bounded finska termer för modell-/reasoning-UI stöds.
 - Diagnostiken anger `effortEvidenceSource` så att en operator kan se om beviset kom från `COMPOSER_SELECTED_CONTROL` eller en svagare strukturell fallback.
 
-## Installation över 1.7.5
+## Installation över 1.7.6
 
 1. Pausa nya Greenfield-utskick.
 2. Säkerhetskopiera den uppackade tilläggsmappen.
-3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.7.6.zip`.
+3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.7.7.zip`.
 4. Kopiera innehållet över samma mapp som Chrome redan använder så extension-ID/lokal state bevaras.
 5. I `chrome://extensions`, välj **Läs in igen**.
-6. Verifiera att panelen visar `v1.7.6`.
+6. Verifiera att panelen visar `v1.7.7`.
 7. Återgå till den exakta EIC-konversation som hör till workern.
 8. Kör **Kontrollera modell igen** och exportera diagnostik om safety-hold kvarstår.
 9. Låt Greenfield reconcilea befintlig process-state; gör inget manuellt omskick av en dispatch med okänd effekt.
 
 ## Riktad liveacceptans
 
-- Spara gärna den aktiva kön som ett kö-set innan extension-reload. Om du kopierar 1.7.6 över samma unpacked Chrome-mapp bevaras normalt samma extension-ID/lokal state; ett helt nytt unpacked extension-ID ska inte antas ärva aktiv runtime-kö.
+- Lägg samma sparade GFW på två köplatser. Låt AI:n svara `DONE` + `STOP_PROCESS` och verifiera att båda platserna hamnar i `Klart/avslutade` medan andra GFW:er ligger kvar.
+- Verifiera att ett AI-svar med `runtimeControl` `SET_PRIORITY` ändrar bara aktuell plats och att nästa prompt visar kvittot `APPLIED`.
+- Ändra prioritet i panelen medan AI:n arbetar och verifiera att ett äldre AI-svar får `OPERATOR_PRECEDENCE`.
+- Tryck F5 mellan två turer och verifiera att nästa prompt har `promptProfile.profile = FULL`.
+- Spara gärna den aktiva kön som ett kö-set innan extension-reload. Om du kopierar 1.7.7 över samma unpacked Chrome-mapp bevaras normalt samma extension-ID/lokal state; ett helt nytt unpacked extension-ID ska inte antas ärva aktiv runtime-kö.
 - Starta minst två olika GFW-slots med olika prioritet och verifiera att **listordningen**, inte prioriteten, avgör nästa slot.
 - Sätt en slot till kvant 2 och verifiera `0/2 → 1/2 → byte`, därefter att samma slot vid nästa fulla varv börjar på `0/2`.
 - Avbryt en större kvant tidigt via en kökontroll och verifiera att dess ofärdiga kvant fortsätter från tidigare tal när slotten kommer tillbaka.

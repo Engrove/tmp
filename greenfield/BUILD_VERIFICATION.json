@@ -1,103 +1,128 @@
 {
   "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.7.6",
-  "releaseChannel": "1.7.6",
-  "generatedAt": "2026-09-22T17:49:42.065115+00:00",
+  "appVersion": "1.7.7",
+  "releaseChannel": "1.7.7",
+  "generatedAt": "2026-09-23T08:39:17.332344+00:00",
   "sourceBaseline": {
-    "source": "user-uploaded Greenfield v1.7.5 release package",
-    "file": "EIC_Autonom_Agent_Greenfield_v1.7.5.zip",
-    "version": "1.7.5",
-    "sha256": "c2432a21016a5055e2c68d8fcfc0acabfebae5904e85d27773a6430d5b2c703c",
-    "sizeBytes": 684418,
+    "source": "operator-verified Greenfield v1.7.6 release package (user upload)",
+    "file": "EIC_Autonom_Agent_Greenfield_v1.7.6.zip",
+    "version": "1.7.6",
+    "sha256": "1c0118ddfb6d843eb12c602ce75eeda6fc5dddee4561dfe0e391a0d202af05d0",
+    "sizeBytes": 694856,
     "embeddedIntegrity": {
-      "records": 230,
+      "records": 236,
       "mismatches": 0,
-      "rootDigest": "96698798b59a6d9f91990bd5b2760fcb0c0c1be8f7657513ac3973a0cc7bedb6"
+      "rootDigest": "143c775d2c50ebadd8a6044261bc936cc81609463cd34f8594a91db15ea05bc4"
     }
   },
   "change": {
-    "purpose": "Make fresh subject-project owner-state/current_focus reconciliation an explicit mandatory semantic invariant in every Greenfield-produced A2A prompt without making current_focus factual authority or an always-write control bottleneck.",
-    "currentFocusRole": "STEERING_POINTER_NOT_FACT_OWNER",
-    "freshRead": "fresh subject-project owner state before first bounded work package",
-    "conflictRule": "newer exact owner evidence governs",
-    "writePolicy": "material steering/restart delta only; owner readback required",
-    "noReplay": "completed objectives/effects are not replayed from stale current_focus",
-    "metadataFailure": "persist restart pointer through correct durable owner/chronology route; route defect; no blind retry; unrelated safe work continues",
-    "materialEffect": "revalidate exact effect target and owner",
-    "handoff": "persist material mission state; update current_focus only on material restart delta",
-    "repeatProbe": "same objective/effect probe requires material owner-state delta"
+    "purpose": "Make AI-requested runtime control a validated, bounded Greenfield-owned control point: enforce EIC terminal controls (retire the logical GFW and all duplicate slots), add whitelisted SET_QUANTUM/SET_PRIORITY, publish the contract in every FULL prompt, and send COMPACT follow-up prompts inside the same conversation.",
+    "rootCause": "resolveGreenfieldControl classified STOP_PROCESS/status=DONE as state DONE without controllerOverride, so a local Hjalmar CONTINUE verdict survived and the DONE commit + logical-GFW queue retirement never ran.",
+    "controlPoint": "background.js evaluateAndApplyRuntimeControl -> lib/runtime-control.mjs",
+    "precedence": "operator runtime control > validated Greenfield owner state > AI runtime-control request",
+    "operations": {
+      "COMPLETE_MISSION": "requires status=DONE or STOP_PROCESS; retires all slots of the logical savedMissionId",
+      "SET_QUANTUM": "integer 1..15, target slot only, effective from next quantum/activation",
+      "SET_PRIORITY": "LOW|NORMAL|HIGH|URGENT, not above operator ceiling, immediate non-preemptive"
+    },
+    "legacyNormalization": "status=DONE / sessionAction=STOP_PROCESS -> COMPLETE_MISSION for the prompt's own target",
+    "promptProfile": "FULL at every session boundary (start/restore/rotation/queue activation/reload/conversation change) and ordinals 1,11,21,...; COMPACT otherwise with dispatch-time FULL upgrade",
+    "alsoFixed": [
+      "MISSION_RESTORE admitted as A2A message type",
+      "terminal queue retirement retry + self-heal",
+      "side panel sends only edited queue field"
+    ]
   },
   "verification": {
-    "baselineTestCommand": "npm test",
-    "baselineTests": 487,
-    "baselinePass": 487,
+    "baselineTestCommand": "npm test (on unmodified v1.7.6)",
+    "baselineTests": 497,
+    "baselinePass": 497,
     "baselineFail": 0,
-    "dedicatedOwnerStateCommand": "node --test tests/v176-owner-state-current-focus.test.mjs",
-    "dedicatedOwnerStateOutput": "verification/v176-owner-state.tap",
-    "dedicatedOwnerStateTests": 10,
-    "dedicatedOwnerStatePass": 10,
-    "dedicatedOwnerStateFail": 0,
+    "dedicatedRuntimeControlCommand": "node --test tests/v177-runtime-control.test.mjs tests/v177-runtime-control-e2e.test.mjs",
+    "dedicatedRuntimeControlOutput": "verification/v177-runtime-control.tap",
+    "dedicatedRuntimeControlTests": 35,
+    "dedicatedRuntimeControlPass": 35,
+    "dedicatedRuntimeControlFail": 0,
     "testCommand": "npm test",
     "testOutput": "verification/release-tests.tap",
-    "tests": 497,
-    "pass": 497,
+    "tests": 532,
+    "pass": 532,
     "fail": 0,
     "skipped": 0,
     "syntaxCommand": "node --check <each .js/.mjs/.cjs>",
-    "syntaxOutput": "verification/v176-syntax-check.txt",
-    "syntaxFiles": 119,
-    "syntaxPass": 119,
+    "syntaxOutput": "verification/v177-syntax-check.txt",
+    "syntaxFiles": 123,
+    "syntaxPass": 123,
     "syntaxFail": 0,
-    "nodeVersion": "v22.16.0",
+    "nodeVersion": "v22.22.2",
     "errors": []
   },
   "regressionMatrix": [
     {
-      "case": "fresh current_focus matches owner state",
-      "expected": "mandatory read/reconcile; no write without material delta"
+      "case": "valid COMPLETE_MISSION for current GFW",
+      "expected": "terminal accepted; overrides controller CONTINUE; DONE commit"
     },
     {
-      "case": "stale current_focus conflicts with newer exact owner evidence",
-      "expected": "exact owner evidence governs"
+      "case": "logical GFW in several slots",
+      "expected": "all slots with same savedMissionId retired; others untouched"
     },
     {
-      "case": "material restart/steering delta",
-      "expected": "focus update required and complete only after owner readback"
+      "case": "repeat completion / missing slot",
+      "expected": "idempotent; ALREADY_APPLIED"
     },
     {
-      "case": "no material restart/steering delta",
-      "expected": "no focus write and no repeated objective/effect probe"
+      "case": "stale/wrong run, turn, queue, item or savedMissionId",
+      "expected": "STALE, no effect; with DONE -> BLOCKED, nothing retired"
     },
     {
-      "case": "current_focus write unavailable",
-      "expected": "metadata effect degrades only; preserve restart pointer; no blind retry; unrelated safe work continues"
+      "case": "SET_QUANTUM 1..15",
+      "expected": "target slot only; next quantum"
     },
     {
-      "case": "completed effect plus stale pointer",
-      "expected": "no effect replay"
+      "case": "quantum out of bounds / non-integer",
+      "expected": "INVALID, no clamp, no effect"
     },
     {
-      "case": "before material effect",
-      "expected": "exact effect owner/target revalidation"
+      "case": "SET_PRIORITY within ceiling",
+      "expected": "target slot + capacity scheduler"
     },
     {
-      "case": "handoff",
-      "expected": "persist material mission state; update focus only on material restart delta"
+      "case": "priority outside whitelist or above ceiling",
+      "expected": "INVALID / REJECTED"
     },
     {
-      "case": "focus contradicts exact repo/runtime/issue owner",
-      "expected": "exact factual owner wins its domain"
+      "case": "unknown / malformed / hostile control",
+      "expected": "INVALID, no mutation, response status still honored"
     },
     {
-      "case": "existing A2A envelopes and queue semantics",
-      "expected": "full regression suite passes"
+      "case": "operator edit after prompt; pending operator instruction",
+      "expected": "operator wins; receipts say so"
+    },
+    {
+      "case": "v1.7.6 response without runtimeControl",
+      "expected": "no-op for control engine"
+    },
+    {
+      "case": "legacy DONE / STOP_PROCESS",
+      "expected": "same COMPLETE_MISSION handler; logical retirement"
+    },
+    {
+      "case": "prompt contract and schema",
+      "expected": "operations, format, target, constraints, precedence, validation, terminal and duplicate semantics"
+    },
+    {
+      "case": "FULL/COMPACT prompts",
+      "expected": "FULL at boundaries and every 10th; F5 before dispatch upgrades to FULL"
+    },
+    {
+      "case": "DONE but queue write lost",
+      "expected": "self-heal before queue selection"
     }
   ],
   "evidenceBoundaries": {
-    "packageSourceAndNodeTests": "verified in this local sandbox from the user-uploaded ZIP",
+    "packageSourceAndNodeTests": "verified locally from the operator-verified v1.7.6 ZIP",
+    "harnessE2E": "real background.js analysis path; offscreen LanguageModel mocked",
     "liveChromeExtensionInstall": "not executed in this environment",
-    "providerOrChatGPTLiveDispatch": "not executed in this environment",
-    "gf001Issue1M3": "not claimed solved by this release",
-    "repositoryOrProjectWriteback": "not performed; user requested local-only delivery"
+    "providerOrChatGPTLiveDispatch": "not executed in this environment"
   }
 }

@@ -1,24 +1,24 @@
 {
   "schema": "eic.greenfield.integrity.v1",
-  "appVersion": "1.7.6",
-  "generatedAt": "2026-09-22T17:49:56.800726+00:00",
+  "appVersion": "1.7.7",
+  "generatedAt": "2026-09-23T08:39:25.239179+00:00",
   "algorithm": "SHA-256",
-  "fileCount": 236,
-  "rootDigest": "143c775d2c50ebadd8a6044261bc936cc81609463cd34f8594a91db15ea05bc4",
+  "fileCount": 245,
+  "rootDigest": "8654c8e5a226841f779db5826a8f663b21a6a981d0c88307285674dd9ad8f45d",
   "scope": "all package files except INTEGRITY.json",
   "rootDigestCanonicalization": "sorted relative path + NUL + sizeBytes + NUL + sha256 + LF",
   "files": {
     "BUILD_VERIFICATION.json": {
-      "sizeBytes": 4263,
-      "sha256": "1b774585d8c1a83f80350373e7b920d33f8bd710df019ebfe4e7d3cbd647cbf7"
+      "sizeBytes": 5441,
+      "sha256": "82ced8101ca41480b416456793c9278566b1b5775c584ee105da2e991ca14de2"
     },
     "README.md": {
-      "sizeBytes": 7127,
-      "sha256": "4dee6ea9afa2fa77255b3a5de0db0f73a594cc58d408fe580b702b329f30b72a"
+      "sizeBytes": 9104,
+      "sha256": "7d0c8d3d2d3dcabad8ee7b42bdb5fa842d9cae9eddc77acfb655e440a7c861f6"
     },
     "START_HERE_SV.md": {
-      "sizeBytes": 6702,
-      "sha256": "a4b42e82723e84e03feb0485725ef1bc204c170ba522770ce1ec11228104fc7a"
+      "sizeBytes": 8054,
+      "sha256": "d92c6351ae24b8c897a99d1cb17ac4ddc41cef9396bf60674b8bc37b66ed58b6"
     },
     "UPPDATERA_TILL_1_6_1.md": {
       "sizeBytes": 5431,
@@ -52,17 +52,21 @@
       "sizeBytes": 1020,
       "sha256": "b467afdbe0d62f7d22e31b20488b33906c9c9763af638c7cc3bfba4a333f3dab"
     },
+    "UPPDATERA_TILL_1_7_7.md": {
+      "sizeBytes": 1353,
+      "sha256": "9117ff6fd9815c6dd95b52de21065ba8519730281a378fa7610aa2d9d3e4ccaf"
+    },
     "VERSION": {
       "sizeBytes": 6,
-      "sha256": "406b9efb67a070bc32c23c3ac6c886a8d25cfac10b1861ef92e4166708aa6ce1"
+      "sha256": "f4bedd06738564c6194c9054163ad13b21b71cf4ce0625f9466348a6a15cd465"
     },
     "background.js": {
-      "sizeBytes": 288318,
-      "sha256": "2402aa3aafb287b023d0146e7ea89fac1cb78c430f68e49f911febd5358340ba"
+      "sizeBytes": 302317,
+      "sha256": "afca2b913dec8a13a58fb28b73cd2b1475491900c9ebe3a64b72438652a9e085"
     },
     "content.js": {
       "sizeBytes": 42423,
-      "sha256": "58daa63a93487077744cd27749a38e8425f73fd94ce2b5d28374c3852b54df64"
+      "sha256": "87e93d185b71b9725324bb2477bd497267716195797f540fd09b6c72f148f7ba"
     },
     "docs/ARCHITECTURE.md": {
       "sizeBytes": 14226,
@@ -193,8 +197,8 @@
       "sha256": "d8b8397f3f277d5cdd1868697a17dcf2af338376b51043e0a305a14c739969c0"
     },
     "docs/RELEASE_NOTES.md": {
-      "sizeBytes": 46342,
-      "sha256": "b2bc265e813587fd0a6a04365bc81a19a04caf6aeb06a9aa0be62e7d77f21990"
+      "sizeBytes": 47730,
+      "sha256": "e571c63868f932909fa865f5e943299b001e7076a57ebb24e09556e449e0aff3"
     },
     "docs/RESPONSE_AND_CAPACITY_LIVENESS_V1_3_8.md": {
       "sizeBytes": 4403,
@@ -203,6 +207,10 @@
     "docs/RESPONSE_STABILITY_V1_3_3.md": {
       "sizeBytes": 1865,
       "sha256": "190f00a99da73f5971852cbf6dfbe4ff7d70e8858e41fd19d3e9df9f6e73d5d6"
+    },
+    "docs/RUNTIME_CONTROL_V1_7_7.md": {
+      "sizeBytes": 7419,
+      "sha256": "26414dbc0458ea008b8b375834c59bd6e24924d9839bad7bfa0f2adc2acf2326"
     },
     "docs/SAFETY_RECOVERY_V1_6_0.md": {
       "sizeBytes": 11359,
@@ -325,8 +333,8 @@
       "sha256": "cde635c57d1b947abfe28e90d55b2116c4358c0a3d6f4de5e05306f50125b176"
     },
     "lib/a2a.mjs": {
-      "sizeBytes": 36198,
-      "sha256": "7b40e24abb553cbe86bbd97f0490c80f4e00287200d9e497421fe7d5893499a9"
+      "sizeBytes": 42121,
+      "sha256": "2fde7d08fd686111b9888c256c82abd9cfb9b0fce1a5f5fdd4476ab87057f5b8"
     },
     "lib/audit-store.mjs": {
       "sizeBytes": 10364,
@@ -346,7 +354,7 @@
     },
     "lib/contracts.mjs": {
       "sizeBytes": 2303,
-      "sha256": "32b78e98edd08c2fccece0c002f38ed4efd47c72ac211868fc3df72316961434"
+      "sha256": "390527bacd7aed3539274d91f133a1ee2f6c2239f8941db6a528c8b93b9cd627"
     },
     "lib/dispatch-reconciliation.mjs": {
       "sizeBytes": 1974,
@@ -365,8 +373,8 @@
       "sha256": "a4774796416646c11d544419aadc786436d44e433e5947ac98946df8890c28c3"
     },
     "lib/greenfield-control.mjs": {
-      "sizeBytes": 5273,
-      "sha256": "8cc9bd3c2fc32f84985c3ef55adcebead9712975ce1bc0e63df9d1f752cd203f"
+      "sizeBytes": 7003,
+      "sha256": "70f6309db33ad7495850daf720677a223d3fcf964f9b9ff0c63c28dc4826a07f"
     },
     "lib/hjalmar-d2.mjs": {
       "sizeBytes": 18008,
@@ -409,8 +417,8 @@
       "sha256": "29e0413621664b256917760a997315a81bdb994c06cce6a3dbbad15645de5d31"
     },
     "lib/mission-work-queue.mjs": {
-      "sizeBytes": 31704,
-      "sha256": "b2829191bc2fa9077c9b51f6b4d13b8a41e211a827d8f89e3428bacf1c481f8f"
+      "sizeBytes": 32795,
+      "sha256": "f2066b373077955f9f04fa04c59bc256de936e4fb92e5bf0da2b2a0180c2a59b"
     },
     "lib/model-config.mjs": {
       "sizeBytes": 1055,
@@ -452,13 +460,17 @@
       "sizeBytes": 5816,
       "sha256": "e551d8c68283004ab38061fed1ea172b5fe5633ba67da98acb2fbe961fde7bee"
     },
+    "lib/prompt-profile.mjs": {
+      "sizeBytes": 6361,
+      "sha256": "a5215410fb31437a290b608f36d465393f620a237b0f33dc0129e0f56b0bbbab"
+    },
     "lib/queue-control-policy.mjs": {
       "sizeBytes": 1127,
       "sha256": "59110117ce006c2c71c7ac15719a91ee619f88fae3d9899710208e0df61cc079"
     },
     "lib/queue-planning.mjs": {
-      "sizeBytes": 4442,
-      "sha256": "5083e3cd360d41d7fbfee6bf9e95e08cd6f3d95fa77c02a64e79ee6b3ceaef31"
+      "sizeBytes": 6154,
+      "sha256": "7147aa6684a01f196823dc28b1a99b9ea6bb3045c92fb9926df40c1343f4e2f2"
     },
     "lib/rc1-checkpoint-migration.mjs": {
       "sizeBytes": 1761,
@@ -469,8 +481,8 @@
       "sha256": "b59cb32c0ceb5b5697115fa399a345c388f2e8661115496bbe24af7f3e346182"
     },
     "lib/response-contract.mjs": {
-      "sizeBytes": 24475,
-      "sha256": "c695da5858764cd9e0113ddac4e3a2d65fbd9ae1ae92cd8e822d40fe190c5243"
+      "sizeBytes": 24886,
+      "sha256": "83a9ec67d7ea0cc82c1e0c5bcad71fdcc38550e6f0f6a9edb5bd1c4618fea3bf"
     },
     "lib/response-stability.mjs": {
       "sizeBytes": 9899,
@@ -479,6 +491,10 @@
     "lib/restart-recovery.mjs": {
       "sizeBytes": 7662,
       "sha256": "d0ddd8bdf52b6be3a0ffa9516b93a698411c9d671083d24f765095e3508723fd"
+    },
+    "lib/runtime-control.mjs": {
+      "sizeBytes": 31714,
+      "sha256": "762a18b987082d9422d0efa8c3c1f0c40dd184be3e239c31fceef4ddc5a7e45f"
     },
     "lib/safety-hold-reconciliation.mjs": {
       "sizeBytes": 576,
@@ -546,7 +562,7 @@
     },
     "manifest.json": {
       "sizeBytes": 1399,
-      "sha256": "da64a1499a306498ef8f3ecaa8f7fda02d8aa39793444811ab553653f9308619"
+      "sha256": "28c27d6b9967d265f4bd8860de423116b0f226abe83beb06e29e443fba6bff9b"
     },
     "offscreen.html": {
       "sizeBytes": 186,
@@ -558,19 +574,19 @@
     },
     "package.json": {
       "sizeBytes": 169,
-      "sha256": "86bcf0615b9917385ef6454587966c1e9e0ec46795bea2c064bf6be9bb3f2fa9"
+      "sha256": "15cfd70c33602a793433bc22a05917839ec850dec1dedd44a8ee85813dfe1e5d"
     },
     "sidepanel.css": {
       "sizeBytes": 20530,
       "sha256": "1e25311b026a20bfbc8b3b7e6a3aa174147aa67af386b374ce993b17a657b25d"
     },
     "sidepanel.html": {
-      "sizeBytes": 22881,
-      "sha256": "58578a33f7e4d67bac36251143221cfce40b54dff6ab145e97334dd3928d4164"
+      "sizeBytes": 22874,
+      "sha256": "f9b092319f66b4f1871949e789f9ef6872567deaad55998df78f7a1ba999db50"
     },
     "sidepanel.js": {
-      "sizeBytes": 70868,
-      "sha256": "0468c37fa7838c778523e2f253c01409e6f361951b42c17d51203b13029e782b"
+      "sizeBytes": 70948,
+      "sha256": "dd609a140a03c3d0ac81dec6a99399d94640288e1e5b51dcd268c33208b63fe0"
     },
     "tests/a2a.test.mjs": {
       "sizeBytes": 8347,
@@ -637,8 +653,8 @@
       "sha256": "e0f45fb70a8a860e121ec70d7e6dc698212eddba8fd185dbadf08089a9f2af9d"
     },
     "tests/helpers/background-harness.mjs": {
-      "sizeBytes": 4725,
-      "sha256": "a764f643ee2b85b477eb2465e627c6f965952cdf31a0e069d95a7134ce44fb55"
+      "sizeBytes": 4793,
+      "sha256": "f1a787fc37f28cc3e4c354fd935534b730e2ef5e5a9de5f3ee44056491b6fe0d"
     },
     "tests/helpers/chrome-json-storage.mjs": {
       "sizeBytes": 829,
@@ -693,8 +709,8 @@
       "sha256": "4a8f6a31202ba1efdc9dffe270abf41f58e6b24027e6929ef92f86ac69264113"
     },
     "tests/session-health.test.mjs": {
-      "sizeBytes": 11382,
-      "sha256": "bfcfe1c173de59faf96a2da94e087dc2947c70f66742bd0b43299e9eec551fea"
+      "sizeBytes": 12057,
+      "sha256": "42f90c31e33ec8829c6b299494b3bf794fe75451009cb43265937b5db0c7273f"
     },
     "tests/session-rotation.test.mjs": {
       "sizeBytes": 3408,
@@ -706,7 +722,7 @@
     },
     "tests/static-contract.test.mjs": {
       "sizeBytes": 24413,
-      "sha256": "4d2feda487fed0a35e742ad3bfac5141a271f7229ef6c637ea716b198343343a"
+      "sha256": "b9fb13eca0f3291c6acf65f5b28d35a0b7ac67fd16da66980a6ecfa39e42cbf8"
     },
     "tests/turn-causality.test.mjs": {
       "sizeBytes": 2700,
@@ -778,7 +794,7 @@
     },
     "tests/v137-multi-mission-static.test.mjs": {
       "sizeBytes": 3858,
-      "sha256": "2239ad316db6398646fd18d77f97d4343039d2098ec695ccc71c772a9d7476cb"
+      "sha256": "75f408c454807b0874dfc356fd5241630a25360d5d96df6486d6bb4871e04c39"
     },
     "tests/v138-live-regression.test.mjs": {
       "sizeBytes": 5062,
@@ -852,6 +868,14 @@
       "sizeBytes": 4096,
       "sha256": "bd0d048947bfb9d81c11de048df284ecaa1760d8177502ce1f43a9585a393c23"
     },
+    "tests/v177-runtime-control-e2e.test.mjs": {
+      "sizeBytes": 18326,
+      "sha256": "102b45c83bf1a018596fa01c26fa9059936e5cd2c0922a9e79ae25c7ca2b9ec2"
+    },
+    "tests/v177-runtime-control.test.mjs": {
+      "sizeBytes": 37701,
+      "sha256": "57a0f187467dbb65e591e82568740517653f877db3c82164bfba2510b0ac7a95"
+    },
     "tools/replay-dispatch-audit.mjs": {
       "sizeBytes": 4500,
       "sha256": "6e74c6b93377d67dca1aab444bdef6b989b9255a43dd4616ffe74de496f5b408"
@@ -873,8 +897,8 @@
       "sha256": "dbf6c545172798a49115dffea3345a4fc47cae93297a86ce4707db89bb054137"
     },
     "verification/release-tests.tap": {
-      "sizeBytes": 111511,
-      "sha256": "d23bf14f15c39febfbb619dba930b229c704983ace2be4f629e8a75aa3ad6a84"
+      "sizeBytes": 120421,
+      "sha256": "146079839d1dd4a8d80c3a8c348014013a7bd3f7f8ea2736dd0774b296cf057d"
     },
     "verification/static-verification.json": {
       "sizeBytes": 210,
@@ -951,6 +975,18 @@
     "verification/v176-syntax-check.txt": {
       "sizeBytes": 4317,
       "sha256": "450980850b1d7143d8b0af6c975e21af5f02e87be82f87fb8351c50d143f0d30"
+    },
+    "verification/v177-release-summary.json": {
+      "sizeBytes": 3572,
+      "sha256": "c5114059fc5568cad98e128e0680f02c0f004a2be93dc1bd4f4ac8050503781f"
+    },
+    "verification/v177-runtime-control.tap": {
+      "sizeBytes": 8988,
+      "sha256": "8ee2bcb9ebe77c88f86e9671eb3e3956e7093b2628a3efd20c5bdd83cb5a60fd"
+    },
+    "verification/v177-syntax-check.txt": {
+      "sizeBytes": 4460,
+      "sha256": "81979cf98e14f916782f447a14e203231fe986b40cea1766a4adcd2b3efeae51"
     }
   }
 }

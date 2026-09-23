@@ -1,6 +1,6 @@
 import "./lib/safety-policy.js";
 import { readSafety, usageSummary, budgetDecision, reserveUsage, authorizeUsageSend, recordUsageOutput, usageIdentity, observeProviderQuota, probeProviderRecovery, updateSafetyPolicy, pauseAdmission } from "./lib/usage-governor.mjs";
-import { reconcileRestart } from "./lib/restart-recovery.mjs";
+import { conversationKey, reconcileRestart } from "./lib/restart-recovery.mjs";
 import { reconcileRecoveryReportWithLiveObservation } from "./lib/recovery-report.mjs";
 import { createOperatorBackup, restoreOperatorBackup } from "./lib/operator-backup.mjs";
 import { storageHealth } from "./lib/storage-health.mjs";
@@ -188,8 +188,22 @@ import {
 import {
   activatedQueueSlotTelemetry,
   applyQueueParkTransition,
-  latestResponseRoundTripMs
+  latestResponseRoundTripMs,
+  retireLogicalMissionSlots
 } from "./lib/queue-planning.mjs";
+import {
+  applyRuntimeControlEffects,
+  evaluateRuntimeControl,
+  nextRuntimeControlState,
+  settleRuntimeControlReceipts,
+  withTerminalReceiptsRejected
+} from "./lib/runtime-control.mjs";
+import {
+  PROMPT_PROFILE,
+  compactPromptStillValid,
+  selectPromptProfile,
+  upgradedFullProfile
+} from "./lib/prompt-profile.mjs";
 import { buildFullProcessStatus, PROCESS_STATUS_REQUEST } from "./lib/process-status.mjs";
 import {
   QUEUE_AFTER_RESPONSE,
@@ -1645,7 +1659,21 @@ async function buildPendingA2A(process, {
   const processStatus = String(processStatusMode || "").toUpperCase() === PROCESS_STATUS_REQUEST
     ? buildFullProcessStatus(virtual, { at: Date.now() })
     : null;
-  const composed = composeA2APrompt({
+  // v1.7.7: session-boundary prompts are FULL; same-conversation follow-ups may
+  // be COMPACT only with positive document/conversation continuity evidence.
+  const promptProfile = selectPromptProfile({
+    process: virtual,
+    messageType,
+    previous: process.lastPrompt?.promptProfile || null,
+    observed: {
+      promptDocumentId: process.lastPrompt?.dispatchDocumentId || "",
+      responseDocumentId: process.lastResponse?.observation?.documentId || "",
+      conversationKey: conversationKey(process.lastManagedUrl || "")
+    },
+    forceFull: Boolean(processStatus),
+    forceReason: "AI_REQUESTED_FULL_PROMPT"
+  });
+  const composeArgs = {
     process: virtual,
     objective,
     objectiveId,
@@ -1657,8 +1685,20 @@ async function buildPendingA2A(process, {
     processStatus,
     sessionRotation,
     pauseResume
-  });
+  };
+  const composed = composeA2APrompt({ ...composeArgs, promptProfile });
   const hash = await sha256Hex(composed.text);
+  let fullFallback = null;
+  if (promptProfile.profile === PROMPT_PROFILE.COMPACT) {
+    const fallbackProfile = upgradedFullProfile(promptProfile);
+    const fallback = composeA2APrompt({ ...composeArgs, promptProfile: fallbackProfile });
+    fullFallback = {
+      text: fallback.text,
+      hash: await sha256Hex(fallback.text),
+      a2a: fallback.envelope,
+      promptProfile: fallbackProfile
+    };
+  }
   const operatorSettings = await loadOperatorSettings(chrome.storage.local, { restoreSavedMissions: false, bookmarks: null }).catch(() => ({ postDelaySeconds: 0 }));
   return {
     text: composed.text,
@@ -1670,6 +1710,8 @@ async function buildPendingA2A(process, {
     sendAttempts: 0,
     dispatch: null,
     a2a: composed.envelope,
+    promptProfile,
+    fullFallback,
     oneShotInstruction: operatorInstruction ? {
       instructionId: operatorInstruction.instructionId,
       text: operatorInstruction.text,
@@ -2100,6 +2142,7 @@ async function startMissionQueue({ windowId, auditSessionId = "" }) {
     error.code = "ACTIVE_PROCESS_EXISTS";
     throw error;
   }
+  await reconcileTerminalQueueSlot(current);
   const { queue, settings } = await missionQueueForWindow(windowId);
   if (!Array.isArray(queue.items) || queue.items.length === 0) {
     const error = new Error("MISSION_WORK_QUEUE_EMPTY");
@@ -2159,6 +2202,7 @@ async function stopMissionQueue({ windowId, reason = "OPERATOR_QUEUE_STOP" }) {
 async function wakeMissionQueue(windowId, reason = "QUEUE_WAKE_ALARM") {
   const process = await loadProcessForWindow(windowId);
   if (process && !TERMINAL_PHASES.has(process.phase)) return process;
+  await reconcileTerminalQueueSlot(process);
   const { queue, settings } = await missionQueueForWindow(windowId);
   if (!queue.enabled) return process;
   const item = selectNextMissionItem(queue, {
@@ -2239,21 +2283,13 @@ async function updateQueueFromUi({ windowId, operation, itemId = "", ...payload 
         queueContext: {
           ...process.queueContext,
           priority: normalizeGreenfieldPriority(item.priority),
+          operatorPriority: normalizeGreenfieldPriority(item.operatorPriority || item.priority),
           maxInteractions: normalizeMissionQuantumInteractions(item.maxInteractions)
         },
         updatedAt: nowIso()
       };
       await saveProcess(updatedProcess);
-      const context = await schedulerCapacityContext().catch(() => null);
-      if (context) {
-        const schedulerUpdate = await updateGlobalTurnPriority({
-          processId: updatedProcess.processId,
-          priority: updatedProcess.schedulerPriority,
-          capacity: context.effectiveCapacity,
-          configuredCapacity: context.configuredCapacity
-        }).catch(() => null);
-        wakeSchedulerProcesses(schedulerUpdate?.runnableProcessIds || []);
-      }
+      await refreshSchedulerPriority(updatedProcess);
       await broadcast(updatedProcess, "mission-queue-active-item-updated");
     }
   }
@@ -2710,6 +2746,104 @@ async function parkQueueMissionAfterAnalysis({
   return activated.process;
 }
 
+// DONE/STOP_PROCESS/COMPLETE_MISSION is a logical GFW terminal signal. If the
+// same saved GFW has several queue slots for cadence shaping, retire every
+// sibling slot so the queue cannot silently restart a mission the AI has
+// explicitly closed. A stale queue revision is re-derived once from fresh
+// state (retirement is idempotent); a persistent failure is audited and later
+// self-healed by reconcileTerminalQueueSlot before any queue selection.
+async function persistTerminalQueueRetirement(process, { queue, settings, item }, {
+  queueStatus,
+  lastOutcome,
+  lastSummary
+}) {
+  let sourceQueue = queue;
+  let sourceSettings = settings;
+  let sourceItem = item;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const completedAt = nowIso();
+    const retirement = retireLogicalMissionSlots(sourceQueue, sourceItem, {
+      queueStatus,
+      completedAt,
+      lastOutcome,
+      lastSummary,
+      lastError: process.lastError ? deepClone(process.lastError) : null,
+      maxHistory: MAX_QUEUE_HISTORY
+    });
+    const nextQueue = {
+      ...retirement.queue,
+      activeItemId: "",
+      cursorOrder: Number(sourceItem.order),
+      enabled: process.phase === PHASES.AUDIT_FAILURE ? false : retirement.queue.enabled
+    };
+    const finalized = retirement.finalizedSlots.find((candidate) => candidate.itemId === sourceItem.itemId) || {
+      ...sourceItem,
+      status: queueStatus,
+      completedAt,
+      lastOutcome,
+      lastSummary
+    };
+    try {
+      const saved = await persistMissionQueue(
+        nextQueue,
+        sourceSettings,
+        process,
+        "MISSION_QUEUE_ITEM_TERMINAL",
+        {
+          itemId: sourceItem.itemId,
+          logicalSavedMissionId: String(sourceItem.savedMissionId || "").trim(),
+          retiredSlotCount: retirement.finalizedSlots.length,
+          retiredItemIds: retirement.finalizedSlots.map((candidate) => candidate.itemId),
+          terminalPhase: process.phase,
+          queueStatus,
+          cursorOrder: nextQueue.cursorOrder,
+          willAdvance: nextQueue.enabled === true && process.phase !== PHASES.AUDIT_FAILURE,
+          attempt: attempt + 1
+        }
+      );
+      return { saved, finalized, finalizedSlots: retirement.finalizedSlots };
+    } catch (error) {
+      await audit(process, "MISSION_QUEUE_TERMINAL_RETIREMENT_WRITE_FAILED", "mission-work-queue", {
+        itemId: sourceItem.itemId,
+        attempt: attempt + 1,
+        error: errorRecord(error)
+      }).catch(() => undefined);
+      if (attempt > 0 || error?.code !== "MISSION_WORK_QUEUE_STALE_WRITE") throw error;
+      const fresh = await missionQueueForWindow(process.windowId);
+      const freshItem = queueItemForProcess(fresh.queue, process);
+      if (!freshItem) return null;
+      sourceQueue = fresh.queue;
+      sourceSettings = fresh.settings;
+      sourceItem = freshItem;
+    }
+  }
+  return null;
+}
+
+// Self-heal for a DONE process whose terminal queue retirement did not persist:
+// retire its logical GFW slots before any queue selection could reactivate a
+// duplicate slot of a mission the AI already closed.
+async function reconcileTerminalQueueSlot(process) {
+  if (process?.phase !== PHASES.DONE || !process.queueContext?.itemId) return false;
+  const { queue, settings } = await missionQueueForWindow(process.windowId);
+  const item = queueItemForProcess(queue, process);
+  // Only the exact failed-retirement state qualifies: the slot is still ACTIVE
+  // for this DONE process. Any other status means something else rescheduled it.
+  if (!item || item.status !== QUEUE_STATUS.ACTIVE) return false;
+  const retirement = await persistTerminalQueueRetirement(process, { queue, settings, item }, {
+    queueStatus: QUEUE_STATUS.DONE,
+    lastOutcome: process.greenfieldControl?.reason || process.phase,
+    lastSummary: String(process.lastDecision?.analysis || "").slice(0, 2000)
+  });
+  if (!retirement) return false;
+  await completeMissionDelegationForQueueItem(process, retirement.finalized, QUEUE_STATUS.DONE);
+  await audit(process, "MISSION_QUEUE_TERMINAL_RETIREMENT_RECONCILED", "mission-work-queue", {
+    itemId: item.itemId,
+    retiredItemIds: retirement.finalizedSlots.map((candidate) => candidate.itemId)
+  }).catch(() => undefined);
+  return true;
+}
+
 async function finalizeQueueTerminalAndMaybeAdvance(process) {
   if (!process?.queueContext?.itemId) return process;
   const { queue, settings } = await missionQueueForWindow(process.windowId);
@@ -2786,52 +2920,13 @@ async function finalizeQueueTerminalAndMaybeAdvance(process) {
   else if (process.phase === PHASES.STOPPED) queueStatus = QUEUE_STATUS.STOPPED;
   else if (process.phase === PHASES.AUDIT_FAILURE) queueStatus = QUEUE_STATUS.FAILED;
 
-  // DONE/STOP_PROCESS is a logical GFW terminal signal. If the same saved GFW
-  // has several queue slots for cadence shaping, retire every sibling slot so
-  // the queue cannot silently restart a mission the AI has explicitly closed.
-  const terminalSlots = queue.items.filter(isSameLogicalMission);
-  const completedAt = nowIso();
-  const finalizedSlots = terminalSlots.map((candidate) => ({
-    ...candidate,
-    status: queueStatus,
-    completedAt,
-    updatedAt: completedAt,
-    processSnapshot: null,
-    resume: null,
-    quantumProgress: 0,
-    blockedSinceMs: 0,
-    blockedRetryAtMs: 0,
-    lastOutcome,
-    lastSummary: candidate.itemId === item.itemId ? lastSummary : candidate.lastSummary,
-    lastError: process.lastError ? deepClone(process.lastError) : null
-  }));
-  const finalized = finalizedSlots.find((candidate) => candidate.itemId === item.itemId) || {
-    ...item,
-    status: queueStatus,
-    completedAt,
+  const retirement = await persistTerminalQueueRetirement(process, { queue, settings, item }, {
+    queueStatus,
     lastOutcome,
     lastSummary
-  };
-  queue.items = queue.items.filter((candidate) => !isSameLogicalMission(candidate));
-  queue.history = [...(queue.history || []), ...finalizedSlots].slice(-MAX_QUEUE_HISTORY);
-  queue.activeItemId = "";
-  queue.cursorOrder = Number(item.order);
-  if (process.phase === PHASES.AUDIT_FAILURE) queue.enabled = false;
-  const saved = await persistMissionQueue(
-    queue,
-    settings,
-    process,
-    "MISSION_QUEUE_ITEM_TERMINAL",
-    {
-      itemId: item.itemId,
-      logicalSavedMissionId,
-      retiredSlotCount: finalizedSlots.length,
-      terminalPhase: process.phase,
-      queueStatus,
-      cursorOrder: queue.cursorOrder,
-      willAdvance: queue.enabled === true && process.phase !== PHASES.AUDIT_FAILURE
-    }
-  );
+  });
+  if (!retirement) return process;
+  const { saved, finalized } = retirement;
   await completeMissionDelegationForQueueItem(process, finalized, queueStatus);
   await cancelSchedulerProcess(process, `MISSION_QUEUE_${queueStatus}`).catch(() => undefined);
   try { await chrome.alarms.clear(alarmName(process.processId)); } catch {}
@@ -3407,6 +3502,47 @@ async function handleDetached(process, error) {
   return next;
 }
 
+async function upgradeCompactPendingPrompt(process, page) {
+  const pending = process.pendingPrompt;
+  const fallback = pending?.fullFallback;
+  if (!fallback?.text || !fallback?.hash || !fallback?.a2a) {
+    const error = Object.assign(
+      new Error("COMPACT_PROMPT_FULL_FALLBACK_MISSING"),
+      { code: "COMPACT_PROMPT_FULL_FALLBACK_MISSING" }
+    );
+    return enterRecovery(process, error, PHASES.SENDING);
+  }
+  if (pending.promptPause?.reservationId) {
+    await releaseGlobalPromptLease({ reservationId: pending.promptPause.reservationId }).catch(() => undefined);
+  }
+  await cancelSchedulerProcess(process, "PROMPT_PROFILE_UPGRADED_TO_FULL").catch(() => undefined);
+  const upgraded = {
+    ...process,
+    pendingPrompt: {
+      ...pending,
+      text: fallback.text,
+      hash: fallback.hash,
+      a2a: fallback.a2a,
+      promptProfile: fallback.promptProfile || upgradedFullProfile(pending.promptProfile),
+      fullFallback: null,
+      promptPause: null
+    },
+    updatedAt: nowIso()
+  };
+  await saveProcess(upgraded);
+  await audit(upgraded, "PROMPT_PROFILE_UPGRADED_TO_FULL", "a2a", {
+    compactPromptHash: pending.hash,
+    fullPromptHash: fallback.hash,
+    anchorDocumentId: pending.promptProfile?.anchorDocumentId || "",
+    anchorConversationKey: pending.promptProfile?.anchorConversationKey || "",
+    observedDocumentId: page?.documentId || "",
+    observedConversationKey: conversationKey(page?.url || ""),
+    promptEffectIssued: false
+  }).catch(() => undefined);
+  scheduleFast(upgraded.processId, 50);
+  return upgraded;
+}
+
 async function tickSending(process) {
   let page;
   try {
@@ -3419,6 +3555,19 @@ async function tickSending(process) {
   if (!pending?.text || !pending?.hash) {
     const error = Object.assign(new Error("PENDING_PROMPT_MISSING"), { code: "PENDING_PROMPT_MISSING" });
     return enterRecovery(process, error, PHASES.SENDING);
+  }
+
+  // v1.7.7: a COMPACT prompt may only be posted into the exact document and
+  // conversation it was composed for. F5/Ctrl-F5 or a conversation change
+  // before the first dispatch upgrades it to its FULL fallback. Hash-bound
+  // prompt-gate/capacity reservations are released and re-armed for the new hash.
+  if (!pending.dispatch &&
+      pending.promptProfile?.profile === PROMPT_PROFILE.COMPACT &&
+      !compactPromptStillValid(pending.promptProfile, {
+        documentId: page.documentId || "",
+        conversationKey: conversationKey(page.url || "")
+      })) {
+    return upgradeCompactPendingPrompt(process, page);
   }
 
   if (!pending.dispatch && !pending.promptPause?.reservationId) {
@@ -3530,7 +3679,9 @@ async function tickSending(process) {
         dispatchedUserTurnId: resolvedUserTurnId,
         dispatchedUserTurnIndex: resolvedUserTurnIndex,
         oneShotInstruction: pending.oneShotInstruction || null,
-        a2a: pending.a2a || null
+        a2a: pending.a2a || null,
+        promptProfile: pending.promptProfile || null,
+        dispatchDocumentId: pending.dispatch?.baselineDocumentId || page.documentId || ""
       },
       sessionHealth: markSessionHealthPromptPosted(process.sessionHealth, {
         sessionSeq: process.sessionSeq,
@@ -5101,6 +5252,157 @@ async function runAnalysis(process) {
   };
 }
 
+async function refreshSchedulerPriority(process) {
+  const context = await schedulerCapacityContext().catch(() => null);
+  if (!context) return;
+  const schedulerUpdate = await updateGlobalTurnPriority({
+    processId: process.processId,
+    priority: process.schedulerPriority,
+    capacity: context.effectiveCapacity,
+    configuredCapacity: context.configuredCapacity
+  }).catch(() => null);
+  wakeSchedulerProcesses(schedulerUpdate?.runnableProcessIds || []);
+}
+
+// v1.7.7 AI-requested runtime control. The EIC response only requests; this
+// function evaluates the request against fresh queue owner state, writes only
+// whitelisted slot fields of the exact target slot, and settles receipts
+// against the actual write result. Terminal completion is returned as a
+// verdict and executed by the existing DONE commit + logical-GFW retirement.
+async function evaluateAndApplyRuntimeControl(current, result) {
+  const ctx = current.queueContext?.itemId ? current.queueContext : null;
+  const request = result.targetResponse?.runtimeControl || null;
+  const status = String(result.targetDisposition || "UNKNOWN").toUpperCase();
+  const sessionAction = String(result.targetResponse?.sessionAction || "KEEP").toUpperCase();
+  const responseHash = current.lastResponse?.hash || "";
+  if (!request && status !== "DONE" && sessionAction !== "STOP_PROCESS") {
+    // No-control responses are a no-op for the control engine; only clear
+    // receipts that described an earlier response.
+    return {
+      terminal: null,
+      priorityChanged: false,
+      processPatch: current.runtimeControl?.lastReceipts?.length
+        ? { runtimeControl: nextRuntimeControlState(current.runtimeControl, [], { turn: current.turn, responseHash }) }
+        : null
+    };
+  }
+
+  const promptIssuedAtMs = Date.parse(current.lastPrompt?.a2a?.issuedAt || "") ||
+    Number(current.lastPrompt?.postedAtMs || 0);
+  let queueLoadErrorRecord = null;
+  const evaluate = async () => {
+    let queueState = null;
+    queueLoadErrorRecord = null;
+    if (ctx) {
+      try {
+        queueState = await missionQueueForWindow(current.windowId);
+      } catch (error) {
+        queueLoadErrorRecord = errorRecord(error);
+      }
+    }
+    const sameQueue = Boolean(queueState && queueState.queue.queueId === ctx?.queueId);
+    const evaluation = evaluateRuntimeControl({
+      request,
+      status,
+      sessionAction,
+      owner: {
+        runId: current.runId,
+        turn: current.turn,
+        queueManaged: Boolean(ctx),
+        queueId: ctx?.queueId || "",
+        itemId: ctx?.itemId || "",
+        savedMissionId: ctx?.savedMissionId || "",
+        item: sameQueue ? queueState.queue.items.find((candidate) => candidate.itemId === ctx.itemId) || null : null,
+        queueLoadError: Boolean(queueLoadErrorRecord),
+        promptIssuedAtMs,
+        responseHash,
+        ledger: current.runtimeControl?.ledger || []
+      }
+    });
+    return { evaluation, queueState: sameQueue ? queueState : null };
+  };
+
+  let { evaluation, queueState } = await evaluate();
+  const pendingWrites = () => evaluation.effects.filter((effect) => effect.noop !== true);
+  let committed = true;
+  let errorCode = "";
+  for (let attempt = 0; attempt < 2 && pendingWrites().length && queueState; attempt += 1) {
+    const fresh = await findProcessById(current.processId);
+    if (!fresh || fresh.generation !== current.generation || fresh.phase !== PHASES.ANALYZING) {
+      committed = false;
+      errorCode = "PROCESS_NO_LONGER_CURRENT";
+      break;
+    }
+    try {
+      queueState.queue.items = applyRuntimeControlEffects(queueState.queue.items, pendingWrites());
+      await persistMissionQueue(queueState.queue, queueState.settings, current, "MISSION_QUEUE_RUNTIME_CONTROL_APPLIED", {
+        itemId: ctx.itemId,
+        effects: pendingWrites().map((effect) => ({ op: effect.op, field: effect.field, value: effect.value })),
+        responseHash
+      });
+      committed = true;
+      errorCode = "";
+      break;
+    } catch (error) {
+      committed = false;
+      errorCode = String(error?.code || error?.message || "QUEUE_WRITE_FAILED");
+      if (attempt > 0 || error?.code !== "MISSION_WORK_QUEUE_STALE_WRITE") break;
+      // A concurrent writer (normally an operator edit) won the revision race.
+      // Re-validate once against fresh owner state; operator precedence applies.
+      ({ evaluation, queueState } = await evaluate());
+      committed = true;
+      errorCode = "";
+    }
+  }
+
+  const receipts = settleRuntimeControlReceipts(evaluation.receipts, { committed, errorCode });
+  const processPatch = {
+    runtimeControl: nextRuntimeControlState(current.runtimeControl, receipts, { turn: current.turn, responseHash })
+  };
+  let priorityChanged = false;
+  if (committed && ctx) {
+    let queueContext = ctx;
+    let schedulerPriority = current.schedulerPriority;
+    for (const effect of evaluation.effects) {
+      if (effect.field === "priority") {
+        priorityChanged = priorityChanged || effect.value !== schedulerPriority;
+        queueContext = { ...queueContext, priority: effect.value };
+        schedulerPriority = effect.value;
+      } else if (effect.field === "maxInteractions") {
+        // The active quantum is immutable until its boundary (v1.7.4 rule);
+        // the new slot quantum applies from the next quantum/activation.
+        queueContext = {
+          ...queueContext,
+          pendingMaxInteractions: effect.value === Number(ctx.maxInteractions) ? null : effect.value
+        };
+      }
+    }
+    if (queueContext !== ctx) {
+      processPatch.queueContext = queueContext;
+      processPatch.schedulerPriority = schedulerPriority;
+    }
+  }
+
+  await audit(current, "RUNTIME_CONTROL_EVALUATED", "runtime-control", {
+    responseHash,
+    status,
+    sessionAction,
+    requestPresent: Boolean(request),
+    requestErrors: request?.errors || [],
+    targetState: request?.targetState || "ABSENT",
+    terminal: evaluation.terminal
+      ? { requested: true, accepted: evaluation.terminal.accepted, source: evaluation.terminal.source }
+      : null,
+    effects: evaluation.effects.map((effect) => ({ op: effect.op, field: effect.field, value: effect.value, noop: effect.noop === true })),
+    receipts,
+    committed,
+    errorCode,
+    queueLoadError: queueLoadErrorRecord
+  }).catch(() => undefined);
+
+  return { terminal: evaluation.terminal, processPatch, priorityChanged };
+}
+
 async function tickAnalyzing(process) {
   const page = await tabState(process,"analysis-model-recheck");
   if (process.safety?.qualityIncident) return holdForSafety(process,{code:process.safety.qualityIncident.code});
@@ -5154,13 +5456,20 @@ async function tickAnalyzing(process) {
       return current;
     }
 
+    const runtimeControl = await evaluateAndApplyRuntimeControl(current, result);
+    // Receipts and synced slot values belong to this analyzed turn and ride on
+    // whichever transition commits next (DONE, BLOCKED, park or continuation).
+    if (runtimeControl.processPatch) Object.assign(current, runtimeControl.processPatch);
+    if (runtimeControl.priorityChanged) await refreshSchedulerPriority(current);
+
     const modelControllerDecision = result.decision;
     const greenfieldControl = resolveGreenfieldControl({
       targetDisposition: result.targetDisposition,
       targetNextSuggestedAction: result.targetResponse?.nextSuggestedAction || "",
       decision: modelControllerDecision,
       nanoTask: result.nanoTask,
-      sessionAction: result.targetResponse?.sessionAction || "KEEP"
+      sessionAction: result.targetResponse?.sessionAction || "KEEP",
+      terminalControl: runtimeControl.terminal
     });
     const d = applyGreenfieldControlToDecision(modelControllerDecision, greenfieldControl);
     const controllerValidation = validateHjalmarDecision(d);
@@ -5216,6 +5525,9 @@ async function tickAnalyzing(process) {
 
     if (d.disposition === DISPOSITIONS.DONE) {
       if (latestInstruction) {
+        // Operator input outranks an AI terminal control; the terminal was not
+        // committed, so its receipt must not claim APPLIED.
+        current.runtimeControl = withTerminalReceiptsRejected(current.runtimeControl, "OPERATOR_INSTRUCTION_PENDING");
         const error = Object.assign(
           new Error("HJALMAR_D2_DONE_WITH_PENDING_OPERATOR_INSTRUCTION"),
           { code: "HJALMAR_D2_DONE_WITH_PENDING_OPERATOR_INSTRUCTION" }
@@ -5261,15 +5573,15 @@ async function tickAnalyzing(process) {
           updatedAt: nowIso()
         },
         lastError: {
-          code: greenfieldControl.action === "OPERATOR"
+          code: greenfieldControl.errorCode || (greenfieldControl.action === "OPERATOR"
             ? "GREENFIELD_OPERATOR_REQUIRED"
-            : "GREENFIELD_BLOCKED",
+            : "GREENFIELD_BLOCKED"),
           message: d.analysis
         }
       }, {
-        kind: greenfieldControl.action === "OPERATOR"
+        kind: greenfieldControl.errorCode || (greenfieldControl.action === "OPERATOR"
           ? "GREENFIELD_OPERATOR_REQUIRED"
-          : "GREENFIELD_BLOCKED",
+          : "GREENFIELD_BLOCKED"),
         component: "decision",
         detail: {
           decision: d,
@@ -5493,9 +5805,17 @@ async function tickAnalyzing(process) {
       }
     }
 
+    const pendingQuantum = Number(queueContextAfterResponse?.pendingMaxInteractions || 0);
     const nextQueueContext = queueContextAfterResponse
       ? {
           ...queueContextAfterResponse,
+          // An AI SET_QUANTUM takes effect exactly at the slot's quantum boundary.
+          ...(queueQuantumReached === true && pendingQuantum > 0
+            ? {
+                maxInteractions: normalizeMissionQuantumInteractions(pendingQuantum),
+                pendingMaxInteractions: null
+              }
+            : {}),
           interactionCount: queueQuantumReached === true
             ? 0
             : queueContextAfterResponse.interactionCount,

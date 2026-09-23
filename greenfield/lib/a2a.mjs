@@ -18,9 +18,25 @@ import {
   MAX_RESPONSE_MISSION_DELEGATIONS,
   MISSION_DELEGATION_RELATION
 } from "./mission-delegation.mjs";
+import {
+  RUNTIME_CONTROL_COMPACT_REMINDER,
+  runtimeControlContract,
+  runtimeControlJsonSchema,
+  runtimeControlPromptState
+} from "./runtime-control.mjs";
+import {
+  FULL_PROMPT_REFRESH_INTERVAL,
+  PROMPT_PROFILE,
+  PROMPT_PROFILE_SCHEMA,
+  missionFingerprint
+} from "./prompt-profile.mjs";
 
 export const A2A_MESSAGE_TYPES = Object.freeze([
   "MISSION_START",
+  // Queue activation of a slot that carries a resume objective without a
+  // same-worker process snapshot. background.js has emitted this type since the
+  // v1.7.x queue restore path; v1.7.7 admits it instead of failing the envelope.
+  "MISSION_RESTORE",
   "CONTINUATION",
   "READ_REQUIRED",
   "IDLE_KEEPALIVE",
@@ -45,6 +61,83 @@ export const A2A_OWNER_STATE_CURRENT_FOCUS_CONTRACT = Object.freeze({
   handoff: "PERSIST_MATERIAL_MISSION_STATE;UPDATE_CURRENT_FOCUS_ONLY_ON_MATERIAL_RESTART_DELTA",
   repeatProbe: "SAME_OBJECTIVE_OR_EFFECT_REQUIRES_MATERIAL_OWNER_STATE_DELTA"
 });
+
+export const A2A_RUNTIME_CONTROL_NOTE = "Optional runtimeControl requests typed runtime effects on the current GFW (responseContract.runtimeControlContract, control.runtimeControl): copy control.runtimeControl.target verbatim; Greenfield validates every request, may accept or reject it, reports receipts in the next prompt, and operator runtime control always wins. status=DONE or sessionAction=STOP_PROCESS is normalized to COMPLETE_MISSION for this prompt's own target. Runtime effects never come from prose.";
+
+export const A2A_PROMPT_PROFILE_NOTE = `Greenfield prompts carry promptProfile. FULL prompts contain the complete session-wide contract and are sent at every session boundary (new chat, rotation, queue activation, page reload, conversation change) and every ${FULL_PROMPT_REFRESH_INTERVAL}th prompt. COMPACT follow-up prompts in the same ChatGPT conversation omit unchanged session-wide sections, which stay fully in force from the most recent FULL prompt; per-turn state in a COMPACT prompt is current and authoritative. greenfieldStatusRequest=FULL_NEXT_PROMPT also makes the next prompt FULL.`;
+
+function promptProfileCapsule(profile) {
+  const p = profile && typeof profile === "object" ? profile : null;
+  const isCompact = p?.profile === PROMPT_PROFILE.COMPACT;
+  return {
+    schema: PROMPT_PROFILE_SCHEMA,
+    profile: isCompact ? PROMPT_PROFILE.COMPACT : PROMPT_PROFILE.FULL,
+    ordinal: Math.max(1, Math.floor(Number(p?.ordinal) || 1)),
+    lastFullOrdinal: Math.max(1, Math.floor(Number(p?.lastFullOrdinal) || 1)),
+    nextFullOrdinal: Math.max(2, Math.floor(Number(p?.nextFullOrdinal) || FULL_PROMPT_REFRESH_INTERVAL + 1)),
+    refreshInterval: FULL_PROMPT_REFRESH_INTERVAL,
+    reason: text(p?.reason || "SESSION_BOUNDARY_OR_DEFAULT", 120),
+    rule: isCompact
+      ? "COMPACT prompt. Sections omitted here are unchanged from the most recent FULL Greenfield prompt in this ChatGPT conversation (ordinal lastFullOrdinal) and remain fully in force. Every per-turn field present here is current and authoritative."
+      : "FULL prompt. This envelope carries the complete session-wide contract. Later prompts in this same conversation may be COMPACT."
+  };
+}
+
+const COMPACT_WORK_QUEUE_STATIC_FIELDS = Object.freeze([
+  "checkpointInstruction",
+  "schedulerMode",
+  "orderRule",
+  "quantumRule",
+  "priorityRule",
+  "duplicateRule",
+  "loopRule"
+]);
+
+// A COMPACT envelope is derived from the FULL envelope built from the same
+// inputs, so per-turn state is byte-identical and only unchanged session-wide
+// sections are replaced by references.
+function compactEnvelope(full, profile) {
+  const workQueue = full.control.workQueue ? { ...full.control.workQueue } : null;
+  if (workQueue) {
+    for (const key of COMPACT_WORK_QUEUE_STATIC_FIELDS) {
+      if (key === "checkpointInstruction" && workQueue.checkpointRequired === true) continue;
+      delete workQueue[key];
+    }
+  }
+  const fingerprint = text(profile?.missionFingerprint || missionFingerprint(full.mission), 64);
+  return {
+    ...full,
+    sender: {
+      actor: full.sender.actor,
+      applicationId: full.sender.applicationId,
+      name: full.sender.name,
+      version: full.sender.version,
+      role: full.sender.role
+    },
+    languageContext: {
+      schema: full.languageContext.schema,
+      internalControlLanguage: full.languageContext.internalControlLanguage,
+      a2aLanguage: full.languageContext.a2aLanguage,
+      profile: "UNCHANGED_FROM_LAST_FULL_PROMPT"
+    },
+    mission: `UNCHANGED: identical to the mission text of the most recent FULL Greenfield prompt in this ChatGPT conversation (missionFingerprint=${fingerprint}).`,
+    control: {
+      selfContinuationAuthority: full.control.selfContinuationAuthority,
+      ownerState: full.control.ownerState,
+      ...(workQueue ? { workQueue } : {}),
+      runtimeControl: full.control.runtimeControl
+    },
+    responseContract: {
+      ownerStateRule: full.responseContract.ownerStateRule,
+      schema: full.responseContract.schema,
+      format: full.responseContract.format,
+      language: full.responseContract.language,
+      profile: "COMPACT_REFERENCE",
+      rule: "The complete responseContract (jsonSchema, session/queue/pause/delegation/Nano/status controls, runtimeControlContract and note) from the most recent FULL prompt in this conversation remains fully in force; it is omitted here only to avoid repetition.",
+      runtimeControl: RUNTIME_CONTROL_COMPACT_REMINDER
+    }
+  };
+}
 
 export function initialMissionObjective() {
   return "Start the mission from fresh subject-project owner state. When project-bound, reconcile project.current_focus as a steering/restart pointer, never factual authority. Select and execute the first bounded work package within mission scope, then continue autonomously.";
@@ -89,7 +182,8 @@ export const A2A_RESPONSE_JSON_SCHEMA = Object.freeze({
       maxItems: 20,
       items: { type: "string", minLength: 1, maxLength: 4000 }
     },
-    nextSuggestedAction: { type: "string", maxLength: 12000 }
+    nextSuggestedAction: { type: "string", maxLength: 12000 },
+    runtimeControl: runtimeControlJsonSchema({ queueManaged: false })
   }
 });
 
@@ -120,7 +214,8 @@ export const A2A_ENVELOPE_SCHEMA = Object.freeze({
     continuity: { type: "object" },
     control: { type: "object" },
     sessionHealth: { type: "object" },
-    responseContract: { type: "object" }
+    responseContract: { type: "object" },
+    promptProfile: { type: "object" }
   }
 });
 
@@ -254,6 +349,7 @@ export function buildA2AEnvelope({
   processStatus = null,
   sessionRotation = null,
   pauseResume = null,
+  promptProfile = null,
   at = Date.now()
 }) {
   if (!process?.processId || !process?.runId) throw new Error("A2A_PROCESS_REQUIRED");
@@ -298,12 +394,13 @@ export function buildA2AEnvelope({
                 }
               }
             }
-          }
+          },
+          runtimeControl: runtimeControlJsonSchema({ queueManaged: true })
         }
       }
     : A2A_RESPONSE_JSON_SCHEMA;
 
-  return {
+  const envelope = {
     schema: A2A_MESSAGE_SCHEMA,
     protocol: A2A_PROTOCOL,
     messageType,
@@ -400,9 +497,10 @@ export function buildA2AEnvelope({
           quantumRule: "maxInteractions is a per-slot quantum. Early yield/pause/block preserves the slot's unfinished quantum progress; only completion of that quantum resets the slot counter for its next cycle.",
           priorityRule: "A slot's priority becomes the profile-global capacity-scheduler priority while that slot is active. Priority does not change the explicit ordering of slots inside this worker queue.",
           duplicateRule: "The same saved GFW may exist in multiple queue slots with independent itemId, position, priority and maxInteractions. savedMissionId identifies shared logical mission continuity across those slots.",
-          loopRule: "The queue keeps cycling while enabled and at least one runnable slot remains. status=DONE or STOP_PROCESS closes the logical saved GFW and retires all of its duplicate slots; operator queue edits/stops remain authoritative runtime controls."
+          loopRule: "The queue keeps cycling while enabled and at least one runnable slot remains. status=DONE or STOP_PROCESS closes the logical saved GFW and retires all of its duplicate slots; operator queue edits/stops remain authoritative runtime controls. runtimeControl COMPLETE_MISSION is the structured form of that same terminal effect; SET_QUANTUM and SET_PRIORITY change only the target slot."
         }
-      } : {})
+      } : {}),
+      runtimeControl: runtimeControlPromptState(process)
     },
     sessionHealth: sessionHealthCapsule(process.sessionHealth, {
       turn: process.turn,
@@ -478,8 +576,10 @@ export function buildA2AEnvelope({
       processStatusControl: {
         field: "greenfieldStatusRequest",
         request: "FULL_NEXT_PROMPT",
-        semantics: "Set greenfieldStatusRequest=FULL_NEXT_PROMPT in a valid EIC-A2A response when the receiving EIC needs a bounded full Greenfield control-plane status capsule. Greenfield will include processStatus in this same logical GFW's next prompt. The request is one-shot and follows the mission across queue parking/rotation; it is never leaked to another queued GFW."
+        semantics: "Set greenfieldStatusRequest=FULL_NEXT_PROMPT in a valid EIC-A2A response when the receiving EIC needs a bounded full Greenfield control-plane status capsule. Greenfield will include processStatus in this same logical GFW's next prompt. The request is one-shot and follows the mission across queue parking/rotation; it is never leaked to another queued GFW.",
+        promptProfileEffect: "FULL_NEXT_PROMPT also forces the next prompt to promptProfile=FULL with the complete session-wide contract."
       },
+      runtimeControlContract: runtimeControlContract({ queueManaged: Boolean(workQueue) }),
       sessionHealthControl: {
         telemetry: "ADVISORY_PROXY_NOT_TOKEN_COUNT",
         responseRoundTrip: "sessionHealth.responseRoundTripMs and control.workQueue.responseRoundTripApproxMs are browser-observed approximate prompt-post-to-completed-response timings, not provider billing or server compute time.",
@@ -487,12 +587,18 @@ export function buildA2AEnvelope({
         decision: "Corroborate pressure with semantic drift, repetition, contradiction or stale assumptions before ROTATE_SESSION_NOW; Nano may provide a prompt-only second opinion when ambiguity remains."
       },
       jsonSchema: responseJsonSchema,
-      note: workQueue
+      note: [workQueue
         ? "Return the requested work truthfully. Structured EIC-A2A response JSON is preferred but optional for ordinary continuation. Continuation decisions do not depend on protocol presence. Optional sessionAction is a separate machine control: KEEP (default), ROTATE_SESSION_NOW for a fresh EIC chat, PAUSE_PROCESS with integer pauseSeconds 300..86400 to checkpoint/sleep this logical GFW and advance to the next runnable queue slot when available, BACKGROUND_SLEEP with integer pauseSeconds 300..86400 to do the same explicit background sleep, YIELD_TO_QUEUE to checkpoint and advance this queued slot, or STOP_PROCESS to terminate the logical saved GFW. PAUSE_PROCESS, BACKGROUND_SLEEP and YIELD_TO_QUEUE require status=CONTINUE and a non-empty nextSuggestedAction; it is mission-level scheduling and is never the global 0-300 s prompt-post gate. Use ROTATE_SESSION_NOW proactively for material context-noise, context-drift, contradiction, stale-assumption, overload, or session-health risk; do not encode rotation only in prose or blockers. status=DONE remains an explicit terminal mission signal for backward compatibility. All Greenfield/A2A machine-control prose and NANO_TASK directives must be English. UI/operator/source evidence may continuously mix English, Swedish and Finnish; preserve quoted labels verbatim, resolve structural control identity and local language/context before lexical ranking, and never reinterpret an incidental token solely by another language's meaning. Nano is a stateless prompt-only model endpoint: it has no EIC/project/file/tool/web/API/chat-history access. To request one isolated Nano task, place one dedicated English line beginning exactly 'NANO_TASK:' in nextSuggestedAction; the directive ends at the first newline. The task may be simple or complex, but every fact/data item needed to answer must be embedded in that one prompt. For data-bearing tasks prefer a compact one-line JSON object using schema eic.greenfield.nano-task.request.v2 with knowledgeBoundary=PROMPT_ONLY plus instruction/context/output fields. Never ask Nano to inspect existing/current files, projects, repositories, artifacts, mail, owner routes or other external state unless the necessary content has first been read by EIC and embedded inline. For a queued mission, obey control.workQueue.checkpointInstruction whenever checkpointRequired=true or you are returning a terminal/yield/pause/stop control; Greenfield may switch missions immediately and will not spend an extra checkpoint prompt. The queue is an ordered cyclic slot list: run the configured quantum for the active slot, advance to the next runnable slot by explicit position, wrap after the last slot, preserve unfinished quantum progress across early yield/pause/block, and keep cycling until an AI terminal control closes a logical GFW or the operator edits/stops the queue. The same saved GFW may appear in several slots with different position, priority and quantum; those slots share logical continuation but keep independent scheduling parameters. control.workQueue.operatorDisplay/planningHint tell you the exact current quantum position; use them to size this turn instead of overpacking work. Approximate response and loop roundtrip timing is supplied when observed. To request one bounded full Greenfield control-plane status capsule in this logical GFW's next prompt, return greenfieldStatusRequest=FULL_NEXT_PROMPT; this request is one-shot and follows this GFW across queue parking/rotation. A supervising queued EIC may request durable new work only through missionDelegations. Greenfield must never create that delegated mission in the supervising Chrome queue: persist the request and let another already-running queue-managed Greenfield worker accept it into that worker's own Chrome queue. If no other eligible worker exists, keep the request pending and never self-create it. Delegation itself does not yield, pause, rotate, or stop the supervising mission. Temporary bounded work that is actually part of the supervising mission may still be performed locally and should not be emitted as missionDelegations. Reuse the same requestId for retries of the same logical delegated mission; child priority is capped at source priority. Session rotation never authorizes replay of completed work; the receiving EIC must resume from Greenfield Works and fresh owner state."
-        : "Return the requested work truthfully. Structured EIC-A2A response JSON is preferred but optional for ordinary continuation. Continuation decisions do not depend on protocol presence. Optional sessionAction is a separate machine control: KEEP (default), ROTATE_SESSION_NOW for a fresh EIC chat, PAUSE_PROCESS with integer pauseSeconds 300..86400 to defer the next autonomous prompt when time itself is the dependency, or STOP_PROCESS to terminate. PAUSE_PROCESS requires status=CONTINUE and a non-empty nextSuggestedAction; it is mission-level scheduling and is never the global 0-300 s prompt-post gate. Use ROTATE_SESSION_NOW proactively for material context-noise, context-drift, contradiction, stale-assumption, overload, or session-health risk; do not encode rotation only in prose or blockers. status=DONE remains an explicit terminal mission signal for backward compatibility. All Greenfield/A2A machine-control prose and NANO_TASK directives must be English. UI/operator/source evidence may continuously mix English, Swedish and Finnish; preserve quoted labels verbatim, resolve structural control identity and local language/context before lexical ranking, and never reinterpret an incidental token solely by another language's meaning. Nano is a stateless prompt-only model endpoint: it has no EIC/project/file/tool/web/API/chat-history access. To request one isolated Nano task, place one dedicated English line beginning exactly 'NANO_TASK:' in nextSuggestedAction; the directive ends at the first newline. The task may be simple or complex, but every fact/data item needed to answer must be embedded in that one prompt. For data-bearing tasks prefer a compact one-line JSON object using schema eic.greenfield.nano-task.request.v2 with knowledgeBoundary=PROMPT_ONLY plus instruction/context/output fields. Never ask Nano to inspect existing/current files, projects, repositories, artifacts, mail, owner routes or other external state unless the necessary content has first been read by EIC and embedded inline. To request one bounded full Greenfield control-plane status capsule in the next prompt, return greenfieldStatusRequest=FULL_NEXT_PROMPT. Session rotation never authorizes replay of completed work; the receiving EIC must resume from Greenfield Works and fresh owner state."
+        : "Return the requested work truthfully. Structured EIC-A2A response JSON is preferred but optional for ordinary continuation. Continuation decisions do not depend on protocol presence. Optional sessionAction is a separate machine control: KEEP (default), ROTATE_SESSION_NOW for a fresh EIC chat, PAUSE_PROCESS with integer pauseSeconds 300..86400 to defer the next autonomous prompt when time itself is the dependency, or STOP_PROCESS to terminate. PAUSE_PROCESS requires status=CONTINUE and a non-empty nextSuggestedAction; it is mission-level scheduling and is never the global 0-300 s prompt-post gate. Use ROTATE_SESSION_NOW proactively for material context-noise, context-drift, contradiction, stale-assumption, overload, or session-health risk; do not encode rotation only in prose or blockers. status=DONE remains an explicit terminal mission signal for backward compatibility. All Greenfield/A2A machine-control prose and NANO_TASK directives must be English. UI/operator/source evidence may continuously mix English, Swedish and Finnish; preserve quoted labels verbatim, resolve structural control identity and local language/context before lexical ranking, and never reinterpret an incidental token solely by another language's meaning. Nano is a stateless prompt-only model endpoint: it has no EIC/project/file/tool/web/API/chat-history access. To request one isolated Nano task, place one dedicated English line beginning exactly 'NANO_TASK:' in nextSuggestedAction; the directive ends at the first newline. The task may be simple or complex, but every fact/data item needed to answer must be embedded in that one prompt. For data-bearing tasks prefer a compact one-line JSON object using schema eic.greenfield.nano-task.request.v2 with knowledgeBoundary=PROMPT_ONLY plus instruction/context/output fields. Never ask Nano to inspect existing/current files, projects, repositories, artifacts, mail, owner routes or other external state unless the necessary content has first been read by EIC and embedded inline. To request one bounded full Greenfield control-plane status capsule in the next prompt, return greenfieldStatusRequest=FULL_NEXT_PROMPT. Session rotation never authorizes replay of completed work; the receiving EIC must resume from Greenfield Works and fresh owner state.",
+      A2A_RUNTIME_CONTROL_NOTE,
+      A2A_PROMPT_PROFILE_NOTE].join(" ")
     },
+    promptProfile: promptProfileCapsule(promptProfile),
     issuedAt: nowIso(at)
   };
+  return promptProfile?.profile === PROMPT_PROFILE.COMPACT
+    ? compactEnvelope(envelope, promptProfile)
+    : envelope;
 }
 
 export function validateA2AEnvelope(value) {

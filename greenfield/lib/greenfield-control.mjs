@@ -25,13 +25,22 @@ function trim(value) {
  * A CONTINUE target with an executable nextSuggestedAction may therefore recover
  * from an advisory Hjalmar BLOCKED decision unless a hard runtime or human-
  * authority condition independently requires a stop.
+ *
+ * v1.7.7: an EIC terminal control (status=DONE, sessionAction=STOP_PROCESS or
+ * runtimeControl COMPLETE_MISSION) is an owner-validated runtime effect, not an
+ * advisory hint. When accepted it overrides the local controller disposition
+ * (controllerOverride), so the DONE commit and logical-GFW queue retirement
+ * actually run. terminalControl is the verdict of runtime-control.mjs; when it
+ * rejects the terminal (e.g. a well-formed but mismatching target) Greenfield
+ * fails closed to BLOCKED instead of retiring or continuing.
  */
 export function resolveGreenfieldControl({
   targetDisposition = "UNKNOWN",
   targetNextSuggestedAction = "",
   decision = null,
   nanoTask = null,
-  sessionAction = "KEEP"
+  sessionAction = "KEEP",
+  terminalControl = null
 } = {}) {
   const target = upper(targetDisposition, "UNKNOWN");
   const nextSuggestedAction = trim(targetNextSuggestedAction);
@@ -39,15 +48,34 @@ export function resolveGreenfieldControl({
   const humanAuthorityRequired = decision?.humanAuthorityRequired === true;
   const nanoStatus = upper(nanoTask?.status);
   const session = upper(sessionAction, "KEEP");
+  const terminal = terminalControl && typeof terminalControl === "object" && terminalControl.requested === true
+    ? terminalControl
+    : null;
+
+  if (terminal && terminal.accepted !== true) {
+    return {
+      state: GREENFIELD_STATES.ACTIVE,
+      action: GREENFIELD_ACTIONS.BLOCK,
+      reason: "RUNTIME_CONTROL_TERMINAL_REJECTED",
+      errorCode: "RUNTIME_CONTROL_TERMINAL_REJECTED",
+      hardStop: true,
+      effectiveDisposition: "BLOCKED",
+      effectiveNextPrompt: "",
+      controllerOverride: true
+    };
+  }
+
+  const structuredComplete = terminal?.source === "RUNTIME_CONTROL";
 
   if (session === "STOP_PROCESS") {
     return {
       state: GREENFIELD_STATES.DONE,
       action: GREENFIELD_ACTIONS.NONE,
-      reason: "EIC_EXPLICIT_STOP_PROCESS",
+      reason: structuredComplete ? "EIC_RUNTIME_CONTROL_COMPLETE_MISSION" : "EIC_EXPLICIT_STOP_PROCESS",
       hardStop: false,
       effectiveDisposition: "DONE",
-      effectiveNextPrompt: ""
+      effectiveNextPrompt: "",
+      controllerOverride: true
     };
   }
 
@@ -79,10 +107,11 @@ export function resolveGreenfieldControl({
     return {
       state: GREENFIELD_STATES.DONE,
       action: GREENFIELD_ACTIONS.NONE,
-      reason: "EIC_EXPLICIT_STATUS_DONE",
+      reason: structuredComplete ? "EIC_RUNTIME_CONTROL_COMPLETE_MISSION" : "EIC_EXPLICIT_STATUS_DONE",
       hardStop: false,
       effectiveDisposition: "DONE",
-      effectiveNextPrompt: ""
+      effectiveNextPrompt: "",
+      controllerOverride: true
     };
   }
 
@@ -162,13 +191,22 @@ export function resolveGreenfieldControl({
   };
 }
 
+function overriddenObjectiveStatus(decision, effectiveDisposition) {
+  if (effectiveDisposition === "BLOCKED") return "BLOCKED";
+  if (effectiveDisposition === "DONE") {
+    const original = upper(decision?.objectiveStatus);
+    return ["SATISFIED", "FAILED"].includes(original) ? original : "SATISFIED";
+  }
+  return "PENDING";
+}
+
 export function applyGreenfieldControlToDecision(decision, control) {
   const d = decision && typeof decision === "object" ? { ...decision } : {};
   if (!control?.controllerOverride) return d;
   return {
     ...d,
     disposition: control.effectiveDisposition,
-    objectiveStatus: "PENDING",
+    objectiveStatus: overriddenObjectiveStatus(d, control.effectiveDisposition),
     nextPrompt: trim(control.effectiveNextPrompt),
     materialAmbiguity: "NONE",
     humanAuthorityRequired: false,

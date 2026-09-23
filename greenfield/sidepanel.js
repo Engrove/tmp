@@ -895,11 +895,11 @@ async function handleQueueListChange(event) {
   if (!itemId) return;
   const item = (state.missionQueue?.items || []).find((entry) => entry.itemId === itemId);
   if (!item) return;
-  const patch = {
-    itemId,
-    priority: field === "priority" ? event.target.value : item.priority,
-    maxInteractions: field === "maxInteractions" ? Number(event.target.value) : item.maxInteractions
-  };
+  // Send only the edited field: the other value may have changed in the
+  // background (AI runtime control) since this panel last rendered.
+  const patch = field === "priority"
+    ? { itemId, priority: event.target.value }
+    : { itemId, maxInteractions: Number(event.target.value) };
   try {
     await mutateMissionQueue("UPDATE", patch);
   } catch {}
@@ -1615,7 +1615,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.7.6" }
+      payload: { appVersion: "1.7.7" }
     });
     await snapshot();
   } catch (error) {

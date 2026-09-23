@@ -1,3 +1,18 @@
+# 1.7.7 – AI runtime control and FULL/COMPACT prompts
+
+- Rotorsak 1.7.6: `STOP_PROCESS`/`DONE` klassades som terminala men utan `controllerOverride`, så en lokal Hjalmar-`CONTINUE` kunde köra vidare och kö-retirement nåddes aldrig. Nu verkställs godkänd terminal kontroll.
+- Nytt valfritt svarsfält `runtimeControl` med whitelistade operationer `COMPLETE_MISSION`, `SET_QUANTUM` (1..15, nästa kvant) och `SET_PRIORITY` (högst operatörens tak).
+- Legacy `DONE`/`STOP_PROCESS` normaliseras till samma `COMPLETE_MISSION`-handler; retirement av alla slots med samma `savedMissionId` har en enda ren implementation.
+- Target-bindning (`runId`, `turn`, `queueId`, `itemId`, `savedMissionId`), replay-ledger, operatörsföreträde (`operatorEditedAtMs`, väntande instruktion) och kvitton i nästa prompt.
+- Felaktigt target tillsammans med `DONE` blockerar (fail closed) i stället för att pensionera.
+- Terminal kö-retirement försöker om en gång vid stale revision och självläker före nästa köval.
+- FULL/COMPACT-promptprofil: FULL vid varje sessionsgräns och var tionde prompt; COMPACT uppgraderas till FULL före utskick om dokument/konversation ändrats.
+- `MISSION_RESTORE` accepteras som A2A-meddelandetyp.
+- Panelens köändring skickar bara det ändrade fältet.
+- Lokal Node/static/harness-verifiering är inte samma sak som live Chrome/ChatGPT-acceptans.
+
+---
+
 # 1.7.6 – owner-state/current_focus resume safety
 
 - Alla Greenfield-genererade A2A-envelopes bär ett explicit owner-state/current_focus-kontrakt.
