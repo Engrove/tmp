@@ -1,0 +1,94 @@
+TAP version 13
+# Subtest: v1.7.1 pending dispatch materialization is a first-class autonomous turn identity
+ok 1 - v1.7.1 pending dispatch materialization is a first-class autonomous turn identity
+  ---
+  duration_ms: 1.712745
+  type: 'test'
+  ...
+# Subtest: v1.7.1 acknowledged v1.7.0 dispatch can recover its dynamic ordinal from baselineUserCount
+ok 2 - v1.7.1 acknowledged v1.7.0 dispatch can recover its dynamic ordinal from baselineUserCount
+  ---
+  duration_ms: 0.182197
+  type: 'test'
+  ...
+# Subtest: v1.7.1 exact materialized turn identity wins over a different rendered-text hash
+ok 3 - v1.7.1 exact materialized turn identity wins over a different rendered-text hash
+  ---
+  duration_ms: 1.099651
+  type: 'test'
+  ...
+# Subtest: v1.7.1 exact materialized id mismatch is rejected even if a legacy text hash happens to match
+ok 4 - v1.7.1 exact materialized id mismatch is rejected even if a legacy text hash happens to match
+  ---
+  duration_ms: 0.206734
+  type: 'test'
+  ...
+# Subtest: v1.7.1 acknowledged dispatch uses ordinal causality instead of requiring rendered-text identity
+ok 5 - v1.7.1 acknowledged dispatch uses ordinal causality instead of requiring rendered-text identity
+  ---
+  duration_ms: 0.477079
+  type: 'test'
+  ...
+# Subtest: v1.7.1 unknown dispatch effect cannot use baseline ordinal as proof
+ok 6 - v1.7.1 unknown dispatch effect cannot use baseline ordinal as proof
+  ---
+  duration_ms: 0.122489
+  type: 'test'
+  ...
+# Subtest: v1.7.1 send fence recognizes a materialized browser turn without comparing prompt text
+ok 7 - v1.7.1 send fence recognizes a materialized browser turn without comparing prompt text
+  ---
+  duration_ms: 0.176182
+  type: 'test'
+  ...
+# Subtest: v1.7.1 restart recovery accepts the exact conversation and materialized turn despite text rendering differences
+ok 8 - v1.7.1 restart recovery accepts the exact conversation and materialized turn despite text rendering differences
+  ---
+  duration_ms: 0.53795
+  type: 'test'
+  ...
+# Subtest: v1.7.1 restart recovery can resolve an acknowledged pre-1.7.1 dispatch by persisted ordinal
+ok 9 - v1.7.1 restart recovery can resolve an acknowledged pre-1.7.1 dispatch by persisted ordinal
+  ---
+  duration_ms: 0.387986
+  type: 'test'
+  ...
+# Subtest: v1.7.1 dispatch reconciliation is identity-generic across runtime-generated turn ids
+ok 10 - v1.7.1 dispatch reconciliation is identity-generic across runtime-generated turn ids
+  ---
+  duration_ms: 2.158369
+  type: 'test'
+  ...
+# Subtest: v1.7.1 a live exact conversation clears a stale missing-tab recovery row
+ok 11 - v1.7.1 a live exact conversation clears a stale missing-tab recovery row
+  ---
+  duration_ms: 0.442748
+  type: 'test'
+  ...
+# Subtest: v1.7.1 ambiguous conversation recovery is not hidden by one live observation
+ok 12 - v1.7.1 ambiguous conversation recovery is not hidden by one live observation
+  ---
+  duration_ms: 0.13813
+  type: 'test'
+  ...
+# Subtest: v1.7.1 unresolved prior-turn recovery clears only when current live turn proof resolves
+ok 13 - v1.7.1 unresolved prior-turn recovery clears only when current live turn proof resolves
+  ---
+  duration_ms: 0.211243
+  type: 'test'
+  ...
+# Subtest: v1.7.1 BACKGROUND_SLEEP remains a worker-yield action for queue-managed missions
+ok 14 - v1.7.1 BACKGROUND_SLEEP remains a worker-yield action for queue-managed missions
+  ---
+  duration_ms: 0.137443
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 101.295418

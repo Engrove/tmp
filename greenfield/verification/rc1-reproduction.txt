@@ -1,0 +1,8 @@
+Source: actual RC1 durable-checkpoint.mjs extracted from delivered ZIP; only module import path adjusted.
+Boundary: JSON serialization + recursively sorted object keys; simulated Chrome API, not installed Chrome.
+RC1 first write: CHECKPOINT_WRITE_READBACK_FAILED:eic.gf.mission-work-queue.worker.reproduction
+RC1 next startup: CHECKPOINT_UNRECOVERABLE:eic.gf.mission-work-queue.worker.reproduction
+RC2 repaired records: 1
+RC2 recovered health: VERIFIED
+RC2 preserved queue identity: original-queue
+RC2 subsequent write: VERIFIED

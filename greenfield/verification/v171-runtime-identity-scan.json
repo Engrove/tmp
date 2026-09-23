@@ -1,0 +1,14 @@
+{
+  "schema": "eic.greenfield.v171.runtime-identity-scan.v1",
+  "productionFilesScanned": 53,
+  "incidentSpecificLiteralsPresent": {
+    "processId_c1707a93": false,
+    "gf007": false,
+    "dispatchHashPrefix_b5d0013e": false,
+    "renderedHashPrefix_d057c834": false
+  },
+  "dynamicTurnIdAcquisitionPresent": true,
+  "dynamicTurnIndexAcquisitionPresent": true,
+  "productionReconciliationUsesObservedIdentity": true,
+  "errors": []
+}

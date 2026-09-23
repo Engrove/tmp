@@ -1,0 +1,10 @@
+{
+  "schema": "eic.greenfield.v1.1.9.continuation-repeat.fixture.v1",
+  "source": "operator_report_2026-09-01",
+  "appVersion": "1.1.9",
+  "currentObjective": "Continue exact owner reconciliation.",
+  "candidateNextPrompt": "Continue exact owner reconciliation.",
+  "observedBlockerMessage": "Candidate nextPrompt is identical to the current objective.",
+  "classification": "RECOVERABLE_NO_PROGRESS_NOT_REAL_BLOCKER",
+  "expected": "REPLAN_TO_MATERIALLY_DIFFERENT_CONTINUATION"
+}

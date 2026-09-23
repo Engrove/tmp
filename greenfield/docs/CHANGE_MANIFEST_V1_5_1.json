@@ -1,0 +1,71 @@
+{
+  "schema": "eic.greenfield.change-manifest.v1",
+  "appVersion": "1.5.1",
+  "baselineVersion": "1.5.0",
+  "changes": [
+    {
+      "id": "WORKER_IDENTITY_ISOLATION",
+      "type": "bugfix",
+      "files": [
+        "background.js",
+        "lib/worker-identity.mjs",
+        "lib/process-store.mjs",
+        "lib/state.mjs",
+        "lib/mission-work-queue.mjs",
+        "sidepanel.js"
+      ],
+      "invariant": "A Greenfield runtime worker is identified by workerId; Chrome windowId is only a transient attachment and may never implicitly recover another worker's queue/process state."
+    },
+    {
+      "id": "NO_ORPHAN_QUEUE_ADOPTION",
+      "type": "bugfix",
+      "files": [
+        "lib/mission-work-queue.mjs",
+        "tests/v139-queue-durability-regression.test.mjs",
+        "tests/v151-worker-isolation-pause-sets.test.mjs"
+      ],
+      "invariant": "A fresh worker with no own queue starts empty; legacy window-keyed/orphan queues are quarantined and never auto-rebound."
+    },
+    {
+      "id": "QUEUE_CONCURRENCY_FENCING_AND_REGISTRY_MINIMIZATION",
+      "type": "bugfix",
+      "files": [
+        "lib/mission-work-queue.mjs",
+        "tests/v151-worker-isolation-pause-sets.test.mjs"
+      ],
+      "invariant": "Concurrent cross-worker registry writes are serialized and metadata-only; same-worker queue saves are revision-fenced so stale concurrent writers fail closed instead of silently overwriting newer state."
+    },
+    {
+      "id": "QUEUE_SET_TEMPLATES",
+      "type": "feature_restore",
+      "files": [
+        "background.js",
+        "sidepanel.html",
+        "sidepanel.css",
+        "sidepanel.js",
+        "lib/mission-queue-sets.mjs",
+        "tests/v151-worker-isolation-pause-sets.test.mjs"
+      ],
+      "invariant": "Named queue sets are reusable configuration templates only and cannot transport runtime ownership/state between workers."
+    },
+    {
+      "id": "MISSION_PAUSE_PRECEDENCE",
+      "type": "bugfix",
+      "files": [
+        "background.js",
+        "lib/queue-control-policy.mjs",
+        "tests/v151-worker-isolation-pause-sets.test.mjs"
+      ],
+      "invariant": "PAUSE_PROCESS holds the current worker until its mission-level not-before wake; queue quantum expiration cannot override it. YIELD_TO_QUEUE remains distinct."
+    },
+    {
+      "id": "WORKER_FENCED_QUEUE_WAKE",
+      "type": "bugfix",
+      "files": [
+        "background.js",
+        "lib/worker-identity.mjs"
+      ],
+      "invariant": "A stale queue wake alarm cannot act on a new worker that reuses the same Chrome windowId."
+    }
+  ]
+}

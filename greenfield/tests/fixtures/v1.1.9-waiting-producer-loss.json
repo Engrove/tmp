@@ -1,0 +1,28 @@
+{
+  "schema": "eic.greenfield.v1.1.9.waiting-producer-loss.fixture.v1",
+  "sourceAuditFile": "Inklistrad text.txt",
+  "appVersion": "1.1.9",
+  "processId": "process-3311514e-5be5-475a-8c29-c84acb7b6753",
+  "turn": 1,
+  "expectedUserTurnId": "36a333c1-ac25-4a48-a219-44de3927bdbd",
+  "expectedUserIndex": 0,
+  "laterUserTurnId": "0b057053-86b5-4db3-a2ed-a4af4a361104",
+  "laterAssistantTurnId": "affa58ba-ad82-4284-9d7e-5b503314e02e",
+  "firstClosedBoundaryObservedAt": "2026-09-01T11:03:53.908Z",
+  "lastObservedAt": "2026-09-01T11:23:57.087Z",
+  "heldSamplesAfterClosedBoundary": 1208,
+  "eventOrder": [
+    {
+      "role": "user",
+      "id": "36a333c1-ac25-4a48-a219-44de3927bdbd"
+    },
+    {
+      "role": "user",
+      "id": "0b057053-86b5-4db3-a2ed-a4af4a361104"
+    },
+    {
+      "role": "assistant",
+      "id": "affa58ba-ad82-4284-9d7e-5b503314e02e"
+    }
+  ]
+}

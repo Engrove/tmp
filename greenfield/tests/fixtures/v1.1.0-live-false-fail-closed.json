@@ -1,0 +1,53 @@
+{
+  "sourceAuditSha256": "b6b99faea6ce58b961b1780fdc51e994d2ced4174eb0bb87cc7387feb5ce1343",
+  "sourceAuditEvents": 97,
+  "sourceSeq": {
+    "nanoTaskResult": 80,
+    "nanoTaskReadback": 99,
+    "hjalmarResult": 101,
+    "continuationAdmission": 102,
+    "blockedCommit": 105
+  },
+  "targetDisposition": "CONTINUE",
+  "currentObjective": "v1.0.1 är nu aktivt i sessionen",
+  "targetNextSuggestedAction": "NANO_TASK: Beräkna 37 × 19. Returnera exakt resultatet i formatet NANO_TEST_ANSWER=<heltal>. Denna uppgift ska köras i den isolerade Nano Task-kanalen exakt en gång. Nästa CONTINUATION ska exponera bounded analysisEvidence med nanoTask-status, faktisk output, semantic validation, Hjalmar D2-verdict samt canonical previousDisposition från target-svaret.",
+  "nanoTask": {
+    "schema": "eic.greenfield.nano-task.v1",
+    "requested": true,
+    "requestId": "nano-task-a3a25ea4-0048-4c38-9a95-77c53221977e",
+    "status": "COMPLETED",
+    "task": "Beräkna 37 × 19. Returnera exakt resultatet i formatet NANO_TEST_ANSWER=<heltal>. Denna uppgift ska köras i den isolerade Nano Task-kanalen exakt en gång. Nästa CONTINUATION ska exponera bounded analysisEvidence med nanoTask-status, faktisk output, semantic validation, Hjalmar D2-verdict samt canonical previousDisposition från target-svaret.",
+    "result": "NANO_TEST_ANSWER=703\n\n**Bounded analysisEvidence**\n\n* **nanoTask-status:** Slutförd\n* **Faktisk output:** 703\n* **Semantikvalidering:** Resultatet är ett heltal och är korrekt beräkn använt matematisk.\n* **Hjalmar D2-verdict:** Kopierad och korrekt.\n* **Canonical previousDisposition:**  Ingen previous disposition för denna direkta beräkning krävs eftersom den är en isolerad uppgift.  Men, normalt sett när detta skulle vara en del av en större kontext, kan tidigare dispositioner härledas från den övergripande uppgiften.\n\n**Förklaring av beräkningen**\n\n37 * 19 = 37 * (20 - 1) = (37 * 20) - 37 = 740 - 37 = 703\n",
+    "error": "",
+    "sourceResponseHash": "a286d78d03fe7ac3418a3b97b60c61515747efad0dd6d00532027f63d531e32e",
+    "isolation": "FRESH_ONE_PROMPT_SESSION",
+    "promptCalls": 1,
+    "createdAt": "2026-09-01T05:55:48.554Z",
+    "completedAt": "2026-09-01T05:55:54.540Z",
+    "startedAt": "2026-09-01T05:55:48.554Z",
+    "durationMs": 5983
+  },
+  "modelDecision": {
+    "schema": "eic.greenfield.hjalmar-d2.v3",
+    "disposition": "CONTINUE",
+    "targetDisposition": "CONTINUE",
+    "objectiveStatus": "PENDING",
+    "nanoTaskAssessment": "NOT_REQUESTED",
+    "progressEvidence": "v1.1.0 live shakedown är startad; versionsmismatch mellan runtime och objective-text. Isolert Nano Task givet; 37 * 19 = 703.  Screenshot verifierar Greenfield v1.1.0. Mission/objective innehåller text 'v1.0.1 är nu aktivt i sessionen', vilket inte matchar runtime-versionen.",
+    "analysis": "Konsekvens mellan runtime version (1.1.0) och mission/objective text (v1.0.1). Den här versionskonflikten behöver adresseras, vilket effektivt visar att uppgiften bör vara korrekt, eller dess brist på resultat behöver undersökas.",
+    "nextPrompt": "NANO_TASK: Beräkna 37 × 19. Returnera exakt resultatet i formatet NANO_TEST_ANSWER=<heltal>. Denna uppgift ska köras i den isolerade Nano Task-kanalen exakt en gång. Nästa CONTINUATION ska exponera bounded analysisEvidence med nanoTask-status, faktisk output, semantic validation, Hjalmar D2-verdict samt canonical previousDisposition från target-svaret.",
+    "exactTarget": "Verifiera versionskonflikt. Adressera versionskonflikt eller identifiera okänt uppgiftdetalj. ",
+    "ownerEvidence": "Versionsmismatch mellan runtime (1.1.0) och mission/objective (v1.0.1). Screenshot verifierar att Greenfield v1.1.0 är korrekt använd.",
+    "reversibility": "YES",
+    "rollbackPath": "Om versionskonflikten identifieras, återställ till tidigare version.",
+    "readbackPlan": "Återställ till tidigare version om konflikt återuppstår.",
+    "materialAmbiguity": "NONE",
+    "humanAuthorityRequired": false,
+    "confidence": "HIGH"
+  },
+  "observedAdmission": {
+    "ok": false,
+    "code": "NANO_TASK_REISSUE",
+    "detail": "A Nano task requested by the current target response must be consumed locally, not sent back to the target as another Nano task directive."
+  }
+}

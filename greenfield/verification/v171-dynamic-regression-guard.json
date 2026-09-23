@@ -1,0 +1,9 @@
+{
+  "schema": "eic.greenfield.v171.dynamic-regression-guard.v1",
+  "oldSendingHashOnlyGatePresent": false,
+  "testHarnessAliasesRenderedHashDirectlyToDispatchHash": false,
+  "productionReconciliationModulePresent": true,
+  "materializationReceiptRoutePresent": true,
+  "staleRecoveryLiveReconciliationPresent": true,
+  "ambiguousRecoveryAutoClearPresent": false
+}

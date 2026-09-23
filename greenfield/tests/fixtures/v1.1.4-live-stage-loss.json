@@ -1,0 +1,29 @@
+{
+  "source": "v1.1.4 live shakedown run-7879b4ee-df93-4c39-9e57-7d8a53fb68d5",
+  "parser": {
+    "status": "CONTINUE",
+    "parseMode": "REPAIRED_UNESCAPED_QUOTES",
+    "repairCount": 4
+  },
+  "nanoTask": {
+    "requested": true,
+    "requestId": "nano-task-21d770fd-7555-4cd5-a6e6-d1dfa95da20d",
+    "status": "COMPLETED",
+    "semanticStatus": "UNVERIFIED",
+    "sourceTask": "Return exactly one line of plain text containing GREENFIELD_V114_OK. Do not output code, markdown, explanation, punctuation, or any additional text.",
+    "result": "GREENFIELD_V114_OK\n",
+    "promptLanguage": "en",
+    "promptPolicy": "ENGLISH_DIRECT_EXECUTION_V1",
+    "promptCalls": 1
+  },
+  "observed": {
+    "firstObserverError": "ANALYSIS_JSON_INVALID",
+    "stalePersistedTaskStatus": "RUNNING",
+    "replayBlockedCount": 5,
+    "finalPersistedTaskStatus": "FAILED",
+    "finalPersistedError": "NANO_TASK_EFFECT_UNKNOWN_NO_REPLAY",
+    "modelNextPrompt": "NANO_TASK: Return exactly one line of plain text containing GREENFIELD_V114_OK.",
+    "admissionCode": "NANO_TASK_REISSUE",
+    "finalPhase": "BLOCKED"
+  }
+}

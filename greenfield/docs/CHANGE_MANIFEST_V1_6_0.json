@@ -1,0 +1,235 @@
+{
+  "schema": "eic.greenfield.change-manifest.v1",
+  "appVersion": "1.6.0",
+  "sourceVersion": "1.5.3",
+  "files": [
+    {
+      "file": "BUILD_VERIFICATION.json",
+      "change": "modified",
+      "sha256": "27c3ff61bf724db2e28e62ca620e549627cf2870d3c4fcabecebd0d767afaf82",
+      "priorSha256": "ae0ace22cb2a8e54593b3048fa27a7fab86dc1a27ecef78998355ee73ddb7d2e"
+    },
+    {
+      "file": "README.md",
+      "change": "modified",
+      "sha256": "39a3c85f0573e8c5c8744c814bcf06b63d87b9623abfb03c8b164e6f57358ab3",
+      "priorSha256": "d8b8397f3f277d5cdd1868697a17dcf2af338376b51043e0a305a14c739969c0"
+    },
+    {
+      "file": "START_HERE_SV.md",
+      "change": "added",
+      "sha256": "e879d196c4647ac6320c726fa43838beb007c02b1553ff9f8cb838c204ecca60",
+      "priorSha256": null
+    },
+    {
+      "file": "VERSION",
+      "change": "modified",
+      "sha256": "cb1d9a30bc4ab8a397f39b7d786bb82aca0b816077eefc35d7c822017d75f6a5",
+      "priorSha256": "c03e3824001f39b9518249b8d6522422fc4de7227e12a568c0164662b03b7758"
+    },
+    {
+      "file": "background.js",
+      "change": "modified",
+      "sha256": "759e60904166e322e203405a7905de9c8aa0a45d85ab3f7e2f98fc552f5cf601",
+      "priorSha256": "609e5d57d254919a82bb3bd97ad6259ad93bfde39a631a0b9e31a61a37d3f0cc"
+    },
+    {
+      "file": "content.js",
+      "change": "modified",
+      "sha256": "3ffab662807dc86c65bf726a59047f3717ada06486e1d187e743ddf9463da949",
+      "priorSha256": "81d4841d10068ea20ced0f26bc4238918a86f49edc65ec208d0057ad2b4f7e43"
+    },
+    {
+      "file": "docs/Greenfield_1.6.0_RC1_Granskning_och_driftguide.pdf",
+      "change": "added",
+      "sha256": "c66b569406f8b12d1b5a4e0a4da7ca393de0c1aeb55cad9390623b0304512069",
+      "priorSha256": null
+    },
+    {
+      "file": "docs/README_V1_5_3.md",
+      "change": "added",
+      "sha256": "d8b8397f3f277d5cdd1868697a17dcf2af338376b51043e0a305a14c739969c0",
+      "priorSha256": null
+    },
+    {
+      "file": "docs/RELEASE_NOTES.md",
+      "change": "modified",
+      "sha256": "563b32b42ef669d99271a07237d9ef658e78a5be98fcbb04fc03a96924912d75",
+      "priorSha256": "0ee5b0eed150a1fdd263778f9c14e7057fce76e0fb4f3e6ad5312efcea888f3e"
+    },
+    {
+      "file": "docs/SAFETY_RECOVERY_V1_6_0.md",
+      "change": "added",
+      "sha256": "3caf85ad4f38774e20def97e29457e3d46e51536c0e4eb9aaf0a3475a105dfe7",
+      "priorSha256": null
+    },
+    {
+      "file": "lib/contracts.mjs",
+      "change": "modified",
+      "sha256": "7c873d95043b8adec9df8384470c0dbb8e6010c52b4967e2cd66e9f31ab66a76",
+      "priorSha256": "13c6ddff8b60d08408bc8ddb94621d4cfd21353eeb2d1a823596727153b30714"
+    },
+    {
+      "file": "lib/durable-checkpoint.mjs",
+      "change": "added",
+      "sha256": "d929e0476a6beaac9c6f5ad8b8ba41a3395996a6002ba1b52360ec16c220075a",
+      "priorSha256": null
+    },
+    {
+      "file": "lib/mission-work-queue.mjs",
+      "change": "modified",
+      "sha256": "2ebdbba6d762acbdcb1bc8d5f62b61f1a02f70831606c240ff1ab50f0626d732",
+      "priorSha256": "59ee7ab782458ef4af702ccc20ad12d9ee1714e134019d569d2230dc259dd953"
+    },
+    {
+      "file": "lib/model-observation.js",
+      "change": "added",
+      "sha256": "ad7e18ef56596d595049d1a27378a1eafcba198e1111a38f8da6709be37c6129",
+      "priorSha256": null
+    },
+    {
+      "file": "lib/nano.mjs",
+      "change": "modified",
+      "sha256": "ecd1dcd356026d7efb44639601f8bb55deeb2c62316e3cc374232a1eb0e05d23",
+      "priorSha256": "c0f5796dafd9aa23c201cf65608b513893f92bc38ca96702902f098677eeae47"
+    },
+    {
+      "file": "lib/operations-view.mjs",
+      "change": "added",
+      "sha256": "b0ee193d111f95f14666464ac833000a277a822f214f06c7df33a645478df679",
+      "priorSha256": null
+    },
+    {
+      "file": "lib/operator-backup.mjs",
+      "change": "added",
+      "sha256": "39634adf8c9019412c79029e645585756b8d6689dcee10ef4328f15e91db17d8",
+      "priorSha256": null
+    },
+    {
+      "file": "lib/process-store.mjs",
+      "change": "modified",
+      "sha256": "e551d8c68283004ab38061fed1ea172b5fe5633ba67da98acb2fbe961fde7bee",
+      "priorSha256": "e9cb57b7326b2b5a1b0292271e99ef9ed9251bf8d0f0de9b42021b9632494148"
+    },
+    {
+      "file": "lib/restart-recovery.mjs",
+      "change": "added",
+      "sha256": "8077ed34b7aa4d516c06f5d4b27f231ef2461517e9c34b9b7abf762a1f209f34",
+      "priorSha256": null
+    },
+    {
+      "file": "lib/safety-policy.js",
+      "change": "added",
+      "sha256": "aa1eff578b7b25100b0d800ef1c070a6bc8f7367599d9a3ec695dbacb2a5b442",
+      "priorSha256": null
+    },
+    {
+      "file": "lib/send-fence.mjs",
+      "change": "modified",
+      "sha256": "3436e1427d76454f1387cae997859e216168c1f37ed70aebf745ac4ec24632f1",
+      "priorSha256": "c7416c0b250c356029a09de1a6c67cde2aabfa3b7e52768518923e3ddb3ba83f"
+    },
+    {
+      "file": "lib/state.mjs",
+      "change": "modified",
+      "sha256": "5281a86ff4c214e480cab39baeb41047045bc019bef8399a8b08c4bc1408d24b",
+      "priorSha256": "8d3eaeb0e750977e8fe1e113fae13ebfe82aa13b1554c67088d69635c18c9677"
+    },
+    {
+      "file": "lib/storage-health.mjs",
+      "change": "added",
+      "sha256": "0b8932a9d05f0a9de9f113efa22ecd9d13fc4b58254acbc7c0d2b577cf7022ba",
+      "priorSha256": null
+    },
+    {
+      "file": "lib/usage-governor.mjs",
+      "change": "added",
+      "sha256": "ad69e569251ff413f6565c7054bf5d92f7078eb1624fa62bed83bd42811c63d1",
+      "priorSha256": null
+    },
+    {
+      "file": "lib/worker-identity.mjs",
+      "change": "modified",
+      "sha256": "0106e6b1de762f85cb8f828e3e659809968d61b7fab7272ee8caeb8fab979d52",
+      "priorSha256": "1eae59881891745a5c84a56b17a63c21ccd2810aaa87bdcdb713ae407817898a"
+    },
+    {
+      "file": "manifest.json",
+      "change": "modified",
+      "sha256": "05b913ffad05df06fd1b4f00a386bed906076ea4fef2cdfdc284f0c7864fa801",
+      "priorSha256": "c2c9fa8c79d9a5cf9ccf21e23982385787673c2433ab8ddb047dc01a14c16bf7"
+    },
+    {
+      "file": "package.json",
+      "change": "modified",
+      "sha256": "2cac3f4231acd292cbcf9380575ff0bcd5329f9ea59fd31827b7560f9d4e689b",
+      "priorSha256": "ca69bf5a1983cac8e5397094b36733ab9dbd852516167d4ca829c0cb2aa63065"
+    },
+    {
+      "file": "sidepanel.css",
+      "change": "modified",
+      "sha256": "1e25311b026a20bfbc8b3b7e6a3aa174147aa67af386b374ce993b17a657b25d",
+      "priorSha256": "b63527687635cfbd0f0eec50c7f3fe90a9a20d5b433b772573a338f6cb295422"
+    },
+    {
+      "file": "sidepanel.html",
+      "change": "modified",
+      "sha256": "7f3c8180bfb4c72e70a94118f18b3ab55de2b5c619c4764478263d377e8698f4",
+      "priorSha256": "ac6f9bbc3f54d4d25591a228d7fcd84dfcd369b5b49597240be74cc3e7728b9c"
+    },
+    {
+      "file": "sidepanel.js",
+      "change": "modified",
+      "sha256": "e46e3a7cd1bdbbc5a8969013e8c6f7798b353fef81ed3d35bd400116db3f3800",
+      "priorSha256": "9c0b567af19773cc4a5807787aa7e46f852ffcda65f69bfdfc15287fc01fd02e"
+    },
+    {
+      "file": "tests/helpers/background-harness.mjs",
+      "change": "added",
+      "sha256": "fc5c854a4a141c0d1bb15c9704b3cdcd7447305ad2d88497dcec04b991deb2d8",
+      "priorSha256": null
+    },
+    {
+      "file": "tests/static-contract.test.mjs",
+      "change": "modified",
+      "sha256": "7f2aa76ac1ec82b5a7f02dd998f22797a34be368597eb4f783630d97f0cc7271",
+      "priorSha256": "a9dae89689bae4b94f9be4569e49ab2f2aee2d2405dc578e82c98b0659b3c260"
+    },
+    {
+      "file": "tests/v137-multi-mission-static.test.mjs",
+      "change": "modified",
+      "sha256": "fd1f9b7d4ac29d3de8d838df8df001d3699c5b0bc84dcd34b0693eb6f8c5ff2e",
+      "priorSha256": "32e24e3c7dae876d004bf1d8b8fa93f7aaabcf8753e8be463cf629eb18f7b676"
+    },
+    {
+      "file": "tests/v160-backup-boundaries.test.mjs",
+      "change": "added",
+      "sha256": "75915ec769157dbca0b5cbcaf7e341ff56c633902a58864ae8ec584488942e5a",
+      "priorSha256": null
+    },
+    {
+      "file": "tests/v160-runtime-integration.test.mjs",
+      "change": "added",
+      "sha256": "31a0f7e68530816918e24c1ef0282d1ed0f87caf7c07506b01d7f8de883edb57",
+      "priorSha256": null
+    },
+    {
+      "file": "tests/v160-safety-recovery.test.mjs",
+      "change": "added",
+      "sha256": "abc0ac0a8a03bf4b300f57857c0f0828e8c36a47677a748cc97987eee2e6687f",
+      "priorSha256": null
+    },
+    {
+      "file": "verification/release-tests.tap",
+      "change": "added",
+      "sha256": "dbf6c545172798a49115dffea3345a4fc47cae93297a86ce4707db89bb054137",
+      "priorSha256": null
+    },
+    {
+      "file": "verification/static-verification.json",
+      "change": "added",
+      "sha256": "88696561559ae6bd91452ae6a55f002075cba0b220931882da0728f7bd5a2aeb",
+      "priorSha256": null
+    }
+  ]
+}

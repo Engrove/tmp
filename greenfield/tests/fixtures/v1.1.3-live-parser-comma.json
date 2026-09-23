@@ -1,0 +1,16 @@
+{
+  "schema": "eic.greenfield.live-regression-fixture.v1",
+  "sourceVersion": "1.1.3",
+  "observedFailure": "A2A_RESPONSE_NOT_FOUND",
+  "assistantText": "EIC sade:{\n\"schema\": \"eic.a2a.response.v1\",\n\"status\": \"CONTINUE\",\n\"summary\": \"v1.1.3 live shakedown är startad. Första regressionstestet riktas samtidigt mot response-parsern från v1.1.2-felet, English Nano Task-exekvering och den nya Nano-resultatvisningen i UI.\",\n\"workPerformed\": [\n\"Verifierade sender.version=1.1.3.\",\n\"Verifierade processId, runId, generation, turn och objectiveId.\",\n\"Verifierade nanoTaskLanguage=en och ENGLISH_DIRECT_EXECUTION_V1.\",\n\"Registrerade shakedown-starten i projektet.\",\n\"Förberedde ett test som medvetet innehåller citerade metadata i response-texten för att belasta v1.1.3-parserreparationen.\"\n],\n\"evidence\": [\n\"processId=process-eb7f1fde-788d-409a-aa33-a539a3eba641.\",\n\"runId=run-78fecd60-0be8-4594-b2a2-3e9a0094367e.\",\n\"generation=1.\",\n\"turn=1.\",\n\"objectiveId=objective-c20cf440-3cce-4da6-b6fc-d7cb9f7d818e.\",\n\"sender.version=1.1.3.\",\n\"responseContract.nanoTaskLanguage=en.\",\n\"responseContract.nanoTaskExecutionPolicy=ENGLISH_DIRECT_EXECUTION_V1.\"\n],\n\"blockers\": [],\n\"nextSuggestedAction\": \"NANO_TASK: Return exactly one line of plain text containing GREENFIELD_UI_OK. Do not output code, markdown, explanation, punctuation, or any additional text. Execute this task exactly once. In the next CONTINUATION, expose bounded analysisEvidence with nanoTask.status, nanoTask.result, nanoTask.semanticStatus, nanoTask.promptLanguage=\"en\", nanoTask.promptPolicy=\"ENGLISH_DIRECT_EXECUTION_V1\", Hjalmar runtimeCorrections if any, and canonical previousDisposition=CONTINUE. The consumed NANO_TASK directive must not become the next objective. The side-panel Nano section should retain and display the completed Nano Task result after response capture.\"\n}\nStatus: v1.1.3 live shakedown aktiv; parser/Nano/UI-regressionstest initierat\nProject: EIC Autonom Agent\nTime: 2026-09-01T06:52:33.682823Z",
+  "expected": {
+    "status": "CONTINUE",
+    "parseMode": "REPAIRED_UNESCAPED_QUOTES",
+    "repairCount": 4,
+    "nextSuggestedActionContains": [
+      "nanoTask.promptLanguage=\"en\",",
+      "nanoTask.promptPolicy=\"ENGLISH_DIRECT_EXECUTION_V1\",",
+      "GREENFIELD_UI_OK"
+    ]
+  }
+}

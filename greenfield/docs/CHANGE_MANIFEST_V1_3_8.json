@@ -1,0 +1,53 @@
+{
+  "schema": "eic.greenfield.change-manifest.v1",
+  "version": "1.3.8",
+  "baseline": {
+    "artifactId": 11821,
+    "file": "EIC_Autonom_Agent_Greenfield_v1.3.7.zip",
+    "sizeBytes": 324752,
+    "sha256": "089bafc236128b298318afef54163c348aa086cac73c9aa3296c5a0470a5566a"
+  },
+  "fixes": [
+    {
+      "id": "GF138-LIVE-CAPACITY-OWNER",
+      "problem": "Durable WAITING/DETACHED process records could be reconstructed as active scheduler slots without proving their managed Chrome window/tab still existed.",
+      "invariant": "A durable process may survive detachment; a profile-global scheduler lease requires an exact live managed window/tab surface.",
+      "files": [
+        "background.js",
+        "lib/managed-surface-liveness.mjs",
+        "tests/v138-live-regression.test.mjs"
+      ]
+    },
+    {
+      "id": "GF138-RESPONSE-LIFECYCLE-FRAGMENT",
+      "problem": "A hidden trusted conceptual turn could terminalize a renderer lifecycle fragment before the final assistant response/A2A control became observable.",
+      "invariant": "Turn ownership does not imply semantic completion; assistant lifecycle/presentation chrome is not final response text.",
+      "files": [
+        "content.js",
+        "lib/response-stability.mjs",
+        "tests/response-stability.test.mjs",
+        "tests/v138-live-regression.test.mjs"
+      ]
+    },
+    {
+      "id": "GF138-OBSERVED-EFFECT-ADOPTION-FENCE",
+      "problem": "The scheduler adoption API did not mechanically distinguish reconciliation of an already-observed prompt effect from ordinary capacity admission.",
+      "invariant": "adoptGlobalTurnSlot is callable only with observedEffect=true; new effects still use requestGlobalTurnSlot.",
+      "files": [
+        "background.js",
+        "lib/global-capacity-scheduler.mjs",
+        "tests/global-capacity-scheduler.test.mjs"
+      ]
+    }
+  ],
+  "preservedContracts": [
+    "durable detached process continuity",
+    "profile-global rate-limit circuit breaker",
+    "serial per-window multi-mission queue",
+    "exact-once send fence",
+    "PAUSE_PROCESS 300..86400 seconds",
+    "ordinary protocol-absent prose response support",
+    "non-preemptive truth for already-observed in-flight effects"
+  ],
+  "liveRuntimeAcceptance": "NOT_EXECUTED"
+}

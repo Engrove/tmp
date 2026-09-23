@@ -1,0 +1,17 @@
+{
+  "sourceFile": "eic-greenfield-audit-process-c1707a93-1248-4833-9cb3-5765580f2385-2026-09-09T04-56-17-132Z.ndjson",
+  "schema": "eic.greenfield.dispatch-audit-replay.v1",
+  "sourceAppVersions": [
+    "1.7.0"
+  ],
+  "rowCount": 116,
+  "firstTimestamp": "2026-09-09T04:46:28.725Z",
+  "lastTimestamp": "2026-09-09T04:56:09.757Z",
+  "affectedCycles": 19,
+  "acknowledgedEffectCycles": 19,
+  "trustedAssistantPresentCycles": 19,
+  "renderedHashMismatchCycles": 19,
+  "fenceEvidenceCounts": {
+    "USER_COUNT_INCREMENTED": 19
+  }
+}

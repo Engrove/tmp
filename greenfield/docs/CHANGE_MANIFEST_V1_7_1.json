@@ -1,0 +1,228 @@
+{
+  "schema": "eic.greenfield.change-manifest.v1",
+  "appVersion": "1.7.1",
+  "sourceVersion": "1.7.0",
+  "generatedAt": "2026-09-09T05:37:56.627867+00:00",
+  "summary": "Dispatch materialization receipts, production turn-ID/ordinal reconciliation, restart and stale-recovery convergence, queue-liveness regression coverage, real v1.7.0 audit replay, runtime identity anti-hardcoding scan, and 1.7.1 release identity.",
+  "comparisonBaseline": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.7.0.zip",
+    "sha256": "4de0aceb66dbae3b8a51a254ce43b0fc75016afc7ce6435b2d74610c163d5e54",
+    "sizeBytes": 600529
+  },
+  "exclusions": [
+    "INTEGRITY.json",
+    "docs/CHANGE_MANIFEST_V1_7_1.json"
+  ],
+  "files": [
+    {
+      "file": "BUILD_VERIFICATION.json",
+      "change": "modified",
+      "sha256": "ceccdb5bb2daa5f7d2ecfb695ea76a073cc58a8b083cdc6de6b4489febc55129",
+      "priorSha256": "31296deb5cd5eee964286762da4ec2522f25d1c84b126f97d4af26fbeeaaac4b"
+    },
+    {
+      "file": "README.md",
+      "change": "modified",
+      "sha256": "a989361f4bc7eda3c708b452279356a3515131e348350e3390215b21b5a92ccd",
+      "priorSha256": "0195ac09322404c81860e4820e631308358c878aeb49e9ebf0e287ac9ff798d2"
+    },
+    {
+      "file": "START_HERE_SV.md",
+      "change": "modified",
+      "sha256": "f03e20a8beffeb7a0ebf89b154e880606b4bf1fe5317b404e9f042eedadf5da5",
+      "priorSha256": "868cfd8b1f367d745bc18eb409bd4cf12075350742c7814999139ce334ad78c7"
+    },
+    {
+      "file": "UPPDATERA_TILL_1_7_1.md",
+      "change": "added",
+      "sha256": "5c164663b10135763adca5ca88758d5539334da650166bcf7c5733eb3ec0b607",
+      "priorSha256": null
+    },
+    {
+      "file": "VERSION",
+      "change": "modified",
+      "sha256": "249182a01164b81a5f7af87e5c5cdbd3344a80a7a66dfca624cecfb1501b2420",
+      "priorSha256": "bb7320d831e7a151aa901c35e7326c752fa2ef5024f30768c42319b8bed171ed"
+    },
+    {
+      "file": "background.js",
+      "change": "modified",
+      "sha256": "ab35944ce297033443c16f2d166a54fa719ab9ea9ecf8746b5d1b5fe978eafb9",
+      "priorSha256": "0e106f4a9ead2f17d9059e7f7ad02583fd1db06ceeb1b3650651ce13d7538456"
+    },
+    {
+      "file": "content.js",
+      "change": "modified",
+      "sha256": "083ba18f19070e05c3d9aa78a1cef8066d5762cbf661157ee8909d15b5541df5",
+      "priorSha256": "d8215c0d5ecd04f5952b5db31bba24f663d584bb61a1684eaa5e4761b95d98c6"
+    },
+    {
+      "file": "docs/DISPATCH_RECONCILIATION_V1_7_1.md",
+      "change": "added",
+      "sha256": "b6709f87b733f739c9250e54b78f7c9d1ee7f892eb50aa2ff27b20efc7c96d19",
+      "priorSha256": null
+    },
+    {
+      "file": "docs/RELEASE_NOTES.md",
+      "change": "modified",
+      "sha256": "1e0e2b737e9f67aa8640d2ed3196227d815defd2d10b69ea5059d269b6a089fd",
+      "priorSha256": "9170f0fc5eed91d001ed98c737748fc64eae3242ea539c6f368ead5e3a823ad7"
+    },
+    {
+      "file": "lib/contracts.mjs",
+      "change": "modified",
+      "sha256": "12ff09494b7d4f414cbd4154a0ee9103545c6617c8fc5b1cd11186a034b5d175",
+      "priorSha256": "fbaaf3a2061dd3bcb4121340899c25411dcfed85a320a1bc638c66d14c810fc2"
+    },
+    {
+      "file": "lib/dispatch-reconciliation.mjs",
+      "change": "added",
+      "sha256": "f999ccda87bede8d9d0ff490cc3570c19a7d805cf59cad34d877a1ab4ceb1137",
+      "priorSha256": null
+    },
+    {
+      "file": "lib/recovery-report.mjs",
+      "change": "added",
+      "sha256": "b59cb32c0ceb5b5697115fa399a345c388f2e8661115496bbe24af7f3e346182",
+      "priorSha256": null
+    },
+    {
+      "file": "lib/restart-recovery.mjs",
+      "change": "modified",
+      "sha256": "d0ddd8bdf52b6be3a0ffa9516b93a698411c9d671083d24f765095e3508723fd",
+      "priorSha256": "8077ed34b7aa4d516c06f5d4b27f231ef2461517e9c34b9b7abf762a1f209f34"
+    },
+    {
+      "file": "lib/safety-policy.js",
+      "change": "modified",
+      "sha256": "7fe2ec5d3e864e2cc327152562641fc177d7a475bc6a7071fd609991e6761210",
+      "priorSha256": "e4ece6e44d5021bd2527bf6d7f936f0b0231be0b5154f91ae5f95753d58d087c"
+    },
+    {
+      "file": "lib/send-fence.mjs",
+      "change": "modified",
+      "sha256": "1fa8ef0ba91081adacb6bf8233f2af5264aa5f3113f4c6714d2105374d5b3266",
+      "priorSha256": "3436e1427d76454f1387cae997859e216168c1f37ed70aebf745ac4ec24632f1"
+    },
+    {
+      "file": "lib/turn-causality.mjs",
+      "change": "modified",
+      "sha256": "c0ec0cef00f4d40a71491705f74718282130aae657d325394ee77469fbdd2c43",
+      "priorSha256": "1d99a4c5502d741c3b166a7d295ebd5bd10b47791bb5a25caa9dfa086f09bd94"
+    },
+    {
+      "file": "manifest.json",
+      "change": "modified",
+      "sha256": "b2256ae9d82fee52e640314eee8a36187e88979fc993a32211c74b3acf571cc1",
+      "priorSha256": "a3d6ec1cb66ba63393529f73226b2100877296adff339ffc231932e5686fe42d"
+    },
+    {
+      "file": "package.json",
+      "change": "modified",
+      "sha256": "8a6c4187df36ab824266a9eefbb84a55a6d33ef12f443488a25a665997deac6d",
+      "priorSha256": "d286e04511f1190b018e2c8144d1c53983fa19f3e2b288f34c6282855f2582f3"
+    },
+    {
+      "file": "sidepanel.html",
+      "change": "modified",
+      "sha256": "9758ad5a3be1b16642b01be712539b2d57d434433904111c8066ca996d4496e6",
+      "priorSha256": "7bcaaa412e2fac12de1393602e0f2c3ac0a03cbe30c6a0f1a1d3585012adb5ac"
+    },
+    {
+      "file": "sidepanel.js",
+      "change": "modified",
+      "sha256": "fc8ed7f9317a6f85a8fd7f74907b5f7d37f2f53e9ddfa6f61cc8526b4d721b8e",
+      "priorSha256": "a6369f9830e655136f9dbbdbb9882bade0edaaa1d66367a0aa2257d0566fb210"
+    },
+    {
+      "file": "tests/helpers/background-harness.mjs",
+      "change": "modified",
+      "sha256": "a764f643ee2b85b477eb2465e627c6f965952cdf31a0e069d95a7134ce44fb55",
+      "priorSha256": "205d890efb01cd1edc0abd7c5af8de4b38b35c3b55be93f546b98190c857ab49"
+    },
+    {
+      "file": "tests/observation-wire.test.mjs",
+      "change": "modified",
+      "sha256": "2369981b9ea0a9a03c3bf5e4d033bcaf1c337e0d3bed568d660da161a054ecd5",
+      "priorSha256": "af6614f2cdc243b95a237fed451d4792ea8bdd99dc08b99f1b56e0cee11f9d65"
+    },
+    {
+      "file": "tests/static-contract.test.mjs",
+      "change": "modified",
+      "sha256": "e346d38cf9ad0bb3f63759e70775619730d1f339640f784aec989f819c81d4aa",
+      "priorSha256": "1939683e514e86ba98e546248a7ce540a52c1cd1bccd936649828226bbc235c7"
+    },
+    {
+      "file": "tests/turn-causality.test.mjs",
+      "change": "modified",
+      "sha256": "679ef25817882970cc9af625cc9b2d309f73bf3d02b5950bb7e1725d00492398",
+      "priorSha256": "ef336c3dfbd1167fb7675cd0d9ae6ee08b2fc15e4f646ded83e98199eec42cd9"
+    },
+    {
+      "file": "tests/v137-multi-mission-static.test.mjs",
+      "change": "modified",
+      "sha256": "479daff7c307dad800b24b1c1fbcef0d63e58e7ce6330c98de76b2b94b9e2ea0",
+      "priorSha256": "94df87212e0a215b805a9f413dc6cfcf438fe3e32f43595d55a02da23bed6d3e"
+    },
+    {
+      "file": "tests/v160-safety-recovery.test.mjs",
+      "change": "modified",
+      "sha256": "d534dd83e402a5d51ea4078e12de5dd9b6a940529450b957a7044c71dc266ce9",
+      "priorSha256": "017824190e99222087b3d580d3358aaed440e99079a161e88a981292ae10426c"
+    },
+    {
+      "file": "tests/v171-dispatch-reconciliation.test.mjs",
+      "change": "added",
+      "sha256": "30d19b3fc130c8bb9311e1449c282d51f652a5f6c9f703d9ea1e6c8383170112",
+      "priorSha256": null
+    },
+    {
+      "file": "tools/replay-dispatch-audit.mjs",
+      "change": "added",
+      "sha256": "6e74c6b93377d67dca1aab444bdef6b989b9255a43dd4616ffe74de496f5b408",
+      "priorSha256": null
+    },
+    {
+      "file": "verification/release-tests.tap",
+      "change": "modified",
+      "sha256": "f4739a9cc4a8c2e1b076744d332280ba764e35a2bc0298a4d3b1957b586def33",
+      "priorSha256": "cbb565ad98245eef85db3942ae50e202b310fd0b46acbb7489cc96c6720cd8f0"
+    },
+    {
+      "file": "verification/static-verification.json",
+      "change": "modified",
+      "sha256": "d6ba91bdf3fa3b6f7f8d7fea5adbc2b766794efb8d18bba316f62901b5122cb2",
+      "priorSha256": "aa0fe0ae31ba743ba5b674d633ec3c341c7d2f1630806acb14ec02e1df2eb6b7"
+    },
+    {
+      "file": "verification/v171-dispatch-reconciliation-tests.tap",
+      "change": "added",
+      "sha256": "2ba20b1d85a1dcee80db0683a2dc95ace8603ef597791e785ccf553ff739a15b",
+      "priorSha256": null
+    },
+    {
+      "file": "verification/v171-dynamic-regression-guard.json",
+      "change": "added",
+      "sha256": "a010d50611774d5daa52f497cbcca67677a9389f1e7f218804cdad6fdd673297",
+      "priorSha256": null
+    },
+    {
+      "file": "verification/v171-runtime-audit-replay.json",
+      "change": "added",
+      "sha256": "3e2b64a7fc6ea8fac57075e87aac5dc0be106c2e4a99361b775de7d5a72b04a2",
+      "priorSha256": null
+    },
+    {
+      "file": "verification/v171-runtime-identity-scan.json",
+      "change": "added",
+      "sha256": "7caee85eaddfcfc88beddffe46b3b61b4dd54778ea9b43b6a05b679c07e96ad8",
+      "priorSha256": null
+    },
+    {
+      "file": "verification/v171-syntax-check.txt",
+      "change": "added",
+      "sha256": "4eac5123ce705c97e9b75f375c9ba7f6fd7985773d7bf9676a3db296dd23f539",
+      "priorSha256": null
+    }
+  ]
+}

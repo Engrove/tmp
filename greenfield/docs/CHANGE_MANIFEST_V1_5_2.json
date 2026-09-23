@@ -1,0 +1,52 @@
+{
+  "schema": "eic.greenfield.change-manifest.v1",
+  "appVersion": "1.5.2",
+  "baselineVersion": "1.5.1",
+  "changes": [
+    {
+      "id": "BACKGROUND_SLEEP_QUEUE_YIELD",
+      "type": "bugfix_feature",
+      "files": [
+        "background.js",
+        "lib/session-rotation.mjs",
+        "lib/queue-control-policy.mjs",
+        "lib/response-contract.mjs",
+        "lib/a2a.mjs",
+        "lib/mission-pause.mjs"
+      ],
+      "invariant": "BACKGROUND_SLEEP is distinct from PAUSE_PROCESS: queued work may checkpoint and sleep 300..86400 s while another READY mission continues; if no alternate mission exists the worker falls back to a normal timed hold."
+    },
+    {
+      "id": "MANAGED_EIC_SURFACE_GUARD",
+      "type": "bugfix",
+      "files": [
+        "background.js",
+        "lib/managed-eic-surface.mjs"
+      ],
+      "invariant": "A managed worker must remain on the remembered EIC custom-GPT root. Generic/wrong ChatGPT surfaces get a 10 s grace and then recover to last-known-good EIC URL; generic ChatGPT can never overwrite the good root."
+    },
+    {
+      "id": "WORK_MODE_WMT",
+      "type": "feature",
+      "files": [
+        "background.js",
+        "sidepanel.html",
+        "sidepanel.js",
+        "sidepanel.css",
+        "lib/work-mode.mjs",
+        "lib/operator-settings.mjs",
+        "manifest.json"
+      ],
+      "invariant": "Arbetsläge is an opt-in GF-045/responsible-GFW orchestration lane. Backend WMT pointers are freshness/nonce/taskKey validated, deduped into a local prequeue, and materialized as separate Greenfield workers when scheduler capacity permits. Existing manual Uppdragskö remains unchanged."
+    },
+    {
+      "id": "WORK_MODE_LOAD_BOUND",
+      "type": "control",
+      "files": [
+        "background.js",
+        "lib/work-mode.mjs"
+      ],
+      "invariant": "Work Mode is disabled by default, polls at most every 15 s only from the bound supervisor worker, respects profile scheduler capacity before creating a child worker, and does not add owner/API traffic to ordinary Greenfield sessions."
+    }
+  ]
+}

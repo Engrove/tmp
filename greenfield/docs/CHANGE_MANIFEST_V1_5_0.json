@@ -1,0 +1,42 @@
+{
+  "schema": "eic.greenfield.change-manifest.v1",
+  "appVersion": "1.5.0",
+  "baselineVersion": "1.4.0",
+  "changes": [
+    {
+      "id": "CAPACITY_REARM_PRODUCER_LOSS",
+      "type": "bugfix",
+      "files": [
+        "background.js",
+        "tests/v150-capacity-rearm-regression.test.mjs"
+      ],
+      "invariant": "A process must relinquish obsolete prompt-bound capacity ownership before arming a replacement prompt hash."
+    },
+    {
+      "id": "CAPACITY_REARM_IDLE_KEEPALIVE",
+      "type": "bugfix",
+      "files": [
+        "background.js",
+        "tests/v150-capacity-rearm-regression.test.mjs"
+      ],
+      "invariant": "Idle keepalive prompt replacement must not retain the abandoned turn's capacity slot."
+    },
+    {
+      "id": "CAPACITY_STALE_PROMPT_SELF_HEAL",
+      "type": "bugfix",
+      "files": [
+        "background.js",
+        "tests/v150-capacity-rearm-regression.test.mjs"
+      ],
+      "invariant": "A same-process active prompt mismatch with no new dispatch effect must recover by cancelling only the obsolete scheduler owner, not by indefinite watchdog waiting."
+    },
+    {
+      "id": "REMOVE_TEMP_PROBE",
+      "type": "release_hygiene",
+      "files": [
+        "tmp_probe.mjs"
+      ],
+      "invariant": "Development probes are not shipped in the release archive."
+    }
+  ]
+}

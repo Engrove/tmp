@@ -1,0 +1,35 @@
+{
+  "schema": "eic.greenfield.change-manifest.v1",
+  "version": "1.5.3",
+  "generatedAt": "2026-09-08T07:34:37.980965Z",
+  "changes": [
+    {
+      "id": "GF153-QUEUE-VAULT",
+      "type": "durability",
+      "files": [
+        "lib/mission-queue-set-vault.mjs",
+        "lib/mission-queue-sets.mjs"
+      ],
+      "claim": "queue sets survive extension-local reset through Chrome-profile bookmark owner"
+    },
+    {
+      "id": "GF153-FLEET-STATUS",
+      "type": "ui-runtime-observability",
+      "files": [
+        "background.js",
+        "sidepanel.html",
+        "sidepanel.js",
+        "sidepanel.css"
+      ],
+      "claim": "dedicated above-the-fold Greenfield run-status overview"
+    },
+    {
+      "id": "GF153-REGRESSION",
+      "type": "test",
+      "files": [
+        "tests/v153-durable-queue-status.test.mjs"
+      ],
+      "claim": "durability migration and fleet-status wiring covered"
+    }
+  ]
+}

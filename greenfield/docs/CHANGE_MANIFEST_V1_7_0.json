@@ -1,0 +1,153 @@
+{
+  "schema": "eic.greenfield.change-manifest.v1",
+  "appVersion": "1.7.0",
+  "sourceVersion": "1.6.1-rc.2",
+  "generatedAt": "2026-09-08T16:03:11.795405+00:00",
+  "summary": "Semantic model/version compatibility gate, future family-name tolerance, robust reasoning/effort detection, v1.7.0 regression coverage and release identity update.",
+  "files": [
+    {
+      "file": "BUILD_VERIFICATION.json",
+      "change": "modified",
+      "sha256": "31296deb5cd5eee964286762da4ec2522f25d1c84b126f97d4af26fbeeaaac4b",
+      "priorSha256": "f08fedcebca9f3a47604af5bd8e9df4d2c148a6533817d352051f533727980c0"
+    },
+    {
+      "file": "README.md",
+      "change": "modified",
+      "sha256": "0195ac09322404c81860e4820e631308358c878aeb49e9ebf0e287ac9ff798d2",
+      "priorSha256": "075ce0525da962aded80b9fdb78234a1473b5fbce626f69e9f5ce75d0452e48c"
+    },
+    {
+      "file": "START_HERE_SV.md",
+      "change": "modified",
+      "sha256": "868cfd8b1f367d745bc18eb409bd4cf12075350742c7814999139ce334ad78c7",
+      "priorSha256": "75533906062e0027fc38e8ebbfd6fac34dcbc7f90070bad760fff7f3b4fb74e8"
+    },
+    {
+      "file": "UPPDATERA_TILL_1_7_0.md",
+      "change": "added",
+      "sha256": "4a456098c4675383cbffcc28ab8b11b30227fbadee57eaa0db91cda5fb49070e",
+      "priorSha256": null
+    },
+    {
+      "file": "VERSION",
+      "change": "modified",
+      "sha256": "bb7320d831e7a151aa901c35e7326c752fa2ef5024f30768c42319b8bed171ed",
+      "priorSha256": "6430a242e9486093ef6f71d9086d48f61ba102f0d2fb0f5b95334c6007a46db3"
+    },
+    {
+      "file": "content.js",
+      "change": "modified",
+      "sha256": "d8215c0d5ecd04f5952b5db31bba24f663d584bb61a1684eaa5e4761b95d98c6",
+      "priorSha256": "6cb064ca939d619414a67ef118fdb7e95b9224d7a007818156ee54518f39f8ce"
+    },
+    {
+      "file": "docs/MODEL_COMPATIBILITY_V1_7_0.md",
+      "change": "added",
+      "sha256": "12bbdb01dd63736da4b5f6641f42a5fc2c829d2eea5a31e442dae9d2aa952816",
+      "priorSha256": null
+    },
+    {
+      "file": "docs/RELEASE_NOTES.md",
+      "change": "modified",
+      "sha256": "9170f0fc5eed91d001ed98c737748fc64eae3242ea539c6f368ead5e3a823ad7",
+      "priorSha256": "b38f55d11db5bd1022be0017e5803183effad5938dad95659a1c28e924a9b96e"
+    },
+    {
+      "file": "lib/contracts.mjs",
+      "change": "modified",
+      "sha256": "fbaaf3a2061dd3bcb4121340899c25411dcfed85a320a1bc638c66d14c810fc2",
+      "priorSha256": "2739db1feb53f4020ca887a7f59d70f34b51581a6284c364fb993336397e0a41"
+    },
+    {
+      "file": "lib/model-observation.js",
+      "change": "modified",
+      "sha256": "fc1cec89aa70cd65a405646c38dfb47d1b08bc8830071a8473022c98ec0beeef",
+      "priorSha256": "ce2278ea12061bfd308cf63934d275eeaa440b3aa66596f6403e5434752f072a"
+    },
+    {
+      "file": "lib/operations-view.mjs",
+      "change": "modified",
+      "sha256": "4db709f2467bdb2804eb228bc181df74332bc7a33000bb04b41689319d044c99",
+      "priorSha256": "c94d9e59b88a13729e747ef710cf81ba93405007d564cfbb2cc0ce3e948d7331"
+    },
+    {
+      "file": "lib/safety-policy.js",
+      "change": "modified",
+      "sha256": "e4ece6e44d5021bd2527bf6d7f936f0b0231be0b5154f91ae5f95753d58d087c",
+      "priorSha256": "aa1eff578b7b25100b0d800ef1c070a6bc8f7367599d9a3ec695dbacb2a5b442"
+    },
+    {
+      "file": "manifest.json",
+      "change": "modified",
+      "sha256": "a3d6ec1cb66ba63393529f73226b2100877296adff339ffc231932e5686fe42d",
+      "priorSha256": "355999d2f9f488aecc2c46ec96698f782a8b53761856282df462fa9ccac52321"
+    },
+    {
+      "file": "package.json",
+      "change": "modified",
+      "sha256": "d286e04511f1190b018e2c8144d1c53983fa19f3e2b288f34c6282855f2582f3",
+      "priorSha256": "710daf93e61826c7ef4c670c1f3970f7a15e02ecfc8e75535139d267ad6ab051"
+    },
+    {
+      "file": "sidepanel.html",
+      "change": "modified",
+      "sha256": "7bcaaa412e2fac12de1393602e0f2c3ac0a03cbe30c6a0f1a1d3585012adb5ac",
+      "priorSha256": "f9b3b0f0875eb26d7fefc3ceb7e82243bab40f0d50afbaeda3d2e2f9650b9d8c"
+    },
+    {
+      "file": "sidepanel.js",
+      "change": "modified",
+      "sha256": "a6369f9830e655136f9dbbdbb9882bade0edaaa1d66367a0aa2257d0566fb210",
+      "priorSha256": "093469de91d8209b0eec95a3a06427a0ecda8e26326de0f909f6db696840d708"
+    },
+    {
+      "file": "tests/static-contract.test.mjs",
+      "change": "modified",
+      "sha256": "1939683e514e86ba98e546248a7ce540a52c1cd1bccd936649828226bbc235c7",
+      "priorSha256": "2e80d25d7ae47e34cad2b9728c4c6f5a1221de9954a2e8fabe15662afb9b846a"
+    },
+    {
+      "file": "tests/v137-multi-mission-static.test.mjs",
+      "change": "modified",
+      "sha256": "94df87212e0a215b805a9f413dc6cfcf438fe3e32f43595d55a02da23bed6d3e",
+      "priorSha256": "34888f2f29e4fcdd72dee76c7a62b75199d8d4d5f8967a6d942f7f025803fe38"
+    },
+    {
+      "file": "tests/v160-safety-recovery.test.mjs",
+      "change": "modified",
+      "sha256": "017824190e99222087b3d580d3358aaed440e99079a161e88a981292ae10426c",
+      "priorSha256": "abc0ac0a8a03bf4b300f57857c0f0828e8c36a47677a748cc97987eee2e6687f"
+    },
+    {
+      "file": "tests/v170-model-compatibility.test.mjs",
+      "change": "added",
+      "sha256": "3d52f31ee6b7c98dbf7e341c8aba1946d70b6c89382e636b94db4d4e70f5d3fa",
+      "priorSha256": null
+    },
+    {
+      "file": "verification/release-tests.tap",
+      "change": "modified",
+      "sha256": "cbb565ad98245eef85db3942ae50e202b310fd0b46acbb7489cc96c6720cd8f0",
+      "priorSha256": "040369077cfac1512bea2d02435107cc102f9f89a960c4a95b57a54f068452f9"
+    },
+    {
+      "file": "verification/static-verification.json",
+      "change": "modified",
+      "sha256": "aa0fe0ae31ba743ba5b674d633ec3c341c7d2f1630806acb14ec02e1df2eb6b7",
+      "priorSha256": "8b9ffadb07cadfa7f84ae67bb5fe90d50081ded20cdf01599c639bf734832be2"
+    },
+    {
+      "file": "verification/v170-model-tests.tap",
+      "change": "added",
+      "sha256": "b7fa2b390fa5ee3812ad792fb89760fbd62725f235cacff97a8c95260159ff64",
+      "priorSha256": null
+    },
+    {
+      "file": "verification/v170-syntax-check.txt",
+      "change": "added",
+      "sha256": "66f6524ae4888c15fe65c9c3e0d007e9ea9fb39d253e742a94d74276cc32d1c9",
+      "priorSha256": null
+    }
+  ]
+}

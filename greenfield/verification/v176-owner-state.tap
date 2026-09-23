@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: v1.7.6 fresh current_focus: reconcile is mandatory but write is conditional
+ok 1 - v1.7.6 fresh current_focus: reconcile is mandatory but write is conditional
+  ---
+  duration_ms: 3.290494
+  type: 'test'
+  ...
+# Subtest: v1.7.6 stale current_focus: newer exact owner evidence governs
+ok 2 - v1.7.6 stale current_focus: newer exact owner evidence governs
+  ---
+  duration_ms: 0.186451
+  type: 'test'
+  ...
+# Subtest: v1.7.6 material steering delta: update requires owner readback
+ok 3 - v1.7.6 material steering delta: update requires owner readback
+  ---
+  duration_ms: 0.191097
+  type: 'test'
+  ...
+# Subtest: v1.7.6 no material delta: no focus write and no repeated probe loop
+ok 4 - v1.7.6 no material delta: no focus write and no repeated probe loop
+  ---
+  duration_ms: 0.135935
+  type: 'test'
+  ...
+# Subtest: v1.7.6 current_focus write unavailable: metadata failure is scoped
+ok 5 - v1.7.6 current_focus write unavailable: metadata failure is scoped
+  ---
+  duration_ms: 0.375996
+  type: 'test'
+  ...
+# Subtest: v1.7.6 completed effect plus stale pointer: effect replay remains forbidden
+ok 6 - v1.7.6 completed effect plus stale pointer: effect replay remains forbidden
+  ---
+  duration_ms: 0.169295
+  type: 'test'
+  ...
+# Subtest: v1.7.6 before material effect: exact effect owner and target revalidation is explicit
+ok 7 - v1.7.6 before material effect: exact effect owner and target revalidation is explicit
+  ---
+  duration_ms: 0.186801
+  type: 'test'
+  ...
+# Subtest: v1.7.6 handoff: material mission state persists and focus changes only on material delta
+ok 8 - v1.7.6 handoff: material mission state persists and focus changes only on material delta
+  ---
+  duration_ms: 0.138659
+  type: 'test'
+  ...
+# Subtest: v1.7.6 contradiction: removing exact-owner precedence invalidates the envelope
+ok 9 - v1.7.6 contradiction: removing exact-owner precedence invalidates the envelope
+  ---
+  duration_ms: 0.629097
+  type: 'test'
+  ...
+# Subtest: v1.7.6 regression: every composed A2A prompt carries the owner-state rule
+ok 10 - v1.7.6 regression: every composed A2A prompt carries the owner-state rule
+  ---
+  duration_ms: 1.18237
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 76.309497

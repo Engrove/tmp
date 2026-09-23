@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>EIC Autonom Agent Greenfield</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body data-active-tab="overview">
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <div class="eyebrow">EIC AUTONOM AGENT</div>
+        <h1>Greenfield <span>v1.7.6</span></h1>
+        <div class="micro">1.7.6 · Owner-state resume safety</div>
+      </div>
+      <div id="continuityLamp" class="lamp" title="Continuity"></div>
+    </header>
+
+    <nav class="top-tabs" aria-label="Greenfield vy">
+      <button id="overviewTabButton" class="top-tab active" type="button">Körstatus</button>
+      <button id="runtimeTabButton" class="top-tab" type="button">Drift</button>
+      <button id="missionsTabButton" class="top-tab" type="button">Uppdragskö</button>
+      <button id="workModeTabButton" class="top-tab" type="button">Arbetsläge</button>
+    </nav>
+
+    <section class="fleet-overview" data-ui-tab="overview">
+      <div id="opsBanner" class="ops-banner" role="status" aria-live="polite">
+        <strong id="opsTitle">Inväntar driftdata</strong>
+        <p id="opsDetail">Läser sparade processer och kontrollstatus.</p>
+      </div>
+      <div class="ops-actions">
+        <button id="admissionPause" class="secondary" type="button">Pausa nya utskick</button>
+        <button id="modelRecheck" class="ghost" type="button">Kontrollera modell igen</button>
+        <button id="exportDiagnostics" class="ghost" type="button">Exportera diagnostik</button>
+      </div>
+      <output id="opsActionResult" class="micro" aria-live="polite"></output>
+      <div class="fleet-kpis">
+        <div class="fleet-kpi"><span>Pågående</span><strong id="fleetActive">0</strong></div>
+        <div class="fleet-kpi"><span>Kapacitet</span><strong id="fleetCapacity">0/2</strong></div>
+        <div class="fleet-kpi"><span>Väntar</span><strong id="fleetWaiting">0</strong></div>
+        <div class="fleet-kpi"><span>Paus</span><strong id="fleetPaused">0</strong></div>
+      </div>
+      <div class="fleet-health">
+        <div>
+          <div class="label">Greenfield drift</div>
+          <strong id="fleetHeadline">Ingen aktiv worker</strong>
+        </div>
+        <span id="fleetRateLimit" class="fleet-pill">NORMAL</span>
+      </div>
+      <section class="usage-strip" aria-label="Förbrukning och lokal budget">
+        <div class="usage-title"><strong>Förbrukning · senaste 24 h</strong><span>Lokal mätning</span></div>
+        <div class="usage-numbers">
+          <div><span>Synliga tokens ≈</span><strong id="usageTokens">—</strong><small id="usageTokenSplit">Prompt / svar</small></div>
+          <div><span>Utskick / budget</span><strong id="usageMessages">—</strong><small id="usageOtherWindows">3 h / 7 dygn</small></div>
+        </div>
+        <progress id="usageBudgetMeter" max="100" value="0" aria-label="Andel av lokal tokenbudget"></progress>
+        <div id="usageBudgetDetail" class="micro">Budgeten inkluderar reserv för svar.</div>
+        <p class="usage-disclosure">Tokenvärden är uppskattningar. Kontots återstående kvot är okänd. Övriga chattar, verktygsdata och dolda resonemang ingår inte.</p>
+      </section>
+      <div class="ops-section-title">Uppdrag och framdrift <span id="opsWorkerCount">0</span></div>
+      <div id="fleetWorkers" class="fleet-workers">
+        <div class="fleet-empty">Ingen aktiv Greenfield-process.</div>
+      </div>
+    </section>
+
+    <section class="card fleet-secondary" data-ui-tab="overview">
+      <div class="section-head">
+        <div><div class="label">Global driftbild</div><strong id="fleetGlobalDetail">—</strong></div>
+        <span id="fleetFreshness" class="settings-scope">Inväntar data</span>
+      </div>
+      <div class="fleet-detail-grid">
+        <div><span>Arbetsläge</span><strong id="fleetWorkMode">Av</strong></div>
+        <div><span>Senast uppdaterad</span><strong id="fleetUpdated">—</strong></div>
+        <div><span>Prompt gate</span><strong id="fleetPromptGate">—</strong></div>
+        <div><span>Workers</span><strong id="fleetWorkersCount">0</strong></div>
+        <div><span>Lokal lagring</span><strong id="fleetStorage">Okänd</strong></div>
+        <div><span>Lagringskontroll vid start</span><strong id="storageContractStatus">Inte verifierad</strong></div>
+      </div>
+      <div class="ops-section-title">Återställning</div>
+      <div id="recoverySummary" class="micro">Ingen återställning rapporterad.</div>
+      <div id="recoveryRows" class="recovery-rows"></div>
+      <div class="ops-actions">
+        <button id="recoveryScan" class="ghost" type="button">Sök återställda flikar</button>
+        <button id="exportRecovery" class="ghost" type="button">Pausa och exportera</button>
+        <button id="importRecovery" class="ghost" type="button">Återläs pausat</button>
+        <input id="importRecoveryFile" type="file" accept="application/json,.json" hidden>
+      </div>
+      <output id="backupResult" class="micro" aria-live="polite"></output>
+      <p class="micro">Kopian innehåller uppdrag, köer och lokala körkvitton. Återläsning kräver en installation utan tidigare processer eller förbrukning och startar inget arbete. EICs data och Chrome-profilen ingår inte.</p>
+      <div class="ops-section-title">Senaste kontrollhändelser</div>
+      <ol id="safetyEvents" class="ops-events"></ol>
+    </section>
+
+
+    <section class="card safety-policy-card" data-ui-tab="runtime">
+      <div class="section-head"><div><div class="label">Körkrav</div><strong>Thinking och förbrukningsbudget</strong></div><span class="settings-scope">Alla workers</span></div>
+      <p class="micro">Greenfield använder ett kompatibilitetsgolv: numerisk GPT-version jämförs när den syns, medan familjenamn som Sol, Luna eller Astra inte behöver matcha exakt. En verifierad reasoning-kontroll kan användas även när ChatGPT inte visar modellnamnet. Explicit äldre/degraderat läge spärrar fortfarande.</p>
+      <form id="safetyPolicyForm">
+        <div class="policy-grid">
+          <label>Modellgolv<input id="requiredModel" name="requiredModel" value="GPT-5.6" required pattern="GPT[- ][0-9]+(\.[0-9]+){0,3}( [A-Za-z0-9_-]+){0,3}"></label>
+          <label>Lägsta tänkenivå<select id="minimumEffort" name="minimumEffort"><option value="extended">Extended / Utökad</option><option value="heavy">Heavy / Max / Djupgående</option></select></label>
+          <label>Utskick / 3 h<input id="messages3h" type="number" min="1" max="1000" value="24" required></label>
+          <label>Utskick / 24 h<input id="messages24h" type="number" min="1" max="5000" value="96" required></label>
+          <label>Utskick / 7 dygn<input id="messages7d" type="number" min="1" max="10000" value="400" required></label>
+          <label>Minst mellan utskick, s<input id="minGapSeconds" type="number" min="10" max="86400" value="180" required></label>
+          <label>Tokenbudget / 24 h ≈<input id="tokens24h" type="number" min="10000" max="50000000" value="800000" required></label>
+          <label>Max prompttokens ≈<input id="maxPromptTokens" type="number" min="1000" max="100000" value="24000" required></label>
+          <label>Reserv per svar ≈<input id="outputReserveTokens" type="number" min="1024" max="100000" value="8192" required></label>
+        </div>
+        <div class="ops-actions"><button type="submit" class="secondary">Spara körkrav</button><button id="vacationPreset" type="button" class="ghost">Försiktig semesterprofil</button></div>
+      </form>
+      <div class="ops-actions"><button id="inspectActiveModel" type="button" class="ghost">Läs modell i aktiv EIC-flik</button></div>
+      <output id="safetyActionResult" class="safety-action-result" aria-live="polite"></output>
+      <p class="micro">Detta är Greenfields egna budgetar, inte OpenAI-gränser. Semesterprofilen fyller i 12 utskick / 3 h, 48 / dygn, 240 / vecka och minst 5 minuter mellan utskick; klicka Spara körkrav för att tillämpa.</p>
+    </section>
+
+    <section class="status-card" data-ui-tab="runtime">
+      <div class="status-row">
+        <div>
+          <div class="label">Process</div>
+          <div id="phase" class="phase">IDLE</div>
+        </div>
+        <div class="turn">
+          <span class="label">Turn</span>
+          <strong id="turn">—</strong>
+        </div>
+      </div>
+
+      <div class="rail rail-v131" aria-label="Autonom loop">
+        <div data-stage="SENDING">Send</div>
+        <i></i>
+        <div data-stage="WAITING">Wait</div>
+        <i></i>
+        <div data-stage="ANALYZING">Analyze</div>
+        <i></i>
+        <div data-stage="PAUSED">Mission pause</div>
+        <i></i>
+        <div data-stage="PROMPT_PAUSE">Prompt pause</div>
+        <i></i>
+        <div data-stage="SENDING">Continue</div>
+      </div>
+      <div id="missionPauseStatus" class="mission-pause-status">Mission pause inactive · EIC-controlled 5 min–24 h</div>
+      <div id="promptPauseStatus" class="prompt-pause-status">Promptpaus 0 s · global i Chrome-profilen</div>
+      <div id="schedulerStatus" class="scheduler-status">Kapacitet 0/2 · ingen väntar</div>
+      <div id="statusDetail" class="detail">Ingen aktiv process i detta Chrome-fönster.</div>
+    </section>
+
+    <section class="card operator-card" data-ui-tab="runtime">
+      <div class="section-head">
+        <div>
+          <div class="label">Paus mellan analys och post</div>
+          <strong id="postDelayValue">0 s</strong>
+        </div>
+        <span class="settings-scope">Global Chrome</span>
+      </div>
+      <input id="postDelay" class="delay-range" type="range" min="0" max="300" step="1" value="0" aria-label="Paus mellan analys och post i sekunder">
+      <div class="delay-scale"><span>0 s</span><span>150 s</span><span>300 s</span></div>
+      <p class="micro">Delas av alla Greenfield-sessioner i samma Chrome-profil. Varje ny prompt reserveras globalt och faktisk post kontrolleras igen mot senaste posttid.</p>
+
+      <div class="scheduler-controls">
+        <div class="section-head">
+          <div>
+            <div class="label">Max parallella Greenfield</div>
+            <strong id="maxActiveSessionsValue">2</strong>
+          </div>
+          <span class="settings-scope">Global Chrome</span>
+        </div>
+        <input id="maxActiveSessions" class="delay-range" type="range" min="1" max="4" step="1" value="2" aria-label="Max parallella Greenfield-sessioner">
+        <div class="delay-scale"><span>1</span><span>2</span><span>4</span></div>
+        <p class="micro">Normal kapacitet. Vid ChatGPT rate-limit går Greenfield automatiskt ned till 0 under cooldown och 1 under seriell recovery utan att avbryta redan aktiva turns.</p>
+
+        <label class="priority-control" for="schedulerPriority">
+          <span class="label">Prioritet för denna Greenfield-session</span>
+          <select id="schedulerPriority" aria-label="Prioritet för denna Greenfield-session">
+            <option value="LOW">Låg</option>
+            <option value="NORMAL" selected>Normal</option>
+            <option value="HIGH">Hög</option>
+            <option value="URGENT">Brådskande</option>
+          </select>
+        </label>
+        <p class="micro">Prioritet är icke-preemptiv. Väntan höjer effektiv prioritet ett steg var 3:e minut; Låg når toppnivån efter 9 minuter. Vid samma effektiva nivå gäller äldst väntande först.</p>
+      </div>
+
+      <div class="saved-missions">
+        <div class="label">Sparade uppdrag</div>
+        <div class="saved-mission-row">
+          <select id="savedMissionSelect" aria-label="Sparade uppdrag">
+            <option value="">Sparade uppdrag…</option>
+          </select>
+          <button id="loadSavedMission" class="ghost" disabled>Ladda</button>
+          <button id="deleteSavedMission" class="ghost" disabled>Ta bort</button>
+        </div>
+        <button id="saveMission" class="secondary save-mission">Spara aktuellt uppdrag</button>
+        <p class="micro">Sparade uppdrag speglas till ett Greenfield-valv i Chrome-profilens bokmärkeslager så att de kan återställas efter avinstallation och från ett nytt extension-ID. Greenfield Works fortsätter äga missionskronologi och sessionsreceipts, inte denna browser-cache.</p>
+      </div>
+    </section>
+
+    <section id="startCard" class="card start-card" data-ui-tab="runtime">
+      <label for="goal">Uppdrag</label>
+      <textarea id="goal" rows="8" placeholder="Beskriv uppdraget. Detta blir första prompten till den aktiva ChatGPT-fliken."></textarea>
+      <button id="start" class="primary">Starta autonom process</button>
+      <p class="micro">En aktiv ChatGPT-flik binds till detta fönster. Nano, fast Hjalmar D2 och EIC-A2A är aktiva. Persistent Audit är av som standard och kan slås på nedan.</p>
+    </section>
+
+    <section id="activeCard" class="card active-card hidden" data-ui-tab="runtime">
+      <div class="section-head">
+        <div>
+          <div class="label">Aktivt uppdrag</div>
+          <div id="goalPreview" class="goal-preview"></div>
+        </div>
+      </div>
+
+      <div class="pulse">
+        <div class="pulse-dot"></div>
+        <div>
+          <strong id="continuityText">Continuity active</strong>
+          <span id="updatedAt">—</span>
+        </div>
+      </div>
+
+
+
+      <div class="one-shot">
+        <div class="section-head">
+          <label for="nextInstruction">
+            <span class="label">Tillägg till nästa prompt</span>
+          </label>
+          <span id="instructionState" class="instruction-state">Tom</span>
+        </div>
+        <textarea id="nextInstruction" rows="4" maxlength="12000" placeholder="Skriv en engångsinstruktion. Den levereras tillsammans med nästa autonoma prompt."></textarea>
+        <div class="instruction-actions">
+          <button id="queueInstruction" class="secondary">Lägg till nästa prompt</button>
+          <button id="clearInstruction" class="ghost">Rensa</button>
+        </div>
+        <p class="micro">Instruktionen är persistent tills nästa prompt komponeras. Därefter förbrukas den och rutan töms automatiskt.</p>
+      </div>
+
+      <details>
+        <summary>Senaste respons</summary>
+        <pre id="responsePreview">—</pre>
+      </details>
+      <details>
+        <summary>Nano</summary>
+        <pre id="nanoPreview">—</pre>
+      </details>
+      <details>
+        <summary>Hjalmar D2</summary>
+        <pre id="decisionPreview">—</pre>
+      </details>
+
+      <div class="actions">
+        <button id="resumePause" class="secondary" disabled>Resume pause now</button>
+        <button id="tick" class="secondary">Reconcile now</button>
+        <button id="stop" class="danger">Stoppa</button>
+      </div>
+    </section>
+
+    <section class="audit-card" data-ui-tab="runtime">
+      <div class="section-head">
+        <div>
+          <div class="label">Forensic Audit</div>
+          <strong id="auditState">AV · endast minnes-FIFO 0/25</strong>
+        </div>
+        <label class="audit-toggle" for="auditEnabled">
+          <input id="auditEnabled" type="checkbox">
+          <span>Persistent Audit</span>
+        </label>
+      </div>
+      <div class="audit-actions">
+        <p class="micro">Standard: av. När Audit är av lagras inget i IndexedDB; endast de 25 senaste live-händelserna hålls i ett flyktigt FIFO-minne och visas här.</p>
+        <button id="exportAudit" class="ghost" disabled>Exportera NDJSON</button>
+      </div>
+      <div id="auditFeed" class="audit-feed">
+        <div class="empty">Audit är av. FIFO-fönstret fylls när händelser uppstår.</div>
+      </div>
+    </section>
+
+
+    <section class="card work-mode-card" data-ui-tab="workmode">
+      <div class="section-head">
+        <div>
+          <div class="label">Greenfield Works · Arbetsläge</div>
+          <strong id="workModeState">Av</strong>
+        </div>
+        <span class="settings-scope">GF-045 / ansvarig GFW</span>
+      </div>
+      <p class="micro">Arbetsläge tar emot korta GFW-WMT-pekare från EIC Backend och lägger dem i en lokal Nano-övervakad förkö före den vanliga Uppdragskön. Den fullständiga uppgiften ägs av backend; pekaren är inte arbetsbeskrivningen.</p>
+      <label class="queue-setting">
+        <span>Aktivera Arbetsläge</span>
+        <input id="workModeEnabled" type="checkbox">
+      </label>
+      <label class="queue-setting">
+        <span>EIC Work Mode endpoint</span>
+        <input id="workModeEndpoint" type="url" value="https://api.elho.fi/greenfield/work-mode/v1">
+      </label>
+      <div class="queue-actions">
+        <button id="saveWorkMode" class="primary" type="button">Spara Arbetsläge</button>
+        <button id="syncWorkMode" class="secondary" type="button">Synka nu</button>
+      </div>
+      <div id="workModeDetail" class="detail">Ingen synkning utförd i denna panel.</div>
+      <p class="micro">WMT-admission kräver färsk issuedAt, kort expiry, nonce och en backendutfärdad taskKey. Ingen användarinloggning krävs. Timestamp ensam används inte som exekveringsauktoritet.</p>
+    </section>
+
+    <section class="card mission-queue-card" data-ui-tab="missions">
+      <div class="section-head">
+        <div>
+          <div class="label">Seriell arbetslista</div>
+          <strong id="missionQueueState">0 uppdrag · stoppad</strong>
+        </div>
+        <span class="settings-scope">Per Greenfield-worker</span>
+      </div>
+      <p class="micro">Varje Greenfield-worker har en isolerad, seriell loop-kö. Exakt listordning styr nästa GFW: varje köplats kör sin egen kvant och kön fortsätter cykliskt från sista platsen tillbaka till första tills AI avslutar en GFW med dedikerat terminalkommando eller operatören ändrar/stoppar kön. Samma sparade GFW får läggas till flera gånger med olika placering, prioritet och kvant; köplatsens prioritet gäller den profilglobala kapacitetsschedulern när platsen är aktiv och ändrar inte listordningen inne i denna worker. Ett helt nytt Chrome-fönster startar med en tom runtime-kö.</p>
+
+      <div class="queue-add-block">
+        <div class="label">Lägg till sparat uppdrag</div>
+        <div class="queue-add-row">
+          <select id="queueSavedMissionSelect" aria-label="Sparade uppdrag till arbetslistan" multiple size="6">
+          </select>
+          <button id="queueAddMission" class="secondary" type="button">Lägg till valda</button>
+        </div>
+      </div>
+
+      <div class="queue-set-block">
+        <div class="label">Sparade kö-set</div>
+        <div class="queue-set-row">
+          <select id="queueSetSelect" aria-label="Sparade kö-set">
+            <option value="">Inga sparade set</option>
+          </select>
+          <button id="queueSetApply" class="secondary" type="button">Ladda set</button>
+        </div>
+        <div class="queue-set-row">
+          <input id="queueSetName" type="text" maxlength="120" placeholder="Namn på kö-set" aria-label="Namn på kö-set">
+          <button id="queueSetSave" class="ghost" type="button">Spara nuvarande</button>
+          <button id="queueSetDelete" class="ghost" type="button">Ta bort</button>
+        </div>
+        <p class="micro">Ett set sparar exakt köplatsordning och varje plats egen prioritet/kvant, även när samma GFW förekommer flera gånger. Process-, pause-, session- och runtime-state följer aldrig med.</p>
+      </div>
+
+      <div class="queue-actions">
+        <button id="queueStart" class="primary" type="button">Starta arbetskö</button>
+        <button id="queueStop" class="danger" type="button">Stoppa arbetskö</button>
+      </div>
+
+      <div class="queue-list-head">
+        <div class="label">Aktiv kö</div>
+        <span class="micro inline">Prioritet · kvant · ordning</span>
+      </div>
+      <div id="missionQueueList" class="mission-queue-list">
+        <div class="empty">Arbetslistan är tom.</div>
+      </div>
+
+      <details class="queue-history-details">
+        <summary>Klart / avslutade</summary>
+        <div id="missionQueueHistory" class="mission-queue-history">
+          <div class="empty">Ingen historik ännu.</div>
+        </div>
+        <button id="queueClearHistory" class="ghost queue-clear-history" type="button">Rensa historik</button>
+      </details>
+    </section>
+
+    <section class="card queue-settings-card" data-ui-tab="missions">
+      <div class="section-head">
+        <div>
+          <div class="label">Grundparametrar för uppdragskö</div>
+          <strong>Global Chrome-profil</strong>
+        </div>
+        <span class="settings-scope">Justerbara</span>
+      </div>
+
+      <label class="queue-setting">
+        <span>Standard max interaktioner per uppdrag/kvant</span>
+        <input id="defaultMissionQuantumInteractions" type="number" min="1" max="50" step="1" value="5">
+      </label>
+      <label class="queue-setting">
+        <span>Cooldown före nytt försök för blockerad GFW (sekunder)</span>
+        <input id="queuePriorityAgingSeconds" type="number" min="30" max="3600" step="30" value="180">
+      </label>
+      <label class="queue-setting">
+        <span>Minsta paus före nästa uppdrags navigation (sekunder)</span>
+        <input id="queueSwitchDelaySeconds" type="number" min="0" max="300" step="1" value="5">
+      </label>
+      <label class="queue-setting queue-setting-check">
+        <span>Ctrl-F5/hård reload efter navigation till färsk ChatGPT-konversation</span>
+        <input id="queueSwitchHardReload" type="checkbox" checked>
+      </label>
+      <label class="queue-setting">
+        <span>Stabilisering efter hård reload (sekunder)</span>
+        <input id="queueSwitchSettleSeconds" type="number" min="0" max="30" step="1" value="2">
+      </label>
+      <button id="saveQueueSettings" class="secondary queue-settings-save" type="button">Spara grundparametrar</button>
+      <p class="micro">Färsk ChatGPT-konversation är isolationsgränsen mellan köplatser. Listordningen är styrande och loopar; prioritet används först när en aktiv köplats konkurrerar om profilglobal ChatGPT-kapacitet. Växlingens minsta paus är separat från promptpausen. Ofärdig kvant bevaras över tidig yield/pause/block; först full kvant nollställer platsens kvantmätare inför nästa varv. PAUSE_PROCESS i köläge sover den logiska GFW:n och låter nästa körbara plats gå vidare. BLOCKED återförs efter cooldown; DONE/STOP_PROCESS avslutar den logiska sparade GFW:n och tar bort dess eventuella dubblettplatser.</p>
+    </section>
+
+    <footer>
+      <span>1 aktiv ChatGPT-flik / Chrome-fönster · flera uppdrag seriellt</span>
+      <span>Nano · EIC-A2A/1 · Fixed Hjalmar D2</span>
+    </footer>
+  </main>
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>

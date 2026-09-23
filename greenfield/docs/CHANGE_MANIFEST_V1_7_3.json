@@ -1,0 +1,27 @@
+{
+  "schema": "eic.greenfield.change-manifest.v1",
+  "version": "1.7.3",
+  "baseline": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.7.2.zip",
+    "sha256": "dfc6db3c6643aeec58368168770296fe388c04cf2a8496a3abb73b4f6478b6c6",
+    "sizeBytes": 641027,
+    "source": "operator-supplied current-session package"
+  },
+  "purpose": "Prevent mixed-language ChatGPT UI labels from creating false model/reasoning safety holds and make the Greenfield internal language contract explicit.",
+  "changes": [
+    "Remove global button[aria-label*='Djup' i] effort candidate.",
+    "Prefer composer-local semantic effort controls over weaker document-global controls.",
+    "Treat Swedish 'nåla fast'/'fäst fast' as UI action phrases rather than English Fast effort.",
+    "Add bounded Finnish current-model/recommendation and reasoning-effort vocabulary.",
+    "Add eic.greenfield.language-context.v1 to A2A with English internal control and continuously expected en/sv/fi ambient evidence.",
+    "Inform Nano observer, Nano isolated tasks and Mental Hjalmar about mixed-language evidence and cross-language token collision risk.",
+    "Preserve raw UI/operator/source evidence strings in their original language."
+  ],
+  "security": {
+    "modelFloorWeakened": false,
+    "unknownHeavyEffortFailClosed": true,
+    "newChromePermissions": false,
+    "newProductionDependencies": false
+  },
+  "liveAcceptance": "NOT_RUN_IN_BUILD_ENVIRONMENT"
+}

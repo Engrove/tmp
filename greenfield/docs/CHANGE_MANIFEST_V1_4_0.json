@@ -1,0 +1,54 @@
+{
+  "schema": "eic.greenfield.change-manifest.v1",
+  "appVersion": "1.4.0",
+  "generatedAt": "2026-09-06T12:19:47.362222Z",
+  "purpose": "Add durable cross-worker mission delegation while preserving the supervising Greenfield Chrome session as a normal working session.",
+  "ownerModel": {
+    "supervisor": "may request delegated work but must not create the delegated mission in its own Chrome queue",
+    "worker": "another already-running queue-managed Greenfield worker claims and inserts delegated work in its own queue",
+    "noWorker": "request remains PENDING; no supervising self-creation",
+    "temporarySupervisorWork": "allowed when bounded work genuinely belongs to the supervisor's current mission"
+  },
+  "files": {
+    "added": [
+      "lib/mission-delegation.mjs",
+      "tests/v140-mission-delegation.test.mjs",
+      "docs/DELEGATED_MISSION_SPAWNING_V1_4_0.md",
+      "docs/CHANGE_MANIFEST_V1_4_0.json"
+    ],
+    "modified": [
+      "background.js",
+      "lib/mission-work-queue.mjs",
+      "lib/response-contract.mjs",
+      "lib/a2a.mjs",
+      "sidepanel.js",
+      "sidepanel.html",
+      "content.js",
+      "lib/contracts.mjs",
+      "manifest.json",
+      "package.json",
+      "VERSION",
+      "README.md",
+      "docs/RELEASE_NOTES.md",
+      "tests/static-contract.test.mjs",
+      "tests/v137-multi-mission-static.test.mjs",
+      "BUILD_VERIFICATION.json",
+      "INTEGRITY.json"
+    ]
+  },
+  "behavioralInvariants": [
+    "missionDelegations are accepted only from canonical validated queue-managed A2A responses",
+    "schema-degraded salvage cannot carry delegation effects",
+    "sourceWindowId and stable sourceQueueId both prevent self-consumption",
+    "a worker claims on its own process tick before inserting into its own queue",
+    "delegated requestId is idempotent and survives restart/update in chrome.storage.local",
+    "DONE remains terminal",
+    "UNBLOCKS_CURRENT completion may wake a still-BLOCKED parent; v1.3.9 cooldown remains fallback"
+  ],
+  "verification": {
+    "focusedTests": 43,
+    "fullTests": 298,
+    "syntaxFiles": 75,
+    "liveDesktopChromeChatGPT": "NOT_EXECUTED"
+  }
+}

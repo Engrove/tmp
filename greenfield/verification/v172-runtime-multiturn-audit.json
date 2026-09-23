@@ -1,0 +1,15 @@
+{
+  "schema": "eic.greenfield.multiturn-audit-replay.v1",
+  "inputSha256": "507fe050697636b0f623f788b54d5bb728fba0c8d533914ba2d7a006b9101c2b",
+  "totalRows": 415,
+  "pageStateRows": 167,
+  "stalePriorTurnBindingRows": 167,
+  "stalePriorTurnBindingTurns": [
+    2
+  ],
+  "completedLatestAssistantRows": 167,
+  "differingAssistantPairRows": 167,
+  "observedDurationMs": 942565,
+  "firstObservedAt": "2026-09-09T08:00:35.733Z",
+  "lastObservedAt": "2026-09-09T08:16:18.298Z"
+}

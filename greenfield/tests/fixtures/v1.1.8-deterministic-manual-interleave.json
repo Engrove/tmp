@@ -1,0 +1,104 @@
+{
+  "schema": "eic.greenfield.manual-interleave-fixture.v1",
+  "sourceVersion": "1.1.8",
+  "scenario": "external user+assistant pair appears after autonomous response completion observation but before autonomous admission",
+  "expectedUserTurnId": "auto-user-1",
+  "expectedUserTurnIndex": 3,
+  "autonomousAssistant": {
+    "id": "auto-assistant-1",
+    "text": "{\"schema\":\"eic.a2a.response.v1\",\"status\":\"CONTINUE\",\"summary\":\"auto\",\"workPerformed\":[],\"evidence\":[],\"blockers\":[],\"nextSuggestedAction\":\"continue\"}",
+    "hash": "auto-hash-1"
+  },
+  "manualPair": {
+    "userTurnId": "manual-user-1",
+    "assistantTurnId": "manual-assistant-1",
+    "assistantText": "MANUAL_OK",
+    "assistantHash": "manual-hash-1"
+  },
+  "stages": [
+    {
+      "name": "AUTONOMOUS_RESPONSE_STABILIZING",
+      "nowMs": 0,
+      "page": {
+        "documentId": "doc-1",
+        "assistantCount": 3,
+        "lastUserId": "auto-user-1",
+        "lastAssistantId": "auto-assistant-1",
+        "assistantHash": "auto-hash-1",
+        "autonomousTurn": {
+          "expectedUserTurnId": "auto-user-1",
+          "expectedUserIndex": 3,
+          "resolvedUserTurnId": "auto-user-1",
+          "resolvedBy": "USER_TURN_ID",
+          "assistantFound": true,
+          "assistantId": "auto-assistant-1",
+          "assistantOwnerKind": "EXPLICIT_TURN_SHELL",
+          "assistantOwnerTrusted": true,
+          "assistantText": "{\"schema\":\"eic.a2a.response.v1\",\"status\":\"CONTINUE\",\"summary\":\"auto\",\"workPerformed\":[],\"evidence\":[],\"blockers\":[],\"nextSuggestedAction\":\"continue\"}",
+          "assistantTextLength": 149,
+          "assistantHash": "auto-hash-1",
+          "assistantGenerating": false,
+          "assistantSignals": {
+            "visibilityState": "visible"
+          }
+        }
+      }
+    },
+    {
+      "name": "MANUAL_PAIR_BECOMES_LATEST",
+      "nowMs": 150,
+      "page": {
+        "documentId": "doc-1",
+        "assistantCount": 4,
+        "lastUserId": "manual-user-1",
+        "lastAssistantId": "manual-assistant-1",
+        "assistantHash": "manual-hash-1",
+        "autonomousTurn": {
+          "expectedUserTurnId": "auto-user-1",
+          "expectedUserIndex": 3,
+          "resolvedUserTurnId": "auto-user-1",
+          "resolvedBy": "USER_TURN_ID",
+          "assistantFound": true,
+          "assistantId": "auto-assistant-1",
+          "assistantOwnerKind": "EXPLICIT_TURN_SHELL",
+          "assistantOwnerTrusted": true,
+          "assistantText": "{\"schema\":\"eic.a2a.response.v1\",\"status\":\"CONTINUE\",\"summary\":\"auto\",\"workPerformed\":[],\"evidence\":[],\"blockers\":[],\"nextSuggestedAction\":\"continue\"}",
+          "assistantTextLength": 149,
+          "assistantHash": "auto-hash-1",
+          "assistantGenerating": false,
+          "assistantSignals": {
+            "visibilityState": "visible"
+          }
+        }
+      }
+    },
+    {
+      "name": "MANUAL_PAIR_REMAINS_LATEST_WHILE_AUTONOMOUS_RESPONSE_RESTABILIZES",
+      "nowMs": 300,
+      "page": {
+        "documentId": "doc-1",
+        "assistantCount": 4,
+        "lastUserId": "manual-user-1",
+        "lastAssistantId": "manual-assistant-1",
+        "assistantHash": "manual-hash-1",
+        "autonomousTurn": {
+          "expectedUserTurnId": "auto-user-1",
+          "expectedUserIndex": 3,
+          "resolvedUserTurnId": "auto-user-1",
+          "resolvedBy": "USER_TURN_ID",
+          "assistantFound": true,
+          "assistantId": "auto-assistant-1",
+          "assistantOwnerKind": "EXPLICIT_TURN_SHELL",
+          "assistantOwnerTrusted": true,
+          "assistantText": "{\"schema\":\"eic.a2a.response.v1\",\"status\":\"CONTINUE\",\"summary\":\"auto\",\"workPerformed\":[],\"evidence\":[],\"blockers\":[],\"nextSuggestedAction\":\"continue\"}",
+          "assistantTextLength": 149,
+          "assistantHash": "auto-hash-1",
+          "assistantGenerating": false,
+          "assistantSignals": {
+            "visibilityState": "visible"
+          }
+        }
+      }
+    }
+  ]
+}

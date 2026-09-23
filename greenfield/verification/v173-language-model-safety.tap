@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: v1.7.3 Swedish 'Nåla fast' is not English Fast reasoning
+ok 1 - v1.7.3 Swedish 'Nåla fast' is not English Fast reasoning
+  ---
+  duration_ms: 5.464596
+  type: 'test'
+  ...
+# Subtest: v1.7.3 diagnostic control set resolves the real Djupgående effort without ambiguity
+ok 2 - v1.7.3 diagnostic control set resolves the real Djupgående effort without ambiguity
+  ---
+  duration_ms: 2.598742
+  type: 'test'
+  ...
+# Subtest: v1.7.3 model observer no longer has a global substring selector for Swedish Djup
+ok 3 - v1.7.3 model observer no longer has a global substring selector for Swedish Djup
+  ---
+  duration_ms: 0.2389
+  type: 'test'
+  ...
+# Subtest: v1.7.3 Finnish model notices and reasoning labels are recognized
+ok 4 - v1.7.3 Finnish model notices and reasoning labels are recognized
+  ---
+  duration_ms: 2.03663
+  type: 'test'
+  ...
+# Subtest: v1.7.3 A2A internal control language is English while mixed en/sv/fi evidence is explicit
+ok 5 - v1.7.3 A2A internal control language is English while mixed en/sv/fi evidence is explicit
+  ---
+  duration_ms: 2.977736
+  type: 'test'
+  ...
+# Subtest: v1.7.3 Nano and Mental Hjalmar receive the mixed-language boundary in English
+ok 6 - v1.7.3 Nano and Mental Hjalmar receive the mixed-language boundary in English
+  ---
+  duration_ms: 1.290358
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 76.458211

@@ -1,0 +1,57 @@
+{
+  "schema": "eic.greenfield.change-manifest.v1",
+  "version": "1.3.9",
+  "baseline": {
+    "sourceKind": "user_uploaded_archive",
+    "file": "EIC_Autonom_Agent_Greenfield_v1.3.8.zip",
+    "sizeBytes": 335139,
+    "sha256": "10431c250467c40376f5315da6376efe6418bc8009fbac50b6987227b0d6629b",
+    "version": "1.3.8"
+  },
+  "fixes": [
+    {
+      "id": "GF139-BLOCKED-QUEUE-CONTINUITY",
+      "problem": "Mission-level BLOCKED was terminalized into queue history, preventing later autonomous retry after the underlying blocker was fixed.",
+      "invariant": "BLOCKED is temporary queue parking with a bounded retry timestamp; DONE remains terminal history, while non-retryable audit/integrity failure is terminal FAILED.",
+      "files": [
+        "background.js",
+        "lib/mission-work-queue.mjs",
+        "sidepanel.js",
+        "sidepanel.html",
+        "tests/v139-queue-durability-regression.test.mjs"
+      ]
+    },
+    {
+      "id": "GF139-DURABLE-MISSION-QUEUE",
+      "problem": "The mission queue was stored only under a Chrome window-id key, so a recreated browser window could not recover the prior queue after restart/update.",
+      "invariant": "A profile-local durable queue registry preserves the stable queue identity and may rebind only queues whose former bound window is no longer live; in-flight ACTIVE work is restored as READY and completed history remains terminal.",
+      "files": [
+        "background.js",
+        "lib/mission-work-queue.mjs",
+        "tests/v139-queue-durability-regression.test.mjs"
+      ]
+    },
+    {
+      "id": "GF139-QUEUE-BASE-SETTINGS-PERSISTENCE",
+      "problem": "Saving Grundparametrar för uppdragskö rendered stored/default settings back into the form before the edited control values were read, so the old values were resubmitted.",
+      "invariant": "Capture the operator form patch before busy-state rendering, persist it through the existing profile-local operator-settings contract, and use storage readback as the saved value.",
+      "files": [
+        "sidepanel.js",
+        "lib/operator-settings.mjs",
+        "tests/v139-queue-durability-regression.test.mjs"
+      ]
+    }
+  ],
+  "preservedContracts": [
+    "DONE remains terminal queue history",
+    "STOPPED remains terminal queue history",
+    "AUDIT_FAILURE is terminal FAILED and disables queue progression",
+    "profile-global rate-limit circuit breaker",
+    "per-window live worker isolation",
+    "exact-once send fence",
+    "PAUSE_PROCESS 300..86400 seconds",
+    "priority aging remains non-starving",
+    "operator settings remain profile-local chrome.storage.local state"
+  ],
+  "liveRuntimeAcceptance": "NOT_EXECUTED"
+}

@@ -1,0 +1,11 @@
+{
+  "syntaxFiles": 111,
+  "syntaxPass": 111,
+  "syntaxFail": 0,
+  "syntaxFailures": [],
+  "manifestResources": 9,
+  "manifestResourceErrors": [],
+  "panelIds": 116,
+  "duplicatePanelIds": [],
+  "nodeVersion": "v22.16.0"
+}

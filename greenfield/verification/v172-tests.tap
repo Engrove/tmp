@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: v1.7.2 SENDING lifecycle ownership never inherits the prior turn when a current pending prompt exists
+ok 1 - v1.7.2 SENDING lifecycle ownership never inherits the prior turn when a current pending prompt exists
+  ---
+  duration_ms: 3.358806
+  type: 'test'
+  ...
+# Subtest: v1.7.2 a pending prompt without dispatch evidence does not reuse historical lastPrompt identity
+ok 2 - v1.7.2 a pending prompt without dispatch evidence does not reuse historical lastPrompt identity
+  ---
+  duration_ms: 0.237429
+  type: 'test'
+  ...
+# Subtest: v1.7.2 multi-turn dispatch reconciliation binds the current materialized browser turn, never N-1
+ok 3 - v1.7.2 multi-turn dispatch reconciliation binds the current materialized browser turn, never N-1
+  ---
+  duration_ms: 1.617456
+  type: 'test'
+  ...
+# Subtest: v1.7.2 a canonical full A2A response is simultaneously full-schema valid and control-valid
+ok 4 - v1.7.2 a canonical full A2A response is simultaneously full-schema valid and control-valid
+  ---
+  duration_ms: 1.835214
+  type: 'test'
+  ...
+# Subtest: v1.7.2 Hjalmar keeps a bounded preview while declaring whether target continuation is complete
+ok 5 - v1.7.2 Hjalmar keeps a bounded preview while declaring whether target continuation is complete
+  ---
+  duration_ms: 0.496027
+  type: 'test'
+  ...
+# Subtest: v1.7.2 continuation admission restores a complete target handoff when advisory nextPrompt is a strict prefix
+ok 6 - v1.7.2 continuation admission restores a complete target handoff when advisory nextPrompt is a strict prefix
+  ---
+  duration_ms: 0.377567
+  type: 'test'
+  ...
+# Subtest: v1.7.2 a fresh allowed model proof clears only the stale hold produced by the prior model proof
+ok 7 - v1.7.2 a fresh allowed model proof clears only the stale hold produced by the prior model proof
+  ---
+  duration_ms: 0.262517
+  type: 'test'
+  ...
+# Subtest: v1.7.2 fleet detail expansion follows stable process identity across refresh and row reorder
+ok 8 - v1.7.2 fleet detail expansion follows stable process identity across refresh and row reorder
+  ---
+  duration_ms: 0.27052
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 89.0979

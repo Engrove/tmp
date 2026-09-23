@@ -1,0 +1,40 @@
+{
+  "schema": "eic.greenfield.live-regression.v1",
+  "sourceVersion": "1.1.7",
+  "runId": "run-8b9512b4-7896-481c-aa3c-bf433b210abd",
+  "processId": "process-dac7bb36-9c7b-4d09-994f-c92d1fed6cc4",
+  "autonomousDispatch": {
+    "userTurnId": "6beeb75e-6d57-4eb2-9a93-6fb4ce645043",
+    "userTurnIndex": 3,
+    "documentId": "19f50490-5857-4f42-90cb-7b47f013b89b"
+  },
+  "doneProtocolIncident": {
+    "protocolStatus": "DONE",
+    "legacyError": "ILLEGAL_TRANSITION:WAITING->DONE",
+    "legacyRecoveryAttemptsObserved": 24,
+    "responseStatusParsedSeq": 945,
+    "legacyBarrierIntentSeq": 946,
+    "unhandledErrorSeq": 947
+  },
+  "manualInterleaveIncident": {
+    "manualUserTurnId": "c45a7f12-7836-43f1-a37b-dd4980345093",
+    "manualAssistantId": "request-6a95d8fc-ef84-83eb-baf7-d176a1da7eb6-6",
+    "manualAssistantText": "EIC sade:Avvaktar.\\nJag gör ingen ny rotorsaksanalys, patch eller slutsats ännu.",
+    "legacyProtocolErrors": [
+      "A2A_RESPONSE_NOT_FOUND",
+      "CONTROL_SCHEMA_ANCHOR_NOT_FOUND"
+    ],
+    "responseStatusParsedSeq": 1032,
+    "legacyBlockedIntentSeq": 1033,
+    "legacyBlockedCommitSeq": 1035
+  },
+  "sourceAudit": {
+    "sha256": "0117022be82e4bfe7f439f2eedd54146b5ab9ae1bba503774595ad3da7ec7a5f",
+    "sizeBytes": 4983902,
+    "eventCount": 1026,
+    "seqRange": [
+      11,
+      1037
+    ]
+  }
+}

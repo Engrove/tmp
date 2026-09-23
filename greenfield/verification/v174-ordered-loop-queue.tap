@@ -1,0 +1,88 @@
+TAP version 13
+# Subtest: v1.7.4 same saved GFW can occupy multiple independent queue slots
+ok 1 - v1.7.4 same saved GFW can occupy multiple independent queue slots
+  ---
+  duration_ms: 15.89566
+  type: 'test'
+  ...
+# Subtest: v1.7.4 inner queue is explicit-order cyclic even when slot priorities differ
+ok 2 - v1.7.4 inner queue is explicit-order cyclic even when slot priorities differ
+  ---
+  duration_ms: 0.897203
+  type: 'test'
+  ...
+# Subtest: v1.7.4 unfinished per-slot quantum progress survives a queue reactivation context
+ok 3 - v1.7.4 unfinished per-slot quantum progress survives a queue reactivation context
+  ---
+  duration_ms: 0.447697
+  type: 'test'
+  ...
+# Subtest: v1.7.4 BLOCKED applies to every duplicate slot of one logical saved GFW
+ok 4 - v1.7.4 BLOCKED applies to every duplicate slot of one logical saved GFW
+  ---
+  duration_ms: 0.77157
+  type: 'test'
+  ...
+# Subtest: v1.7.4 queue sets preserve duplicate saved GFW slots and their independent scheduling parameters
+ok 5 - v1.7.4 queue sets preserve duplicate saved GFW slots and their independent scheduling parameters
+  ---
+  duration_ms: 0.833669
+  type: 'test'
+  ...
+# Subtest: v1.7.4 PAUSE_PROCESS is worker-nonblocking in queue mode and ordinary outside queue mode
+ok 6 - v1.7.4 PAUSE_PROCESS is worker-nonblocking in queue mode and ordinary outside queue mode
+  ---
+  duration_ms: 0.170537
+  type: 'test'
+  ...
+# Subtest: v1.7.4 background runtime carries ordered-loop, quantum-preservation and logical-duplicate terminal invariants
+ok 7 - v1.7.4 background runtime carries ordered-loop, quantum-preservation and logical-duplicate terminal invariants
+  ---
+  duration_ms: 2.417643
+  type: 'test'
+  ...
+# Subtest: v1.7.4 A2A advertises ordered cyclic slots, duplicate logical continuity and queue-local pause semantics
+ok 8 - v1.7.4 A2A advertises ordered cyclic slots, duplicate logical continuity and queue-local pause semantics
+  ---
+  duration_ms: 0.453785
+  type: 'test'
+  ...
+# Subtest: v1.7.4 queue prompt exposes quantum planning and approximate timing to EIC
+ok 9 - v1.7.4 queue prompt exposes quantum planning and approximate timing to EIC
+  ---
+  duration_ms: 1.653733
+  type: 'test'
+  ...
+# Subtest: v1.7.4 activation telemetry measures a queue-slot loop roundtrip
+ok 10 - v1.7.4 activation telemetry measures a queue-slot loop roundtrip
+  ---
+  duration_ms: 0.785938
+  type: 'test'
+  ...
+# Subtest: v1.7.4 CONTINUE plus BACKGROUND_SLEEP on final quantum parks instead of terminalizing
+ok 11 - v1.7.4 CONTINUE plus BACKGROUND_SLEEP on final quantum parks instead of terminalizing
+  ---
+  duration_ms: 0.756645
+  type: 'test'
+  ...
+# Subtest: v1.7.4 EIC can request one full Greenfield process status capsule
+ok 12 - v1.7.4 EIC can request one full Greenfield process status capsule
+  ---
+  duration_ms: 2.027166
+  type: 'test'
+  ...
+# Subtest: v1.7.4 A2A can carry one-shot processStatus alongside standard prompt information
+ok 13 - v1.7.4 A2A can carry one-shot processStatus alongside standard prompt information
+  ---
+  duration_ms: 0.26882
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 129.770297

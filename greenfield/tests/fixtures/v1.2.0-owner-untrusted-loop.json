@@ -1,0 +1,39 @@
+{
+  "schema": "eic.greenfield.regression.v1",
+  "fixture": "v1.2.0-owner-untrusted-visible-causal-loop",
+  "source": {
+    "auditFile": "eic-greenfield-audit-process-2c818b30-de2c-4379-8ad4-062adfef4930-2026-09-03T12-05-07-493Z.ndjson",
+    "sha256": "dee62a325572bbd99a3bae661ad3ee440995d532466867f072b1bcd220a5ea3a",
+    "observedAppVersion": "1.2.0"
+  },
+  "observation": {
+    "documentId": "f6320976-4f97-48a7-af6f-d6fcf2cc3f7b",
+    "lastAssistantId": "0b460579-2481-41cd-a882-33cb4c01eff7",
+    "lastAssistantOwnerKind": "ROLE_NODE_FALLBACK",
+    "lastAssistantOwnerTrusted": false,
+    "assistantCount": 3,
+    "expectedUserTurnId": "48b81ceb-06a5-4d74-9c06-63289786ef50",
+    "pairedUserTurnId": "48b81ceb-06a5-4d74-9c06-63289786ef50",
+    "pairedUserResolvedBy": "USER_TURN_ID",
+    "assistantHash": "ead47e11",
+    "assistantText": "stable complete representative assistant response",
+    "assistantTextLength": 49,
+    "generating": false,
+    "signals": {
+      "visibilityState": "visible"
+    },
+    "nextUserTurnId": "",
+    "responseSlotClosed": false
+  },
+  "v120ObservedResult": {
+    "reason": "OBSERVATION_OWNER_UNTRUSTED",
+    "phase": "WAITING",
+    "recheck": "FAST_RECHECK"
+  },
+  "v121Expected": {
+    "admissionMode": "CAUSAL_VISIBLE_FALLBACK",
+    "minimumStableMs": 5000,
+    "minimumStableReads": 5,
+    "terminalReason": "STABLE_TERMINAL_RESPONSE_CAUSAL_FALLBACK"
+  }
+}

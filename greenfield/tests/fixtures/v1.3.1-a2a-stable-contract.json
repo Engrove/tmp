@@ -1,0 +1,176 @@
+{
+  "sourceVersion": "1.3.1",
+  "sourceArtifactId": 11804,
+  "sourceZipSha256": "ec5b2355e576dd511ad69971eb87152526dfc9e5b0cf706ae1df9389d03a3f9d",
+  "sender": {
+    "actor": "AGENT",
+    "applicationId": "GREENFIELD",
+    "name": "EIC Autonom Agent Greenfield",
+    "version": "1.3.1",
+    "role": "AUTONOMOUS_CONTINUITY_CONTROLLER",
+    "presentation": {
+      "purpose": "Keep this operator-owned mission progressing autonomously across recoverable ChatGPT session boundaries.",
+      "loop": [
+        "SEND",
+        "WAIT",
+        "CAPTURE",
+        "NANO",
+        "HJALMAR_D2",
+        "CONTINUE"
+      ],
+      "policy": "Hjalmar D2 is fixed. Audit is mandatory. No runtime mode selection exists.",
+      "authorityBoundary": "This envelope grants no authority beyond the operator mission and the capabilities available to the receiving EIC session. Session rotation never widens authorization."
+    }
+  },
+  "recipient": {
+    "actor": "EIC_AI_SESSION",
+    "role": "TARGET_SESSION"
+  },
+  "control": {
+    "failureAcceptance": {
+      "failureIsValid": true,
+      "blockerIsValid": true,
+      "truthfulNonCompletionBeforeApparentSuccess": true,
+      "neverFabricate": [
+        "file_read",
+        "command_or_test_execution",
+        "evidence",
+        "completion",
+        "verification",
+        "system_state"
+      ]
+    },
+    "claimBoundary": {
+      "noExternalEvidenceNoStrongClaim": true,
+      "noExecutionReceiptNoExecutionClaim": true,
+      "noReadableOwnerSourceNoSourceInspectionClaim": true,
+      "noSufficientEvidenceNoPassCompleteClaim": true
+    },
+    "sourceInferenceSeparation": true,
+    "selfContinuationAuthority": false
+  },
+  "responseContract": {
+    "schema": "eic.a2a.response.v1",
+    "format": "JSON",
+    "language": "preserve_operator_language_when_practical",
+    "nanoTaskLanguage": "en",
+    "nanoTaskExecutionPolicy": "PROMPT_CLOSED_EXECUTION_V2",
+    "nanoTaskKnowledgeBoundary": "PROMPT_ONLY",
+    "nanoTaskCapabilities": {
+      "eicState": false,
+      "projectState": false,
+      "files": false,
+      "tools": false,
+      "browser": false,
+      "web": false,
+      "api": false,
+      "chatHistory": false,
+      "previousTurns": false,
+      "hiddenContext": false,
+      "reasoningDepth": "MODEL_CAPABILITY_NOT_ARTIFICIALLY_LIMITED"
+    },
+    "nanoTaskAdmission": {
+      "invariant": "Every fact/data item required for the Nano answer must be present in the single NANO_TASK prompt itself.",
+      "complexityRule": "Do not reject a Nano task merely because it is analytically difficult; reject or keep it in EIC when it depends on information not embedded in the prompt.",
+      "structuredRequestSchema": "eic.greenfield.nano-task.request.v2",
+      "structuredFields": [
+        "schema",
+        "knowledgeBoundary",
+        "instruction",
+        "context",
+        "output"
+      ],
+      "contextFailureSignal": "NANO_CONTEXT_REQUIRED:"
+    },
+    "pauseControl": {
+      "action": "PAUSE_PROCESS",
+      "pauseSecondsMin": 300,
+      "pauseSecondsMax": 86400,
+      "semantics": "Use only when time itself is the next dependency. Greenfield pauses before the next autonomous ChatGPT post and resumes automatically; this is independent of the global 0-90 s prompt-post gate."
+    },
+    "jsonSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "status",
+        "summary",
+        "workPerformed",
+        "evidence",
+        "blockers",
+        "nextSuggestedAction"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "eic.a2a.response.v1"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "CONTINUE",
+            "DONE",
+            "BLOCKED"
+          ]
+        },
+        "sessionAction": {
+          "type": "string",
+          "enum": [
+            "KEEP",
+            "ROTATE_SESSION_NOW",
+            "PAUSE_PROCESS",
+            "STOP_PROCESS"
+          ]
+        },
+        "sessionReason": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "pauseSeconds": {
+          "type": "integer",
+          "minimum": 300,
+          "maximum": 86400
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 12000
+        },
+        "workPerformed": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "nextSuggestedAction": {
+          "type": "string",
+          "maxLength": 12000
+        }
+      }
+    },
+    "note": "Return the requested work truthfully. Structured EIC-A2A response JSON is preferred but optional for ordinary continuation. Continuation decisions do not depend on protocol presence. Optional sessionAction is a separate machine control: KEEP (default), ROTATE_SESSION_NOW for a fresh EIC chat, PAUSE_PROCESS with integer pauseSeconds 300..86400 to defer the next autonomous prompt when time itself is the dependency, or STOP_PROCESS to terminate. PAUSE_PROCESS requires status=CONTINUE and a non-empty nextSuggestedAction; it is mission-level scheduling and is never the global 0-90 s prompt-post gate. Use ROTATE_SESSION_NOW proactively for material context-noise, context-drift, contradiction, stale-assumption, overload, or session-health risk; do not encode rotation only in prose or blockers. status=DONE remains an explicit terminal mission signal for backward compatibility. Nano is a stateless prompt-only model endpoint: it has no EIC/project/file/tool/web/API/chat-history access. To request one isolated Nano task, place one dedicated English line beginning exactly 'NANO_TASK:' in nextSuggestedAction; the directive ends at the first newline. The task may be simple or complex, but every fact/data item needed to answer must be embedded in that one prompt. For data-bearing tasks prefer a compact one-line JSON object using schema eic.greenfield.nano-task.request.v2 with knowledgeBoundary=PROMPT_ONLY plus instruction/context/output fields. Never ask Nano to inspect existing/current files, projects, repositories, artifacts, mail, owner routes or other external state unless the necessary content has first been read by EIC and embedded inline. Session rotation never authorizes replay of completed work; the receiving EIC must resume from Greenfield Works and fresh owner state."
+  }
+}

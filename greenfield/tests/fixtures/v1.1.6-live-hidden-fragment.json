@@ -1,0 +1,37 @@
+{
+  "appVersion": "1.1.6",
+  "runId": "run-dfa20fcf-e78f-4b91-8670-33d679f978ac",
+  "processId": "process-af2583d6-cc21-4451-a2bb-500d47978e94",
+  "legacyPageObservation": {
+    "documentId": "",
+    "lastAssistantId": "request-6a95d8fc-ef84-83eb-baf7-d176a1da7eb6-31",
+    "assistantCount": 3,
+    "assistantHash": "c54cdd49ecc64f630951c74ffd3b25874725ecec1ae6686f343c97eaadc5f268",
+    "assistantText": "EIC sade:{\n\"schema\": \"eic.a2a.response",
+    "generating": false,
+    "visibilityState": "hidden",
+    "stableReads": [
+      {
+        "seq": 45,
+        "ageMs": 0
+      },
+      {
+        "seq": 50,
+        "ageMs": 914
+      },
+      {
+        "seq": 55,
+        "ageMs": 1828
+      },
+      {
+        "seq": 60,
+        "ageMs": 2744
+      }
+    ],
+    "legacyTerminalDecision": "STABLE_TERMINAL_RESPONSE",
+    "legacyParserErrors": [
+      "A2A_RESPONSE_NOT_FOUND",
+      "CONTROL_SCHEMA_ANCHOR_NOT_FOUND"
+    ]
+  }
+}
