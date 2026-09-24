@@ -1,3 +1,13 @@
+# 1.8.2 – no capture of unfinished JSON answers, durable observation trace
+
+- Rotorsak ur live-exporten 2026-09-24: 45 av 78 turer fångades som några tecken av ett JSON-svar som fortfarande skrevs (`{`, `{"schema": …`), efter 5–30 min med Greenfields genereringssignal falsk. Greenfield analyserade då ett icke-svar och skickade nästa prompt mitt i det riktiga svaret.
+- Ny spärr: ett JSON-objekt som öppnats men inte stängts godkänns aldrig som färdigt svar. Det gäller både ledande objekt (även efter etiketten `JSON`/```` ```json ````) och det första objektet med nyckel efter till exempel ett bilagekort, liksom en avslutande `{`. Greenfield väntar vidare, och 120-minutersstegen är gränsen. Replik mot exporten: 17/17 korta fångster hålls, 9/9 fullständiga svar godkänns.
+- Nytt varaktigt observationsspår (`process.responseObservationTrace`): orsak, id:n, längder och flaggor, aldrig svarstext. Det skrivs vid orsaksbyte eller högst en gång per minut, följer med vid köbyte (senaste 8 posterna) och indexeras i diagnostikexporten som `responseObservation`.
+- Kvar: varför `P:3182ea75` tur 2 aldrig togs emot, och varför genereringssignalen är falsk under långa djupgående svar. Nästa export efter en upprepning visar orsaken.
+- Lokal Node/static/harness-verifiering är inte samma sak som live Chrome/ChatGPT-acceptans.
+
+---
+
 # 1.8.1 – scheduled queue slots and queue-set update
 
 - Varje köplats kan ha veckofönster i lokal tid (högst 7, över midnatt tillåtet, `24:00` = dygnets slut) och en engångspaus till en tidpunkt (högst 30 dagar). Platser utanför sitt schema hoppas över i listordningen.

@@ -1,0 +1,74 @@
+{
+  "schema": "eic.greenfield.v182-release-summary.v1",
+  "version": "1.8.2",
+  "generatedAt": "2026-09-24T10:19:15.771169+00:00",
+  "source": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.8.1.zip",
+    "version": "1.8.1",
+    "sha256": "b2959bbbd70976ca50f93da54e2962178b0bbb3476e9ec4592a309e42dfc7488",
+    "sizeBytes": 836027,
+    "embeddedIntegrity": {
+      "records": 270,
+      "mismatches": 0,
+      "rootDigest": "e5fb3fe65ba166f9f2df150ff82b366747e977d0ca655d5117a2535787226df6"
+    }
+  },
+  "change": {
+    "purpose": "Operator request (1) follow-up after the live diagnostics export 2026-09-24T10:03:20Z: stop admitting unfinished answers and make the reason for a held response durable.",
+    "evidence": {
+      "file": "Greenfield-diagnostics-2026-09-24T10-03-20-340Z.json (appVersion 1.8.0)",
+      "shortCaptures": "45 of 78 recorded turns < 50 chars; 17 of 26 stored response texts short, all 17 unterminated JSON objects; all 9 full texts closed JSON",
+      "interleave": "process 5df3f599: '{' captured from node -6 09:50:29Z, turn 13 posted 09:55:52Z, same node completed 10:00:18Z (EXTERNAL_TURN_INTERLEAVED)",
+      "process3182ea75": "turn 2 posted 05:39:18Z; completed answer seen 06:02:07Z (lastMaterialAt, STALE_SESSION_COUNTER_RESET) but never admitted; 120-minute queue rotation 08:02:08Z; rejecting gate not recoverable (Persistent Audit off, candidate state cleared at park)"
+    },
+    "guard": "lib/response-observation.mjs responseStructuralCompleteness: leading object (after optional JSON/```json label), first keyed object anywhere, or trailing '{' that is not closed -> never admitted; tickWaiting keeps waiting, stale ladder bounds; replay 17/17 held, 9/9 admitted",
+    "trace": "process.responseObservationTrace ring (live <=16, parked <=8), ids/lengths/flags only, written on reason/identity change or at most once per minute, carried in existing writes where one occurs; diagnostics export responseObservation index per live process and parked slot",
+    "storage": "worst case ~15 KB per live trace, ~7.5 KB per parked snapshot (checkpoint duplicates)"
+  },
+  "gates": {
+    "LIVE_PREFIX_REPLAY_HELD_PASS": true,
+    "FULL_ANSWERS_ADMITTED_PASS": true,
+    "E2E_PREFIX_NOT_CAPTURED_PASS": true,
+    "E2E_FULL_CAPTURED_PASS": true,
+    "TRACE_NO_TEXT_PASS": true,
+    "TRACE_WRITE_BOUND_PASS": true,
+    "TRACE_SURVIVES_PARK_PASS": true,
+    "DIAGNOSTICS_INDEX_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
+  },
+  "executed": {
+    "baselineNpmTestOnV181": {
+      "tests": 569,
+      "pass": 569,
+      "fail": 0
+    },
+    "dedicated": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "output": "verification/v182-response-observation.tap"
+    },
+    "fullNpmTest": {
+      "tests": 576,
+      "pass": 576,
+      "fail": 0,
+      "output": "verification/release-tests.tap"
+    },
+    "syntax": {
+      "files": 132,
+      "pass": 132,
+      "fail": 0,
+      "output": "verification/v182-syntax-check.txt"
+    }
+  },
+  "boundaries": {
+    "liveChromeExtensionAcceptance": "not executed",
+    "liveChatGPTDispatchAcceptance": "not executed",
+    "generationSignal": "root cause of the false generation signal during long deep-reasoning answers is not fixed; the guard is format-based",
+    "nonJsonFragments": "short non-JSON fragments can still be admitted if the generation signal is false",
+    "genuinelyTruncatedJson": "a final answer that really ends in unterminated JSON is no longer admitted; the 120-minute ladder resolves it",
+    "process3182ea75": "reason not recoverable from the export; the next export after a recurrence shows it in responseObservation",
+    "e2eScope": "real background.js tickWaiting hold/capture, trace write bound, queue rotation snapshot and diagnostics index in the Node harness"
+  }
+}

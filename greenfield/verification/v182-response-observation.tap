@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: v1.8.2 every short capture from the live export is recognised as an unfinished JSON object
+ok 1 - v1.8.2 every short capture from the live export is recognised as an unfinished JSON object
+  ---
+  duration_ms: 1.772773
+  type: 'test'
+  ...
+# Subtest: v1.8.2 finished answers pass: closed JSON, code-block label, trailing prose, plain prose
+ok 2 - v1.8.2 finished answers pass: closed JSON, code-block label, trailing prose, plain prose
+  ---
+  duration_ms: 0.471912
+  type: 'test'
+  ...
+# Subtest: v1.8.2 the trace keeps ids, lengths and reasons only, and never response text
+ok 3 - v1.8.2 the trace keeps ids, lengths and reasons only, and never response text
+  ---
+  duration_ms: 0.580111
+  type: 'test'
+  ...
+# Subtest: v1.8.2 an unchanged reason is refreshed at most once per minute; streaming hashes do not add entries
+ok 4 - v1.8.2 an unchanged reason is refreshed at most once per minute; streaming hashes do not add entries
+  ---
+  duration_ms: 2.674993
+  type: 'test'
+  ...
+# Subtest: v1.8.2 E2E: a stalled JSON prefix with no generation signal is never captured; the finished answer is
+ok 5 - v1.8.2 E2E: a stalled JSON prefix with no generation signal is never captured; the finished answer is
+  ---
+  duration_ms: 1200.216091
+  type: 'test'
+  ...
+# Subtest: v1.8.2 E2E: an unchanged held reason is not written to storage on every tick
+ok 6 - v1.8.2 E2E: an unchanged held reason is not written to storage on every tick
+  ---
+  duration_ms: 505.793413
+  type: 'test'
+  ...
+# Subtest: v1.8.2 E2E: the trace survives the 120-minute queue rotation and is indexed in the diagnostics export
+ok 7 - v1.8.2 E2E: the trace survives the 120-minute queue rotation and is indexed in the diagnostics export
+  ---
+  duration_ms: 1113.25969
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2983.098856

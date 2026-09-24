@@ -192,6 +192,11 @@ import {
   retireLogicalMissionSlots
 } from "./lib/queue-planning.mjs";
 import {
+  appendResponseTrace,
+  responseStructuralCompleteness,
+  responseTraceDetail
+} from "./lib/response-observation.mjs";
+import {
   SCHEDULE_BLOCK,
   nextScheduleOpenAtMs,
   parseScheduleEdit,
@@ -1247,6 +1252,29 @@ async function saveObserved(process, patch, kind, payload = {}) {
   return next;
 }
 
+// v1.8.2 durable response-observation trace (lib/response-observation.mjs).
+// Pure: returns the trace to carry in the next write that happens anyway.
+function tracedResponseObservation(process, reason, page, extra = {}) {
+  return appendResponseTrace(process?.responseObservationTrace, {
+    reason,
+    turn: process?.turn,
+    promptHash: process?.lastPrompt?.hash || "",
+    detail: responseTraceDetail(page, extra)
+  });
+}
+
+// Persists only when the trace changed: a new reason/identity, or at most once
+// per minute for an unchanged one, so a long wait is not a write per tick.
+async function recordResponseObservation(process, reason, page, extra = {}) {
+  const traced = tracedResponseObservation(process, reason, page, extra);
+  if (!traced.changed) return process;
+  return saveObserved(process, { responseObservationTrace: traced.trace }, "RESPONSE_OBSERVATION_TRACED", {
+    reason,
+    turn: process.turn,
+    promptHash: process.lastPrompt?.hash || ""
+  });
+}
+
 async function executeWaitingRefresh(process, decision) {
   const action = decision?.action;
   const bypassCache = action === WAITING_REFRESH_ACTIONS.CTRL_F5;
@@ -1382,7 +1410,11 @@ async function maybeResetStaleSessionCounter(process, page) {
 
   return saveObserved(process, {
     waitingRefresh: reset.state,
-    lastMaterialAt: nowIso()
+    lastMaterialAt: nowIso(),
+    responseObservationTrace: tracedResponseObservation(process, "COMPLETED_ASSISTANT_SEEN_STALE_CLOCK_RESET", page, {
+      priorStage: current.stage || "",
+      resetCount: Number(reset.state.resetCount || 0)
+    }).trace
   }, "STALE_SESSION_COUNTER_RESET", {
     reason: "ANY_COMPLETED_ASSISTANT_RESPONSE",
     priorStage: current.stage || "",
@@ -1434,9 +1466,13 @@ async function maybeEscalateWaitingRefresh(process, page, {
       turn: process.turn,
       policy: "30M_F5_60M_CTRL_F5_90M_CTRL_F5_120M_ROTATE"
     });
+    const traced = tracedResponseObservation(process, `WAITING_REFRESH_${refreshDecision.action}`, page, {
+      unresolvedReason: reason,
+      stage: refreshDecision.stage || ""
+    });
     return {
       handled: true,
-      process: await executeWaitingRefresh(process, refreshDecision)
+      process: await executeWaitingRefresh({ ...process, responseObservationTrace: traced.trace }, refreshDecision)
     };
   }
 
@@ -1452,6 +1488,14 @@ async function maybeEscalateWaitingRefresh(process, page, {
       turn: process.turn,
       staleSessionOnly: true
     });
+    // The last entry before the conversation is abandoned; it travels in the
+    // parked snapshot (queue rotation) or the rotated process.
+    process = {
+      ...process,
+      responseObservationTrace: tracedResponseObservation(process, "STALE_SESSION_120M_ROTATE", page, {
+        unresolvedReason: reason
+      }).trace
+    };
     if (process.queueContext?.itemId) {
       const switched = await parkQueueMissionAfterStale(process);
       if (switched) {
@@ -4640,8 +4684,15 @@ async function tickWaiting(process) {
   if (!process.lastPrompt?.modelProof && !process.safety?.turnProof) {
     process.safety = {...process.safety,qualityIncident:{code:"IN_FLIGHT_MODEL_UNVERIFIED",atMs:Date.now(),turn:process.turn}};
   }
-  if (process.safety?.qualityIncident) return holdForSafety(process,{code:process.safety.qualityIncident.code});
-  if (!process.safety?.proof?.allowed) return holdForSafety(process,process.safety?.proof || {code:"MODEL_EVIDENCE_MISSING"});
+  if (process.safety?.qualityIncident) {
+    process = await recordResponseObservation(process, `SAFETY_HOLD:${process.safety.qualityIncident.code}`, page);
+    return holdForSafety(process,{code:process.safety.qualityIncident.code});
+  }
+  if (!process.safety?.proof?.allowed) {
+    const holdCode = process.safety?.proof?.code || "MODEL_EVIDENCE_MISSING";
+    process = await recordResponseObservation(process, `SAFETY_HOLD:${holdCode}`, page);
+    return holdForSafety(process,process.safety?.proof || {code:"MODEL_EVIDENCE_MISSING"});
+  }
 
   const baselineHash = process.lastPrompt?.baselineAssistantHash || "";
   const lastResponseHash = process.lastResponse?.hash || "";
@@ -4736,7 +4787,8 @@ async function tickWaiting(process) {
         responseInterleave: {
           ...externalInterleave,
           observedAt: nowIso()
-        }
+        },
+        responseObservationTrace: tracedResponseObservation(process, "EXTERNAL_TURN_INTERLEAVED", page).trace
       }, "EXTERNAL_TURN_INTERLEAVED", {
         ...externalInterleave,
         expectedUserTurnId: causal.expected?.id || "",
@@ -4833,6 +4885,7 @@ async function tickWaiting(process) {
       pendingPrompt,
       responseCandidate: null,
       responseInterleave: null,
+      responseObservationTrace: tracedResponseObservation(process, "AUTONOMOUS_RESPONSE_PRODUCER_LOST_REARM", page).trace,
       lastMaterialAt: nowIso(),
       lastError: null
     }, {
@@ -4864,6 +4917,9 @@ async function tickWaiting(process) {
         });
     }
 
+    process = await recordResponseObservation(process, causal.reason, page, {
+      expectedUserTurnIdFromPrompt: causal.expected?.id || ""
+    });
     await audit(process, "RESPONSE_OBSERVATION_HELD", "response-observation", {
       reason: causal.reason,
       documentId: page.documentId || "",
@@ -4953,10 +5009,12 @@ async function tickWaiting(process) {
           pairedUserTurnId: responsePage.pairedUserTurnId || ""
         });
     }
+    const notNewReason = responsePage.generating === true
+      ? "AUTONOMOUS_RESPONSE_STILL_GENERATING"
+      : "AUTONOMOUS_RESPONSE_NOT_NEW";
+    process = await recordResponseObservation(process, notNewReason, page);
     const refreshEscalation = await maybeEscalateWaitingRefresh(process, page, {
-      reason: responsePage.generating === true
-        ? "AUTONOMOUS_RESPONSE_STILL_GENERATING"
-        : "AUTONOMOUS_RESPONSE_NOT_NEW"
+      reason: notNewReason
     });
     if (refreshEscalation.handled) return refreshEscalation.process;
     scheduleFast(process.processId, FAST_RECHECK_MS);
@@ -4964,7 +5022,26 @@ async function tickWaiting(process) {
   }
 
   const advanced = advanceResponseCandidate(process.responseCandidate, responsePage);
-  process = await saveObserved(process, { responseCandidate: advanced.candidate },
+  // v1.8.2: a JSON object that has been opened but not closed is still being
+  // written, whatever the page's generation signal says.
+  const structural = responseStructuralCompleteness(responsePage.assistantText || "");
+  const stabilityTrace = tracedResponseObservation(process,
+    !advanced.complete
+      ? `RESPONSE_STABILITY_${String(advanced.reason || "INCOMPLETE")}`
+      : structural.complete
+        ? "RESPONSE_STABLE_ADMISSIBLE"
+        : `RESPONSE_STRUCTURALLY_INCOMPLETE:${structural.reason}`,
+    page,
+    {
+      stabilityReads: advanced.reads || 0,
+      stabilityAgeMs: advanced.ageMs || 0,
+      requiredStableMs: advanced.requiredStableMs || 0,
+      jsonStart: structural.jsonStart
+    });
+  process = await saveObserved(process, {
+    responseCandidate: advanced.candidate,
+    responseObservationTrace: stabilityTrace.trace
+  },
     "RESPONSE_STABILITY_SAMPLE", {
       documentId: responsePage.documentId || "",
       messageId: responsePage.lastAssistantId || "",
@@ -4988,7 +5065,9 @@ async function tickWaiting(process) {
       requiredStableReads: advanced.requiredStableReads || 0,
       identityKey: advanced.candidate?.identityKey || "",
       observationQuality: advanced.observationQuality || null,
-      signals: responsePage.signals || {}
+      signals: responsePage.signals || {},
+      structuralComplete: structural.complete,
+      structuralReason: structural.reason
     });
 
   if (!advanced.complete) {
@@ -5011,6 +5090,25 @@ async function tickWaiting(process) {
     }
     const refreshEscalation = await maybeEscalateWaitingRefresh(process, page, {
       reason: `RESPONSE_STABILITY_${String(advanced.reason || "INCOMPLETE")}`
+    });
+    if (refreshEscalation.handled) return refreshEscalation.process;
+    scheduleFast(process.processId, FAST_RECHECK_MS);
+    return process;
+  }
+
+  if (!structural.complete) {
+    await audit(process, "RESPONSE_STRUCTURALLY_INCOMPLETE", "response-observation", {
+      reason: structural.reason,
+      messageId: responsePage.lastAssistantId || "",
+      assistantTextLength: Number(responsePage.assistantTextLength ?? String(responsePage.assistantText || "").length),
+      jsonStart: structural.jsonStart,
+      generating: responsePage.generating === true,
+      reads: advanced.reads || 0,
+      ageMs: advanced.ageMs || 0,
+      admitted: false
+    });
+    const refreshEscalation = await maybeEscalateWaitingRefresh(process, page, {
+      reason: `RESPONSE_STRUCTURALLY_INCOMPLETE_${structural.reason}`
     });
     if (refreshEscalation.handled) return refreshEscalation.process;
     scheduleFast(process.processId, FAST_RECHECK_MS);
@@ -5143,6 +5241,10 @@ async function tickWaiting(process) {
     lastResponse: response,
     sessionHealth: completedSessionHealth,
     responseCandidate: null,
+    responseObservationTrace: tracedResponseObservation(process, "RESPONSE_CAPTURED", page, {
+      capturedTextLength: response.text.length,
+      parseMode: parsedTarget.parseMode || "NONE"
+    }).trace,
     waitingRefresh: null,
     recovery: resetRecovery(process).recovery,
     lastError: null,

@@ -1,4 +1,5 @@
 import { text } from "./common.mjs";
+import { trimResponseTrace } from "./response-observation.mjs";
 
 const PRIORITY_DISPLAY_SV = Object.freeze({
   LOW: "Låg",
@@ -75,6 +76,10 @@ export function applyQueueParkTransition(items, currentItem, {
   const itemId = String(currentItem?.itemId || "");
   const savedMissionId = String(currentItem?.savedMissionId || "").trim();
   const pausing = Number(pauseUntilMs || 0) > 0;
+  // v1.8.2: the parked snapshot keeps only the newest observation-trace entries.
+  const snapshot = parkedSnapshot && Array.isArray(parkedSnapshot.responseObservationTrace)
+    ? { ...parkedSnapshot, responseObservationTrace: trimResponseTrace(parkedSnapshot.responseObservationTrace) }
+    : parkedSnapshot;
   return rows.map((candidate) => {
     const sameLogical = candidate?.itemId === itemId ||
       Boolean(savedMissionId && String(candidate?.savedMissionId || "").trim() === savedMissionId);
@@ -92,7 +97,7 @@ export function applyQueueParkTransition(items, currentItem, {
       quantumProgress: isCurrentSlot
         ? Math.max(0, Math.floor(Number(resumedQuantumProgress || 0)))
         : candidate.quantumProgress,
-      processSnapshot: parkedSnapshot,
+      processSnapshot: snapshot,
       resume,
       lastOutcome: isCurrentSlot ? text(outcome, 200) : candidate.lastOutcome,
       lastSummary: isCurrentSlot ? text(summary, 2000) : candidate.lastSummary,

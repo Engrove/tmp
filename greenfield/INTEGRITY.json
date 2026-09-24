@@ -1,24 +1,24 @@
 {
   "schema": "eic.greenfield.integrity.v1",
-  "appVersion": "1.8.1",
-  "generatedAt": "2026-09-24T09:58:38.164388+00:00",
+  "appVersion": "1.8.2",
+  "generatedAt": "2026-09-24T10:19:15.833460+00:00",
   "algorithm": "SHA-256",
-  "fileCount": 270,
-  "rootDigest": "e5fb3fe65ba166f9f2df150ff82b366747e977d0ca655d5117a2535787226df6",
+  "fileCount": 277,
+  "rootDigest": "87f0555910fd86dfbfd71283eb7fc20f70a5d245dd9a45820ed860501a8234df",
   "scope": "all package files except INTEGRITY.json",
   "rootDigestCanonicalization": "sorted relative path + NUL + sizeBytes + NUL + sha256 + LF",
   "files": {
     "BUILD_VERIFICATION.json": {
-      "sizeBytes": 15095,
-      "sha256": "670b755a4962eccf0a624c47e78b2e9a3de88ba070a1356f3edfba389a0ce12f"
+      "sizeBytes": 17793,
+      "sha256": "08a418c8262741635d84cff9f4e46c2565b6856b2807b91b84cb8dd1d63621fb"
     },
     "README.md": {
-      "sizeBytes": 14882,
-      "sha256": "6607e177bcdd2a04c2edd0f1099b7aeb6f6f3cbc7e7e47fd8def1dee55cca5cf"
+      "sizeBytes": 16081,
+      "sha256": "871cbe296fce7ffb727c8a3a2f9f1790e93bb6baceeb85681602fa3222d8f7a5"
     },
     "START_HERE_SV.md": {
-      "sizeBytes": 11841,
-      "sha256": "dbeac79b927deb277c6959380e8f8d39422f21d10a910ffa4c18f4e26050dbd8"
+      "sizeBytes": 12379,
+      "sha256": "93f15d968633e3dbfa6ea52791d0367a1ba17ec6e0c85d2de37d8ce8a66fb137"
     },
     "UPPDATERA_TILL_1_6_1.md": {
       "sizeBytes": 5431,
@@ -72,17 +72,21 @@
       "sizeBytes": 1304,
       "sha256": "582d5249f6c0e5189b46f09a8128051f5f72942a93196bb28b4f05c5639df969"
     },
+    "UPPDATERA_TILL_1_8_2.md": {
+      "sizeBytes": 1221,
+      "sha256": "c72b89e60f3a04dd409fb5e9ee69be0389127f59caf553c0374ea7301e75063a"
+    },
     "VERSION": {
       "sizeBytes": 6,
-      "sha256": "25cec9739d3218e48acc5d8c3d4333e1d624121c5b7ab3bcddc71d0fa0134b83"
+      "sha256": "e7066ea517cbc9e563967997e5cf2e3a899250403dac6fbaa25bb6b1815d16ca"
     },
     "background.js": {
-      "sizeBytes": 316099,
-      "sha256": "1e3abcba0410ad87df915b1c3db770540e471e28c6858e9eb8eec40d36a0e407"
+      "sizeBytes": 320686,
+      "sha256": "3e2b7df9db59e05baaa94f1bff665041573ce6eb6c3eecefbb6ea3d3b021eb5c"
     },
     "content.js": {
       "sizeBytes": 44716,
-      "sha256": "bec55bd01f7d84b3da362d56698898c01a7980763097b66d2f9480a41e19636b"
+      "sha256": "16aaf7c12fe92a3b66e5d041b00d5b4c508141790a9f1653401042edd83101dd"
     },
     "docs/ARCHITECTURE.md": {
       "sizeBytes": 14226,
@@ -221,12 +225,16 @@
       "sha256": "d8b8397f3f277d5cdd1868697a17dcf2af338376b51043e0a305a14c739969c0"
     },
     "docs/RELEASE_NOTES.md": {
-      "sizeBytes": 53253,
-      "sha256": "6e79ec38a86e38fc51bfc25ff9add65f497a47cfa223b9188b2cecffb6e8551b"
+      "sizeBytes": 54623,
+      "sha256": "c8861c1b588b920acf5c114ab2a510d520a842c4207603bfc12161e1e7fc0b94"
     },
     "docs/RESPONSE_AND_CAPACITY_LIVENESS_V1_3_8.md": {
       "sizeBytes": 4403,
       "sha256": "1d99440edca4e057e16dd85a1a749cdd57211c1f872bcbc66cfb4eb9898e5fbd"
+    },
+    "docs/RESPONSE_OBSERVATION_V1_8_2.md": {
+      "sizeBytes": 4904,
+      "sha256": "cecb278085ddb7075534f91f309f548a775f174109ec9074ad4d4ed9907bd8e4"
     },
     "docs/RESPONSE_STABILITY_V1_3_3.md": {
       "sizeBytes": 1865,
@@ -378,7 +386,7 @@
     },
     "lib/contracts.mjs": {
       "sizeBytes": 2509,
-      "sha256": "7208401415e768ff920ca42c50a25bd8547548b2e2fefcc6cb856b1bc626f3cc"
+      "sha256": "0b380f7ed4c1d3a0b2253b1824ab57d24501f9a05e550c058b1c3cc94797fafb"
     },
     "lib/dispatch-reconciliation.mjs": {
       "sizeBytes": 1974,
@@ -501,8 +509,8 @@
       "sha256": "21d5511a24ae03356d372e683431e6823d0cd63ac8b5d5d7738089a80ffb6313"
     },
     "lib/queue-planning.mjs": {
-      "sizeBytes": 6154,
-      "sha256": "7147aa6684a01f196823dc28b1a99b9ea6bb3045c92fb9926df40c1343f4e2f2"
+      "sizeBytes": 6522,
+      "sha256": "b1bb769edb2c70e9894e357f0afd1d186f6619ea34f9a29db13491da1419aadb"
     },
     "lib/queue-schedule.mjs": {
       "sizeBytes": 15114,
@@ -519,6 +527,10 @@
     "lib/response-contract.mjs": {
       "sizeBytes": 25232,
       "sha256": "f07402869d276290dc8687dbe2041866062f7f951f83ac8ec29173177049e52b"
+    },
+    "lib/response-observation.mjs": {
+      "sizeBytes": 8018,
+      "sha256": "d25656a9edc2d72680b85af91fef34e4c14a406797c939a1ccf47fdb9bbd5256"
     },
     "lib/response-stability.mjs": {
       "sizeBytes": 9899,
@@ -557,8 +569,8 @@
       "sha256": "33479b3f453ef6f17ba211d1dcca8dfc2dfcc2f1a6a8b31f9e0b677ef000d5db"
     },
     "lib/startup-diagnostics.mjs": {
-      "sizeBytes": 1051,
-      "sha256": "211cd9ede515a64192767aec988a0a527687f97a4b148b4403264af110c6b2d2"
+      "sizeBytes": 2237,
+      "sha256": "a551261211ef25496e7f9a36da136690ed0203b862358ab077ad15c466ac549e"
     },
     "lib/state.mjs": {
       "sizeBytes": 6707,
@@ -598,7 +610,7 @@
     },
     "manifest.json": {
       "sizeBytes": 1399,
-      "sha256": "875b32c4dfa8faa518e358735eb7554939e909956667a4ac556152e0ef82917f"
+      "sha256": "17e001b540fafed752c4455a6cfc129a50c5d76cf87835790fa0c64d40a08dfd"
     },
     "offscreen.html": {
       "sizeBytes": 186,
@@ -610,19 +622,19 @@
     },
     "package.json": {
       "sizeBytes": 169,
-      "sha256": "6ceec66c2620d2396a585a3230273276e85f58d5932f39dae5479786d4d3e4c5"
+      "sha256": "31d2ac7c69b39a03e39c65b3228bf7c32fa42671d2478d695f0b6efb7d051399"
     },
     "sidepanel.css": {
       "sizeBytes": 22281,
       "sha256": "72de42dac11b97771be85947988260a35299c86f4b085b342db4b21662f3da28"
     },
     "sidepanel.html": {
-      "sizeBytes": 24711,
-      "sha256": "336d8aefd4e86509610c736a3c36684c7d76a64cec3f31a4439a397f63b16c07"
+      "sizeBytes": 24714,
+      "sha256": "84f3a1bcd022dece257b277d9ed17569282b0fb7e127054e84f4da9321f07496"
     },
     "sidepanel.js": {
       "sizeBytes": 80049,
-      "sha256": "14b188b82397d7e5166f99544e94cd686871c9d5e705bcff1513a2b5d4963902"
+      "sha256": "15d9d77a82467e09f57e832a786a4c88ad37758ccbac7446a0fb8c3d08aacde6"
     },
     "tests/a2a.test.mjs": {
       "sizeBytes": 8347,
@@ -758,7 +770,7 @@
     },
     "tests/static-contract.test.mjs": {
       "sizeBytes": 24413,
-      "sha256": "1632c12b66d81860f78d613ab314a42b93663571468652f1da733aefab242e69"
+      "sha256": "c7c5f6d27cf9c4e53143040d718a68968111ee6602b45306de9f630723fc03fe"
     },
     "tests/turn-causality.test.mjs": {
       "sizeBytes": 2700,
@@ -830,7 +842,7 @@
     },
     "tests/v137-multi-mission-static.test.mjs": {
       "sizeBytes": 3858,
-      "sha256": "ecf1a69a36dccdf94135eabdc92e6cd8fb348d7154305db2c137eefc290c33ba"
+      "sha256": "81045d516f74e7340b8a0db639c8f796da2e1375a2e2c3b83f774bf868dca461"
     },
     "tests/v138-live-regression.test.mjs": {
       "sizeBytes": 5062,
@@ -928,6 +940,10 @@
       "sizeBytes": 27235,
       "sha256": "825f33d9aedb0acf24913b80bd5883cb674fad6d67377bd4b4f52e25d6dfed8a"
     },
+    "tests/v182-response-observation.test.mjs": {
+      "sizeBytes": 13523,
+      "sha256": "d2a162fccc92c56e5d40eea6139a81168121f0cba0256a71798b573383b56e24"
+    },
     "tools/replay-dispatch-audit.mjs": {
       "sizeBytes": 4500,
       "sha256": "6e74c6b93377d67dca1aab444bdef6b989b9255a43dd4616ffe74de496f5b408"
@@ -949,8 +965,8 @@
       "sha256": "dbf6c545172798a49115dffea3345a4fc47cae93297a86ce4707db89bb054137"
     },
     "verification/release-tests.tap": {
-      "sizeBytes": 129929,
-      "sha256": "677f973bf9790b29bd97f97af3e6de7357af065254e6bcd9b0e579234f7c7d5a"
+      "sizeBytes": 131733,
+      "sha256": "a6cf8e05e8cce5de47c979044b5708996340c1a51e4b4def43dc143914ec5ff9"
     },
     "verification/static-verification.json": {
       "sizeBytes": 210,
@@ -1087,6 +1103,18 @@
     "verification/v181-syntax-check.txt": {
       "sizeBytes": 4720,
       "sha256": "b6b6cb3f62f8953c845ed9bbb7692ab0add3de5c57ab6e2d70b571d0460fa5ee"
+    },
+    "verification/v182-release-summary.json": {
+      "sizeBytes": 3816,
+      "sha256": "e6f78f37f60ff4dd9aa10ed27fc031b1122eab6a5c22d3da844436693809c378"
+    },
+    "verification/v182-response-observation.tap": {
+      "sizeBytes": 1890,
+      "sha256": "f2fbd77ff33d992c880c174b807f894a628def9cf27c6051d7bbe30c0f5f5957"
+    },
+    "verification/v182-syntax-check.txt": {
+      "sizeBytes": 4800,
+      "sha256": "d31de163297179c8d9d781688470e9f61539778b9363c9e9a67b0cd0c24466b0"
     }
   }
 }
