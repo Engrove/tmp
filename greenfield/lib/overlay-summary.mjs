@@ -2,6 +2,7 @@ import { GREENFIELD_PRIORITY_LABELS, normalizeGreenfieldPriority } from "./globa
 import { selectNextMissionItem } from "./mission-work-queue.mjs";
 import { queuePlanningFields } from "./queue-planning.mjs";
 import { WAITING_REFRESH_ACTIONS, waitingRefreshSchedule } from "./waiting-refresh.mjs";
+import { queueItemNextRunnableAtMs, scheduleClosesAtMs } from "./queue-schedule.mjs";
 
 // v1.7.9 operator overview for the in-page overlay. Pure: derived from process
 // state plus an optional read-only queue snapshot. Countdowns are sent as
@@ -12,7 +13,8 @@ const PHASE_TEXT = Object.freeze({
   ANALYZING: "Analyserar svaret",
   ROTATING: "Byter till ny chatt",
   RECOVERING: "Återhämtning pågår",
-  DETACHED: "Fliken är frånkopplad"
+  DETACHED: "Fliken är frånkopplad",
+  QUEUE_WAIT: "Kön väntar på schemalagd köplats"
 });
 
 const STEP_TEXT = Object.freeze({
@@ -67,7 +69,35 @@ function staleCountdown(process, rotateText) {
   return segments;
 }
 
-export function managedOverlayOverview(process, { queue = null } = {}) {
+function earliestQueueStart(queue, now) {
+  let best = null;
+  for (const candidate of sortedSlots(queue)) {
+    const at = queueItemNextRunnableAtMs(candidate, now);
+    if (Number.isFinite(at) && at > now && (!best || at < best.at)) best = { at, item: candidate };
+  }
+  return best;
+}
+
+export function managedOverlayOverview(process, { queue = null, now = Date.now() } = {}) {
+  // v1.8.1: an idle queue worker shows when and with which GFW the queue resumes.
+  if (process?.phase === "QUEUE_WAIT") {
+    const next = queue ? earliestQueueStart(queue, now) : null;
+    const wakeAtMs = next?.at || Number(process.queueWait?.nextWakeAtMs || 0);
+    return {
+      mission: `Kö väntar · ingen köplats inom sitt schema`,
+      status: [
+        next?.item ? `Nästa: ${missionName(next.item, null)}` : "",
+        process.queueWait?.reason ? `Orsak: ${process.queueWait.reason}` : ""
+      ].filter(Boolean).join(" · "),
+      phaseText: PHASE_TEXT.QUEUE_WAIT,
+      countdown: wakeAtMs > now ? [{ template: "Nästa schemalagda start om {t}", atMs: wakeAtMs }] : [],
+      title: [
+        queue?.queueId ? `Kö: ${queue.queueId}` : "",
+        `Process: ${process?.processId || "?"}`,
+        `Fönster ${process?.windowId ?? "?"} · Flik ${process?.tabId ?? "?"}`
+      ].filter(Boolean).join("\n")
+    };
+  }
   const ctx = process?.queueContext?.itemId ? process.queueContext : null;
   const slots = ctx && queue?.queueId === ctx.queueId ? sortedSlots(queue) : [];
   const item = ctx ? slots.find((candidate) => candidate.itemId === ctx.itemId) || null : null;
@@ -92,6 +122,11 @@ export function managedOverlayOverview(process, { queue = null } = {}) {
 
   const rotateText = ctx && nextName ? `köbyte till ${nextName}` : "ny chatt";
   const countdown = staleCountdown(process, rotateText);
+  // v1.8.1: the active slot's run window end (the slot parks after that turn).
+  const windowClosesAtMs = ctx ? scheduleClosesAtMs(item?.schedule || ctx.schedule || null, now) : null;
+  if (windowClosesAtMs && windowClosesAtMs > now) {
+    countdown.push({ template: "körfönster stänger om {t}", atMs: windowClosesAtMs });
+  }
   const pauseAtMs = Date.parse(String(process?.missionPause?.resumeNotBeforeAt || ""));
   if (!countdown.length && process?.phase === "PAUSED" && Number.isFinite(pauseAtMs)) {
     countdown.push({ template: "Paus · återupptas om {t}", atMs: pauseAtMs });

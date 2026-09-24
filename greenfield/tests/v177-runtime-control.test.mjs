@@ -483,7 +483,8 @@ test("v1.7.7 Greenfield prompt publishes runtime-control operations, exact schem
   };
   const envelope = buildA2AEnvelope({ process, objective: "Continue.", messageType: "CONTINUATION" });
   const contract = envelope.responseContract.runtimeControlContract;
-  assert.deepEqual(Object.keys(contract.operations), ["COMPLETE_MISSION", "SET_QUANTUM", "SET_PRIORITY"]);
+  // v1.8.1 adds SET_SCHEDULE (per-slot scheduler) to the queue-managed set.
+  assert.deepEqual(Object.keys(contract.operations), ["COMPLETE_MISSION", "SET_QUANTUM", "SET_PRIORITY", "SET_SCHEDULE"]);
   assert.match(contract.format, /runtimeControl = \{"target"/);
   assert.match(contract.target, /Copy it unchanged/);
   assert.equal(contract.constraints.quantumMin, 1);
@@ -496,7 +497,7 @@ test("v1.7.7 Greenfield prompt publishes runtime-control operations, exact schem
   const schema = envelope.responseContract.jsonSchema.properties.runtimeControl;
   assert.deepEqual(schema.required, ["target", "actions"]);
   assert.deepEqual(schema.properties.target.required, ["runId", "turn", "queueId", "itemId", "savedMissionId"]);
-  assert.equal(schema.properties.actions.items.oneOf.length, 3);
+  assert.equal(schema.properties.actions.items.oneOf.length, 4);
   assert.deepEqual(envelope.control.runtimeControl.target, {
     runId: "run-1",
     turn: 7,

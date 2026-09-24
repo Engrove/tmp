@@ -1,4 +1,6 @@
-# Greenfield 1.8.0 – börja här
+# Greenfield 1.8.1 – börja här
+
+Greenfield 1.8.1 ger varje köplats kör- och paustider: veckofönster i lokal tid och en paus till en tidpunkt. Platsen körs bara inom sitt schema. En pågående tur avbryts aldrig, och när fönstret stänger går kön vidare efter svaret. Ett sparat kö-set kan skrivas över med aktiv kö.
 
 Greenfield 1.8.0 lägger till **EIC Learning & Continuity Control** i prompten. FULL-prompten bär ett fristående kontrakt för AIK, Self-learn, Kaizen och Operator Learning. Varje prompt bär kapseln `control.learningControl` där Greenfield anger vilka kontroller som är obligatoriska just nu. AI:n rapporterar utfallet i svarsfältet `learningControl`. Greenfield hämtar eller skriver inget i lärande-lagren själv.
 
@@ -7,6 +9,14 @@ Greenfield 1.7.7 verkställer EIC-AI:ns terminala signal (`DONE`/`STOP_PROCESS`/
 Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s autonoma lagringsretention och 1.7.6:s fresh project owner-state / `current_focus` reconciliation som explicit A2A-invariant. `current_focus` är en restart/steering pointer, inte factual owner; nyare exakt owner-evidence vinner, stale focus får inte replaya completed effects och focus skrivs bara efter material steering/restart delta.
 
 
+
+## Schemalagd kö i 1.8.1
+
+- Klicka **Schema** på en plats i Aktiv kö. Lägg till körfönster (dagar + start–slut, lokal tid) och eventuell **Pausa till**. Spara.
+- Utan fönster körs platsen alltid. Slut före start betyder över midnatt.
+- Stänger fönstret under en tur blir turen klar, platsen parkeras med sin kvant och nästa plats startar. Finns ingen körbar plats visar panelen ”Kön väntar” med nästa start.
+- EIC-AI:n kan ändra aktuell plats schema (`SET_SCHEDULE`). Din senare ändring vinner alltid.
+- **Uppdatera valt** under Sparade kö-set skriver över valt set med aktiv kö. Klicka två gånger för att bekräfta.
 
 ## Lärande- och kontinuitetskontroll i 1.8.0
 
@@ -77,20 +87,23 @@ Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s auton
 - Bounded finska termer för modell-/reasoning-UI stöds.
 - Diagnostiken anger `effortEvidenceSource` så att en operator kan se om beviset kom från `COMPOSER_SELECTED_CONTROL` eller en svagare strukturell fallback.
 
-## Installation över 1.7.9
+## Installation över 1.8.0
 
 1. Pausa nya Greenfield-utskick.
 2. Säkerhetskopiera den uppackade tilläggsmappen.
-3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.8.0.zip`.
+3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.8.1.zip`.
 4. Kopiera innehållet över samma mapp som Chrome redan använder så extension-ID/lokal state bevaras.
 5. I `chrome://extensions`, välj **Läs in igen**.
-6. Verifiera att panelen visar `v1.8.0`.
+6. Verifiera att panelen visar `v1.8.1`.
 7. Återgå till den exakta EIC-konversation som hör till workern.
 8. Kör **Kontrollera modell igen** och exportera diagnostik om safety-hold kvarstår.
 9. Låt Greenfield reconcilea befintlig process-state; gör inget manuellt omskick av en dispatch med okänd effekt.
 
 ## Riktad liveacceptans
 
+- Sätt ett körfönster som stänger om några minuter på aktiv plats. Verifiera att pågående tur blir klar, att platsen parkeras (`SCHEDULE_WINDOW_CLOSED`) och att nästa plats startar, eller att kön väntar med nedräkning i overlayen.
+- Verifiera att FULL-prompten innehåller `control.workQueue.scheduleRule` och att varje prompt har `control.workQueue.schedule`.
+- Ändra aktiv kö och kör **Uppdatera valt** på ett kö-set. Verifiera samma namn och nytt antal uppdrag.
 - Verifiera att första prompten innehåller `responseContract.learningControlContract` och `control.learningControl` med `AIK_DISCOVERY = REQUIRED` och rätt `project.aikScope`.
 - Verifiera att en COMPACT-följdprompt innehåller `control.learningControl` men inte kontraktet.
 - Verifiera att EIC-svaret innehåller `learningControl`. Om en REQUIRED-kontroll saknas ska nästa prompt lista den i `carriedOverObligations`.
@@ -101,7 +114,7 @@ Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s auton
 - Ändra prioritet i panelen medan AI:n arbetar och verifiera att ett äldre AI-svar får `OPERATOR_PRECEDENCE`.
 - Låt en tur passera 30 min (Greenfields egen F5) eller tryck F5 mellan två turer. Verifiera att nästa prompt ändå har `promptProfile.profile = COMPACT` i samma konversation.
 - Byt till en annan chatt eller låt Greenfield rotera, och verifiera att nästa prompt har `promptProfile.profile = FULL`.
-- Spara gärna den aktiva kön som ett kö-set innan extension-reload. Om du kopierar 1.8.0 över samma unpacked Chrome-mapp bevaras normalt samma extension-ID/lokal state; ett helt nytt unpacked extension-ID ska inte antas ärva aktiv runtime-kö.
+- Spara gärna den aktiva kön som ett kö-set innan extension-reload. Om du kopierar 1.8.1 över samma unpacked Chrome-mapp bevaras normalt samma extension-ID/lokal state; ett helt nytt unpacked extension-ID ska inte antas ärva aktiv runtime-kö.
 - Starta minst två olika GFW-slots med olika prioritet och verifiera att **listordningen**, inte prioriteten, avgör nästa slot.
 - Sätt en slot till kvant 2 och verifiera `0/2 → 1/2 → byte`, därefter att samma slot vid nästa fulla varv börjar på `0/2`.
 - Avbryt en större kvant tidigt via en kökontroll och verifiera att dess ofärdiga kvant fortsätter från tidigare tal när slotten kommer tillbaka.

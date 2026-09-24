@@ -10,6 +10,20 @@ import {
   DEFAULT_GREENFIELD_PRIORITY,
   normalizeGreenfieldPriority
 } from "./global-capacity-scheduler.mjs";
+import { MAX_SCHEDULE_WINDOWS, parseScheduleWindow } from "./queue-schedule.mjs";
+
+// v1.8.1: a set keeps each slot's weekly run windows. A one-shot pauseUntil is
+// transient runtime state and is never stored in a set.
+function templateWindows(value) {
+  const source = Array.isArray(value?.scheduleWindows)
+    ? value.scheduleWindows
+    : Array.isArray(value?.schedule?.windows) ? value.schedule.windows : [];
+  return source
+    .map((row) => parseScheduleWindow(row))
+    .filter((row) => row.ok)
+    .map((row) => row.window)
+    .slice(0, MAX_SCHEDULE_WINDOWS);
+}
 
 export const MISSION_QUEUE_SET_SCHEMA = "eic.greenfield.mission-queue-set.v1";
 export const MISSION_QUEUE_SET_STORE_SCHEMA = "eic.greenfield.mission-queue-set-store.v1";
@@ -51,6 +65,7 @@ function normalizeTemplateItem(value = {}, order = 0) {
     goal,
     priority: normalizeGreenfieldPriority(value.priority || DEFAULT_GREENFIELD_PRIORITY),
     maxInteractions: normalizeMissionQuantumInteractions(value.maxInteractions),
+    scheduleWindows: templateWindows(value),
     order: Number.isFinite(Number(value.order)) ? Number(value.order) : order
   };
 }
@@ -190,6 +205,9 @@ export function applyMissionQueueSet(queueValue, setValue, {
     goal: template.goal,
     priority: template.priority,
     maxInteractions: template.maxInteractions,
+    schedule: template.scheduleWindows.length
+      ? { windows: template.scheduleWindows, pauseUntilMs: 0, updatedBy: "OPERATOR", updatedAtMs: now }
+      : null,
     status: QUEUE_STATUS.READY,
     order: index,
     readySinceMs: now,

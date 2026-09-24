@@ -192,6 +192,13 @@ import {
   retireLogicalMissionSlots
 } from "./lib/queue-planning.mjs";
 import {
+  SCHEDULE_BLOCK,
+  nextScheduleOpenAtMs,
+  parseScheduleEdit,
+  queueItemNextRunnableAtMs,
+  scheduleBlockReason
+} from "./lib/queue-schedule.mjs";
+import {
   applyRuntimeControlEffects,
   evaluateRuntimeControl,
   nextRuntimeControlState,
@@ -779,7 +786,7 @@ async function adoptSchedulerTurnForObservedEffect(process, promptHash, reason) 
 // be read the overview simply omits queue position and next slot.
 async function managedOverlayPayload(process, { linked = true, reason = "state" } = {}) {
   let queue = null;
-  if (linked && process.queueContext?.itemId && process.workerId) {
+  if (linked && (process.queueContext?.itemId || process.phase === PHASES.QUEUE_WAIT) && process.workerId) {
     queue = await loadMissionWorkQueue(process.windowId, chrome.storage.local, { workerId: process.workerId })
       .catch(() => null);
   }
@@ -798,7 +805,8 @@ async function managedOverlayPayload(process, { linked = true, reason = "state" 
 
 async function syncOverlay(process, reason = "state") {
   if (!process?.tabId) return;
-  const linked = !TERMINAL_PHASES.has(process.phase);
+  // v1.8.1: an idle queue worker still owns its tab; keep the overview visible.
+  const linked = !TERMINAL_PHASES.has(process.phase) || process.phase === PHASES.QUEUE_WAIT;
   try {
     const overlayResult = await chrome.tabs.sendMessage(process.tabId, {
       type: "EIC_GF_OVERLAY_UPDATE",
@@ -1807,13 +1815,11 @@ async function syncMissionQueueWakeAlarm(queue) {
   if (!Number.isInteger(queue?.windowId)) return;
   const name = missionQueueWakeAlarmName(queue.windowId, queue.workerId);
   const now = Date.now();
+  // v1.8.1: a slot becomes runnable at the later of its status time (pause,
+  // blocked retry) and its schedule's next opening (run window, pauseUntil).
   const wakeTimes = (queue.items || [])
-    .map((item) => {
-      if (item.status === QUEUE_STATUS.PAUSED) return Number(item.pauseUntilMs || 0);
-      if (item.status === QUEUE_STATUS.BLOCKED) return Number(item.blockedRetryAtMs || 0);
-      return 0;
-    })
-    .filter((when) => when > now)
+    .map((item) => queueItemNextRunnableAtMs(item, now))
+    .filter((when) => Number.isFinite(when) && when > now)
     .sort((a,b) => a-b);
   if (!queue.enabled || wakeTimes.length === 0) {
     await chrome.alarms.clear(name).catch(() => undefined);
@@ -2214,6 +2220,17 @@ async function stopMissionQueue({ windowId, reason = "OPERATOR_QUEUE_STOP" }) {
   queue.enabled = false;
   const saved = await persistMissionQueue(queue, settings, null, "MISSION_QUEUE_STOPPED", { reason });
   const process = await loadProcessForWindow(windowId);
+  if (process?.phase === PHASES.QUEUE_WAIT) {
+    const stopped = await commitTransition(process, PHASES.STOPPED, {
+      queueWait: null,
+      lastError: { code: "STOPPED", message: String(reason) }
+    }, {
+      kind: "MISSION_QUEUE_WAIT_STOPPED",
+      component: "mission-work-queue",
+      detail: { reason }
+    });
+    return { ok: true, process: publicSnapshot(stopped), missionQueue: publicMissionWorkQueue(saved) };
+  }
   if (process && !TERMINAL_PHASES.has(process.phase)) {
     const result = await stopRun({ windowId, reason });
     return {
@@ -2276,12 +2293,28 @@ async function updateQueueFromUi({ windowId, operation, itemId = "", ...payload 
     case "MOVE_DOWN":
       queue = await moveMissionWorkItem(windowId, itemId, "DOWN", chrome.storage.local, { workerId: worker.workerId });
       break;
-    case "UPDATE":
-      queue = await updateMissionWorkItem(windowId, itemId, {
+    case "UPDATE": {
+      const patch = {
         priority: payload.priority,
         maxInteractions: payload.maxInteractions
-      }, chrome.storage.local, { workerId: worker.workerId });
+      };
+      if (Object.prototype.hasOwnProperty.call(payload, "schedule")) {
+        // v1.8.1: strict operator schedule edit; absent fields keep their value.
+        const current = await loadMissionWorkQueue(windowId, chrome.storage.local, { workerId: worker.workerId });
+        const slot = current.items.find((candidate) => candidate.itemId === String(itemId || ""));
+        if (!slot) throw new Error("MISSION_WORK_QUEUE_ITEM_NOT_FOUND");
+        const parsed = parseScheduleEdit(payload.schedule, { now: Date.now(), current: slot.schedule, editor: "OPERATOR" });
+        if (!parsed.ok) {
+          const error = new Error(`MISSION_QUEUE_SCHEDULE_INVALID:${parsed.error}`);
+          error.code = "MISSION_QUEUE_SCHEDULE_INVALID";
+          throw error;
+        }
+        patch.schedule = parsed.schedule;
+      }
+      queue = await updateMissionWorkItem(windowId, itemId, patch, chrome.storage.local, { workerId: worker.workerId });
+      await syncMissionQueueWakeAlarm(queue).catch(() => undefined);
       break;
+    }
     case "CLEAR_HISTORY": {
       queue = await loadMissionWorkQueue(windowId, chrome.storage.local, {
         workerId: worker.workerId,
@@ -2310,13 +2343,18 @@ async function updateQueueFromUi({ windowId, operation, itemId = "", ...payload 
           ...process.queueContext,
           priority: normalizeGreenfieldPriority(item.priority),
           operatorPriority: normalizeGreenfieldPriority(item.operatorPriority || item.priority),
-          maxInteractions: normalizeMissionQuantumInteractions(item.maxInteractions)
+          maxInteractions: normalizeMissionQuantumInteractions(item.maxInteractions),
+          schedule: item.schedule ? deepClone(item.schedule) : null
         },
         updatedAt: nowIso()
       };
       await saveProcess(updatedProcess);
       await refreshSchedulerPriority(updatedProcess);
       await broadcast(updatedProcess, "mission-queue-active-item-updated");
+    }
+    // A schedule edit may make an idle worker's slot runnable right now.
+    if (Object.prototype.hasOwnProperty.call(payload, "schedule")) {
+      void wakeMissionQueue(windowId, "QUEUE_SCHEDULE_EDITED").catch(() => undefined);
     }
   }
 
@@ -2346,6 +2384,24 @@ async function mutateMissionQueueSet({
   if (op === "SAVE") {
     const saved = await saveMissionQueueSet({ name, queue, setId }, chrome.storage.local);
     store = saved.store;
+  } else if (op === "UPDATE") {
+    // v1.8.1: re-save the selected set from the active queue, keeping its
+    // identity and name, so a changed queue does not require a new set.
+    const current = await loadMissionQueueSets(chrome.storage.local);
+    const existing = current.sets.find((candidate) => candidate.setId === String(setId || ""));
+    if (!existing) {
+      const error = new Error("MISSION_QUEUE_SET_NOT_FOUND");
+      error.code = "MISSION_QUEUE_SET_NOT_FOUND";
+      throw error;
+    }
+    if (!queue.items.length) {
+      const error = new Error("MISSION_QUEUE_SET_UPDATE_EMPTY_QUEUE");
+      error.code = "MISSION_QUEUE_SET_UPDATE_EMPTY_QUEUE";
+      throw error;
+    }
+    const saved = await saveMissionQueueSet({ name: existing.name, queue, setId: existing.setId }, chrome.storage.local);
+    store = saved.store;
+    name = existing.name;
   } else if (op === "DELETE") {
     store = await deleteMissionQueueSet(setId, chrome.storage.local);
   } else if (op === "APPLY") {
@@ -2641,7 +2697,8 @@ async function parkQueueMissionAfterAnalysis({
   latestInstruction = null,
   pauseSeconds = null,
   requestedSessionAction = "KEEP",
-  quantumReached = false
+  quantumReached = false,
+  scheduleBlock = ""
 }) {
   const { queue, settings } = await missionQueueForWindow(current.windowId);
   const item = queueItemForProcess(queue, current);
@@ -2694,7 +2751,9 @@ async function parkQueueMissionAfterAnalysis({
   const isSameLogicalMission = (candidate) =>
     candidate.itemId === item.itemId ||
     Boolean(logicalSavedMissionId && String(candidate.savedMissionId || "").trim() === logicalSavedMissionId);
-  const outcome = requestedSessionAction === "BACKGROUND_SLEEP"
+  const outcome = scheduleBlock
+    ? scheduleParkOutcome(scheduleBlock)
+    : requestedSessionAction === "BACKGROUND_SLEEP"
     ? "EIC_BACKGROUND_SLEEP"
     : requestedSessionAction === "YIELD_TO_QUEUE"
       ? "EIC_YIELD_TO_QUEUE"
@@ -2716,11 +2775,13 @@ async function parkQueueMissionAfterAnalysis({
     resumedQuantumProgress,
     pauseUntilMs,
     latestInstruction,
+    idleWhenNoNext: Boolean(scheduleBlock),
     parkDetail: {
       completedInteractions,
       maxInteractions,
       quantumReached: quantumReached === true,
-      requestedSessionAction
+      requestedSessionAction,
+      scheduleBlock
     }
   });
 }
@@ -2741,7 +2802,8 @@ async function parkSlotAndActivateNext({
   resumedQuantumProgress,
   pauseUntilMs = 0,
   latestInstruction = null,
-  parkDetail = {}
+  parkDetail = {},
+  idleWhenNoNext = false
 }) {
   const now = Date.now();
 
@@ -2768,7 +2830,9 @@ async function parkSlotAndActivateNext({
     afterOrder: queue.cursorOrder,
     excludeItemId: item.itemId
   });
-  if (!selected) return null;
+  // v1.8.1: a schedule park must not fall back to continuing this slot. With
+  // no other runnable slot the slot is still parked and the worker idles.
+  if (!selected && !idleWhenNoNext) return null;
 
   await cancelSchedulerProcess(current, "MISSION_QUEUE_YIELD").catch(() => undefined);
   try { await chrome.alarms.clear(alarmName(current.processId)); } catch {}
@@ -2784,7 +2848,8 @@ async function parkSlotAndActivateNext({
       resumedQuantumProgress,
       pauseUntilMs,
       outcome,
-      nextItemId: selected.itemId,
+      nextItemId: selected?.itemId || "",
+      queueWait: !selected,
       cursorOrder: queue.cursorOrder,
       checkpointExpected: true
     }
@@ -2797,7 +2862,11 @@ async function parkSlotAndActivateNext({
     afterOrder: saved.cursorOrder,
     excludeItemId: item.itemId
   });
-  if (!selectedReadback) return null;
+  if (!selectedReadback) {
+    return idleWhenNoNext
+      ? enterQueueWait(current, saved, { reason: outcome, parkedItemId: item.itemId })
+      : null;
+  }
   const activated = await activateQueueItem({
     queue: saved,
     item: selectedReadback,
@@ -2807,6 +2876,137 @@ async function parkSlotAndActivateNext({
     auditSessionId: current.auditSessionId
   });
   return activated.process;
+}
+
+function scheduleParkOutcome(block) {
+  return block === SCHEDULE_BLOCK.PAUSED ? "SCHEDULE_PAUSED" : "SCHEDULE_WINDOW_CLOSED";
+}
+
+// v1.8.1: the authoritative schedule is the queue slot's; queueContext is only
+// a prompt-facing copy. A queue read failure falls back to that copy.
+async function activeSlotScheduleBlock(process, now = Date.now()) {
+  if (!process?.queueContext?.itemId) return "";
+  try {
+    // Read-only and bound to this process's own worker: this runs on every
+    // SENDING tick before dispatch, so it must not touch window bindings.
+    const queue = await loadMissionWorkQueue(process.windowId, chrome.storage.local, {
+      workerId: process.workerId || process.queueContext.workerId
+    });
+    if (!queue.enabled) return "";
+    const item = queueItemForProcess(queue, process);
+    return item ? scheduleBlockReason(item.schedule || null, now) : "";
+  } catch {
+    return scheduleBlockReason(process.queueContext.schedule || null, now);
+  }
+}
+
+function earliestQueueWakeAtMs(queue, now = Date.now()) {
+  const times = (queue?.items || [])
+    .map((candidate) => queueItemNextRunnableAtMs(candidate, now))
+    .filter((when) => Number.isFinite(when) && when > now)
+    .sort((a, b) => a - b);
+  return times[0] || null;
+}
+
+// v1.8.1: the parked slot is in the queue; the process releases its slot and
+// capacity and idles in the terminal QUEUE_WAIT phase. The queue wake alarm
+// (or an operator edit, or restart reconciliation) activates the next slot.
+async function enterQueueWait(current, queue, { reason, parkedItemId }) {
+  const nextWakeAtMs = earliestQueueWakeAtMs(queue);
+  const next = await commitTransition(current, PHASES.QUEUE_WAIT, {
+    queueContext: null,
+    pendingPrompt: null,
+    responseCandidate: null,
+    responseInterleave: null,
+    waitingRefresh: null,
+    missionPause: null,
+    queueWait: {
+      reason: String(reason || ""),
+      queueId: String(queue?.queueId || ""),
+      parkedItemId: String(parkedItemId || ""),
+      since: nowIso(),
+      nextWakeAtMs
+    },
+    lastError: null
+  }, {
+    kind: "MISSION_QUEUE_WAITING_FOR_SCHEDULE",
+    component: "mission-work-queue",
+    detail: {
+      reason,
+      parkedItemId,
+      nextWakeAtMs,
+      nextWakeAt: nextWakeAtMs ? new Date(nextWakeAtMs).toISOString() : ""
+    }
+  });
+  await syncMissionQueueWakeAlarm(queue).catch(() => undefined);
+  await syncOverlay(next, "queue-wait").catch(() => undefined);
+  return next;
+}
+
+// v1.8.1 dispatch gate: a prompt that was never dispatched is not posted
+// outside the slot's schedule (pause resume, rotation, recovery, activation
+// race). The slot is parked with its next objective and quantum progress.
+async function parkQueueMissionForSchedule(process, block) {
+  const { queue, settings } = await missionQueueForWindow(process.windowId);
+  const item = queueItemForProcess(queue, process);
+  if (!queue.enabled || !item) return null;
+  const pending = process.pendingPrompt;
+  if (pending?.promptPause?.reservationId) {
+    await releaseGlobalPromptLease({ reservationId: pending.promptPause.reservationId }).catch(() => undefined);
+  }
+  const maxInteractions = normalizeMissionQuantumInteractions(process.queueContext?.maxInteractions);
+  const resumedQuantumProgress = Math.min(
+    Math.max(0, maxInteractions - 1),
+    Math.max(0, Number(process.queueContext?.interactionCount || 0))
+  );
+  const objective = String(
+    process.objectiveState?.objective ||
+    process.lastDecision?.nextPrompt ||
+    process.goal ||
+    ""
+  ).trim();
+  const resume = queueResumeRecordFromAnalysis({
+    current: process,
+    effectiveNextPrompt: objective,
+    previousDisposition: process.lastDecision?.disposition || "CONTINUE",
+    analysisEvidence: null,
+    sessionReason: block
+  });
+  const parkedSnapshot = {
+    ...deepClone(process),
+    pendingPrompt: null,
+    queueContext: {
+      ...process.queueContext,
+      interactionCount: resumedQuantumProgress,
+      maxInteractions
+    },
+    objectiveState: {
+      ...(process.objectiveState || {}),
+      objective,
+      status: "PARKED_QUEUE",
+      updatedAt: nowIso()
+    },
+    responseCandidate: null,
+    responseInterleave: null,
+    waitingRefresh: null,
+    lastError: null,
+    updatedAt: nowIso()
+  };
+  return parkSlotAndActivateNext({
+    current: process,
+    queue,
+    settings,
+    item,
+    parkedSnapshot,
+    resume,
+    outcome: scheduleParkOutcome(block),
+    summary: block === SCHEDULE_BLOCK.PAUSED
+      ? "The slot's pauseUntil began before the next prompt; the slot was parked."
+      : "The slot's run window closed before the next prompt; the slot was parked.",
+    resumedQuantumProgress,
+    idleWhenNoNext: true,
+    parkDetail: { maxInteractions, scheduleBlock: block, dispatchGate: true }
+  });
 }
 
 // DONE/STOP_PROCESS/COMPLETE_MISSION is a logical GFW terminal signal. If the
@@ -3689,6 +3889,16 @@ async function tickSending(process) {
   if (!pending?.text || !pending?.hash) {
     const error = Object.assign(new Error("PENDING_PROMPT_MISSING"), { code: "PENDING_PROMPT_MISSING" });
     return enterRecovery(process, error, PHASES.SENDING);
+  }
+
+  // v1.8.1: never post a new prompt outside the active slot's schedule. A
+  // prompt with a dispatch record is in flight and is never interrupted.
+  if (!pending.dispatch && process.queueContext?.itemId) {
+    const scheduleBlock = await activeSlotScheduleBlock(process);
+    if (scheduleBlock) {
+      const parked = await parkQueueMissionForSchedule(process, scheduleBlock);
+      if (parked) return parked;
+    }
   }
 
   // v1.7.7: a COMPACT prompt may only be posted into the exact conversation it
@@ -5510,6 +5720,10 @@ async function evaluateAndApplyRuntimeControl(current, result) {
           ...queueContext,
           pendingMaxInteractions: effect.value === Number(ctx.maxInteractions) ? null : effect.value
         };
+      } else if (effect.field === "schedule") {
+        // v1.8.1: effective immediately; the post-response schedule gate below
+        // parks the slot if the new schedule no longer allows running now.
+        queueContext = { ...queueContext, schedule: effect.value ? deepClone(effect.value) : null };
       }
     }
     if (queueContext !== ctx) {
@@ -5892,10 +6106,14 @@ async function tickAnalyzing(process) {
     const requestedSessionAction = result.targetResponse?.sessionAction || "KEEP";
     const requestedProcessStatus = result.targetResponse?.greenfieldStatusRequest || "";
     const queueManaged = Boolean(queueContextAfterResponse?.itemId);
+    // v1.8.1: the turn that was in flight when the window closed has finished;
+    // a blocked schedule now parks the slot instead of sending another prompt.
+    const scheduleBlock = queueManaged ? await activeSlotScheduleBlock(current) : "";
     const queueAction = queueAfterResponseAction({
       queueManaged,
       queueQuantumReached,
-      sessionAction: requestedSessionAction
+      sessionAction: requestedSessionAction,
+      scheduleBlocked: Boolean(scheduleBlock)
     });
     const queueYieldRequested = queueAction === QUEUE_AFTER_RESPONSE.PARK_AND_SWITCH &&
       isExplicitQueueYieldAction(requestedSessionAction);
@@ -5919,20 +6137,23 @@ async function tickAnalyzing(process) {
           ? result.targetResponse?.pauseSeconds
           : null,
         requestedSessionAction,
-        quantumReached: queueQuantumReached
+        quantumReached: queueQuantumReached,
+        scheduleBlock
       });
       if (switched) {
         await audit(switched, "MISSION_QUEUE_SWITCH_COMPLETED", "mission-work-queue", {
           previousProcessId: current.processId,
           previousQueueItemId: current.queueContext?.itemId || "",
           nextQueueItemId: switched.queueContext?.itemId || "",
-          reason: backgroundSleepRequested
-            ? "EIC_BACKGROUND_SLEEP"
-            : queuePauseRequested
-              ? "EIC_PAUSE_PARKED"
-              : queueYieldRequested
-                ? "EIC_YIELD_TO_QUEUE"
-                : "QUANTUM_EXHAUSTED",
+          reason: scheduleBlock
+            ? scheduleParkOutcome(scheduleBlock)
+            : backgroundSleepRequested
+              ? "EIC_BACKGROUND_SLEEP"
+              : queuePauseRequested
+                ? "EIC_PAUSE_PARKED"
+                : queueYieldRequested
+                  ? "EIC_YIELD_TO_QUEUE"
+                  : "QUANTUM_EXHAUSTED",
           completedInteractions: queueContextAfterResponse.interactionCount,
           maxInteractions: queueContextAfterResponse.maxInteractions
         }).catch(() => undefined);

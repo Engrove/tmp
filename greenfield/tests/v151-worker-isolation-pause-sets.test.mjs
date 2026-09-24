@@ -313,9 +313,12 @@ test("v1.5.1 queue sets save configuration only and apply fresh READY identities
 
   const saved = await saveMissionQueueSet({ name: "Morgon", queue: source }, local);
   assert.equal(saved.set.items.length, 1);
+  // v1.8.1: weekly run windows are slot configuration; pauseUntil is runtime
+  // state and never enters a set.
   assert.deepEqual(Object.keys(saved.set.items[0]).sort(), [
-    "goal", "label", "maxInteractions", "order", "priority", "savedMissionId"
+    "goal", "label", "maxInteractions", "order", "priority", "savedMissionId", "scheduleWindows"
   ].sort());
+  assert.deepEqual(saved.set.items[0].scheduleWindows, []);
 
   const baseA = normalizeMissionWorkQueue({ workerId: "worker-a", windowId: 10 }, { workerId: "worker-a", windowId: 10 });
   const baseB = normalizeMissionWorkQueue({ workerId: "worker-b", windowId: 20 }, { workerId: "worker-b", windowId: 20 });

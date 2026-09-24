@@ -57,6 +57,8 @@ const state = {
   activeUiTab: "overview",
   queueBusy: false,
   queueSetBusy: false,
+  queueSetUpdateConfirm: null,
+  scheduleEditor: null,
   audit: {
     enabled: false,
     mode: "FIFO_ONLY",
@@ -226,6 +228,9 @@ function statusText(process) {
     BLOCKED: `Blockerad av verklig Greenfield-gräns: ${process.lastError?.message || process.lastDecision?.analysis || "okänd"}.`,
     DONE: "Uppdraget är bedömt färdigt med explicit completion-evidens.",
     STOPPED: "Processen stoppades.",
+    QUEUE_WAIT: process.queueWait?.nextWakeAtMs
+      ? `Kön väntar: ingen köplats är inom sitt schema. Nästa start ${formatScheduleTime(process.queueWait.nextWakeAtMs)}.`
+      : "Kön väntar: ingen köplats är körbar just nu.",
     AUDIT_FAILURE: "Audit kunde inte persisteras. Körningen har stoppats för att felsökningsevidens inte ska tappas."
   };
   return map[process.phase] || process.phase;
@@ -594,6 +599,15 @@ function renderMissionQueueSets() {
   const queueRunning = state.missionQueue?.enabled === true;
   $("queueSetApply").disabled = state.queueSetBusy || !selectedId || active || queueRunning;
   $("queueSetDelete").disabled = state.queueSetBusy || !selectedId;
+  const queueItemCount = Array.isArray(state.missionQueue?.items) ? state.missionQueue.items.length : 0;
+  const confirmPending = Boolean(
+    state.queueSetUpdateConfirm &&
+    state.queueSetUpdateConfirm.setId === selectedId &&
+    state.queueSetUpdateConfirm.untilMs > Date.now()
+  );
+  $("queueSetUpdate").disabled = state.queueSetBusy || !selectedId || queueItemCount === 0;
+  $("queueSetUpdate").textContent = confirmPending ? "Bekräfta överskrivning" : "Uppdatera valt";
+  $("queueSetUpdate").classList.toggle("warn", confirmPending);
   $("queueSetSave").disabled = state.queueSetBusy || !$("queueSetName").value.trim();
   $("queueSetSelect").disabled = state.queueSetBusy || sets.length === 0;
 }
@@ -610,6 +624,7 @@ function renderMissionQueue() {
   const activeItem = items.find((item) => item.itemId === queue.activeItemId) || null;
   const now = Date.now();
   const runnableCount = items.filter((item) => {
+    if (item.scheduleBlockReason) return false;
     if (item.status === "READY") return true;
     if (item.status === "PAUSED") return Number(item.pauseUntilMs || 0) <= now;
     if (item.status === "BLOCKED") return Number(item.blockedRetryAtMs || 0) > 0 &&
@@ -662,8 +677,10 @@ function renderMissionQueue() {
               <button class="ghost" data-queue-action="up" title="Flytta upp">↑</button>
               <button class="ghost" data-queue-action="down" title="Flytta ned">↓</button>
               <button class="ghost" data-queue-action="remove" ${active ? "disabled" : ""} title="Ta bort">×</button>
+              <button class="ghost schedule-btn" data-queue-action="schedule" title="Kör- och paustider">Schema</button>
             </div>
             <div class="queue-row-meta">${escapeHtml(priorityLabel(item.priority))} · ${Number(item.maxInteractions || 0)} interaktioner/kvant · ${escapeHtml(progress)}${escapeHtml(delegationMeta)}</div>
+            <div class="queue-row-schedule ${item.scheduleBlockReason ? "closed" : ""}">${escapeHtml(queueScheduleText(item))}</div>
           </div>`;
       }).join("")
     : '<div class="empty">Arbetslistan är tom. Lägg till ett eller flera sparade uppdrag.</div>';
@@ -679,7 +696,13 @@ function renderMissionQueue() {
     : '<div class="empty">Ingen historik ännu.</div>';
 
   if (!activeItem && queueMode && runnableCount === 0 && items.length > 0) {
-    $("missionQueueState").textContent = `${items.length} uppdrag · väntar på paus/blocker-cooldown`;
+    const nextOpen = items
+      .map((item) => Number(item.scheduleNextOpenAtMs || 0))
+      .filter((when) => when > now)
+      .sort((a, b) => a - b)[0];
+    $("missionQueueState").textContent = nextOpen
+      ? `${items.length} uppdrag · väntar på schema · nästa start ${formatScheduleTime(nextOpen)}`
+      : `${items.length} uppdrag · väntar på paus/blocker-cooldown`;
   }
   renderMissionQueueSets();
 }
@@ -744,6 +767,30 @@ async function saveCurrentQueueSet() {
   try {
     await mutateMissionQueueSet("SAVE", { name });
     $("queueSetName").value = "";
+  } catch {}
+}
+
+// v1.8.1: overwrite the selected set with the active queue. The first click
+// arms a short confirmation window so a set is never overwritten by accident.
+async function updateSelectedQueueSet() {
+  const setId = $("queueSetSelect").value;
+  if (!setId) return;
+  const armed = state.queueSetUpdateConfirm;
+  if (!armed || armed.setId !== setId || armed.untilMs <= Date.now()) {
+    state.queueSetUpdateConfirm = { setId, untilMs: Date.now() + 6000 };
+    renderMissionQueueSets();
+    setTimeout(() => {
+      if (state.queueSetUpdateConfirm?.setId === setId && state.queueSetUpdateConfirm.untilMs <= Date.now()) {
+        state.queueSetUpdateConfirm = null;
+        renderMissionQueueSets();
+      }
+    }, 6100);
+    return;
+  }
+  state.queueSetUpdateConfirm = null;
+  try {
+    await mutateMissionQueueSet("UPDATE", { setId });
+    $("statusDetail").textContent = "Kö-setet uppdaterades från aktiv kö.";
   } catch {}
 }
 
@@ -884,6 +931,140 @@ async function handleQueueListClick(event) {
     if (action === "up") await mutateMissionQueue("MOVE_UP", { itemId });
     else if (action === "down") await mutateMissionQueue("MOVE_DOWN", { itemId });
     else if (action === "remove") await mutateMissionQueue("REMOVE", { itemId });
+    else if (action === "schedule") openScheduleEditor(itemId);
+  } catch {}
+}
+
+// v1.8.1 per-slot scheduler editor. It lives outside the queue list so the
+// periodic list re-render never discards an edit in progress.
+const SCHEDULE_DAY_LABELS = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"];
+
+function formatScheduleTime(ms) {
+  const date = new Date(Number(ms));
+  const sameDay = date.toDateString() === new Date().toDateString();
+  const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return sameDay ? time : `${date.toLocaleDateString([], { weekday: "short", day: "numeric", month: "numeric" })} ${time}`;
+}
+
+function queueScheduleText(item) {
+  if (!item.schedule) return "Schema: alltid (inga körfönster)";
+  const summary = item.scheduleSummary || "schema";
+  if (item.scheduleBlockReason === "SCHEDULE_PAUSED") {
+    return `Schema: ${summary} · pausad · startar ${item.scheduleNextOpenAtMs ? formatScheduleTime(item.scheduleNextOpenAtMs) : "okänt"}`;
+  }
+  if (item.scheduleBlockReason) {
+    return `Schema: ${summary} · utanför fönster · öppnar ${item.scheduleNextOpenAtMs ? formatScheduleTime(item.scheduleNextOpenAtMs) : "okänt"}`;
+  }
+  return item.scheduleClosesAtMs
+    ? `Schema: ${summary} · öppet till ${formatScheduleTime(item.scheduleClosesAtMs)}`
+    : `Schema: ${summary} · öppet`;
+}
+
+function localDateTimeValue(ms) {
+  if (!Number(ms)) return "";
+  const d = new Date(Number(ms));
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openScheduleEditor(itemId) {
+  const item = (state.missionQueue?.items || []).find((entry) => entry.itemId === itemId);
+  if (!item) return;
+  state.scheduleEditor = {
+    itemId,
+    title: `Schema · Plats ${Number(item.order || 0) + 1} · ${item.label}`,
+    windows: (item.schedule?.windows || []).map((window) => ({
+      days: [...window.days],
+      start: window.start,
+      end: window.end
+    })),
+    pauseValue: localDateTimeValue(item.schedule?.pauseUntilMs)
+  };
+  renderScheduleEditor();
+}
+
+function closeScheduleEditor() {
+  state.scheduleEditor = null;
+  renderScheduleEditor();
+}
+
+function renderScheduleEditor() {
+  const editor = state.scheduleEditor;
+  $("queueScheduleEditor").classList.toggle("hidden", !editor);
+  if (!editor) return;
+  let zone = "";
+  try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch {}
+  $("queueScheduleTitle").textContent = editor.title;
+  $("queueScheduleZone").textContent = `Tider i lokal tid${zone ? ` (${zone})` : ""}. Max 7 fönster.`;
+  $("queueScheduleWindows").innerHTML = editor.windows.length
+    ? editor.windows.map((window, index) => `
+        <div class="queue-schedule-window" data-window-index="${index}">
+          <div class="queue-schedule-days">
+            ${SCHEDULE_DAY_LABELS.map((label, dayIndex) => `
+              <label><input type="checkbox" data-schedule-day="${dayIndex + 1}" ${window.days.includes(dayIndex + 1) ? "checked" : ""}>${label}</label>`).join("")}
+          </div>
+          <div class="queue-schedule-times">
+            <input type="text" inputmode="numeric" maxlength="5" placeholder="08:00" data-schedule-field="start" value="${escapeHtml(window.start)}" aria-label="Start">
+            <span>–</span>
+            <input type="text" inputmode="numeric" maxlength="5" placeholder="17:00" data-schedule-field="end" value="${escapeHtml(window.end)}" aria-label="Slut">
+            <button class="ghost" type="button" data-schedule-remove="${index}" title="Ta bort fönster">×</button>
+          </div>
+        </div>`).join("")
+    : '<div class="empty">Inga körfönster: platsen körs alltid (om den inte är pausad).</div>';
+  $("queueSchedulePause").value = editor.pauseValue || "";
+  $("queueScheduleAddWindow").disabled = editor.windows.length >= 7;
+}
+
+function handleScheduleEditorInput(event) {
+  const editor = state.scheduleEditor;
+  if (!editor) return;
+  const row = event.target.closest("[data-window-index]");
+  if (event.target.id === "queueSchedulePause") {
+    editor.pauseValue = event.target.value;
+    return;
+  }
+  if (!row) return;
+  const window = editor.windows[Number(row.dataset.windowIndex)];
+  if (!window) return;
+  if (event.target.dataset.scheduleDay) {
+    const day = Number(event.target.dataset.scheduleDay);
+    window.days = event.target.checked
+      ? [...new Set([...window.days, day])].sort((a, b) => a - b)
+      : window.days.filter((value) => value !== day);
+  } else if (event.target.dataset.scheduleField) {
+    window[event.target.dataset.scheduleField] = event.target.value.trim();
+  }
+}
+
+function handleScheduleEditorClick(event) {
+  const editor = state.scheduleEditor;
+  if (!editor) return;
+  const remove = event.target.closest("[data-schedule-remove]");
+  if (remove) {
+    editor.windows.splice(Number(remove.dataset.scheduleRemove), 1);
+    renderScheduleEditor();
+  }
+}
+
+async function saveScheduleEditor({ clear = false } = {}) {
+  const editor = state.scheduleEditor;
+  if (!editor) return;
+  let pauseUntil = "";
+  if (!clear && editor.pauseValue) {
+    const at = new Date(editor.pauseValue);
+    if (!Number.isFinite(at.getTime())) {
+      $("statusDetail").textContent = "Ogiltig paustid.";
+      return;
+    }
+    pauseUntil = at.toISOString();
+  }
+  const schedule = clear
+    ? { windows: [], pauseUntil: "" }
+    : { windows: editor.windows.map((window) => ({ days: window.days, start: window.start, end: window.end })), pauseUntil };
+  try {
+    await mutateMissionQueue("UPDATE", { itemId: editor.itemId, schedule });
+    $("statusDetail").textContent = clear ? "Schemat rensades." : "Schemat sparades.";
+    closeScheduleEditor();
   } catch {}
 }
 
@@ -1416,6 +1597,23 @@ $("queueSetSelect").addEventListener("change", renderMissionQueueSets);
 $("queueSetName").addEventListener("input", renderMissionQueueSets);
 $("queueSetSave").addEventListener("click", saveCurrentQueueSet);
 $("queueSetApply").addEventListener("click", applySelectedQueueSet);
+$("queueSetUpdate").addEventListener("click", updateSelectedQueueSet);
+$("queueScheduleClose").addEventListener("click", closeScheduleEditor);
+$("queueScheduleAddWindow").addEventListener("click", () => {
+  if (!state.scheduleEditor || state.scheduleEditor.windows.length >= 7) return;
+  state.scheduleEditor.windows.push({ days: [1, 2, 3, 4, 5], start: "08:00", end: "17:00" });
+  renderScheduleEditor();
+});
+$("queueSchedulePauseClear").addEventListener("click", () => {
+  if (!state.scheduleEditor) return;
+  state.scheduleEditor.pauseValue = "";
+  renderScheduleEditor();
+});
+$("queueScheduleSave").addEventListener("click", () => saveScheduleEditor());
+$("queueScheduleClear").addEventListener("click", () => saveScheduleEditor({ clear: true }));
+$("queueScheduleEditor").addEventListener("input", handleScheduleEditorInput);
+$("queueScheduleEditor").addEventListener("change", handleScheduleEditorInput);
+$("queueScheduleEditor").addEventListener("click", handleScheduleEditorClick);
 $("queueSetDelete").addEventListener("click", deleteSelectedQueueSet);
 $("queueStart").addEventListener("click", startMissionQueue);
 $("queueStop").addEventListener("click", stopMissionQueueUi);
@@ -1615,7 +1813,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.8.0" }
+      payload: { appVersion: "1.8.1" }
     });
     await snapshot();
   } catch (error) {

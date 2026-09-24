@@ -1,5 +1,12 @@
 import { text } from "./common.mjs";
 import { GREENFIELD_PRIORITIES } from "./global-capacity-scheduler.mjs";
+import {
+  MAX_SCHEDULE_PAUSE_DAYS,
+  MAX_SCHEDULE_WINDOWS,
+  normalizeQueueSchedule,
+  parseScheduleEdit,
+  schedulePromptState
+} from "./queue-schedule.mjs";
 
 // v1.7.7 AI-requested runtime control.
 //
@@ -20,7 +27,9 @@ export const RUNTIME_CONTROL_CONTRACT_SCHEMA = "eic.greenfield.runtime-control.c
 export const RUNTIME_CONTROL_OPS = Object.freeze({
   COMPLETE_MISSION: "COMPLETE_MISSION",
   SET_QUANTUM: "SET_QUANTUM",
-  SET_PRIORITY: "SET_PRIORITY"
+  SET_PRIORITY: "SET_PRIORITY",
+  // v1.8.1: weekly run windows + one-shot pauseUntil for the current slot.
+  SET_SCHEDULE: "SET_SCHEDULE"
 });
 
 export const RUNTIME_CONTROL_RECEIPT = Object.freeze({
@@ -56,7 +65,8 @@ const TOP_LEVEL_KEYS = new Set(["target", "actions"]);
 const OP_FIELDS = new Map([
   [RUNTIME_CONTROL_OPS.COMPLETE_MISSION, new Set(["op", "reason"])],
   [RUNTIME_CONTROL_OPS.SET_QUANTUM, new Set(["op", "reason", "maxInteractions"])],
-  [RUNTIME_CONTROL_OPS.SET_PRIORITY, new Set(["op", "reason", "priority"])]
+  [RUNTIME_CONTROL_OPS.SET_PRIORITY, new Set(["op", "reason", "priority"])],
+  [RUNTIME_CONTROL_OPS.SET_SCHEDULE, new Set(["op", "reason", "windows", "pauseUntil"])]
 ]);
 
 function isPlainObject(value) {
@@ -128,6 +138,18 @@ function parseAction(raw, index) {
       return { index, op, value: typeof value === "string" ? text(value, 32) : null, reason, error: "PRIORITY_NOT_ALLOWED" };
     }
     return { index, op, value, reason, error: "" };
+  }
+  if (op === RUNTIME_CONTROL_OPS.SET_SCHEDULE) {
+    // Format is validated here; time-relative bounds (pauseUntil in the future,
+    // at most the pause horizon) are validated against owner time at evaluation.
+    const edit = {};
+    if ("windows" in raw) edit.windows = raw.windows;
+    if ("pauseUntil" in raw) edit.pauseUntil = raw.pauseUntil;
+    const probe = parseScheduleEdit(edit, { now: 0, editor: "AI" });
+    if (!probe.ok && !/^SCHEDULE_PAUSE_UNTIL_(NOT_FUTURE|TOO_FAR)$/.test(probe.error)) {
+      return { index, op, value: null, reason, error: probe.error };
+    }
+    return { index, op, value: edit, reason, error: "" };
   }
   return { index, op, value: null, reason, error: "" };
 }
@@ -328,11 +350,47 @@ function evaluateSetPriority(action, owner) {
   };
 }
 
+function sameSchedule(a, b) {
+  const pick = (value) => value
+    ? JSON.stringify({ windows: value.windows || [], pauseUntilMs: Number(value.pauseUntilMs || 0) })
+    : "null";
+  return pick(a) === pick(b);
+}
+
+function evaluateSetSchedule(action, owner) {
+  const blocked = evaluateSlotPrecondition(action, owner);
+  if (blocked) return { receipt: blocked, effect: null };
+  const slot = ownerSlot(owner);
+  const current = normalizeQueueSchedule(slot.schedule, { now: owner.nowMs });
+  const parsed = parseScheduleEdit(action.value, { now: owner.nowMs, current, editor: "AI" });
+  if (!parsed.ok) return { receipt: receipt(action, RUNTIME_CONTROL_RECEIPT.INVALID, parsed.error), effect: null };
+  const key = effectKey(owner, action);
+  if (owner.ledger.includes(key) || sameSchedule(current, parsed.schedule)) {
+    return {
+      receipt: receipt(action, RUNTIME_CONTROL_RECEIPT.ALREADY_APPLIED, "VALUE_ALREADY_CURRENT", {
+        effective: "IMMEDIATE",
+        itemId: slot.itemId,
+        effectKey: key
+      }),
+      effect: { op: action.op, itemId: slot.itemId, field: "schedule", value: current, effectKey: key, noop: true }
+    };
+  }
+  return {
+    receipt: receipt(action, RUNTIME_CONTROL_RECEIPT.APPLIED, parsed.schedule ? "SLOT_SCHEDULE_UPDATED" : "SLOT_SCHEDULE_CLEARED", {
+      effective: "IMMEDIATE",
+      itemId: slot.itemId,
+      effectKey: key
+    }),
+    effect: { op: action.op, itemId: slot.itemId, field: "schedule", value: parsed.schedule, effectKey: key, noop: false }
+  };
+}
+
 // Non-terminal handlers. Adding a runtime control means adding one whitelisted
 // op, its field set in OP_FIELDS, its parser branch and one handler here.
 const SLOT_HANDLERS = new Map([
   [RUNTIME_CONTROL_OPS.SET_QUANTUM, evaluateSetQuantum],
-  [RUNTIME_CONTROL_OPS.SET_PRIORITY, evaluateSetPriority]
+  [RUNTIME_CONTROL_OPS.SET_PRIORITY, evaluateSetPriority],
+  [RUNTIME_CONTROL_OPS.SET_SCHEDULE, evaluateSetSchedule]
 ]);
 
 function normalizeOwner(owner = {}) {
@@ -347,7 +405,8 @@ function normalizeOwner(owner = {}) {
     queueLoadError: owner.queueLoadError === true,
     promptIssuedAtMs: Number(owner.promptIssuedAtMs || 0),
     responseHash: String(owner.responseHash || ""),
-    ledger: Array.isArray(owner.ledger) ? owner.ledger.map(String) : []
+    ledger: Array.isArray(owner.ledger) ? owner.ledger.map(String) : [],
+    nowMs: Number.isFinite(Number(owner.nowMs)) && Number(owner.nowMs) > 0 ? Number(owner.nowMs) : Date.now()
   };
 }
 
@@ -468,6 +527,12 @@ export function applyRuntimeControlEffects(items, effects, { now = Date.now() } 
         next.maxInteractions = effect.value;
       } else if (effect.field === "priority" && AI_PRIORITY_VALUES.includes(effect.value)) {
         next.priority = effect.value;
+      } else if (effect.field === "schedule") {
+        // Already strictly parsed by evaluateSetSchedule; re-normalized here so
+        // only the closed schedule shape can reach queue state.
+        next.schedule = effect.value
+          ? normalizeQueueSchedule({ ...effect.value, updatedBy: "AI" }, { now })
+          : null;
       }
     }
     next.updatedAt = new Date(Number(now)).toISOString();
@@ -550,14 +615,21 @@ export function runtimeControlPromptState(process) {
     available: true,
     target: runtimeControlTarget(process),
     operations: ctx
-      ? [RUNTIME_CONTROL_OPS.COMPLETE_MISSION, RUNTIME_CONTROL_OPS.SET_QUANTUM, RUNTIME_CONTROL_OPS.SET_PRIORITY]
+      ? [
+          RUNTIME_CONTROL_OPS.COMPLETE_MISSION,
+          RUNTIME_CONTROL_OPS.SET_QUANTUM,
+          RUNTIME_CONTROL_OPS.SET_PRIORITY,
+          RUNTIME_CONTROL_OPS.SET_SCHEDULE
+        ]
       : [RUNTIME_CONTROL_OPS.COMPLETE_MISSION],
     current: ctx ? {
       queueManaged: true,
       priority,
       priorityCeiling: ceiling,
       currentQuantumMaxInteractions: Number(ctx.maxInteractions) || null,
-      nextQuantumMaxInteractions: pending ?? (Number(ctx.maxInteractions) || null)
+      nextQuantumMaxInteractions: pending ?? (Number(ctx.maxInteractions) || null),
+      scheduleWindows: normalizeQueueSchedule(ctx.schedule)?.windows || [],
+      schedulePauseUntil: schedulePromptState(ctx.schedule).pauseUntil
     } : { queueManaged: false },
     lastReceipts: Array.isArray(process?.runtimeControl?.lastReceipts)
       ? process.runtimeControl.lastReceipts.slice(0, MAX_RECEIPTS)
@@ -616,6 +688,31 @@ export const RUNTIME_CONTROL_JSON_SCHEMA = Object.freeze({
               priority: { type: "string", enum: [...AI_PRIORITY_VALUES] },
               reason: { type: "string", maxLength: RUNTIME_CONTROL_REASON_MAX_CHARS }
             }
+          },
+          {
+            type: "object",
+            additionalProperties: false,
+            required: ["op"],
+            minProperties: 2,
+            properties: {
+              op: { const: RUNTIME_CONTROL_OPS.SET_SCHEDULE },
+              windows: {
+                type: "array",
+                maxItems: MAX_SCHEDULE_WINDOWS,
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["days", "start", "end"],
+                  properties: {
+                    days: { type: "array", minItems: 1, maxItems: 7, uniqueItems: true, items: { type: "integer", minimum: 1, maximum: 7 } },
+                    start: { type: "string", pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" },
+                    end: { type: "string", pattern: "^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$" }
+                  }
+                }
+              },
+              pauseUntil: { type: ["string", "null"], maxLength: 40 },
+              reason: { type: "string", maxLength: RUNTIME_CONTROL_REASON_MAX_CHARS }
+            }
           }
         ]
       }
@@ -654,6 +751,7 @@ export function runtimeControlContract({ queueManaged = false } = {}) {
   if (queueManaged) {
     operations.SET_QUANTUM = `Set maxInteractions (integer ${AI_QUANTUM_MIN}..${AI_QUANTUM_MAX}) for THIS queue slot only (target.itemId). The current quantum is unchanged; the new value applies from this slot's next quantum or next activation. Unfinished progress is clamped to the new quantum. Values outside ${AI_QUANTUM_MIN}..${AI_QUANTUM_MAX} or non-integers are rejected, never clamped. To end the current quantum early, return sessionAction=YIELD_TO_QUEUE.`;
     operations.SET_PRIORITY = `Set THIS queue slot's priority to one of ${AI_PRIORITY_VALUES.join("|")}. It must not exceed control.runtimeControl.current.priorityCeiling (the operator-assigned priority of this slot); lowering and restoring up to that ceiling are allowed. Applies immediately and non-preemptively to the profile-global capacity scheduler; it never reorders the inner queue.`;
+    operations.SET_SCHEDULE = `Set THIS queue slot's scheduler (see control.workQueue.scheduleRule and control.workQueue.schedule). Fields, each optional but at least one required: "windows" = array of at most ${MAX_SCHEDULE_WINDOWS} weekly run windows {"days":[1..7 ISO weekday, 1=Monday], "start":"HH:MM", "end":"HH:MM" or "24:00"} in control.workQueue.schedule.timeZone local time; end earlier than start crosses midnight; [] clears all windows (always open). "pauseUntil" = ISO-8601 timestamp with offset, in the future and at most ${MAX_SCHEDULE_PAUSE_DAYS} days ahead, or "" / null to clear. An omitted field keeps its current value. Applies immediately: if the new schedule does not allow running now, this response is the last one used and the slot parks with its unfinished quantum. Invalid values are rejected as INVALID, never clamped.`;
   }
   return {
     schema: RUNTIME_CONTROL_CONTRACT_SCHEMA,
@@ -670,15 +768,17 @@ export function runtimeControlContract({ queueManaged = false } = {}) {
       quantumMax: queueManaged ? AI_QUANTUM_MAX : null,
       priorities: queueManaged ? [...AI_PRIORITY_VALUES] : [],
       priorityCeiling: queueManaged ? "control.runtimeControl.current.priorityCeiling" : null,
+      scheduleMaxWindows: queueManaged ? MAX_SCHEDULE_WINDOWS : null,
+      schedulePauseMaxDays: queueManaged ? MAX_SCHEDULE_PAUSE_DAYS : null,
       maxActionsPerResponse: RUNTIME_CONTROL_MAX_ACTIONS,
       unknownOperation: "REJECTED_NO_EFFECT",
       malformedControl: "REJECTED_NO_EFFECT"
     },
     validation: "Every request may be accepted or rejected by Greenfield after validation. A rejected request never mutates state. Receipts (APPLIED, ALREADY_APPLIED, REJECTED, STALE, INVALID) for your previous response appear in control.runtimeControl.lastReceipts together with the current slot values in control.runtimeControl.current. Do not repeat a request that is already APPLIED or ALREADY_APPLIED; re-request a rejected control only after the cause has changed.",
-    operatorPrecedence: "Operator queue edits, stops and instructions are authoritative. A priority/quantum request for a slot the operator edited after this prompt was issued is REJECTED (OPERATOR_PRECEDENCE). Runtime control never widens the mission's authority.",
+    operatorPrecedence: "Operator queue edits, stops and instructions are authoritative. A priority/quantum/schedule request for a slot the operator edited after this prompt was issued is REJECTED (OPERATOR_PRECEDENCE). Runtime control never widens the mission's authority.",
     terminalSemantics: "status=DONE and sessionAction=STOP_PROCESS are terminal for the current logical GFW. Without runtimeControl they are normalized to COMPLETE_MISSION for this prompt's own target (backward compatible). With runtimeControl, include {\"op\":\"COMPLETE_MISSION\"} and the verbatim target. After an accepted terminal no further prompt is sent to this GFW, so persist durable mission state first (see control.workQueue.checkpointInstruction when queue-managed).",
     duplicateSlots: queueManaged
-      ? "COMPLETE_MISSION retires all duplicate slots of the same savedMissionId. SET_QUANTUM and SET_PRIORITY change only the target slot; duplicate slots keep independent scheduling parameters."
+      ? "COMPLETE_MISSION retires all duplicate slots of the same savedMissionId. SET_QUANTUM, SET_PRIORITY and SET_SCHEDULE change only the target slot; duplicate slots keep independent scheduling parameters."
       : "Not queue-managed.",
     structuredOnly: "Runtime effects come only from the structured runtimeControl field or the explicit terminal status/sessionAction. Prose in summary, evidence, blockers or nextSuggestedAction is never parsed as control; writing 'retire this mission' in prose has no effect.",
     example: queueManaged
@@ -688,7 +788,12 @@ export function runtimeControlContract({ queueManaged = false } = {}) {
             target: "<control.runtimeControl.target copied verbatim>",
             actions: [
               { op: RUNTIME_CONTROL_OPS.SET_QUANTUM, maxInteractions: 8 },
-              { op: RUNTIME_CONTROL_OPS.SET_PRIORITY, priority: "LOW" }
+              { op: RUNTIME_CONTROL_OPS.SET_PRIORITY, priority: "LOW" },
+              {
+                op: RUNTIME_CONTROL_OPS.SET_SCHEDULE,
+                windows: [{ days: [1, 2, 3, 4, 5], start: "22:00", end: "06:00" }],
+                pauseUntil: ""
+              }
             ]
           }
         }
@@ -702,4 +807,4 @@ export function runtimeControlContract({ queueManaged = false } = {}) {
   };
 }
 
-export const RUNTIME_CONTROL_COMPACT_REMINDER = "runtimeControl remains available exactly as defined in the most recent FULL prompt: copy control.runtimeControl.target verbatim, use only the listed operations, Greenfield validates every request and operator control wins. See control.runtimeControl.lastReceipts before repeating a request.";
+export const RUNTIME_CONTROL_COMPACT_REMINDER = "runtimeControl remains available exactly as defined in the most recent FULL prompt: copy control.runtimeControl.target verbatim, use only the listed operations, Greenfield validates every request and operator control wins. See control.runtimeControl.lastReceipts before repeating a request. The slot scheduler (SET_SCHEDULE, control.workQueue.schedule) remains mandatory for time-dependent work.";

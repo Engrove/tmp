@@ -1,5 +1,5 @@
 export const APP_NAME = "EIC Autonom Agent Greenfield";
-export const APP_VERSION = "1.8.0";
+export const APP_VERSION = "1.8.1";
 export const AUDIT_SCHEMA = "eic.greenfield.audit.v2";
 export const PROCESS_SCHEMA = "eic.greenfield.process.v1";
 export const ANALYSIS_SCHEMA = "eic.greenfield.hjalmar-d2.v3";
@@ -19,14 +19,18 @@ export const PHASES = Object.freeze({
   BLOCKED: "BLOCKED",
   DONE: "DONE",
   STOPPED: "STOPPED",
-  AUDIT_FAILURE: "AUDIT_FAILURE"
+  AUDIT_FAILURE: "AUDIT_FAILURE",
+  // v1.8.1: queue worker idle until the next slot becomes runnable (schedule).
+  // Terminal for the process: the queue wake alarm activates the next slot.
+  QUEUE_WAIT: "QUEUE_WAIT"
 });
 
 export const TERMINAL_PHASES = new Set([
   PHASES.BLOCKED,
   PHASES.DONE,
   PHASES.STOPPED,
-  PHASES.AUDIT_FAILURE
+  PHASES.AUDIT_FAILURE,
+  PHASES.QUEUE_WAIT
 ]);
 
 export const WATCHDOG_MINUTES = 0.5;

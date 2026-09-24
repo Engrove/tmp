@@ -6,6 +6,15 @@ import {
   normalizeGreenfieldPriority
 } from "./global-capacity-scheduler.mjs";
 import { queuePlanningFields } from "./queue-planning.mjs";
+import {
+  nextScheduleOpenAtMs,
+  normalizeQueueSchedule,
+  scheduleAllows,
+  scheduleBlockReason,
+  scheduleClosesAtMs,
+  schedulePromptState,
+  scheduleSummarySv
+} from "./queue-schedule.mjs";
 
 export const MISSION_WORK_QUEUE_SCHEMA = "eic.greenfield.mission-work-queue.v4";
 export const MISSION_WORK_QUEUE_REGISTRY_SCHEMA = "eic.greenfield.mission-work-queue-registry.v2";
@@ -121,6 +130,8 @@ export function normalizeMissionWorkItem(value = {}, { now = Date.now(), default
     operatorPriority: normalizeGreenfieldPriority(value.operatorPriority || value.priority || DEFAULT_GREENFIELD_PRIORITY),
     operatorEditedAtMs: Math.max(0, Math.floor(Number(value.operatorEditedAtMs || 0))),
     maxInteractions: normalizeMissionQuantumInteractions(value.maxInteractions ?? defaultMaxInteractions),
+    // v1.8.1: weekly run windows (local time) + one-shot pauseUntil; null = always.
+    schedule: normalizeQueueSchedule(value.schedule, { now }),
     quantumProgress: Math.max(
       0,
       Math.min(
@@ -246,6 +257,13 @@ export function publicMissionWorkQueue(queueValue, now = Date.now()) {
       label: item.label,
       priority: item.priority,
       maxInteractions: item.maxInteractions,
+      schedule: item.schedule ? deepClone(item.schedule) : null,
+      scheduleSummary: scheduleSummarySv(item.schedule, { now }),
+      scheduleBlockReason: scheduleBlockReason(item.schedule, now),
+      scheduleNextOpenAtMs: item.schedule && scheduleBlockReason(item.schedule, now)
+        ? nextScheduleOpenAtMs(item.schedule, now)
+        : null,
+      scheduleClosesAtMs: scheduleClosesAtMs(item.schedule, now),
       quantumProgress: item.quantumProgress,
       activationCount: item.activationCount,
       lastSelfRoundTripMs: item.lastSelfRoundTripMs,
@@ -287,8 +305,7 @@ export function effectiveQueuePriority(item, { now = Date.now(), agingSeconds = 
   const waitedMs = Math.max(0, Number(now) - Number(item?.readySinceMs || now));
   return Math.min(PRIORITY_RANK.URGENT, base + Math.floor(waitedMs / stepMs));
 }
-export function isRunnableQueueItem(item, now = Date.now()) {
-  if (!item) return false;
+function isRunnableByStatus(item, now) {
   if (item.status === QUEUE_STATUS.READY) return true;
   if (item.status === QUEUE_STATUS.PAUSED) return Number(item.pauseUntilMs || 0) <= Number(now);
   if (item.status === QUEUE_STATUS.BLOCKED) {
@@ -296,6 +313,11 @@ export function isRunnableQueueItem(item, now = Date.now()) {
     return retryAt > 0 && retryAt <= Number(now);
   }
   return false;
+}
+export function isRunnableQueueItem(item, now = Date.now()) {
+  if (!item) return false;
+  // v1.8.1: a slot outside its run windows or inside its pauseUntil is skipped.
+  return isRunnableByStatus(item, now) && scheduleAllows(item.schedule || null, now);
 }
 export function selectNextMissionItem(queueValue, {
   now = Date.now(),
@@ -360,6 +382,7 @@ export function createQueueContext(queue, item, { interactionCount = null, now =
     priority: normalizeGreenfieldPriority(item?.priority),
     operatorPriority: normalizeGreenfieldPriority(item?.operatorPriority || item?.priority),
     activationCount: Math.max(0, Math.floor(Number(item?.activationCount || 0))),
+    schedule: item?.schedule ? deepClone(item.schedule) : null,
     responseRoundTripApproxMs: item?.lastSelfRoundTripMs !== null &&
         item?.lastSelfRoundTripMs !== undefined &&
         item?.lastSelfRoundTripMs !== "" &&
@@ -375,11 +398,15 @@ export function createQueueContext(queue, item, { interactionCount = null, now =
     activatedAt: nowIso(now)
   };
 }
-export function queueTurnControl(process) {
+export function queueTurnControl(process, { now = Date.now() } = {}) {
   const ctx = process?.queueContext;
   if (!ctx || ctx.schema !== QUEUE_CONTEXT_SCHEMA || !ctx.itemId) return null;
   const max = normalizeMissionQuantumInteractions(ctx.maxInteractions);
   const planning = queuePlanningFields({ ...ctx, maxInteractions: max });
+  const schedule = schedulePromptState(ctx.schedule || null, {
+    now,
+    estimatedTurnMs: planning.responseRoundTripApproxMs
+  });
   return {
     schema: "eic.greenfield.queue-turn-control.v2",
     managed: true,
@@ -393,7 +420,10 @@ export function queueTurnControl(process) {
     maxInteractions: planning.maxInteractions,
     remainingInteractionsIncludingCurrent: planning.remainingInteractionsIncludingCurrent,
     finalInteractionInQuantum: planning.finalInteractionInQuantum,
-    checkpointRequired: planning.finalInteractionInQuantum,
+    // v1.8.1: a response that will likely arrive after the run window closes is
+    // the last one used before the slot parks, exactly like quantum end.
+    checkpointRequired: planning.finalInteractionInQuantum || schedule.likelyLastTurnInWindow,
+    schedule,
     operatorDisplay: planning.operatorDisplay,
     planningHint: planning.planningHint,
     responseRoundTripApproxMs: planning.responseRoundTripApproxMs,
@@ -700,7 +730,9 @@ export async function updateMissionWorkItem(windowId, itemId, patch = {}, storag
   const current = queue.items[index];
   // Only fields the operator actually sent are edited; an absent field never
   // resets a value (v1.7.7: AI runtime control may have changed the other one).
-  patch = Object.fromEntries(Object.entries(patch || {}).filter(([, value]) => value !== undefined && value !== null));
+  // schedule: null is an explicit "clear schedule" edit (v1.8.1).
+  patch = Object.fromEntries(Object.entries(patch || {}).filter(([key, value]) =>
+    value !== undefined && (value !== null || key === "schedule")));
   if (current.status === QUEUE_STATUS.ACTIVE && patch.maxInteractions != null &&
       normalizeMissionQuantumInteractions(patch.maxInteractions) !== current.maxInteractions) {
     const error = new Error("MISSION_WORK_QUEUE_ACTIVE_QUANTUM_IMMUTABLE");
@@ -716,7 +748,9 @@ export async function updateMissionWorkItem(windowId, itemId, patch = {}, storag
     status: current.status,
     updatedAt: nowIso(now)
   });
-  next.operatorPriority = next.priority;
+  // The operator ceiling follows an operator priority edit only; editing the
+  // quantum or schedule must not adopt an AI-lowered priority as the ceiling.
+  if (patch.priority != null) next.operatorPriority = next.priority;
   next.operatorEditedAtMs = Math.max(0, Math.floor(Number(now)));
   queue.items[index] = next;
   return saveMissionWorkQueue(queue, storage);

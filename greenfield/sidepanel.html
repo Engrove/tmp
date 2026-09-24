@@ -11,8 +11,8 @@
     <header class="hero">
       <div>
         <div class="eyebrow">EIC AUTONOM AGENT</div>
-        <h1>Greenfield <span>v1.8.0</span></h1>
-        <div class="micro">1.8.0 · Lärande- och kontinuitetskontroll</div>
+        <h1>Greenfield <span>v1.8.1</span></h1>
+        <div class="micro">1.8.1 · Schemalagd kö och kö-set-uppdatering</div>
       </div>
       <div id="continuityLamp" class="lamp" title="Continuity"></div>
     </header>
@@ -328,13 +328,14 @@
             <option value="">Inga sparade set</option>
           </select>
           <button id="queueSetApply" class="secondary" type="button">Ladda set</button>
+          <button id="queueSetUpdate" class="ghost" type="button" title="Skriv över valt set med aktiv kö (namnet behålls)">Uppdatera valt</button>
         </div>
         <div class="queue-set-row">
           <input id="queueSetName" type="text" maxlength="120" placeholder="Namn på kö-set" aria-label="Namn på kö-set">
           <button id="queueSetSave" class="ghost" type="button">Spara nuvarande</button>
           <button id="queueSetDelete" class="ghost" type="button">Ta bort</button>
         </div>
-        <p class="micro">Ett set sparar exakt köplatsordning och varje plats egen prioritet/kvant, även när samma GFW förekommer flera gånger. Process-, pause-, session- och runtime-state följer aldrig med.</p>
+        <p class="micro">Ett set sparar exakt köplatsordning och varje plats egen prioritet/kvant/schema, även när samma GFW förekommer flera gånger. <b>Uppdatera valt</b> skriver över valt set med aktiv kö (klicka två gånger för att bekräfta). Process-, pause-, session- och runtime-state följer aldrig med.</p>
       </div>
 
       <div class="queue-actions">
@@ -344,10 +345,30 @@
 
       <div class="queue-list-head">
         <div class="label">Aktiv kö</div>
-        <span class="micro inline">Prioritet · kvant · ordning</span>
+        <span class="micro inline">Prioritet · kvant · schema · ordning</span>
       </div>
       <div id="missionQueueList" class="mission-queue-list">
         <div class="empty">Arbetslistan är tom.</div>
+      </div>
+
+      <div id="queueScheduleEditor" class="queue-schedule-editor hidden" aria-live="polite">
+        <div class="queue-schedule-head">
+          <strong id="queueScheduleTitle">Schema</strong>
+          <button id="queueScheduleClose" class="ghost" type="button" title="Stäng utan att spara">Stäng</button>
+        </div>
+        <p id="queueScheduleZone" class="micro">Lokal tid.</p>
+        <div id="queueScheduleWindows" class="queue-schedule-windows"></div>
+        <button id="queueScheduleAddWindow" class="ghost" type="button">+ Lägg till körfönster</button>
+        <div class="queue-schedule-pause">
+          <label for="queueSchedulePause" class="label">Pausa till</label>
+          <input id="queueSchedulePause" type="datetime-local" aria-label="Pausa till">
+          <button id="queueSchedulePauseClear" class="ghost" type="button">Ingen paus</button>
+        </div>
+        <div class="queue-schedule-actions">
+          <button id="queueScheduleSave" class="secondary" type="button">Spara schema</button>
+          <button id="queueScheduleClear" class="ghost" type="button">Rensa schema</button>
+        </div>
+        <p class="micro">Platsen körs bara inom sina fönster och efter eventuell paus. Utan fönster körs den alltid. Slut före start betyder över midnatt, 24:00 betyder dygnets slut. En pågående tur avbryts aldrig: när fönstret stänger parkeras platsen efter svaret och kön går vidare. EIC-AI:n kan också ändra schemat via SET_SCHEDULE; en senare operatörsändring vinner alltid.</p>
       </div>
 
       <details class="queue-history-details">

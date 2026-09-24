@@ -1,3 +1,17 @@
+# 1.8.1 – scheduled queue slots and queue-set update
+
+- Varje köplats kan ha veckofönster i lokal tid (högst 7, över midnatt tillåtet, `24:00` = dygnets slut) och en engångspaus till en tidpunkt (högst 30 dagar). Platser utanför sitt schema hoppas över i listordningen.
+- En pågående tur avbryts aldrig. Stänger fönstret, eller börjar pausen, under en tur parkeras platsen efter svaret med bevarad kvantprogress (`SCHEDULE_WINDOW_CLOSED`/`SCHEDULE_PAUSED`) och nästa körbara plats startar.
+- Utan annan körbar plats går processen till den nya terminala fasen `QUEUE_WAIT`. Den släpper kapacitet och prompt-lease, och köns väckarlarm tar nästa plats när den öppnar.
+- En spärr före utskick hindrar att en aldrig skickad prompt postas utanför schemat (missionspaus, rotation, återhämtning, aktiveringsrace).
+- AI:n kan begära `runtimeControl` `SET_SCHEDULE` för aktuell plats: strikt validering, operatörsföreträde, kvitton och omedelbar verkan. FULL-prompten beskriver och påbjuder schemaläggaren (`control.workQueue.scheduleRule`). Varje prompt visar platsens schematillstånd, och `likelyLastTurnInWindow` gör `checkpointRequired=true`.
+- Panelen har en schemaredigerare per plats. Kö-set sparar fönster men aldrig engångspaus. Nytt: **Uppdatera valt** skriver över valt kö-set med aktiv kö (namn och id behålls, två klick).
+- En operatörsändring av kvant eller schema tar inte längre in en AI-sänkt prioritet som operatörstak.
+- FULL växer från 45 715 till 49 399 tecken och COMPACT från 6 834 till 7 327 tecken (samma fixtur).
+- Lokal Node/static/harness-verifiering är inte samma sak som live Chrome/ChatGPT-acceptans.
+
+---
+
 # 1.8.0 – EIC Learning & Continuity Control (prompt only)
 
 - Varje FULL-prompt bär ett fristående `responseContract.learningControlContract`: `You have no built-in knowledge of EIC.`, `THE FACTUAL OWNER WINS`, definitioner av AIK Learned/Stream, Self-learn, Kaizen, Operator Learning, Memory, projektkronologi, global skill och owner-ytor, samt AIK-, Kaizen-, Operator Learning- och Self-learn-regler och routingtabell.

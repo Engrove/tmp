@@ -9,9 +9,14 @@ export const QUEUE_AFTER_RESPONSE = Object.freeze({
 export function queueAfterResponseAction({
   queueManaged = false,
   queueQuantumReached = false,
-  sessionAction = "KEEP"
+  sessionAction = "KEEP",
+  scheduleBlocked = false
 } = {}) {
   if (!queueManaged) return QUEUE_AFTER_RESPONSE.CONTINUE_CURRENT;
+
+  // v1.8.1: the slot's run window closed (or pauseUntil began) while this turn
+  // ran. The turn was allowed to finish; no further prompt is sent to it now.
+  if (scheduleBlocked === true) return QUEUE_AFTER_RESPONSE.PARK_AND_SWITCH;
 
   // In queue-managed mode, every bounded scheduling handoff parks the logical
   // mission so the worker can keep advancing in explicit queue order. A timed

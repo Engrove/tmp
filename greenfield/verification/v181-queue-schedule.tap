@@ -1,0 +1,100 @@
+TAP version 13
+# Subtest: v1.8.1 run windows: same-day, across midnight, 24:00 and chained windows
+ok 1 - v1.8.1 run windows: same-day, across midnight, 24:00 and chained windows
+  ---
+  duration_ms: 2.444105
+  type: 'test'
+  ...
+# Subtest: v1.8.1 pauseUntil blocks until its time and composes with windows
+ok 2 - v1.8.1 pauseUntil blocks until its time and composes with windows
+  ---
+  duration_ms: 0.360395
+  type: 'test'
+  ...
+# Subtest: v1.8.1 schedule edits are parsed strictly; absent fields keep their value
+ok 3 - v1.8.1 schedule edits are parsed strictly; absent fields keep their value
+  ---
+  duration_ms: 3.607112
+  type: 'test'
+  ...
+# Subtest: v1.8.1 a slot outside its schedule is not runnable and is skipped in explicit order
+ok 4 - v1.8.1 a slot outside its schedule is not runnable and is skipped in explicit order
+  ---
+  duration_ms: 2.273792
+  type: 'test'
+  ...
+# Subtest: v1.8.1 operator schedule edit: null clears, other fields and the priority ceiling are untouched
+ok 5 - v1.8.1 operator schedule edit: null clears, other fields and the priority ceiling are untouched
+  ---
+  duration_ms: 26.236028
+  type: 'test'
+  ...
+# Subtest: v1.8.1 queue sets keep run windows but never a one-shot pause
+ok 6 - v1.8.1 queue sets keep run windows but never a one-shot pause
+  ---
+  duration_ms: 2.253949
+  type: 'test'
+  ...
+# Subtest: v1.8.1 SET_SCHEDULE is validated, bound to the slot, idempotent and loses to the operator
+ok 7 - v1.8.1 SET_SCHEDULE is validated, bound to the slot, idempotent and loses to the operator
+  ---
+  duration_ms: 2.772514
+  type: 'test'
+  ...
+# Subtest: v1.8.1 FULL prompt instructs and mandates the scheduler; COMPACT keeps the live schedule state
+ok 8 - v1.8.1 FULL prompt instructs and mandates the scheduler; COMPACT keeps the live schedule state
+  ---
+  duration_ms: 24.51853
+  type: 'test'
+  ...
+# Subtest: v1.8.1 a blocked schedule parks the slot after the response; nothing else changes the policy
+ok 9 - v1.8.1 a blocked schedule parks the slot after the response; nothing else changes the policy
+  ---
+  duration_ms: 0.56789
+  type: 'test'
+  ...
+# Subtest: v1.8.1 E2E: the window closes during a turn; the turn finishes, then the slot parks and the next GFW starts
+ok 10 - v1.8.1 E2E: the window closes during a turn; the turn finishes, then the slot parks and the next GFW starts
+  ---
+  duration_ms: 626.433696
+  type: 'test'
+  ...
+# Subtest: v1.8.1 E2E: with no other runnable slot the worker idles in QUEUE_WAIT and wakes when the slot opens
+ok 11 - v1.8.1 E2E: with no other runnable slot the worker idles in QUEUE_WAIT and wakes when the slot opens
+  ---
+  duration_ms: 715.680096
+  type: 'test'
+  ...
+# Subtest: v1.8.1 E2E: an AI SET_SCHEDULE pause is applied, receipted, and parks the slot after this response
+ok 12 - v1.8.1 E2E: an AI SET_SCHEDULE pause is applied, receipted, and parks the slot after this response
+  ---
+  duration_ms: 577.402889
+  type: 'test'
+  ...
+# Subtest: v1.8.1 E2E dispatch gate: a prompt that was never dispatched is not posted outside the schedule
+ok 13 - v1.8.1 E2E dispatch gate: a prompt that was never dispatched is not posted outside the schedule
+  ---
+  duration_ms: 640.5346
+  type: 'test'
+  ...
+# Subtest: v1.8.1 E2E: re-saving the selected queue set overwrites it from the active queue and keeps its identity
+ok 14 - v1.8.1 E2E: re-saving the selected queue set overwrites it from the active queue and keeps its identity
+  ---
+  duration_ms: 130.270518
+  type: 'test'
+  ...
+# Subtest: v1.8.1 side panel wires 'Uppdatera valt' and the per-slot schedule editor to the verified mutations
+ok 15 - v1.8.1 side panel wires 'Uppdatera valt' and the per-slot schedule editor to the verified mutations
+  ---
+  duration_ms: 1.953872
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2894.332629
