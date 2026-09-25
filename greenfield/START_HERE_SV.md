@@ -1,4 +1,6 @@
-# Greenfield 1.8.3 – börja här
+# Greenfield 1.8.4 – börja här
+
+Greenfield 1.8.4 rättar fältet Modellgolv under Körkrav. Chrome loggar inte längre felet ”Pattern attribute value GPT[- ]… is not a valid regular expression”, och panelen stoppar nu ett ogiltigt modellnamn redan i fältet.
 
 Greenfield 1.8.3 återhämtar själv en vit ruta, ett halvladdat ChatGPT-gränssnitt eller en flik som inte svarar: omladdning, hård omladdning, samma URL, och till sist en ny flik med samma konversation. Visar ChatGPT ett Daybreak-spärrkort fortsätter samma GFW i en ny chatt. Vid upprepning inom 24 h pausas GFW:n (2/6/24 h) och kön går vidare. Den blir aldrig blockerad.
 
@@ -91,14 +93,14 @@ Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s auton
 - Bounded finska termer för modell-/reasoning-UI stöds.
 - Diagnostiken anger `effortEvidenceSource` så att en operator kan se om beviset kom från `COMPOSER_SELECTED_CONTROL` eller en svagare strukturell fallback.
 
-## Installation över 1.8.2
+## Installation över 1.8.3
 
 1. Pausa nya Greenfield-utskick.
 2. Säkerhetskopiera den uppackade tilläggsmappen.
-3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.8.3.zip`.
+3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.8.4.zip`.
 4. Kopiera innehållet över samma mapp som Chrome redan använder så extension-ID/lokal state bevaras.
 5. I `chrome://extensions`, välj **Läs in igen**.
-6. Verifiera att panelen visar `v1.8.3`.
+6. Verifiera att panelen visar `v1.8.4`.
 7. Återgå till den exakta EIC-konversation som hör till workern.
 8. Kör **Kontrollera modell igen** och exportera diagnostik om safety-hold kvarstår.
 9. Låt Greenfield reconcilea befintlig process-state; gör inget manuellt omskick av en dispatch med okänd effekt.
@@ -122,7 +124,7 @@ Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s auton
 - Ändra prioritet i panelen medan AI:n arbetar och verifiera att ett äldre AI-svar får `OPERATOR_PRECEDENCE`.
 - Låt en tur passera 30 min (Greenfields egen F5) eller tryck F5 mellan två turer. Verifiera att nästa prompt ändå har `promptProfile.profile = COMPACT` i samma konversation.
 - Byt till en annan chatt eller låt Greenfield rotera, och verifiera att nästa prompt har `promptProfile.profile = FULL`.
-- Spara gärna den aktiva kön som ett kö-set innan extension-reload. Om du kopierar 1.8.3 över samma unpacked Chrome-mapp bevaras normalt samma extension-ID/lokal state; ett helt nytt unpacked extension-ID ska inte antas ärva aktiv runtime-kö.
+- Spara gärna den aktiva kön som ett kö-set innan extension-reload. Om du kopierar 1.8.4 över samma unpacked Chrome-mapp bevaras normalt samma extension-ID/lokal state; ett helt nytt unpacked extension-ID ska inte antas ärva aktiv runtime-kö.
 - Starta minst två olika GFW-slots med olika prioritet och verifiera att **listordningen**, inte prioriteten, avgör nästa slot.
 - Sätt en slot till kvant 2 och verifiera `0/2 → 1/2 → byte`, därefter att samma slot vid nästa fulla varv börjar på `0/2`.
 - Avbryt en större kvant tidigt via en kökontroll och verifiera att dess ofärdiga kvant fortsätter från tidigare tal när slotten kommer tillbaka.

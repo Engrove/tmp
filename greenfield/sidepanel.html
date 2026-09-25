@@ -11,8 +11,8 @@
     <header class="hero">
       <div>
         <div class="eyebrow">EIC AUTONOM AGENT</div>
-        <h1>Greenfield <span>v1.8.3</span></h1>
-        <div class="micro">1.8.3 · Flikhälsa och Daybreak-hantering</div>
+        <h1>Greenfield <span>v1.8.4</span></h1>
+        <div class="micro">1.8.4 · Flikhälsa, Daybreak och giltigt modellgolv</div>
       </div>
       <div id="continuityLamp" class="lamp" title="Continuity"></div>
     </header>
@@ -98,7 +98,7 @@
       <p class="micro">Greenfield använder ett kompatibilitetsgolv: numerisk GPT-version jämförs när den syns, medan familjenamn som Sol, Luna eller Astra inte behöver matcha exakt. En verifierad reasoning-kontroll kan användas även när ChatGPT inte visar modellnamnet. Explicit äldre/degraderat läge spärrar fortfarande.</p>
       <form id="safetyPolicyForm">
         <div class="policy-grid">
-          <label>Modellgolv<input id="requiredModel" name="requiredModel" value="GPT-5.6" required pattern="GPT[- ][0-9]+(\.[0-9]+){0,3}( [A-Za-z0-9_-]+){0,3}"></label>
+          <label>Modellgolv<input id="requiredModel" name="requiredModel" value="GPT-5.6" required pattern="[Gg][Pp][Tt][\- ][0-9]+(\.[0-9]+){0,3}(\s+[A-Za-z0-9_\-]+){0,3}"></label>
           <label>Lägsta tänkenivå<select id="minimumEffort" name="minimumEffort"><option value="extended">Extended / Utökad</option><option value="heavy">Heavy / Max / Djupgående</option></select></label>
           <label>Utskick / 3 h<input id="messages3h" type="number" min="1" max="1000" value="24" required></label>
           <label>Utskick / 24 h<input id="messages24h" type="number" min="1" max="5000" value="96" required></label>

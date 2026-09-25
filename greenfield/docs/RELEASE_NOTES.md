@@ -1,3 +1,12 @@
+# 1.8.4 – valid model-floor pattern in the side panel
+
+- Operatörsrapport (Chromes felsida för tillägget, sidepanel.html): `Pattern attribute value GPT[- ][0-9]+(\.[0-9]+){0,3}( [A-Za-z0-9_-]+){0,3} is not a valid regular expression … /v: Invalid character in character class`.
+- Rotorsak: Chrome kompilerar ett HTML-`pattern` i läget unicodeSets (`v`). Där måste ett bindestreck i en teckenklass skrivas `\-`, och `[- ]` samt `[A-Za-z0-9_-]` är därför ogiltiga. Ett ogiltigt mönster ignoreras och loggas som fel när fältet valideras. Felet har funnits sedan 1.7.6 och har inget med avstängningen att göra. Följden var att fältet Modellgolv i panelen godtog vad som helst (även ”foo”). Bakgrundens kontroll (`SAFETY_MODEL_POLICY_INVALID`) avvisade det fortfarande, så inga ogiltiga körkrav kunde sparas.
+- Rättelse: `[Gg][Pp][Tt][\- ][0-9]+(\.[0-9]+){0,3}(\s+[A-Za-z0-9_\-]+){0,3}`. Mönstret godtar exakt samma syntax som bakgrundens kontroll, alltså även gemener och flera mellanslag. Därför kan ett redan sparat modellgolv aldrig bli ogiltigt i panelen när mönstret nu gäller på riktigt.
+- Nytt test `tests/v184-pattern-attributes.test.mjs` kompilerar varje `pattern` i v-läge, precis som Chrome gör, och jämför modellgolvet med bakgrundens kontroll. Nytt verktyg `tools/verify-sidepanel-patterns.mjs` kör den riktiga `sidepanel.html` i Chromium: inget konsolfel och mönstret gäller. Samma verktyg underkänner 1.8.3.
+
+---
+
 # 1.8.3 – tab health recovery and ChatGPT content-block (Daybreak) handling
 
 - Rotorsak till att Greenfield frös med fliken: anrop till sidan saknade tidsgräns, tickar körs seriellt per process och varje fasövergång väntade in overlay-synken till samma flik. Nu har alla anrop till sidan en deadline: 15 s för tillstånd, 5 s för overlay, 20 s för injektion och 90 s för utskick (okänd effekt, befintlig avstämning).

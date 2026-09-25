@@ -1,0 +1,71 @@
+{
+  "schema": "eic.greenfield.v184-release-summary.v1",
+  "version": "1.8.4",
+  "generatedAt": "2026-09-25T05:43:55.818723+00:00",
+  "source": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.8.3.zip",
+    "version": "1.8.3",
+    "sha256": "b6deb677293b5c2ab65305b55c87aba271d8b9e166d84641cef8e077e8aee418",
+    "sizeBytes": 892346,
+    "embeddedIntegrity": {
+      "records": 287,
+      "mismatches": 0,
+      "rootDigest": "00d432eed8d1457928f23dc0b0c6f736fb3ae0deb89d845932c999e0feb4fdb3"
+    }
+  },
+  "change": {
+    "purpose": "Operator report 2026-09-25 (chrome://extensions errors, sidepanel.html): 'Pattern attribute value GPT[- ][0-9]+(\\.[0-9]+){0,3}( [A-Za-z0-9_-]+){0,3} is not a valid regular expression ... /v: Invalid character in character class'.",
+    "rootCause": "Chrome compiles an HTML pattern attribute with the unicodeSets (v) flag; an unescaped '-' inside a character class ([- ], [A-Za-z0-9_-]) is a syntax error there. The invalid pattern was ignored (no constraint) and logged when the field was validated. Present since the v1.7.6 baseline; unrelated to the extension being closed.",
+    "impact": "requiredModel field accepted any text client-side (Chromium: 'foo' valid); background normalizePolicy still rejected invalid values with SAFETY_MODEL_POLICY_INVALID, so no invalid policy could be stored",
+    "fix": "sidepanel.html requiredModel pattern [Gg][Pp][Tt][\\- ][0-9]+(\\.[0-9]+){0,3}(\\s+[A-Za-z0-9_\\-]+){0,3}: valid in v mode and syntactically equivalent to lib/safety-policy.js (case-insensitive GPT, \\s+ separators), so every stored policy remains valid in the now-enforced field",
+    "newPermissions": "none",
+    "runtimeChange": "none (side panel markup only)"
+  },
+  "gates": {
+    "PATTERN_COMPILES_V_MODE_PASS": true,
+    "OLD_PATTERN_REJECTED_PASS": true,
+    "PATTERN_EQUALS_POLICY_SYNTAX_PASS": true,
+    "CHROMIUM_NO_CONSOLE_ERROR_PASS": true,
+    "CHROMIUM_PATTERN_ENFORCED_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
+  },
+  "executed": {
+    "baselineNpmTestOnV183": {
+      "tests": 586,
+      "pass": 586,
+      "fail": 0
+    },
+    "dedicated": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "output": "verification/v184-pattern-attributes.tap"
+    },
+    "realBrowser": {
+      "tool": "tools/verify-sidepanel-patterns.mjs (Playwright + Chromium, real sidepanel.html markup)",
+      "checks": 4,
+      "pass": 4,
+      "fail": 0,
+      "output": "verification/v184-sidepanel-pattern-check.json",
+      "negativeControlOnV183Markup": "same tool: 1 of 4 pass (console error logged; 'foo' accepted), exit 1"
+    },
+    "fullNpmTest": {
+      "tests": 589,
+      "pass": 589,
+      "fail": 0,
+      "output": "verification/release-tests.tap"
+    },
+    "syntax": {
+      "files": 138,
+      "pass": 138,
+      "fail": 0,
+      "output": "verification/v184-syntax-check.txt"
+    }
+  },
+  "boundaries": {
+    "liveChromeExtensionAcceptance": "not executed (the Chromium check loads the real sidepanel.html markup without extension APIs)",
+    "surroundingWhitespace": "the field rejects leading/trailing whitespace that the background would trim; stored values are trimmed, so none is affected",
+    "carriedFrom1_8_3": "not live-tested; GPU-only white screen undetectable; REPLACE_TAB rebind needs one ChatGPT tab per worker window; Finnish Daybreak headline unknown"
+  }
+}

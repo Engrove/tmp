@@ -1,34 +1,42 @@
 {
   "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.8.3",
-  "releaseChannel": "1.8.3",
-  "generatedAt": "2026-09-25T05:35:24.658785+00:00",
+  "appVersion": "1.8.4",
+  "releaseChannel": "1.8.4",
+  "generatedAt": "2026-09-25T05:43:55.818723+00:00",
   "sourceBaseline": {
-    "source": "Greenfield v1.8.2 release package (this delivery chain)",
-    "file": "EIC_Autonom_Agent_Greenfield_v1.8.2.zip",
-    "version": "1.8.2",
-    "sha256": "d6baf1180f7b3a7a34fc980d7df42921032fe5c4123921575d6bb9c1623d9212",
-    "sizeBytes": 856520,
+    "source": "Greenfield v1.8.3 release package (this delivery chain)",
+    "file": "EIC_Autonom_Agent_Greenfield_v1.8.3.zip",
+    "version": "1.8.3",
+    "sha256": "b6deb677293b5c2ab65305b55c87aba271d8b9e166d84641cef8e077e8aee418",
+    "sizeBytes": 892346,
     "embeddedIntegrity": {
-      "records": 277,
+      "records": 287,
       "mismatches": 0,
-      "rootDigest": "87f0555910fd86dfbfd71283eb7fc20f70a5d245dd9a45820ed860501a8234df"
+      "rootDigest": "00d432eed8d1457928f23dc0b0c6f736fb3ae0deb89d845932c999e0feb4fdb3"
     }
   },
   "change": {
-    "purpose": "Operator requests 2026-09-25: (a) recover from Chrome white screen / unresponsive tab and from a partially rendered ChatGPT UI (composer missing left SENDING held on THINKING_MODE_UNVERIFIED); (b) handle the inline ChatGPT content-block notice (Daybreak) by rotating the same GFW, pausing it on repeats, never BLOCKED.",
-    "operatorDecisions": {
-      "daybreak": "first block -> rotate same GFW into a fresh chat; repeat within 24 h -> pause 2 h, then 6 h, then 24 h; chain resets after 24 h without a block; never BLOCKED",
-      "scope": "Daybreak + tab health guard"
-    },
-    "rootCause": "content bridge calls (chrome.tabs.sendMessage) had no deadline; ticks are serialized per process and the watchdog queued behind a hung tick; every transition awaited broadcast -> syncOverlay to the same tab; the SENDING safety hold never escalated to a reload",
-    "deadlines": "lib/tab-health.mjs TAB_HEALTH: bridge 15 s, overlay 5 s, inject 20 s, submit 90 s (unknown effect -> existing dispatch reconciliation), preflight 60 s",
-    "conditions": "BRIDGE_UNRESPONSIVE, BRIDGE_MISSING, TAB_DISCARDED, RENDER_STALLED (visible >=45 s and requested frame not delivered >=45 s), COMPOSER_MISSING (SENDING), THREAD_MISSING (conversation URL with 0 turns); Chrome-frozen tabs are waited out; managed tabs set autoDiscardable:false",
-    "ladder": "REINJECT (bridge missing only) -> RELOAD -> HARD_RELOAD -> NAVIGATE_SAME_URL -> REPLACE_TAB (same conversation, same window, old tab closed, existing single-tab rebind) -> GIVE_UP (session rotation TAB_HEALTH_RECOVERY_EXHAUSTED); UI grace 90 s, 45 s between steps, budget 5 actions/hour/process, no UI step while a dispatch has unknown effect",
-    "tickRescue": "watchdog does not enqueue behind a tick in flight > 3 min; reloads the tab at most every 5 min in WAITING/SENDING(no dispatch)/DETACHED/RECOVERING/ROTATING; audit TICK_STALL_RESCUE",
-    "providerNotice": "content.js detectProviderNotice: 'Daybreak' + headline (en/sv) or cyber word (en/sv/fi), outside every message turn, after the anchor user turn; acted on after two sightings >= 3 s apart and not while generating; the turn is not counted in the quantum; learning keypoints POST_FAILURE / RECURRING PROVIDER_CONTENT_BLOCK_REPEATED",
-    "pause": "queue slot: schedule.pauseUntilMs = max(existing, now + pause), updatedBy GREENFIELD, status READY, parked PROVIDER_CONTENT_BLOCKED_PAUSED, queue continues (QUEUE_WAIT when none runnable); outside a queue: hold PROVIDER_CONTENT_BLOCK_PAUSE",
+    "purpose": "Operator report 2026-09-25 (chrome://extensions errors, sidepanel.html): 'Pattern attribute value GPT[- ][0-9]+(\\.[0-9]+){0,3}( [A-Za-z0-9_-]+){0,3} is not a valid regular expression ... /v: Invalid character in character class'.",
+    "rootCause": "Chrome compiles an HTML pattern attribute with the unicodeSets (v) flag; an unescaped '-' inside a character class ([- ], [A-Za-z0-9_-]) is a syntax error there. The invalid pattern was ignored (no constraint) and logged when the field was validated. Present since the v1.7.6 baseline; unrelated to the extension being closed.",
+    "impact": "requiredModel field accepted any text client-side (Chromium: 'foo' valid); background normalizePolicy still rejected invalid values with SAFETY_MODEL_POLICY_INVALID, so no invalid policy could be stored",
+    "fix": "sidepanel.html requiredModel pattern [Gg][Pp][Tt][\\- ][0-9]+(\\.[0-9]+){0,3}(\\s+[A-Za-z0-9_\\-]+){0,3}: valid in v mode and syntactically equivalent to lib/safety-policy.js (case-insensitive GPT, \\s+ separators), so every stored policy remains valid in the now-enforced field",
     "newPermissions": "none",
+    "runtimeChange": "none (side panel markup only)",
+    "carriedFrom1_8_3": {
+      "purpose": "Operator requests 2026-09-25: (a) recover from Chrome white screen / unresponsive tab and from a partially rendered ChatGPT UI (composer missing left SENDING held on THINKING_MODE_UNVERIFIED); (b) handle the inline ChatGPT content-block notice (Daybreak) by rotating the same GFW, pausing it on repeats, never BLOCKED.",
+      "operatorDecisions": {
+        "daybreak": "first block -> rotate same GFW into a fresh chat; repeat within 24 h -> pause 2 h, then 6 h, then 24 h; chain resets after 24 h without a block; never BLOCKED",
+        "scope": "Daybreak + tab health guard"
+      },
+      "rootCause": "content bridge calls (chrome.tabs.sendMessage) had no deadline; ticks are serialized per process and the watchdog queued behind a hung tick; every transition awaited broadcast -> syncOverlay to the same tab; the SENDING safety hold never escalated to a reload",
+      "deadlines": "lib/tab-health.mjs TAB_HEALTH: bridge 15 s, overlay 5 s, inject 20 s, submit 90 s (unknown effect -> existing dispatch reconciliation), preflight 60 s",
+      "conditions": "BRIDGE_UNRESPONSIVE, BRIDGE_MISSING, TAB_DISCARDED, RENDER_STALLED (visible >=45 s and requested frame not delivered >=45 s), COMPOSER_MISSING (SENDING), THREAD_MISSING (conversation URL with 0 turns); Chrome-frozen tabs are waited out; managed tabs set autoDiscardable:false",
+      "ladder": "REINJECT (bridge missing only) -> RELOAD -> HARD_RELOAD -> NAVIGATE_SAME_URL -> REPLACE_TAB (same conversation, same window, old tab closed, existing single-tab rebind) -> GIVE_UP (session rotation TAB_HEALTH_RECOVERY_EXHAUSTED); UI grace 90 s, 45 s between steps, budget 5 actions/hour/process, no UI step while a dispatch has unknown effect",
+      "tickRescue": "watchdog does not enqueue behind a tick in flight > 3 min; reloads the tab at most every 5 min in WAITING/SENDING(no dispatch)/DETACHED/RECOVERING/ROTATING; audit TICK_STALL_RESCUE",
+      "providerNotice": "content.js detectProviderNotice: 'Daybreak' + headline (en/sv) or cyber word (en/sv/fi), outside every message turn, after the anchor user turn; acted on after two sightings >= 3 s apart and not while generating; the turn is not counted in the quantum; learning keypoints POST_FAILURE / RECURRING PROVIDER_CONTENT_BLOCK_REPEATED",
+      "pause": "queue slot: schedule.pauseUntilMs = max(existing, now + pause), updatedBy GREENFIELD, status READY, parked PROVIDER_CONTENT_BLOCKED_PAUSED, queue continues (QUEUE_WAIT when none runnable); outside a queue: hold PROVIDER_CONTENT_BLOCK_PAUSE",
+      "newPermissions": "none"
+    },
     "carriedFrom1_8_2": {
       "purpose": "Operator request (1) follow-up after the live diagnostics export 2026-09-24T10:03:20Z: stop admitting unfinished answers and make the reason for a held response durable.",
       "evidence": {
@@ -120,35 +128,49 @@
     }
   },
   "verification": {
-    "baselineTestCommand": "npm test (on v1.8.2)",
-    "baselineTests": 576,
-    "baselinePass": 576,
+    "baselineTestCommand": "npm test (on v1.8.3)",
+    "baselineTests": 586,
+    "baselinePass": 586,
     "baselineFail": 0,
-    "dedicatedCommand": "node --test tests/v183-tab-health-daybreak.test.mjs",
-    "dedicatedOutput": "verification/v183-tab-health-daybreak.tap",
-    "dedicatedTests": 10,
-    "dedicatedPass": 10,
+    "dedicatedCommand": "node --test tests/v184-pattern-attributes.test.mjs",
+    "dedicatedOutput": "verification/v184-pattern-attributes.tap",
+    "dedicatedTests": 3,
+    "dedicatedPass": 3,
     "dedicatedFail": 0,
-    "realDomCommand": "NODE_PATH=\"$(npm root -g)\" node tools/verify-content-health.mjs",
-    "realDomOutput": "verification/v183-content-dom-check.json",
-    "realDomChecks": 9,
-    "realDomPass": 9,
-    "realDomFail": 0,
+    "realBrowserCommand": "NODE_PATH=\"$(npm root -g)\" node tools/verify-sidepanel-patterns.mjs",
+    "realBrowserOutput": "verification/v184-sidepanel-pattern-check.json",
+    "realBrowserChecks": 4,
+    "realBrowserPass": 4,
+    "realBrowserFail": 0,
+    "realDomCommand1_8_3": "NODE_PATH=\"$(npm root -g)\" node tools/verify-content-health.mjs",
+    "realDomOutput1_8_3": "verification/v183-content-dom-check.json",
     "testCommand": "npm test",
     "testOutput": "verification/release-tests.tap",
-    "tests": 586,
-    "pass": 586,
+    "tests": 589,
+    "pass": 589,
     "fail": 0,
     "skipped": 0,
     "syntaxCommand": "node --check <each .js/.mjs/.cjs>",
-    "syntaxOutput": "verification/v183-syntax-check.txt",
-    "syntaxFiles": 136,
-    "syntaxPass": 136,
+    "syntaxOutput": "verification/v184-syntax-check.txt",
+    "syntaxFiles": 138,
+    "syntaxPass": 138,
     "syntaxFail": 0,
     "nodeVersion": "v22.22.2",
     "errors": []
   },
   "regressionMatrix": [
+    {
+      "case": "every HTML pattern attribute",
+      "expected": "compiles as new RegExp(`^(?:p)$`, 'v')"
+    },
+    {
+      "case": "requiredModel vs lib/safety-policy.js on 18 samples",
+      "expected": "identical accept/reject"
+    },
+    {
+      "case": "real sidepanel.html in Chromium",
+      "expected": "no 'Pattern attribute' console error; 'foo' rejected; form invalid with 'foo'"
+    },
     {
       "case": "page stops answering in WAITING",
       "expected": "CONTENT_BRIDGE_TIMEOUT after 15 s; DETACHED; F5, then Ctrl-F5 45 s later; resumes WAITING when the page answers"
@@ -367,12 +389,14 @@
     }
   ],
   "evidenceBoundaries": {
-    "packageSourceAndNodeTests": "verified locally from the v1.8.2 package produced in this delivery chain",
+    "packageSourceAndNodeTests": "verified locally from the v1.8.3 package produced in this delivery chain",
     "liveEvidence": "operator screenshots 2026-09-25 (white screen report, missing composer, Daybreak notice en/sv); not included in the package",
     "harnessE2E": "real background.js ticks with harness timers (deadlines fired explicitly), real content.js in Chromium for detection only",
     "openBoundaries": "a white screen where page script runs and frames are delivered is not detectable without captureVisibleTab (<all_urls>/activeTab not added); an extension cannot act when all of Chrome is frozen; rebind requires exactly one ChatGPT tab in the worker window; otherwise session rotation after 6 attempts as before; unknown; detection relies on 'Daybreak' + cyber word",
     "carriedOpenRootCauses1_8_2": "root cause of the false generation signal during long deep-reasoning answers is not fixed; the guard is format-based; reason not recoverable from the export; the next export after a recurrence shows it in responseObservation",
     "liveChromeExtensionInstall": "not executed in this environment",
-    "providerOrChatGPTLiveDispatch": "not executed in this environment"
+    "providerOrChatGPTLiveDispatch": "not executed in this environment",
+    "liveEvidence1_8_4": "operator screenshot of chrome://extensions errors (v1.8.2 panel), 2026-09-25",
+    "realBrowser1_8_4": "not executed (the Chromium check loads the real sidepanel.html markup without extension APIs)"
   }
 }
