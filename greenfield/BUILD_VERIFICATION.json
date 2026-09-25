@@ -1,164 +1,109 @@
 {
   "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.8.4",
-  "releaseChannel": "1.8.4",
-  "generatedAt": "2026-09-25T05:43:55.818723+00:00",
+  "appVersion": "1.8.5",
+  "releaseChannel": "1.8.5",
+  "generatedAt": "2026-09-25T10:47:54.936812+00:00",
   "sourceBaseline": {
-    "source": "Greenfield v1.8.3 release package (this delivery chain)",
-    "file": "EIC_Autonom_Agent_Greenfield_v1.8.3.zip",
-    "version": "1.8.3",
-    "sha256": "b6deb677293b5c2ab65305b55c87aba271d8b9e166d84641cef8e077e8aee418",
-    "sizeBytes": 892346,
+    "source": "Greenfield v1.8.4 release package (this delivery chain)",
+    "file": "EIC_Autonom_Agent_Greenfield_v1.8.4.zip",
+    "version": "1.8.4",
+    "sha256": "12a621f2cd896b7aecb6642082a7dddd0be67bd5eadb64c2e7f2a60a8d2a43d9",
+    "sizeBytes": 902784,
     "embeddedIntegrity": {
-      "records": 287,
+      "records": 294,
       "mismatches": 0,
-      "rootDigest": "00d432eed8d1457928f23dc0b0c6f736fb3ae0deb89d845932c999e0feb4fdb3"
+      "rootDigest": "4e53bc0bbdff21ce380814391a1d36f2573fb5b5d0cfe8939f014c3734cc76f5"
     }
   },
   "change": {
-    "purpose": "Operator report 2026-09-25 (chrome://extensions errors, sidepanel.html): 'Pattern attribute value GPT[- ][0-9]+(\\.[0-9]+){0,3}( [A-Za-z0-9_-]+){0,3} is not a valid regular expression ... /v: Invalid character in character class'.",
-    "rootCause": "Chrome compiles an HTML pattern attribute with the unicodeSets (v) flag; an unescaped '-' inside a character class ([- ], [A-Za-z0-9_-]) is a syntax error there. The invalid pattern was ignored (no constraint) and logged when the field was validated. Present since the v1.7.6 baseline; unrelated to the extension being closed.",
-    "impact": "requiredModel field accepted any text client-side (Chromium: 'foo' valid); background normalizePolicy still rejected invalid values with SAFETY_MODEL_POLICY_INVALID, so no invalid policy could be stored",
-    "fix": "sidepanel.html requiredModel pattern [Gg][Pp][Tt][\\- ][0-9]+(\\.[0-9]+){0,3}(\\s+[A-Za-z0-9_\\-]+){0,3}: valid in v mode and syntactically equivalent to lib/safety-policy.js (case-insensitive GPT, \\s+ separators), so every stored policy remains valid in the now-enforced field",
+    "purpose": "Operator requests 2026-09-25: (1) a better way to save and update saved missions ('SPARADE UPPDRAG' could not be administered; queue sets kept stale mission texts); 21 normalized GFW bootstrap texts to import; (2) the 24-mission limit (GF-054 not saved); (3) fix the hypothetical case where ChatGPT's 'Våra system bearbetar den här förfrågan …' notice could be captured as assistant text.",
+    "rootCause": "saveMissionPreset matched only identical text, so an edited text became a new record with a new id; queue slots and queue sets copied the text at add/save and never resolved savedMissionId; a parked slot resumed with its process snapshot's text; the bookmark vault kept the 24 newest by updatedAt and silently removed the rest (panel save: the oldest mission disappeared; a record written with an older updatedAt was removed in the same write and failed with SAVED_MISSION_VAULT_COMMIT_READBACK_MISMATCH - both reproduced against the v1.8.4 vault code); save errors were written to the shared status line, which every render overwrites.",
+    "fix": "lib/saved-mission-catalog.mjs: identity = first-line GFW key; Markdown (### GF-xxx) / JSON import parser with all-or-nothing errors; import plan (create/update/unchanged, duplicate merge, limit); reference resolution (id, merged id, stale id re-linked by key to exactly one record; slots without savedMissionId never touched); export; cleanup rows. operator-settings: saveSavedMission AUTO/UPDATE/CREATE (same key updates in place, key conflicts refused), applySavedMissionImport with durable readback, limit 64. Vault: capacity refusal before any write, pruning removed. Queue sets: reconcileMissionQueueSetsWithSavedMissions rewrites stored sets (store + vault, readback). Background: current text at ADD, set SAVE/UPDATE/APPLY and slot activation (parked included; bootstrap text only; SAVED_MISSION_BOOTSTRAP_REFRESHED audited); EIC_GF_SAVED_MISSIONS_CHANGED reconciles sets and this window's queue. Panel: admin card (edit, save change, save as new, confirmed delete, import preview/apply, export, cleanup), N/64 counter with full state, own save status line. content.js: the processing notice is status for assistant turns (structural removal + line filter).",
     "newPermissions": "none",
-    "runtimeChange": "none (side panel markup only)",
-    "carriedFrom1_8_3": {
-      "purpose": "Operator requests 2026-09-25: (a) recover from Chrome white screen / unresponsive tab and from a partially rendered ChatGPT UI (composer missing left SENDING held on THINKING_MODE_UNVERIFIED); (b) handle the inline ChatGPT content-block notice (Daybreak) by rotating the same GFW, pausing it on repeats, never BLOCKED.",
-      "operatorDecisions": {
-        "daybreak": "first block -> rotate same GFW into a fresh chat; repeat within 24 h -> pause 2 h, then 6 h, then 24 h; chain resets after 24 h without a block; never BLOCKED",
-        "scope": "Daybreak + tab health guard"
-      },
-      "rootCause": "content bridge calls (chrome.tabs.sendMessage) had no deadline; ticks are serialized per process and the watchdog queued behind a hung tick; every transition awaited broadcast -> syncOverlay to the same tab; the SENDING safety hold never escalated to a reload",
-      "deadlines": "lib/tab-health.mjs TAB_HEALTH: bridge 15 s, overlay 5 s, inject 20 s, submit 90 s (unknown effect -> existing dispatch reconciliation), preflight 60 s",
-      "conditions": "BRIDGE_UNRESPONSIVE, BRIDGE_MISSING, TAB_DISCARDED, RENDER_STALLED (visible >=45 s and requested frame not delivered >=45 s), COMPOSER_MISSING (SENDING), THREAD_MISSING (conversation URL with 0 turns); Chrome-frozen tabs are waited out; managed tabs set autoDiscardable:false",
-      "ladder": "REINJECT (bridge missing only) -> RELOAD -> HARD_RELOAD -> NAVIGATE_SAME_URL -> REPLACE_TAB (same conversation, same window, old tab closed, existing single-tab rebind) -> GIVE_UP (session rotation TAB_HEALTH_RECOVERY_EXHAUSTED); UI grace 90 s, 45 s between steps, budget 5 actions/hour/process, no UI step while a dispatch has unknown effect",
-      "tickRescue": "watchdog does not enqueue behind a tick in flight > 3 min; reloads the tab at most every 5 min in WAITING/SENDING(no dispatch)/DETACHED/RECOVERING/ROTATING; audit TICK_STALL_RESCUE",
-      "providerNotice": "content.js detectProviderNotice: 'Daybreak' + headline (en/sv) or cyber word (en/sv/fi), outside every message turn, after the anchor user turn; acted on after two sightings >= 3 s apart and not while generating; the turn is not counted in the quantum; learning keypoints POST_FAILURE / RECURRING PROVIDER_CONTENT_BLOCK_REPEATED",
-      "pause": "queue slot: schedule.pauseUntilMs = max(existing, now + pause), updatedBy GREENFIELD, status READY, parked PROVIDER_CONTENT_BLOCKED_PAUSED, queue continues (QUEUE_WAIT when none runnable); outside a queue: hold PROVIDER_CONTENT_BLOCK_PAUSE",
-      "newPermissions": "none"
-    },
-    "carriedFrom1_8_2": {
-      "purpose": "Operator request (1) follow-up after the live diagnostics export 2026-09-24T10:03:20Z: stop admitting unfinished answers and make the reason for a held response durable.",
-      "evidence": {
-        "file": "Greenfield-diagnostics-2026-09-24T10-03-20-340Z.json (appVersion 1.8.0)",
-        "shortCaptures": "45 of 78 recorded turns < 50 chars; 17 of 26 stored response texts short, all 17 unterminated JSON objects; all 9 full texts closed JSON",
-        "interleave": "process 5df3f599: '{' captured from node -6 09:50:29Z, turn 13 posted 09:55:52Z, same node completed 10:00:18Z (EXTERNAL_TURN_INTERLEAVED)",
-        "process3182ea75": "turn 2 posted 05:39:18Z; completed answer seen 06:02:07Z (lastMaterialAt, STALE_SESSION_COUNTER_RESET) but never admitted; 120-minute queue rotation 08:02:08Z; rejecting gate not recoverable (Persistent Audit off, candidate state cleared at park)"
-      },
-      "guard": "lib/response-observation.mjs responseStructuralCompleteness: leading object (after optional JSON/```json label), first keyed object anywhere, or trailing '{' that is not closed -> never admitted; tickWaiting keeps waiting, stale ladder bounds; replay 17/17 held, 9/9 admitted",
-      "trace": "process.responseObservationTrace ring (live <=16, parked <=8), ids/lengths/flags only, written on reason/identity change or at most once per minute, carried in existing writes where one occurs; diagnostics export responseObservation index per live process and parked slot",
-      "storage": "worst case ~15 KB per live trace, ~7.5 KB per parked snapshot (checkpoint duplicates)"
-    },
-    "carriedFrom1_8_1": {
-      "purpose": "Operator requests 2026-09-24: (2) re-save a queue set from the active queue; (3) per-slot scheduler with run and pause times, AI-adjustable like quantum/priority, instructed and mandated in the FULL prompt. Request (1) (a final-quantum response never captured, Greenfield kept waiting) is not changed here: its root cause is in response capture and awaits the operator's diagnostics export.",
-      "operatorDecisions": {
-        "model": "weekly windows (local time) + one-shot pauseUntil",
-        "windowClose": "in-flight turn finishes, then park + queue switch",
-        "aiAuthority": "current slot, free within bounds, operator precedence"
-      },
-      "schedule": "item.schedule {windows[<=7]{days 1..7, start HH:MM, end HH:MM|24:00, end<start crosses midnight}, pauseUntilMs <= 30 days}; runnable = status runnable AND schedule allows; wake alarm = earliest status/schedule opening.",
-      "runtime": "post-analysis schedule gate parks the slot (SCHEDULE_WINDOW_CLOSED|SCHEDULE_PAUSED) with preserved quantum; no other runnable slot -> terminal QUEUE_WAIT (capacity and prompt lease released, queue wake alarm); dispatch gate in tickSending parks a never-dispatched prompt outside the schedule; transitions ANALYZING|SENDING->QUEUE_WAIT, QUEUE_WAIT->STOPPED.",
-      "ai": "runtimeControl SET_SCHEDULE (strict, INVALID on bad values, OPERATOR_PRECEDENCE, ALREADY_APPLIED, immediate); FULL prompt control.workQueue.scheduleRule (MANDATORY for time-dependent work); control.workQueue.schedule in every prompt; likelyLastTurnInWindow -> checkpointRequired.",
-      "queueSets": "UPDATE overwrites the selected set from the active queue (identity and name kept, two-click confirm); sets carry scheduleWindows, never pauseUntil.",
-      "fix": "operator edits of quantum/schedule no longer adopt an AI-lowered priority as the operator ceiling.",
-      "promptSize": {
-        "fixture": "same queue-managed CONTINUATION fixture as v1.8.0",
-        "fullChars": {
-          "v1.8.0": 45715,
-          "v1.8.1": 49399
-        },
-        "compactChars": {
-          "v1.8.0": 6834,
-          "v1.8.1": 7327
-        },
-        "scheduleRuleChars": 1417,
-        "scheduleStateChars": 316
-      }
-    },
-    "carriedFrom1_8_0": {
-      "purpose": "Operator request: extend Greenfield's prompt only with the EIC Learning & Continuity Control (AIK, Self-learn, Kaizen, Operator Learning). No prefetch, no new effect paths; the EIC session executes the checks.",
-      "layerA": "responseContract.learningControlContract (eic.greenfield.learning-contract.v1) in every FULL prompt: no built-in EIC knowledge, THE FACTUAL OWNER WINS, surfaces with is/usedFor/isNot, AIK discovery/continuity, Self-learn closure, 9-row routing, Kaizen keypoints, Operator Learning, Memory, 3M, origin, standing triggers, closure output.",
-      "layerB": "control.learningControl (EIC_LEARNING_CONTEXT, eic.greenfield.learning-context.v1) in every prompt incl. COMPACT: project scope from the mission header, workBlockId, deterministic keypoints with triggers, obligations, carriedOverObligations, freshChecksReusable, previousResult.",
-      "layerC": "optional response field learningControl normalized to a closed bounded shape (max 8000 JSON chars, else {malformed:true}); never affects response status; used only to build the next capsule.",
-      "promptSize": {
-        "fixture": "queue-managed CONTINUATION, same fixture for both versions",
-        "fullChars": {
-          "v1.7.9": 26920,
-          "v1.8.0": 45715
-        },
-        "compactChars": {
-          "v1.7.9": 5801,
-          "v1.8.0": 6834
-        },
-        "contractChars": 14737,
-        "capsuleChars": 670,
-        "resultSchemaChars": 2919
-      }
-    },
-    "carriedFrom1_7_9": {
-      "purpose": "Operator requests: (1) after 120 stalled minutes a queue-managed run performs a full rotation to the next runnable queue slot; (2) the in-page overlay shows a quick operational overview.",
-      "staleRotation": "STALE_SESSION_120M: park current slot (unfinished quantum preserved, unanswered turn not counted, resume previousDisposition=SESSION_UNRESPONSIVE, sourceResponseState=PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE) and activate the next runnable slot in explicit order; fallback to same-GFW session rotation when no other slot is runnable or the queue is stopped.",
-      "overlay": "GFW id, slot position, priority, interaction/quantum (+ pending quantum), local countdown to 120-minute rotation and next F5/Ctrl-F5, turn, session, activation, prompt profile, next GFW in queue, safety hold; tooltip with ids.",
-      "sharedPark": "parkSlotAndActivateNext used by analysis park and stale rotation"
-    },
-    "carriedFrom1_7_8": {
-      "purpose": "Fix FULL/COMPACT prompt continuity: a reload of the same ChatGPT conversation is not a session boundary.",
-      "rootCause": "Live v1.7.7 session: a 33.7-minute EIC turn triggered Greenfield's own stale-ladder F5 (tabs.reload of the same /c/ conversation) at 30 minutes; the new content documentId was treated as a session boundary, so turn 2 went out FULL (DOCUMENT_OR_CONVERSATION_CHANGED).",
-      "operatorDecision": "Same conversation = COMPACT: a reload of the same ChatGPT conversation (Greenfield stale-ladder F5/Ctrl-F5 or manual F5) is not a prompt-profile boundary.",
-      "continuityAnchor": "lastResponse.observation.conversationKey",
-      "fullTriggers": "mission start/restore, session rotation, queue activation, idle keepalive, new process/run/session/tab/queue slot/mission text, conversation change, ordinals 1,11,21,..., greenfieldStatusRequest=FULL_NEXT_PROMPT"
-    },
-    "carriedFrom1_7_7": {
-      "purpose": "Make AI-requested runtime control a validated, bounded Greenfield-owned control point: enforce EIC terminal controls (retire the logical GFW and all duplicate slots), add whitelisted SET_QUANTUM/SET_PRIORITY, publish the contract in every FULL prompt, and send COMPACT follow-up prompts inside the same conversation.",
-      "rootCause": "resolveGreenfieldControl classified STOP_PROCESS/status=DONE as state DONE without controllerOverride, so a local Hjalmar CONTINUE verdict survived and the DONE commit + logical-GFW queue retirement never ran.",
-      "controlPoint": "background.js evaluateAndApplyRuntimeControl -> lib/runtime-control.mjs",
-      "precedence": "operator runtime control > validated Greenfield owner state > AI runtime-control request",
-      "operations": {
-        "COMPLETE_MISSION": "requires status=DONE or STOP_PROCESS; retires all slots of the logical savedMissionId",
-        "SET_QUANTUM": "integer 1..15, target slot only, effective from next quantum/activation",
-        "SET_PRIORITY": "LOW|NORMAL|HIGH|URGENT, not above operator ceiling, immediate non-preemptive"
-      },
-      "legacyNormalization": "status=DONE / sessionAction=STOP_PROCESS -> COMPLETE_MISSION for the prompt's own target",
-      "promptProfile": "FULL at every session boundary (start/restore/rotation/queue activation/reload/conversation change) and ordinals 1,11,21,...; COMPACT otherwise with dispatch-time FULL upgrade",
-      "alsoFixed": [
-        "MISSION_RESTORE admitted as A2A message type",
-        "terminal queue retirement retry + self-heal",
-        "side panel sends only edited queue field"
-      ]
-    }
+    "runtimeChange": "saved-mission identity/limit/propagation; activation uses the saved mission's current text; content capture ignores the processing notice"
   },
   "verification": {
-    "baselineTestCommand": "npm test (on v1.8.3)",
-    "baselineTests": 586,
-    "baselinePass": 586,
+    "baselineTestCommand": "npm test (on v1.8.4)",
+    "baselineTests": 589,
+    "baselinePass": 589,
     "baselineFail": 0,
-    "dedicatedCommand": "node --test tests/v184-pattern-attributes.test.mjs",
-    "dedicatedOutput": "verification/v184-pattern-attributes.tap",
-    "dedicatedTests": 3,
-    "dedicatedPass": 3,
+    "dedicatedCommand": "node --test tests/v185-saved-missions.test.mjs",
+    "dedicatedOutput": "verification/v185-saved-missions.tap",
+    "dedicatedTests": 14,
+    "dedicatedPass": 14,
     "dedicatedFail": 0,
-    "realBrowserCommand": "NODE_PATH=\"$(npm root -g)\" node tools/verify-sidepanel-patterns.mjs",
-    "realBrowserOutput": "verification/v184-sidepanel-pattern-check.json",
-    "realBrowserChecks": 4,
-    "realBrowserPass": 4,
+    "realBrowserCommand": "NODE_PATH=\"$(npm root -g)\" node tools/verify-saved-mission-admin.mjs",
+    "realBrowserOutput": "verification/v185-saved-mission-admin-check.json",
+    "realBrowserChecks": 20,
+    "realBrowserPass": 20,
     "realBrowserFail": 0,
     "realDomCommand1_8_3": "NODE_PATH=\"$(npm root -g)\" node tools/verify-content-health.mjs",
     "realDomOutput1_8_3": "verification/v183-content-dom-check.json",
     "testCommand": "npm test",
     "testOutput": "verification/release-tests.tap",
-    "tests": 589,
-    "pass": 589,
+    "tests": 603,
+    "pass": 603,
     "fail": 0,
     "skipped": 0,
     "syntaxCommand": "node --check <each .js/.mjs/.cjs>",
-    "syntaxOutput": "verification/v184-syntax-check.txt",
-    "syntaxFiles": 138,
-    "syntaxPass": 138,
+    "syntaxOutput": "verification/v185-syntax-check.txt",
+    "syntaxFiles": 142,
+    "syntaxPass": 142,
     "syntaxFail": 0,
     "nodeVersion": "v22.22.2",
-    "errors": []
+    "errors": [],
+    "realDomCommand1_8_5": "NODE_PATH=\"$(npm root -g)\" node tools/verify-processing-notice.mjs",
+    "realDomOutput1_8_5": "verification/v185-processing-notice-check.json",
+    "realDomChecks1_8_5": 24,
+    "realDomPass1_8_5": 24,
+    "realBrowserCommand1_8_4": "NODE_PATH=\"$(npm root -g)\" node tools/verify-sidepanel-patterns.mjs",
+    "realBrowserOutput1_8_4": "verification/v184-sidepanel-pattern-check.json"
   },
   "regressionMatrix": [
+    {
+      "case": "save a text whose first-line GF key exists",
+      "expected": "same record updated in place (same id, createdAt kept); vault readback"
+    },
+    {
+      "case": "'Spara som nytt' or UPDATE to another record with an existing key",
+      "expected": "SAVED_MISSION_KEY_CONFLICT, nothing written"
+    },
+    {
+      "case": "new mission at 64 saved missions",
+      "expected": "SAVED_MISSION_LIMIT_REACHED shown under the button; no mission deleted; update of an existing key still works"
+    },
+    {
+      "case": "Markdown import with preamble, ### GF-xxx sections and trailing prose",
+      "expected": "only the first text block per section; ignored lines reported; heading/key mismatch or duplicate key blocks the whole import"
+    },
+    {
+      "case": "import with duplicate saved records for one key",
+      "expected": "newest updated, older merged; merge map sent to the background; readback 1 record per key; second run all UNCHANGED"
+    },
+    {
+      "case": "stored queue sets after a saved mission changes",
+      "expected": "slot text/id updated (merged and stale ids re-linked to exactly one record); priority/quantum/schedule kept; store and vault read back"
+    },
+    {
+      "case": "slot without savedMissionId (ad hoc / EIC-delegated)",
+      "expected": "never resolved or rewritten"
+    },
+    {
+      "case": "slot activation, fresh or parked",
+      "expected": "current saved text is the bootstrap; SAVED_MISSION_BOOTSTRAP_REFRESHED audited; objective/continuation untouched"
+    },
+    {
+      "case": "ChatGPT notice 'Våra system bearbetar …' in a turn without role node",
+      "expected": "no assistant entry; waiting continues; stop button 'Sluta svara' detected"
+    },
+    {
+      "case": "same notice inside an assistant role node, no generation signal",
+      "expected": "assistant text empty (v1.8.4: notice captured)"
+    },
+    {
+      "case": "notice next to a real answer",
+      "expected": "answer kept, notice removed"
+    },
     {
       "case": "every HTML pattern attribute",
       "expected": "compiles as new RegExp(`^(?:p)$`, 'v')"
@@ -397,6 +342,9 @@
     "liveChromeExtensionInstall": "not executed in this environment",
     "providerOrChatGPTLiveDispatch": "not executed in this environment",
     "liveEvidence1_8_4": "operator screenshot of chrome://extensions errors (v1.8.2 panel), 2026-09-25",
-    "realBrowser1_8_4": "not executed (the Chromium check loads the real sidepanel.html markup without extension APIs)"
+    "realBrowser1_8_4": "not executed (the Chromium check loads the real sidepanel.html markup without extension APIs)",
+    "liveEvidence1_8_5": "operator request and 21 normalized GFW texts 2026-09-25; operator page HTML (sanitized copy used only outside the package)",
+    "realBrowser1_8_5": "panel: real panel code in Chromium with in-memory chrome APIs and a stub background; notice: synthetic markup with the operator page's structure",
+    "openBoundaries1_8_5": "queue-set and slot reconciliation verified by unit tests on the library functions and static checks on background.js wiring; not executed through a live service worker; English wording assumed ('Our systems are processing/working on this/your request'); no captured sample; missions already pruned by the v1.8.4 vault cannot be restored from the vault; queue sets keep their text copies"
   }
 }

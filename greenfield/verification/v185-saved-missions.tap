@@ -1,0 +1,94 @@
+TAP version 13
+# Subtest: v1.8.5 identity is the first-line GFW key only
+ok 1 - v1.8.5 identity is the first-line GFW key only
+  ---
+  duration_ms: 2.049533
+  type: 'test'
+  ...
+# Subtest: v1.8.5 Markdown import: \#\#\# KEY sections, first text block only, errors block the import
+ok 2 - v1.8.5 Markdown import: \#\#\# KEY sections, first text block only, errors block the import
+  ---
+  duration_ms: 2.282283
+  type: 'test'
+  ...
+# Subtest: v1.8.5 export is lossless and importable
+ok 3 - v1.8.5 export is lossless and importable
+  ---
+  duration_ms: 0.751345
+  type: 'test'
+  ...
+# Subtest: v1.8.5 import plan matches by key, merges duplicates and refuses to exceed the limit
+ok 4 - v1.8.5 import plan matches by key, merges duplicates and refuses to exceed the limit
+  ---
+  duration_ms: 0.774993
+  type: 'test'
+  ...
+# Subtest: v1.8.5 saving the same GF key updates the saved mission in place (same id)
+ok 5 - v1.8.5 saving the same GF key updates the saved mission in place (same id)
+  ---
+  duration_ms: 11.975954
+  type: 'test'
+  ...
+# Subtest: v1.8.5 the limit refuses a new mission and never drops an existing one
+ok 6 - v1.8.5 the limit refuses a new mission and never drops an existing one
+  ---
+  duration_ms: 4.14284
+  type: 'test'
+  ...
+# Subtest: v1.8.5 bulk import writes, merges duplicates, reads back and is idempotent
+ok 7 - v1.8.5 bulk import writes, merges duplicates, reads back and is idempotent
+  ---
+  duration_ms: 8.242477
+  type: 'test'
+  ...
+# Subtest: v1.8.5 references resolve by id, follow merges, re-link stale ids by key, never touch slots without id
+ok 8 - v1.8.5 references resolve by id, follow merges, re-link stale ids by key, never touch slots without id
+  ---
+  duration_ms: 0.640873
+  type: 'test'
+  ...
+# Subtest: v1.8.5 stored queue sets are rewritten to the current text with readback
+ok 9 - v1.8.5 stored queue sets are rewritten to the current text with readback
+  ---
+  duration_ms: 13.548986
+  type: 'test'
+  ...
+# Subtest: v1.8.5 deleting a saved mission keeps queue copies (no silent loss)
+ok 10 - v1.8.5 deleting a saved mission keeps queue copies (no silent loss)
+  ---
+  duration_ms: 1.618127
+  type: 'test'
+  ...
+# Subtest: v1.8.5 background resolves saved-mission text at add, set save/load and activation
+ok 11 - v1.8.5 background resolves saved-mission text at add, set save/load and activation
+  ---
+  duration_ms: 2.759507
+  type: 'test'
+  ...
+# Subtest: v1.8.5 panel exposes edit, save change, save as new, confirmed delete, import preview and export
+ok 12 - v1.8.5 panel exposes edit, save change, save as new, confirmed delete, import preview and export
+  ---
+  duration_ms: 2.180615
+  type: 'test'
+  ...
+# Subtest: v1.8.5 content script treats the processing notice as status for assistant turns only
+ok 13 - v1.8.5 content script treats the processing notice as status for assistant turns only
+  ---
+  duration_ms: 0.87951
+  type: 'test'
+  ...
+# Subtest: v1.8.5 cleanup rows flag older duplicates (with their newer keeper) and missions without key; nothing preselected
+ok 14 - v1.8.5 cleanup rows flag older duplicates (with their newer keeper) and missions without key; nothing preselected
+  ---
+  duration_ms: 1.514426
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 163.341225

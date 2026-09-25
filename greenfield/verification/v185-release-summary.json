@@ -1,0 +1,84 @@
+{
+  "schema": "eic.greenfield.v185-release-summary.v1",
+  "version": "1.8.5",
+  "generatedAt": "2026-09-25T10:47:54.936812+00:00",
+  "source": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.8.4.zip",
+    "version": "1.8.4",
+    "sha256": "12a621f2cd896b7aecb6642082a7dddd0be67bd5eadb64c2e7f2a60a8d2a43d9",
+    "sizeBytes": 902784,
+    "embeddedIntegrity": {
+      "records": 294,
+      "mismatches": 0,
+      "rootDigest": "4e53bc0bbdff21ce380814391a1d36f2573fb5b5d0cfe8939f014c3734cc76f5"
+    }
+  },
+  "change": {
+    "purpose": "Operator requests 2026-09-25: (1) a better way to save and update saved missions ('SPARADE UPPDRAG' could not be administered; queue sets kept stale mission texts); 21 normalized GFW bootstrap texts to import; (2) the 24-mission limit (GF-054 not saved); (3) fix the hypothetical case where ChatGPT's 'Våra system bearbetar den här förfrågan …' notice could be captured as assistant text.",
+    "rootCause": "saveMissionPreset matched only identical text, so an edited text became a new record with a new id; queue slots and queue sets copied the text at add/save and never resolved savedMissionId; a parked slot resumed with its process snapshot's text; the bookmark vault kept the 24 newest by updatedAt and silently removed the rest (panel save: the oldest mission disappeared; a record written with an older updatedAt was removed in the same write and failed with SAVED_MISSION_VAULT_COMMIT_READBACK_MISMATCH - both reproduced against the v1.8.4 vault code); save errors were written to the shared status line, which every render overwrites.",
+    "fix": "lib/saved-mission-catalog.mjs: identity = first-line GFW key; Markdown (### GF-xxx) / JSON import parser with all-or-nothing errors; import plan (create/update/unchanged, duplicate merge, limit); reference resolution (id, merged id, stale id re-linked by key to exactly one record; slots without savedMissionId never touched); export; cleanup rows. operator-settings: saveSavedMission AUTO/UPDATE/CREATE (same key updates in place, key conflicts refused), applySavedMissionImport with durable readback, limit 64. Vault: capacity refusal before any write, pruning removed. Queue sets: reconcileMissionQueueSetsWithSavedMissions rewrites stored sets (store + vault, readback). Background: current text at ADD, set SAVE/UPDATE/APPLY and slot activation (parked included; bootstrap text only; SAVED_MISSION_BOOTSTRAP_REFRESHED audited); EIC_GF_SAVED_MISSIONS_CHANGED reconciles sets and this window's queue. Panel: admin card (edit, save change, save as new, confirmed delete, import preview/apply, export, cleanup), N/64 counter with full state, own save status line. content.js: the processing notice is status for assistant turns (structural removal + line filter).",
+    "newPermissions": "none",
+    "runtimeChange": "saved-mission identity/limit/propagation; activation uses the saved mission's current text; content capture ignores the processing notice"
+  },
+  "gates": {
+    "KEY_IDENTITY_UPDATE_IN_PLACE_PASS": true,
+    "IMPORT_PREVIEW_APPLY_READBACK_PASS": true,
+    "QUEUE_SET_RECONCILE_READBACK_PASS": true,
+    "ACTIVATION_CURRENT_TEXT_PASS": true,
+    "LIMIT_REFUSES_NEVER_PRUNES_PASS": true,
+    "PANEL_CHROMIUM_PASS": true,
+    "PROCESSING_NOTICE_NEVER_ASSISTANT_TEXT_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
+  },
+  "executed": {
+    "baselineNpmTestOnV184": {
+      "tests": 589,
+      "pass": 589,
+      "fail": 0
+    },
+    "dedicated": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "output": "verification/v185-saved-missions.tap",
+      "mutationChecks": "3 deliberate regressions (key identity removed from AUTO save; vault capacity check removed; parked goal override removed) each failed exactly its test; restored files byte-identical"
+    },
+    "realBrowserPanel": {
+      "tool": "tools/verify-saved-mission-admin.mjs (Playwright + Chromium; real sidepanel.html/sidepanel.js/lib with in-memory chrome.storage and chrome.bookmarks; background is a recording stub)",
+      "checks": 20,
+      "pass": 20,
+      "fail": 0,
+      "output": "verification/v185-saved-mission-admin-check.json",
+      "operatorTexts": "same tool with the operator's 21 texts (IMPORT_FILE, not packaged): 11/11; preview 20 new, 1 changed, 1 duplicate merged, 0 ignored lines; 22/64 after import"
+    },
+    "realDomNotice": {
+      "tool": "tools/verify-processing-notice.mjs (synthetic markup with the structure of the operator's page)",
+      "checks": 24,
+      "pass": 24,
+      "fail": 0,
+      "output": "verification/v185-processing-notice-check.json",
+      "negativeControlOnV184": "same tool on v1.8.4 content scripts: 20/24 (notice inside a role node captured; notice appended to a real answer)",
+      "operatorPageSanitizedCopy": "sanitized copy of the operator's page (not packaged): v1.8.4 74/76, v1.8.5 76/76"
+    },
+    "fullNpmTest": {
+      "tests": 603,
+      "pass": 603,
+      "fail": 0,
+      "output": "verification/release-tests.tap"
+    },
+    "syntax": {
+      "files": 142,
+      "pass": 142,
+      "fail": 0,
+      "output": "verification/v185-syntax-check.txt"
+    }
+  },
+  "boundaries": {
+    "liveChromeExtensionAcceptance": "not executed (panel check runs the real panel code with in-memory chrome APIs and a stub background)",
+    "backgroundPropagation": "queue-set and slot reconciliation verified by unit tests on the library functions and static checks on background.js wiring; not executed through a live service worker",
+    "englishProcessingNotice": "English wording assumed ('Our systems are processing/working on this/your request'); no captured sample",
+    "missionsDeletedBy1_8_4": "missions already pruned by the v1.8.4 vault cannot be restored from the vault; queue sets keep their text copies",
+    "activeProcess": "a running process keeps its text until the slot's next activation"
+  }
+}

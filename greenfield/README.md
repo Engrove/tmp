@@ -1,6 +1,8 @@
-# EIC Autonom Agent Greenfield 1.8.4
+# EIC Autonom Agent Greenfield 1.8.5
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.8.5 gör sparade uppdrag administrerbara. Ett uppdrags identitet är GF-ID:t på första raden (”Projekt: … - Gf: GF-001.”). Samma GF-ID uppdaterar det befintliga uppdraget på plats, och köplatser och kö-set hämtar alltid uppdragets aktuella text. Taket är höjt från 24 till 64, och inget raderas längre automatiskt. ChatGPT:s notis ”Våra system bearbetar den här förfrågan lite till …” kan aldrig fångas som svar.
 
 Version 1.8.4 rättar mönstret för fältet Modellgolv i panelen. Chrome avvisade det som ogiltigt reguljärt uttryck och loggade ett fel i tilläggets felsida. Fältet godtog då vad som helst, men bakgrundens kontroll stoppade fortfarande ogiltiga värden.
 
@@ -17,6 +19,15 @@ Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfiel
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.8.5
+
+- **Sparade uppdrag under Uppdragskö:** välj, **Redigera**, **Spara ändring** (samma id), **Spara som nytt** och **Ta bort** med bekräftelse. Räknaren visar `N / 64`, markerar fullt valv och anger antal GF-ID med dubbletter.
+- **Import och export:** klistra in texter med rubriker `### GF-001`, eller en exporterad JSON-fil. **Förhandsgranska** visar ny, ändras och oförändrad samt dubbletter och ignorerade rader innan något skrivs. Varje post läses tillbaka ur bokmärkesvalvet. **Exportera alla** ger en JSON-fil som kan importeras igen.
+- **Städa sparade uppdrag:** en lista med kryssrutor där äldre dubbletter och uppdrag utan GF-ID är märkta. Inget är förvalt. Köreferenser till en borttagen dubblett flyttas till det nyare uppdraget.
+- **Referenser i stället för kopior:** köplatser och kö-set hämtar den sparade textens aktuella version när ett uppdrag läggs i kön, när ett set sparas eller laddas och när en köplats aktiveras, även en parkerad. Lagrade kö-set skrivs om direkt vid ändring. En pågående process byter text först vid nästa aktivering. Köplatser utan sparat uppdrag, till exempel EIC-delegerade, berörs aldrig.
+- **Tak 64, ingen tyst radering:** ett nytt uppdrag i ett fullt valv nekas med ett synligt fel. **Spara aktuellt uppdrag** har en egen statusrad.
+- **ChatGPT:s bearbetningsnotis:** ”Våra system bearbetar den här förfrågan …” räknas som statusrad och blir aldrig assistenttext, även om ChatGPT skulle lägga den i ett assistentmeddelande.
 
 ## Nytt i 1.8.4
 
@@ -101,7 +112,7 @@ Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad 
 
 v1.7.3:s mixed-language model safety, v1.7.2:s multi-turn-liveness, v1.7.1:s dispatch-reconciliation och v1.7.0:s semantiska modellgolv bevaras.
 
-Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.3, se [UPPDATERA_TILL_1_8_4.md](UPPDATERA_TILL_1_8_4.md); från äldre versioner, se även [UPPDATERA_TILL_1_8_3.md](UPPDATERA_TILL_1_8_3.md), [UPPDATERA_TILL_1_8_2.md](UPPDATERA_TILL_1_8_2.md), [UPPDATERA_TILL_1_8_1.md](UPPDATERA_TILL_1_8_1.md), [UPPDATERA_TILL_1_8_0.md](UPPDATERA_TILL_1_8_0.md), [UPPDATERA_TILL_1_7_9.md](UPPDATERA_TILL_1_7_9.md), [UPPDATERA_TILL_1_7_8.md](UPPDATERA_TILL_1_7_8.md) och [UPPDATERA_TILL_1_7_7.md](UPPDATERA_TILL_1_7_7.md).
+Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.4, se [UPPDATERA_TILL_1_8_5.md](UPPDATERA_TILL_1_8_5.md); från äldre versioner, se även [UPPDATERA_TILL_1_8_4.md](UPPDATERA_TILL_1_8_4.md), [UPPDATERA_TILL_1_8_3.md](UPPDATERA_TILL_1_8_3.md), [UPPDATERA_TILL_1_8_2.md](UPPDATERA_TILL_1_8_2.md), [UPPDATERA_TILL_1_8_1.md](UPPDATERA_TILL_1_8_1.md), [UPPDATERA_TILL_1_8_0.md](UPPDATERA_TILL_1_8_0.md), [UPPDATERA_TILL_1_7_9.md](UPPDATERA_TILL_1_7_9.md), [UPPDATERA_TILL_1_7_8.md](UPPDATERA_TILL_1_7_8.md) och [UPPDATERA_TILL_1_7_7.md](UPPDATERA_TILL_1_7_7.md).
 
 | Underlag | Innehåll |
 |---|---|
@@ -124,6 +135,9 @@ Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.3, 
 
 ```sh
 npm test
+node --test tests/v185-saved-missions.test.mjs
+NODE_PATH="$(npm root -g)" node tools/verify-saved-mission-admin.mjs   # kräver Playwright + Chromium
+NODE_PATH="$(npm root -g)" node tools/verify-processing-notice.mjs   # kräver Playwright + Chromium
 node --test tests/v184-pattern-attributes.test.mjs
 NODE_PATH="$(npm root -g)" node tools/verify-sidepanel-patterns.mjs   # kräver Playwright + Chromium
 node --test tests/v183-tab-health-daybreak.test.mjs
@@ -141,4 +155,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.4.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.5.

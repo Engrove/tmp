@@ -1,0 +1,172 @@
+{
+  "tool": "tools/verify-processing-notice.mjs",
+  "contentVersion": "1.8.5",
+  "rows": {
+    "A_noticeStopVisible": {
+      "generating": true,
+      "stopVisible": true,
+      "assistantFound": false,
+      "assistantText": "",
+      "lastUserText": "Du sade:\n    MISSION_START placeholder",
+      "providerNotice": null,
+      "rateLimitActive": false,
+      "blockingUi": false,
+      "composerPresent": true
+    },
+    "B_noticeNoStopButton": {
+      "generating": false,
+      "stopVisible": false,
+      "assistantFound": false,
+      "assistantText": "",
+      "lastUserText": "Du sade:\n    MISSION_START placeholder",
+      "providerNotice": null,
+      "rateLimitActive": false,
+      "blockingUi": false,
+      "composerPresent": true
+    },
+    "E_baselineNoNotice": {
+      "generating": true,
+      "stopVisible": true,
+      "assistantFound": false,
+      "assistantText": "",
+      "lastUserText": "Du sade:\n    MISSION_START placeholder",
+      "providerNotice": null,
+      "rateLimitActive": false,
+      "blockingUi": false,
+      "composerPresent": true
+    },
+    "F_noticeInsideRoleNodeNoSignal": {
+      "generating": false,
+      "stopVisible": false,
+      "assistantFound": true,
+      "assistantText": "",
+      "lastUserText": "Du sade:\n    MISSION_START placeholder",
+      "providerNotice": null,
+      "rateLimitActive": false,
+      "blockingUi": false,
+      "composerPresent": true
+    },
+    "G_noticeAndAnswerInsideRoleNode": {
+      "generating": false,
+      "stopVisible": false,
+      "assistantFound": true,
+      "assistantText": "{\"ok\":true,\"answer\":\"EIC svar\"}",
+      "lastUserText": "Du sade:\n    MISSION_START placeholder",
+      "providerNotice": null,
+      "rateLimitActive": false,
+      "blockingUi": false,
+      "composerPresent": true
+    },
+    "H_userMessageQuotesNotice": {
+      "generating": false,
+      "stopVisible": false,
+      "assistantFound": true,
+      "assistantText": "{\"ok\":true,\"answer\":\"EIC svar\"}",
+      "lastUserText": "Du sade:\n    Våra system bearbetar den här förfrågan lite till innan de svarar.",
+      "providerNotice": null,
+      "rateLimitActive": false,
+      "blockingUi": false,
+      "composerPresent": true
+    }
+  },
+  "checks": [
+    {
+      "name": "A_noticeStopVisible: no provider notice, rate limit or blocking UI",
+      "pass": true
+    },
+    {
+      "name": "A_noticeStopVisible: composer present",
+      "pass": true
+    },
+    {
+      "name": "A_noticeStopVisible: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "B_noticeNoStopButton: no provider notice, rate limit or blocking UI",
+      "pass": true
+    },
+    {
+      "name": "B_noticeNoStopButton: composer present",
+      "pass": true
+    },
+    {
+      "name": "B_noticeNoStopButton: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "E_baselineNoNotice: no provider notice, rate limit or blocking UI",
+      "pass": true
+    },
+    {
+      "name": "E_baselineNoNotice: composer present",
+      "pass": true
+    },
+    {
+      "name": "E_baselineNoNotice: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "F_noticeInsideRoleNodeNoSignal: no provider notice, rate limit or blocking UI",
+      "pass": true
+    },
+    {
+      "name": "F_noticeInsideRoleNodeNoSignal: composer present",
+      "pass": true
+    },
+    {
+      "name": "F_noticeInsideRoleNodeNoSignal: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "G_noticeAndAnswerInsideRoleNode: no provider notice, rate limit or blocking UI",
+      "pass": true
+    },
+    {
+      "name": "G_noticeAndAnswerInsideRoleNode: composer present",
+      "pass": true
+    },
+    {
+      "name": "G_noticeAndAnswerInsideRoleNode: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "H_userMessageQuotesNotice: no provider notice, rate limit or blocking UI",
+      "pass": true
+    },
+    {
+      "name": "H_userMessageQuotesNotice: composer present",
+      "pass": true
+    },
+    {
+      "name": "H_userMessageQuotesNotice: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "A: generating via stop button 'Sluta svara'",
+      "pass": true
+    },
+    {
+      "name": "A: turn without role node gives no assistant entry",
+      "pass": true
+    },
+    {
+      "name": "B: no assistant entry without stop button",
+      "pass": true
+    },
+    {
+      "name": "F: notice inside a role node is status, assistant text empty",
+      "pass": true
+    },
+    {
+      "name": "G: real answer kept, notice removed",
+      "pass": true
+    },
+    {
+      "name": "H: user text quoting the notice is kept",
+      "pass": true
+    }
+  ],
+  "passed": 24,
+  "total": 24
+}

@@ -11,8 +11,8 @@
     <header class="hero">
       <div>
         <div class="eyebrow">EIC AUTONOM AGENT</div>
-        <h1>Greenfield <span>v1.8.4</span></h1>
-        <div class="micro">1.8.4 · Flikhälsa, Daybreak och giltigt modellgolv</div>
+        <h1>Greenfield <span>v1.8.5</span></h1>
+        <div class="micro">1.8.5 · Sparade uppdrag: GF-ID, import och städning</div>
       </div>
       <div id="continuityLamp" class="lamp" title="Continuity"></div>
     </header>
@@ -183,7 +183,7 @@
       </div>
 
       <div class="saved-missions">
-        <div class="label">Sparade uppdrag</div>
+        <div class="label">Sparade uppdrag <span id="savedMissionCount" class="saved-mission-count">0/64</span></div>
         <div class="saved-mission-row">
           <select id="savedMissionSelect" aria-label="Sparade uppdrag">
             <option value="">Sparade uppdrag…</option>
@@ -192,6 +192,8 @@
           <button id="deleteSavedMission" class="ghost" disabled>Ta bort</button>
         </div>
         <button id="saveMission" class="secondary save-mission">Spara aktuellt uppdrag</button>
+        <div id="savedMissionRuntimeStatus" class="micro saved-mission-status" role="status"></div>
+        <p class="micro">Samma GF-ID på första raden uppdaterar det befintliga uppdraget. Vid 64 sparade nekas nya med ett fel här; inget raderas automatiskt. Administration, import och städning finns under Uppdragskö.</p>
         <p class="micro">Sparade uppdrag speglas till ett Greenfield-valv i Chrome-profilens bokmärkeslager så att de kan återställas efter avinstallation och från ett nytt extension-ID. Greenfield Works fortsätter äga missionskronologi och sessionsreceipts, inte denna browser-cache.</p>
       </div>
     </section>
@@ -300,6 +302,54 @@
       </div>
       <div id="workModeDetail" class="detail">Ingen synkning utförd i denna panel.</div>
       <p class="micro">WMT-admission kräver färsk issuedAt, kort expiry, nonce och en backendutfärdad taskKey. Ingen användarinloggning krävs. Timestamp ensam används inte som exekveringsauktoritet.</p>
+    </section>
+
+    <section class="card saved-mission-admin-card" data-ui-tab="missions">
+      <div class="section-head">
+        <div>
+          <div class="label">Sparade uppdrag</div>
+          <strong id="savedMissionAdminState">0 / 64</strong>
+        </div>
+        <span class="settings-scope">Chrome-profil</span>
+      </div>
+      <div class="saved-admin-row">
+        <select id="savedMissionAdminSelect" aria-label="Sparat uppdrag att administrera">
+          <option value="">Välj sparat uppdrag…</option>
+        </select>
+        <button id="savedMissionEdit" class="ghost" type="button" disabled>Redigera</button>
+        <button id="savedMissionAdminDelete" class="ghost" type="button" disabled>Ta bort</button>
+      </div>
+      <div id="savedMissionAdminMeta" class="micro"></div>
+      <textarea id="savedMissionEditor" class="saved-admin-editor" rows="9" placeholder="Välj ett sparat uppdrag och klicka Redigera, eller skriv ett nytt uppdrag." aria-label="Uppdragstext"></textarea>
+      <div class="saved-admin-actions">
+        <button id="savedMissionUpdate" class="secondary" type="button" disabled>Spara ändring</button>
+        <button id="savedMissionCreate" class="ghost" type="button" disabled>Spara som nytt</button>
+        <button id="savedMissionEditorClear" class="ghost" type="button">Töm</button>
+      </div>
+      <details id="savedMissionImportDetails" class="saved-import">
+        <summary>Import och export</summary>
+        <textarea id="savedMissionImportText" class="saved-admin-editor" rows="8" placeholder="Klistra in uppdrag med rubriker ### GF-001 … eller en exporterad JSON-fil." aria-label="Importtext"></textarea>
+        <label class="queue-setting queue-setting-check">
+          <span>Slå ihop dubbletter med samma GF-ID (köplatser och kö-set flyttas till den kvarvarande posten)</span>
+          <input id="savedMissionImportMerge" type="checkbox" checked>
+        </label>
+        <div class="saved-admin-actions">
+          <button id="savedMissionImportPreview" class="secondary" type="button">Förhandsgranska</button>
+          <button id="savedMissionImportApply" class="primary" type="button" disabled>Genomför import</button>
+          <button id="savedMissionExport" class="ghost" type="button">Exportera alla</button>
+        </div>
+        <div id="savedMissionImportPreviewList" class="saved-import-preview"></div>
+      </details>
+      <details id="savedMissionCleanupDetails" class="saved-import">
+        <summary>Städa sparade uppdrag</summary>
+        <div id="savedMissionCleanupList" class="saved-import-preview"></div>
+        <div class="saved-admin-actions">
+          <button id="savedMissionCleanupDelete" class="ghost" type="button" disabled>Ta bort markerade</button>
+        </div>
+        <p class="micro">Märkta kandidater: äldre dubblett (samma GF-ID som ett nyare uppdrag; köplatser och kö-set flyttas till det nyare) och utan GF-ID. Inget är förvalt och inget tas bort utan bekräftelse. Köplatser och kö-set som pekar på ett borttaget uppdrag utan ersättare behåller sin senaste text.</p>
+      </details>
+      <div id="savedMissionAdminStatus" class="detail"></div>
+      <p class="micro">Identiteten är GF-ID:t på första raden (”Projekt: … - Gf: GF-001.”). Ett uppdrag med samma GF-ID uppdateras på plats med samma id, så köplatser och kö-set följer med. Köplatser och kö-set hämtar uppdragets aktuella text när det läggs i kön, när ett set laddas och när en köplats aktiveras. En pågående process byter text först vid köplatsens nästa aktivering; mål, fortsättning och kvitton ändras inte. Uppdrag raderas aldrig automatiskt: vid 64 sparade nekas nya.</p>
     </section>
 
     <section class="card mission-queue-card" data-ui-tab="missions">

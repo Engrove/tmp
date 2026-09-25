@@ -1,7 +1,7 @@
 (() => {
   const BRIDGE = "__EIC_GF_CONTENT_V2__";
   const OVERLAY_ID = "eic-gf-linked-overlay";
-  const CONTENT_VERSION = "1.8.4";
+  const CONTENT_VERSION = "1.8.5";
   const previousBridge = globalThis[BRIDGE] || null;
   const DOCUMENT_ID = previousBridge?.documentId || crypto.randomUUID();
   const dispatchRecords = previousBridge?.dispatchRecords instanceof Map
@@ -28,9 +28,34 @@
       .trim();
   }
 
+  // v1.8.5: ChatGPT's slow-request notice (sv, real DOM 2026-09-25: "Våra
+  // system bearbetar den här förfrågan lite till innan de svarar. Du kan
+  // <button>försöka igen med en snabbare modell</button> … Läs mer") is page
+  // status while the request is still processing, never assistant output.
+  // The English wording is an assumption (no captured sample).
+  const PROVIDER_PROCESSING_NOTICE =
+    /^(?:Våra system bearbetar (?:den här|denna) förfrågan|Our systems are (?:still )?(?:processing|working on) (?:this|your) request)/iu;
+  const PROVIDER_PROCESSING_NOTICE_MAX_CHARS = 400;
+
+  function providerProcessingNoticeText(value) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    return text.length > 0 && text.length <= PROVIDER_PROCESSING_NOTICE_MAX_CHARS &&
+      PROVIDER_PROCESSING_NOTICE.test(text);
+  }
+
+  function stripProviderProcessingNotice(root) {
+    const all = String(root.textContent || "");
+    if (!all.includes("Våra system bearbetar") && !all.includes("Our systems are")) return;
+    for (const element of [...root.querySelectorAll("div, p, span, section")]) {
+      if (!root.contains(element)) continue;
+      if (providerProcessingNoticeText(element.textContent)) element.remove();
+    }
+  }
+
   function assistantLifecycleStatusText(value) {
     const text = String(value || "").replace(/\s+/g, " ").trim();
     if (!text) return false;
+    if (providerProcessingNoticeText(text)) return true;
     if (/^(?:Tänker|Thinking|Arbetar|Working|Resonerar|Reasoning|Analyserar|Analyzing)(?:\.{0,3}|…)?$/iu.test(text)) {
       return true;
     }
@@ -518,6 +543,7 @@
     for (const node of clone.querySelectorAll(
       "button, textarea, input, select, [contenteditable='true'], [data-eic-gf-ui='true']"
     )) node.remove();
+    if (entry.role === "assistant") stripProviderProcessingNotice(clone);
     const rendered = clone.innerText || clone.textContent || entry.owner.innerText || entry.owner.textContent || "";
     // The conceptual turn remains the owner so structured/final fragments stay
     // together, but presentation/reasoning lifecycle lines are not assistant output.

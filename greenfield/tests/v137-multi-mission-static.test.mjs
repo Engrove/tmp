@@ -8,18 +8,18 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 
-test("v1.8.4 version identity is coherent across executable package surfaces", () => {
+test("v1.8.5 version identity is coherent across executable package surfaces", () => {
   const manifest = JSON.parse(read("manifest.json"));
   const pkg = JSON.parse(read("package.json"));
   const contracts = read("lib/contracts.mjs");
   const content = read("content.js");
   const sidepanel = read("sidepanel.html");
-  assert.equal(read("VERSION").trim(), "1.8.4");
-  assert.equal(manifest.version, "1.8.4");
-  assert.equal(pkg.version, "1.8.4");
-  assert.match(contracts, /APP_VERSION\s*=\s*"1\.8\.4"/);
-  assert.match(content, /CONTENT_VERSION\s*=\s*"1\.8\.4"/);
-  assert.match(sidepanel, /Greenfield\s*<span>v1\.8\.4<\/span>/);
+  assert.equal(read("VERSION").trim(), "1.8.5");
+  assert.equal(manifest.version, "1.8.5");
+  assert.equal(pkg.version, "1.8.5");
+  assert.match(contracts, /APP_VERSION\s*=\s*"1\.8\.5"/);
+  assert.match(content, /CONTENT_VERSION\s*=\s*"1\.8\.5"/);
+  assert.match(sidepanel, /Greenfield\s*<span>v1\.8\.5<\/span>/);
 });
 
 test("v1.3.7 side panel exposes serial mission work queue and adjustable global parameters", () => {

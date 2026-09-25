@@ -243,8 +243,14 @@ import {
   deleteMissionQueueSet,
   loadMissionQueueSets,
   publicMissionQueueSets,
+  reconcileMissionQueueSetsWithSavedMissions,
   saveMissionQueueSet
 } from "./lib/mission-queue-sets.mjs";
+import {
+  reconcileItemsWithSavedMissions,
+  resolveSavedMissionReference,
+  savedMissionKey
+} from "./lib/saved-mission-catalog.mjs";
 import {
   completeSessionHealthTurn,
   markSessionHealthFirstResponse,
@@ -2084,6 +2090,16 @@ async function buildPendingA2A(process, {
 }
 
 
+// v1.8.5: saved missions as the background sees them (the panel writes this
+// local mirror after every durable vault write, with readback).
+async function currentSavedMissions() {
+  const settings = await loadOperatorSettings(
+    chrome.storage.local,
+    { restoreSavedMissions: false, bookmarks: null }
+  ).catch(() => null);
+  return Array.isArray(settings?.savedMissions) ? settings.savedMissions : [];
+}
+
 async function queueRuntimeSettings() {
   const settings = await loadOperatorSettings(
     chrome.storage.local,
@@ -2266,6 +2282,8 @@ async function buildQueueActivationProcess({
     });
     process = {
       ...parked,
+      // v1.8.5: the slot's (saved mission's) current text is the bootstrap.
+      goal: String(item.goal || parked.goal || ""),
       version: APP_VERSION,
       workerId: queue.workerId,
       generation,
@@ -2398,6 +2416,21 @@ async function activateQueueItem({
     throw error;
   }
 
+  // v1.8.5: the slot starts or resumes with its saved mission's current text
+  // (bootstrap only; objective, continuation and receipts are untouched).
+  const bootstrap = resolveSavedMissionReference(item, await currentSavedMissions());
+  const parkedGoal = String(item.processSnapshot?.goal || "");
+  const previousGoal = parkedGoal || String(item.goal || "");
+  if (bootstrap.record && (bootstrap.record.goal !== item.goal || bootstrap.record.id !== item.savedMissionId)) {
+    item = {
+      ...item,
+      goal: bootstrap.record.goal,
+      label: bootstrap.record.label || item.label,
+      savedMissionId: bootstrap.record.id
+    };
+  }
+  const bootstrapRefresh = previousGoal !== item.goal;
+
   const process = await buildQueueActivationProcess({
     queue,
     item,
@@ -2420,6 +2453,11 @@ async function activateQueueItem({
       ? { ...candidate.resume, processStatusRequest: "" }
       : candidate.resume;
     if (candidate.itemId === item.itemId) {
+      const bootstrapText = {
+        goal: item.goal,
+        label: item.label,
+        savedMissionId: item.savedMissionId
+      };
       const telemetry = {
         activationCount: Number(process.queueContext?.activationCount || candidate.activationCount || 0),
         lastLoopRoundTripMs: process.queueContext?.loopRoundTripApproxMs !== null &&
@@ -2430,6 +2468,7 @@ async function activateQueueItem({
       };
       return {
         ...candidate,
+        ...bootstrapText,
         ...telemetry,
         status: QUEUE_STATUS.ACTIVE,
         pauseUntilMs: 0,
@@ -2487,6 +2526,17 @@ async function activateQueueItem({
       settleSeconds: settings.queueSwitchSettleSeconds
     }
   );
+  if (bootstrapRefresh) {
+    await audit(process, "SAVED_MISSION_BOOTSTRAP_REFRESHED", "saved-missions", {
+      itemId: item.itemId,
+      savedMissionId: item.savedMissionId,
+      key: savedMissionKey(item.goal),
+      via: bootstrap.via,
+      parked: Boolean(parkedGoal),
+      previousGoalHash: await sha256Hex(previousGoal),
+      goalHash: await sha256Hex(item.goal)
+    }).catch(() => undefined);
+  }
   await setWatchdog(process);
   await broadcast(process, "mission-queue-activated");
   scheduleFast(process.processId, 50);
@@ -2603,16 +2653,22 @@ async function updateQueueFromUi({ windowId, operation, itemId = "", ...payload 
   const { settings, worker } = await missionQueueForWindow(windowId);
   let queue;
   switch (String(operation || "").toUpperCase()) {
-    case "ADD":
-      queue = await addMissionWorkItem(windowId, payload.goal, {
+    case "ADD": {
+      // v1.8.5: a saved mission is added with its current text.
+      const saved = resolveSavedMissionReference(
+        { savedMissionId: payload.savedMissionId, goal: payload.goal },
+        await currentSavedMissions()
+      ).record;
+      queue = await addMissionWorkItem(windowId, saved?.goal || payload.goal, {
         storage: chrome.storage.local,
         workerId: worker.workerId,
         priority: payload.priority || DEFAULT_GREENFIELD_PRIORITY,
         maxInteractions: payload.maxInteractions ?? settings.defaultMissionQuantumInteractions,
-        savedMissionId: payload.savedMissionId || "",
-        label: payload.label || ""
+        savedMissionId: saved?.id || payload.savedMissionId || "",
+        label: saved?.label || payload.label || ""
       });
       break;
+    }
     case "REMOVE":
       queue = await removeMissionWorkItem(windowId, itemId, chrome.storage.local, { workerId: worker.workerId });
       break;
@@ -2698,6 +2754,61 @@ async function updateQueueFromUi({ windowId, operation, itemId = "", ...payload 
   return { ok: true, missionQueue: publicMissionWorkQueue(queue) };
 }
 
+// v1.8.5: the panel saved, imported or deleted saved missions. Stored queue
+// sets and this window's queue slots take the current text; merged duplicate
+// ids follow their target. A running process keeps its text until the slot's
+// next activation (activateQueueItem).
+async function savedMissionsChanged({ windowId, merged = {}, reason = "", auditSessionId = "" } = {}) {
+  const savedMissions = await currentSavedMissions();
+  const mergedMap = Object.fromEntries(Object.entries(merged && typeof merged === "object" ? merged : {})
+    .map(([from, to]) => [String(from).slice(0, 200), String(to).slice(0, 200)])
+    .filter(([from, to]) => from && to));
+  const { store, summary } = await reconcileMissionQueueSetsWithSavedMissions(
+    savedMissions,
+    { merged: mergedMap },
+    chrome.storage.local
+  );
+
+  const { queue, settings, worker } = await missionQueueForWindow(windowId);
+  const slots = reconcileItemsWithSavedMissions(queue.items, savedMissions, { merged: mergedMap });
+  let missionQueue = queue;
+  if (slots.changes.length) {
+    missionQueue = await saveMissionWorkQueue({ ...queue, items: slots.items }, chrome.storage.local, {
+      defaultMaxInteractions: settings.defaultMissionQuantumInteractions
+    });
+  }
+
+  await appendAudit({
+    scope: "WINDOW",
+    auditSessionId: auditSessionId || BACKGROUND_AUDIT_SESSION_ID,
+    windowId,
+    kind: "SAVED_MISSIONS_RECONCILED",
+    component: "saved-missions",
+    payload: {
+      reason: String(reason || "").slice(0, 80),
+      savedMissionCount: savedMissions.length,
+      mergedIds: Object.keys(mergedMap).length,
+      queueSets: summary,
+      queueSlotsChanged: slots.changes.length,
+      queueSlotsUnresolved: slots.unresolved.length,
+      workerId: worker.workerId
+    }
+  }).catch(() => undefined);
+
+  return {
+    ok: true,
+    summary: {
+      setsChanged: summary.setsChanged,
+      setItemsChanged: summary.itemsChanged,
+      setItemsUnresolved: summary.unresolved,
+      queueSlotsChanged: slots.changes.length,
+      queueSlotsUnresolved: slots.unresolved.length
+    },
+    missionQueue: publicMissionWorkQueue(missionQueue),
+    missionQueueSets: publicMissionQueueSets(store)
+  };
+}
+
 async function mutateMissionQueueSet({
   windowId,
   operation,
@@ -2710,8 +2821,13 @@ async function mutateMissionQueueSet({
   let missionQueue = queue;
   let store;
 
+  // v1.8.5: sets store and load the saved missions' current text.
+  const savedMissions = await currentSavedMissions();
+  const resolvedQueue = { ...queue, items: reconcileItemsWithSavedMissions(queue.items, savedMissions).items };
+  let resolvedItems = 0;
+
   if (op === "SAVE") {
-    const saved = await saveMissionQueueSet({ name, queue, setId }, chrome.storage.local);
+    const saved = await saveMissionQueueSet({ name, queue: resolvedQueue, setId }, chrome.storage.local);
     store = saved.store;
   } else if (op === "UPDATE") {
     // v1.8.1: re-save the selected set from the active queue, keeping its
@@ -2728,7 +2844,7 @@ async function mutateMissionQueueSet({
       error.code = "MISSION_QUEUE_SET_UPDATE_EMPTY_QUEUE";
       throw error;
     }
-    const saved = await saveMissionQueueSet({ name: existing.name, queue, setId: existing.setId }, chrome.storage.local);
+    const saved = await saveMissionQueueSet({ name: existing.name, queue: resolvedQueue, setId: existing.setId }, chrome.storage.local);
     store = saved.store;
     name = existing.name;
   } else if (op === "DELETE") {
@@ -2752,7 +2868,9 @@ async function mutateMissionQueueSet({
       error.code = "MISSION_QUEUE_SET_NOT_FOUND";
       throw error;
     }
-    missionQueue = applyMissionQueueSet(queue, set, {
+    const resolvedSet = reconcileItemsWithSavedMissions(set.items, savedMissions);
+    resolvedItems = resolvedSet.changes.length;
+    missionQueue = applyMissionQueueSet(queue, { ...set, items: resolvedSet.items }, {
       workerId: worker.workerId,
       windowId
     });
@@ -2777,7 +2895,8 @@ async function mutateMissionQueueSet({
       setId: String(setId || ""),
       name: String(name || ""),
       workerId: worker.workerId,
-      queueId: missionQueue.queueId
+      queueId: missionQueue.queueId,
+      savedMissionTextResolvedItems: resolvedItems
     }
   }).catch(() => undefined);
 
@@ -8623,6 +8742,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return respond(withVerifiedWorkerMessage(message, sender, (bound) => updateQueueFromUi(bound)));
     case "EIC_GF_QUEUE_SET_MUTATE":
       return respond(withVerifiedWorkerMessage(message, sender, (bound) => mutateMissionQueueSet(bound)));
+    case "EIC_GF_SAVED_MISSIONS_CHANGED":
+      return respond(withVerifiedWorkerMessage(message, sender, (bound) => savedMissionsChanged(bound)));
     case "EIC_GF_STOP":
       return respond(withVerifiedWorkerMessage(message, sender, (bound) => stopRun(bound)));
     case "EIC_GF_GET_SNAPSHOT":

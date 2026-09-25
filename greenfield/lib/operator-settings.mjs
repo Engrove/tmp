@@ -7,6 +7,11 @@ import {
   writeSavedMissionVault
 } from "./saved-mission-vault.mjs";
 import {
+  planSavedMissionImport,
+  savedMissionKey,
+  savedMissionsByKey
+} from "./saved-mission-catalog.mjs";
+import {
   DEFAULT_MAX_ACTIVE_SESSIONS,
   normalizeMaxActiveSessions
 } from "./global-capacity-scheduler.mjs";
@@ -23,7 +28,9 @@ import {
 } from "./mission-work-queue.mjs";
 
 export const OPERATOR_SETTINGS_KEY = "eic.gf.operator.settings.v1";
-export const MAX_SAVED_MISSIONS = 24;
+// v1.8.5: 64 (was 24); the vault refuses a new mission at the limit instead
+// of silently dropping the oldest.
+export const MAX_SAVED_MISSIONS = 64;
 export const MIN_POST_DELAY_SECONDS = 0;
 export const MAX_POST_DELAY_SECONDS = 300;
 
@@ -163,18 +170,75 @@ export async function saveOperatorSettings(
   return writeLocalOperatorSettings(next, storage);
 }
 
-export async function saveMissionPreset(goal, {
+function savedMissionError(code) {
+  const error = new Error(code);
+  error.code = code;
+  return error;
+}
+
+function newMissionId(now) {
+  return `mission-${now}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// One durable write of one record; returns the saved mission list after readback.
+async function writeSavedMissionRecord(current, record, { storage, bookmarks }) {
+  if (bookmarks) {
+    return writeSavedMissionVault(record, { bookmarks, maxSavedMissions: MAX_SAVED_MISSIONS });
+  }
+  const replaces = current.some((item) => item.id === record.id || item.goal === record.goal);
+  if (!replaces && current.length >= MAX_SAVED_MISSIONS) throw savedMissionError("SAVED_MISSION_LIMIT_REACHED");
+  return [record, ...current.filter((item) => item.id !== record.id && item.goal !== record.goal)];
+}
+
+async function removeSavedMissionRecord(current, id, { bookmarks }) {
+  if (bookmarks) return deleteSavedMissionVault(id, { bookmarks });
+  return current.filter((item) => item.id !== String(id || ""));
+}
+
+/**
+ * v1.8.5 save with identity. mode:
+ *  AUTO   - "Spara aktuellt uppdrag": same text -> that record; else the newest
+ *           record with the same first-line GFW key is updated in place (same
+ *           id); else a new record (id, when given, names the new record).
+ *  UPDATE - "Spara ändring": targetId is updated in place.
+ *  CREATE - "Spara som nytt": always a new record.
+ * A key held by another record is refused (SAVED_MISSION_KEY_CONFLICT) so one
+ * GFW key never names two saved missions through these paths.
+ */
+export async function saveSavedMission(goal, {
   storage = defaultStorage(),
   bookmarks = defaultBookmarks(),
   now = Date.now(),
-  id = ""
+  id = "",
+  targetId = "",
+  mode = "AUTO"
 } = {}) {
   const normalizedGoal = String(goal || "").trim();
-  if (!normalizedGoal) throw new Error("SAVED_MISSION_GOAL_REQUIRED");
+  if (!normalizedGoal) throw savedMissionError("SAVED_MISSION_GOAL_REQUIRED");
+  const op = String(mode || "AUTO").toUpperCase();
+  if (!["AUTO", "UPDATE", "CREATE"].includes(op)) throw savedMissionError("SAVED_MISSION_MODE_INVALID");
   const current = await loadOperatorSettings(storage, { bookmarks });
+  const missions = current.savedMissions;
+  const key = savedMissionKey(normalizedGoal);
   const timestamp = new Date(now).toISOString();
-  const existing = current.savedMissions.find((item) => item.goal === normalizedGoal);
-  const missionId = existing?.id || String(id || `mission-${now}-${Math.random().toString(36).slice(2, 10)}`);
+
+  let existing = null;
+  if (op === "UPDATE") {
+    existing = missions.find((item) => item.id === String(targetId || "")) || null;
+    if (!existing) throw savedMissionError("SAVED_MISSION_NOT_FOUND");
+  } else if (op === "AUTO") {
+    existing = missions.find((item) => item.goal === normalizedGoal) ||
+      (key ? savedMissionsByKey(missions).get(key)?.[0] : null) ||
+      null;
+  }
+  const missionId = existing?.id || String(id || newMissionId(now));
+  if (key && missions.some((item) => item.id !== missionId && savedMissionKey(item.goal) === key)) {
+    // AUTO picked the newest record for this key; older duplicates are only
+    // a conflict when the operator explicitly targets another record.
+    if (op !== "AUTO") throw savedMissionError("SAVED_MISSION_KEY_CONFLICT");
+  }
+  if (!existing && missions.length >= MAX_SAVED_MISSIONS) throw savedMissionError("SAVED_MISSION_LIMIT_REACHED");
+
   const record = {
     id: missionId,
     label: missionLabel(normalizedGoal),
@@ -182,23 +246,94 @@ export async function saveMissionPreset(goal, {
     createdAt: existing?.createdAt || timestamp,
     updatedAt: timestamp
   };
+  const durable = await writeSavedMissionRecord(missions, record, { storage, bookmarks });
+  const settings = await writeLocalOperatorSettings({ ...current, savedMissions: durable }, storage);
+  const saved = settings.savedMissions.find((item) => item.id === missionId);
+  if (!saved || saved.goal !== normalizedGoal) throw savedMissionError("SAVED_MISSION_READBACK_MISMATCH");
+  return {
+    settings,
+    record: saved,
+    action: !existing ? "CREATED" : existing.goal === normalizedGoal ? "UNCHANGED" : "UPDATED",
+    previous: existing ? { goal: existing.goal, label: existing.label } : null
+  };
+}
 
-  if (bookmarks) {
-    const durable = await writeSavedMissionVault(record, {
-      bookmarks,
-      maxSavedMissions: MAX_SAVED_MISSIONS
-    });
-    return writeLocalOperatorSettings({
-      ...current,
-      savedMissions: durable
-    }, storage);
+export async function saveMissionPreset(goal, {
+  storage = defaultStorage(),
+  bookmarks = defaultBookmarks(),
+  now = Date.now(),
+  id = ""
+} = {}) {
+  const result = await saveSavedMission(goal, { storage, bookmarks, now, id, mode: "AUTO" });
+  return result.settings;
+}
+
+/**
+ * v1.8.5 bulk import from parseSavedMissionImport(). Order: merge duplicates
+ * (frees room), update, create. Every record is written with durable readback;
+ * a failure stops the import and the next run is idempotent (UNCHANGED rows).
+ */
+export async function applySavedMissionImport(importedMissions, {
+  storage = defaultStorage(),
+  bookmarks = defaultBookmarks(),
+  now = Date.now(),
+  mergeDuplicates = true
+} = {}) {
+  const current = await loadOperatorSettings(storage, { bookmarks });
+  const plan = planSavedMissionImport(current.savedMissions, importedMissions, {
+    maxSavedMissions: MAX_SAVED_MISSIONS,
+    mergeDuplicates
+  });
+  if (!plan.ok) throw savedMissionError(plan.error || "SAVED_MISSION_IMPORT_INVALID");
+
+  let missions = current.savedMissions;
+  const merged = {};
+  const changes = [];
+  if (plan.mergeDuplicates) {
+    for (const row of plan.rows) {
+      for (const duplicateId of row.duplicateIds) {
+        missions = await removeSavedMissionRecord(missions, duplicateId, { bookmarks });
+        merged[duplicateId] = row.targetId;
+      }
+    }
+  }
+  let offset = 0;
+  for (const row of plan.rows.filter((item) => item.action === "UPDATE")) {
+    const existing = missions.find((item) => item.id === row.targetId);
+    if (!existing) throw savedMissionError("SAVED_MISSION_NOT_FOUND");
+    const record = {
+      id: existing.id,
+      label: missionLabel(row.goal),
+      goal: row.goal,
+      createdAt: existing.createdAt || new Date(now).toISOString(),
+      updatedAt: new Date(now + offset).toISOString()
+    };
+    offset += 1;
+    missions = await writeSavedMissionRecord(missions, record, { storage, bookmarks });
+    changes.push({ id: record.id, key: row.key, action: "UPDATED", label: record.label });
+  }
+  for (const row of plan.rows.filter((item) => item.action === "CREATE")) {
+    const record = {
+      id: newMissionId(now + offset),
+      label: missionLabel(row.goal),
+      goal: row.goal,
+      createdAt: new Date(now + offset).toISOString(),
+      updatedAt: new Date(now + offset).toISOString()
+    };
+    offset += 1;
+    missions = await writeSavedMissionRecord(missions, record, { storage, bookmarks });
+    changes.push({ id: record.id, key: row.key, action: "CREATED", label: record.label });
   }
 
-  const savedMissions = [
-    record,
-    ...current.savedMissions.filter((item) => item.id !== missionId && item.goal !== normalizedGoal)
-  ].slice(0, MAX_SAVED_MISSIONS);
-  return writeLocalOperatorSettings({ ...current, savedMissions }, storage);
+  const settings = await writeLocalOperatorSettings({ ...current, savedMissions: missions }, storage);
+  const byKey = savedMissionsByKey(settings.savedMissions);
+  for (const row of plan.rows) {
+    const saved = byKey.get(row.key) || [];
+    if (saved.length < 1 || saved[0].goal !== row.goal || (plan.mergeDuplicates && saved.length !== 1)) {
+      throw savedMissionError("SAVED_MISSION_IMPORT_READBACK_MISMATCH");
+    }
+  }
+  return { settings, plan, changes, merged };
 }
 
 export async function deleteMissionPreset(
@@ -209,15 +344,7 @@ export async function deleteMissionPreset(
   } = {}
 ) {
   const current = await loadOperatorSettings(storage, { bookmarks });
-  if (bookmarks) {
-    const durable = await deleteSavedMissionVault(id, { bookmarks });
-    return writeLocalOperatorSettings({
-      ...current,
-      savedMissions: durable
-    }, storage);
-  }
-
-  const savedMissions = current.savedMissions.filter((item) => item.id !== String(id || ""));
+  const savedMissions = await removeSavedMissionRecord(current.savedMissions, id, { bookmarks });
   return writeLocalOperatorSettings({ ...current, savedMissions }, storage);
 }
 

@@ -11,6 +11,7 @@ import {
   normalizeGreenfieldPriority
 } from "./global-capacity-scheduler.mjs";
 import { MAX_SCHEDULE_WINDOWS, parseScheduleWindow } from "./queue-schedule.mjs";
+import { reconcileItemsWithSavedMissions } from "./saved-mission-catalog.mjs";
 
 // v1.8.1: a set keeps each slot's weekly run windows. A one-shot pauseUntil is
 // transient runtime state and is never stored in a set.
@@ -187,6 +188,40 @@ export async function deleteMissionQueueSet(setId, storage = null, { now = Date.
     return readback;
   });
 }
+/**
+ * v1.8.5: rewrite stored set templates so each slot carries its saved
+ * mission's current text (and follows merged duplicates). Only changed sets
+ * are rewritten; store and vault are written once, then read back.
+ */
+export async function reconcileMissionQueueSetsWithSavedMissions(savedMissions, {
+  merged = {}
+} = {}, storage = null, { now = Date.now(), bookmarks = globalThis.chrome?.bookmarks || null } = {}) {
+  const area = requireStorage(storage);
+  return withStoreWriteLock(area, async () => {
+    const store = await loadMissionQueueSets(area, { bookmarks });
+    const summary = { setsChanged: 0, itemsChanged: 0, relinked: 0, unresolved: 0, sets: [] };
+    const sets = store.sets.map((set) => {
+      const result = reconcileItemsWithSavedMissions(set.items, savedMissions, { merged });
+      summary.unresolved += result.unresolved.length;
+      if (!result.changes.length) return set;
+      summary.setsChanged += 1;
+      summary.itemsChanged += result.changes.length;
+      summary.relinked += result.changes.filter((row) => row.via === "KEY" || row.via === "MERGED").length;
+      summary.sets.push({ setId: set.setId, name: set.name, items: result.changes.length });
+      return { ...set, items: result.items, updatedAt: nowIso(now) };
+    });
+    if (!summary.setsChanged) return { store, summary };
+    const nextStore = normalizeStore({ sets, updatedAt: nowIso(now) }, { now });
+    await area.set({ [MISSION_QUEUE_SET_STORE_KEY]: nextStore });
+    if (bookmarks) await writeMissionQueueSetVault(nextStore, { bookmarks });
+    const readback = await loadMissionQueueSets(area, { bookmarks });
+    const expected = JSON.stringify(nextStore.sets.map((set) => set.items.map((item) => [item.savedMissionId, item.goal])));
+    const actual = JSON.stringify(readback.sets.map((set) => set.items.map((item) => [item.savedMissionId, item.goal])));
+    if (expected !== actual) throw new Error("MISSION_QUEUE_SET_RECONCILE_READBACK_MISMATCH");
+    return { store: readback, summary };
+  });
+}
+
 export function applyMissionQueueSet(queueValue, setValue, {
   workerId = queueValue?.workerId,
   windowId = queueValue?.windowId,

@@ -1,0 +1,161 @@
+{
+  "tool": "tools/verify-saved-mission-admin.mjs",
+  "importSource": "BUILTIN",
+  "results": {
+    "initialRuntimeCount": "3/64",
+    "initialCleanupRows": [
+      "GF-001 · 63 Greenfieldäldre dubblett · uppdaterad 2026-01-01 00:00:00",
+      "Fritt uppdragutan GF-ID · uppdaterad 2026-01-01 00:00:00",
+      "GF-001 · 63 Greenfielduppdaterad 2026-02-01 00:00:00"
+    ],
+    "initialState": "3 / 64 · 1 GF-ID med dubbletter",
+    "initialOptions": [
+      "Välj sparat uppdrag…",
+      "Fritt uppdrag",
+      "GF-001 · 63 Greenfield",
+      "GF-001 · 63 Greenfield"
+    ],
+    "previewStatus": "3 i importen: 2 nya, 1 ändras, 0 oförändrade, 1 dubbletter slås ihop. Behålls utan ändring: 0 ej i importen, 1 utan GF-ID. Efter import: 4 / 64. 1 rader före första rubriken ignoreras.",
+    "previewRows": [
+      "GF-001ändras · 1 dubblett slås ihop",
+      "GF-008ny",
+      "GF-WC-RE-001ny · 1 rader efter tomrad ignoreras"
+    ],
+    "applyEnabledAfterPreview": true,
+    "applyDisabledAfterEdit": true,
+    "importStatus": "Import klar: 2 nya, 1 ändrade, 0 oförändrade, 1 dubbletter sammanslagna. Varje post är återläst ur bokmärkesvalvet. Uppdaterade 2 platser i 1 kö-set.",
+    "importMessages": [
+      {
+        "reason": "IMPORT",
+        "merged": {
+          "legacy-gf001-old": "legacy-gf001"
+        }
+      }
+    ],
+    "afterImportState": "4 / 64",
+    "afterImportOptions": [
+      "Välj sparat uppdrag…",
+      "Fritt uppdrag",
+      "GF-001 · 63 Greenfield",
+      "GF-008 · 67 EIC Learning",
+      "GF-WC-RE-001 · 67 EIC Learning"
+    ],
+    "editorLoaded": true,
+    "updateDisabledUntilChanged": true,
+    "updateStatus": "Uppdaterade GF-001 (samma id). Uppdaterade 2 platser i 1 kö-set.",
+    "updateKeptId": true,
+    "createConflictStatus": "GF-ID:t finns redan i ett annat sparat uppdrag. Redigera det uppdraget, eller slå ihop dubbletterna via import.",
+    "deleteArmedLabel": "Bekräfta borttagning",
+    "deleteStatus": "Tog bort Fritt uppdrag. Köplatser och kö-set behåller sin senaste text.",
+    "afterDeleteState": "3 / 64",
+    "exportFile": "Greenfield-sparade-uppdrag-2026-09-25T10-47-04-400Z.json",
+    "exportCount": 3,
+    "exportSchema": "eic.greenfield.saved-missions-export.v1",
+    "runtimeSavedMissionsOptions": 3,
+    "full": {
+      "runtimeCount": "64/64 · fullt",
+      "countIsRed": true,
+      "refusedStatus": "Max 64 sparade uppdrag. Ta bort ett uppdrag först; inget raderas automatiskt.",
+      "refusedIsError": true,
+      "countAfterRefusal": "64/64 · fullt",
+      "updateAtLimitStatus": "Uppdaterade GF-101 (samma id). Uppdaterade 2 platser i 1 kö-set.",
+      "adminState": "64 / 64 · fullt · 1 GF-ID med dubbletter",
+      "flagged": [
+        "GF-101 · 71 Greenfield Worksäldre dubblett · uppdaterad 2026-01-01 00:00:00",
+        "Utan nyckelutan GF-ID · uppdaterad 2026-01-01 00:00:00"
+      ],
+      "cleanupArmedLabel": "Bekräfta borttagning av 1",
+      "cleanupStatus": "Tog bort 1 sparade uppdrag; 1 dubbletters köreferenser flyttade till det nyare uppdraget. 63/64 kvar. Uppdaterade 2 platser i 1 kö-set.",
+      "cleanupMessage": [
+        {
+          "dup-old": "k1"
+        }
+      ],
+      "createAfterCleanupStatus": "Sparade GF-900 som nytt uppdrag.",
+      "finalCount": "64/64 · fullt"
+    },
+    "pageErrors": []
+  },
+  "checks": [
+    {
+      "name": "legacy missions migrate and show the duplicate count",
+      "pass": true
+    },
+    {
+      "name": "preview enables apply; editing the text disables it again",
+      "pass": true
+    },
+    {
+      "name": "import applied with durable readback",
+      "pass": true
+    },
+    {
+      "name": "import notifies the background (queue sets / queue) once with the merge map",
+      "pass": true
+    },
+    {
+      "name": "no duplicate GF key remains after import",
+      "pass": true
+    },
+    {
+      "name": "editor loads the selected mission; 'Spara ändring' only after a change",
+      "pass": true
+    },
+    {
+      "name": "'Spara ändring' keeps the same id",
+      "pass": true
+    },
+    {
+      "name": "'Spara som nytt' with an existing GF key is refused",
+      "pass": true
+    },
+    {
+      "name": "delete needs a second click",
+      "pass": true
+    },
+    {
+      "name": "export downloads every saved mission",
+      "pass": true
+    },
+    {
+      "name": "runtime block shows the count and flags duplicate/no-key cleanup candidates",
+      "pass": true
+    },
+    {
+      "name": "full vault: count shows 64/64 · fullt in red",
+      "pass": true
+    },
+    {
+      "name": "full vault: a new mission is refused with a visible error and nothing is deleted",
+      "pass": true
+    },
+    {
+      "name": "full vault: updating an existing GF key still works",
+      "pass": true
+    },
+    {
+      "name": "cleanup flags exactly the older duplicate and the mission without key",
+      "pass": true
+    },
+    {
+      "name": "cleanup needs confirmation and moves the duplicate's references to the newer record",
+      "pass": true
+    },
+    {
+      "name": "after cleanup the new mission fits: 64/64",
+      "pass": true
+    },
+    {
+      "name": "no page errors",
+      "pass": true
+    },
+    {
+      "name": "built-in import preview: 2 new, 1 changed, 1 duplicate merged, prose ignored",
+      "pass": true
+    },
+    {
+      "name": "built-in import result: 4 saved missions",
+      "pass": true
+    }
+  ]
+}

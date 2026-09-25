@@ -644,3 +644,57 @@ body[data-active-tab="workmode"] [data-ui-tab="workmode"] {
 .fleet-kpi strong { font-variant-numeric:tabular-nums; }
 button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid #a5e9d4; outline-offset:3px; }
 @media (max-width:360px) { .fleet-kpis {grid-template-columns:repeat(2,minmax(0,1fr));} .policy-grid {grid-template-columns:1fr;} .ops-banner strong {font-size:15px;} }
+
+/* v1.8.5 saved-mission administration */
+.saved-mission-admin-card {
+  background: linear-gradient(150deg, rgba(113,183,255,.03), rgba(116,242,189,.025)), var(--panel);
+}
+.saved-admin-row {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto auto;
+  gap: 7px;
+  margin-top: 10px;
+}
+.saved-admin-row select,
+.saved-admin-editor {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 9px;
+  color: var(--text);
+  background: rgba(2,10,8,.52);
+  font: inherit;
+  font-size: 10px;
+}
+.saved-admin-editor {
+  margin-top: 8px;
+  resize: vertical;
+  line-height: 1.45;
+}
+.saved-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+.saved-admin-actions button { font-size: 10px; }
+.saved-import-preview {
+  margin-top: 8px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.saved-import-preview .row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+}
+.saved-import-preview .row span:last-child { color: var(--muted); text-align: right; }
+.saved-import-preview .row.changed span:last-child { color: var(--text); }
+.saved-import-preview label.row { cursor: pointer; align-items: center; }
+.saved-import-preview label.row input { margin: 0 6px 0 0; }
+.saved-mission-count { color: var(--muted); font-weight: 600; }
+.saved-mission-count.full { color: var(--danger); }
+.saved-mission-status:empty { display: none; }

@@ -174,22 +174,28 @@ export async function loadSavedMissionVault(bookmarks) {
   return deduped.map(clone);
 }
 
-async function pruneVault(root, bookmarks, maxSavedMissions) {
-  const folders = await listFinalFolders(root, bookmarks);
-  const parsed = [];
-  for (const folder of folders) {
+// v1.8.5: the vault never drops a mission to make room. A new record that
+// would exceed the limit is refused before anything is written; replacing a
+// record (same id or same text) is always allowed.
+async function assertVaultCapacity(root, bookmarks, normalized, maxSavedMissions) {
+  const limit = Math.max(1, Number(maxSavedMissions) || 0);
+  const records = [];
+  for (const folder of await listFinalFolders(root, bookmarks)) {
     const record = await readMissionFolder(folder, bookmarks);
-    if (record) parsed.push({ folder, record });
+    if (record) records.push(record);
   }
-  parsed.sort((a, b) => timestampValue(b.record.updatedAt) - timestampValue(a.record.updatedAt));
-  for (const item of parsed.slice(Math.max(0, Number(maxSavedMissions) || 0))) {
-    await bookmarks.removeTree(item.folder.id);
+  const replaces = records.some((record) => record.id === normalized.id || record.goal === normalized.goal);
+  const distinct = new Set(records.map((record) => record.id)).size;
+  if (!replaces && distinct >= limit) {
+    const error = new Error("SAVED_MISSION_LIMIT_REACHED");
+    error.code = "SAVED_MISSION_LIMIT_REACHED";
+    throw error;
   }
 }
 
 export async function writeSavedMissionVault(record, {
   bookmarks,
-  maxSavedMissions = 24,
+  maxSavedMissions = 64,
   nonce = ""
 } = {}) {
   if (!bookmarks?.create || !bookmarks?.getChildren || !bookmarks?.update || !bookmarks?.removeTree) {
@@ -198,6 +204,7 @@ export async function writeSavedMissionVault(record, {
   const normalized = normalizeRecord(record);
   if (!normalized) throw new Error("SAVED_MISSION_VAULT_RECORD_INVALID");
   const root = await ensureVaultRoot(bookmarks);
+  await assertVaultCapacity(root, bookmarks, normalized, maxSavedMissions);
 
   const payload = base64UrlEncodeUtf8(JSON.stringify({
     schema: SAVED_MISSION_VAULT_SCHEMA,
@@ -237,7 +244,6 @@ export async function writeSavedMissionVault(record, {
       }
     }
 
-    await pruneVault(root, bookmarks, maxSavedMissions);
     const readback = await loadSavedMissionVault(bookmarks);
     const committedRecord = readback.find((item) => item.id === normalized.id);
     if (JSON.stringify(committedRecord) !== JSON.stringify(normalized)) {
@@ -276,7 +282,7 @@ export async function deleteSavedMissionVault(id, { bookmarks } = {}) {
 
 export async function migrateSavedMissionsToVault(records, {
   bookmarks,
-  maxSavedMissions = 24
+  maxSavedMissions = 64
 } = {}) {
   const normalized = (Array.isArray(records) ? records : []).map(normalizeRecord).filter(Boolean);
   for (const record of normalized.slice(0, maxSavedMissions)) {

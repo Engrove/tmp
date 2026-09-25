@@ -8,11 +8,21 @@ import {
   reconcileOpenFleetWorkerKeys
 } from "./lib/panel-details-state.mjs";
 import {
+  MAX_SAVED_MISSIONS,
+  applySavedMissionImport,
   deleteMissionPreset,
   loadOperatorSettings,
-  saveMissionPreset,
-  saveOperatorSettings
+  saveOperatorSettings,
+  saveSavedMission
 } from "./lib/operator-settings.mjs";
+import {
+  buildSavedMissionExport,
+  parseSavedMissionImport,
+  planSavedMissionImport,
+  savedMissionCleanupRows,
+  savedMissionDisplayLabel,
+  savedMissionKey
+} from "./lib/saved-mission-catalog.mjs";
 import {
   DEFAULT_GREENFIELD_PRIORITY,
   DEFAULT_MAX_ACTIVE_SESSIONS,
@@ -58,6 +68,15 @@ const state = {
   queueBusy: false,
   queueSetBusy: false,
   queueSetUpdateConfirm: null,
+  savedMissionAdmin: {
+    editingId: "",
+    deleteConfirm: null,
+    importText: "",
+    importParsed: null,
+    importPlan: null,
+    cleanupSelected: new Set(),
+    cleanupConfirmUntil: 0
+  },
   scheduleEditor: null,
   audit: {
     enabled: false,
@@ -334,7 +353,7 @@ function renderOperatorSettings() {
       : new Set(select.value ? [select.value] : []);
     const emptyLabel = multi ? "Välj ett eller flera sparade uppdrag…" : "Sparade uppdrag…";
     select.innerHTML = (multi ? "" : `<option value="">${emptyLabel}</option>`) + missions
-      .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label || item.goal)}</option>`)
+      .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(savedMissionDisplayLabel(item))}</option>`)
       .join("");
     for (const option of select.options) {
       option.selected = selectedValues.has(option.value);
@@ -342,6 +361,9 @@ function renderOperatorSettings() {
     if (!multi && !missions.some((item) => selectedValues.has(item.id))) select.value = "";
   }
 
+  const full = missions.length >= MAX_SAVED_MISSIONS;
+  $("savedMissionCount").textContent = `${missions.length}/${MAX_SAVED_MISSIONS}${full ? " · fullt" : ""}`;
+  $("savedMissionCount").classList.toggle("full", full);
   $("loadSavedMission").disabled = !$("savedMissionSelect").value || state.operatorSettingsBusy;
   $("deleteSavedMission").disabled = !$("savedMissionSelect").value || state.operatorSettingsBusy;
   $("saveMission").disabled = state.operatorSettingsBusy ||
@@ -373,6 +395,7 @@ function renderOperatorSettings() {
   ]) {
     if ($(id)) $(id).disabled = state.operatorSettingsBusy || state.queueBusy;
   }
+  renderSavedMissionAdmin();
 }
 async function refreshOperatorSettings() {
   state.operatorSettings = await loadOperatorSettings();
@@ -467,14 +490,22 @@ async function saveCurrentMission() {
   }
   state.operatorSettingsBusy = true;
   try {
-    state.operatorSettings = await saveMissionPreset(goal);
+    const result = await saveSavedMission(goal, { mode: "AUTO" });
+    state.operatorSettings = result.settings;
     await appendAudit({
       kind: "SAVED_MISSION_STORED",
       component: "sidepanel-settings",
-      payload: { goalLength: goal.length, savedCount: state.operatorSettings.savedMissions.length }
+      payload: {
+        goalLength: goal.length,
+        savedCount: state.operatorSettings.savedMissions.length,
+        action: result.action,
+        key: savedMissionKey(result.record.goal)
+      }
     }).catch(() => undefined);
+    const sync = result.action === "UPDATED" ? await notifySavedMissionsChanged("SAVE_CURRENT") : null;
+    setSavedMissionRuntimeStatus(`${savedMissionActionText(result)}${syncSummaryText(sync)}`);
   } catch (error) {
-    $("statusDetail").textContent = error?.message || String(error);
+    setSavedMissionRuntimeStatus(savedMissionErrorText(error), true);
   } finally {
     state.operatorSettingsBusy = false;
     renderOperatorSettings();
@@ -499,14 +530,378 @@ async function deleteSelectedMission() {
   state.operatorSettingsBusy = true;
   try {
     state.operatorSettings = await deleteMissionPreset(mission.id);
+    const sync = await notifySavedMissionsChanged("DELETE");
+    setSavedMissionRuntimeStatus(`Tog bort ${savedMissionKey(mission.goal) || mission.label}.` +
+      (sync?.error ? ` (synk: ${sync.error})` : ""));
   } catch (error) {
-    $("statusDetail").textContent = error?.message || String(error);
+    setSavedMissionRuntimeStatus(savedMissionErrorText(error), true);
   } finally {
     state.operatorSettingsBusy = false;
     renderOperatorSettings();
   }
 }
 
+
+// v1.8.5 saved-mission administration.
+const SAVED_MISSION_ERROR_SV = {
+  SAVED_MISSION_LIMIT_REACHED: `Max ${MAX_SAVED_MISSIONS} sparade uppdrag. Ta bort ett uppdrag först; inget raderas automatiskt.`,
+  SAVED_MISSION_KEY_CONFLICT: "GF-ID:t finns redan i ett annat sparat uppdrag. Redigera det uppdraget, eller slå ihop dubbletterna via import.",
+  SAVED_MISSION_NOT_FOUND: "Det sparade uppdraget finns inte längre. Välj igen.",
+  SAVED_MISSION_GOAL_REQUIRED: "Uppdragstexten är tom.",
+  SAVED_MISSION_READBACK_MISMATCH: "Uppdraget kunde inte läsas tillbaka efter sparning. Försök igen.",
+  SAVED_MISSION_IMPORT_READBACK_MISMATCH: "Importen kunde inte läsas tillbaka korrekt. Förhandsgranska och kör igen; redan sparade rader blir oförändrade.",
+  SAVED_MISSION_VAULT_UNAVAILABLE: "Bokmärkesvalvet är inte tillgängligt i denna Chrome-profil."
+};
+const IMPORT_ERROR_SV = {
+  IMPORT_EMPTY: "Importtexten är tom.",
+  IMPORT_NO_SECTIONS: "Inga rubriker av typen ### GF-001 hittades.",
+  IMPORT_HEADING_NOT_A_KEY: "rubriken är inte ett GF-ID",
+  IMPORT_EMPTY_BODY: "rubriken saknar uppdragstext",
+  IMPORT_HEADING_KEY_MISMATCH: "rubrikens GF-ID stämmer inte med Gf: på första raden",
+  IMPORT_DUPLICATE_KEY: "GF-ID:t förekommer flera gånger i importen",
+  IMPORT_JSON_INVALID: "JSON kunde inte tolkas.",
+  IMPORT_JSON_NO_MISSIONS: "JSON saknar en lista med uppdrag.",
+  IMPORT_KEY_MISSING: "uppdraget saknar GF-ID på första raden"
+};
+
+function savedMissionErrorText(error) {
+  const code = String(error?.code || error?.message || error || "");
+  return SAVED_MISSION_ERROR_SV[code] || code || "Okänt fel.";
+}
+
+function savedMissionActionText(result) {
+  const name = savedMissionKey(result?.record?.goal) || result?.record?.label || "uppdraget";
+  if (result?.action === "UPDATED") return `Uppdaterade ${name} (samma id).`;
+  if (result?.action === "UNCHANGED") return `${name} är oförändrat.`;
+  return `Sparade ${name} som nytt uppdrag.`;
+}
+
+function syncSummaryText(summary) {
+  if (!summary) return "";
+  if (summary.error) return ` Kö-set/kö kunde inte synkas nu (${summary.error}); texten hämtas ändå vid set-laddning och aktivering.`;
+  const parts = [];
+  if (summary.setItemsChanged) parts.push(`${summary.setItemsChanged} platser i ${summary.setsChanged} kö-set`);
+  if (summary.queueSlotsChanged) parts.push(`${summary.queueSlotsChanged} köplatser i denna worker`);
+  return parts.length ? ` Uppdaterade ${parts.join(" och ")}.` : " Inga kö-set eller köplatser behövde ändras.";
+}
+
+async function notifySavedMissionsChanged(reason, merged = {}) {
+  if (!state.workerId) return { error: "WORKER_UNBOUND" };
+  try {
+    const result = await chrome.runtime.sendMessage({
+      type: "EIC_GF_SAVED_MISSIONS_CHANGED",
+      windowId: state.windowId,
+      workerId: state.workerId,
+      auditSessionId: state.auditSessionId,
+      reason,
+      merged
+    });
+    if (!result?.ok) throw new Error(result?.error || result?.code || "SAVED_MISSIONS_SYNC_FAILED");
+    if (result.missionQueue) state.missionQueue = result.missionQueue;
+    if (Array.isArray(result.missionQueueSets)) state.missionQueueSets = result.missionQueueSets;
+    renderMissionQueue();
+    return result.summary || {};
+  } catch (error) {
+    return { error: error?.message || String(error) };
+  }
+}
+
+function adminSelectedMission() {
+  const id = $("savedMissionAdminSelect").value;
+  return (state.operatorSettings?.savedMissions || []).find((item) => item.id === id) || null;
+}
+
+function formatSavedAt(value) {
+  const ms = Date.parse(String(value || ""));
+  return Number.isFinite(ms) ? new Date(ms).toLocaleString("sv-SE") : "–";
+}
+
+function renderSavedMissionAdmin() {
+  const select = $("savedMissionAdminSelect");
+  if (!select) return;
+  const admin = state.savedMissionAdmin;
+  const missions = Array.isArray(state.operatorSettings?.savedMissions) ? state.operatorSettings.savedMissions : [];
+  const sorted = missions.slice().sort((a, b) =>
+    savedMissionDisplayLabel(a).localeCompare(savedMissionDisplayLabel(b), "sv", { numeric: true }));
+  const selected = select.value;
+  select.innerHTML = `<option value="">Välj sparat uppdrag…</option>` + sorted
+    .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(savedMissionDisplayLabel(item))}</option>`)
+    .join("");
+  select.value = sorted.some((item) => item.id === selected) ? selected : "";
+  if (admin.editingId && !missions.some((item) => item.id === admin.editingId)) admin.editingId = "";
+
+  const keyCounts = new Map();
+  for (const item of missions) {
+    const key = savedMissionKey(item.goal);
+    if (key) keyCounts.set(key, (keyCounts.get(key) || 0) + 1);
+  }
+  const duplicateKeys = [...keyCounts.values()].filter((count) => count > 1).length;
+  $("savedMissionAdminState").textContent = `${missions.length} / ${MAX_SAVED_MISSIONS}` +
+    (missions.length >= MAX_SAVED_MISSIONS ? " · fullt" : "") +
+    (duplicateKeys ? ` · ${duplicateKeys} GF-ID med dubbletter` : "");
+  renderSavedMissionCleanup(missions);
+
+  const current = adminSelectedMission();
+  const editing = missions.find((item) => item.id === admin.editingId) || null;
+  $("savedMissionAdminMeta").textContent = current
+    ? `${savedMissionKey(current.goal) || "Inget GF-ID"} · id ${current.id} · uppdaterad ${formatSavedAt(current.updatedAt)}` +
+      (editing ? ` · redigerar ${savedMissionKey(editing.goal) || editing.label}` : "")
+    : editing ? `Redigerar ${savedMissionKey(editing.goal) || editing.label} · id ${editing.id}` : "";
+
+  const busy = state.operatorSettingsBusy;
+  const editorText = $("savedMissionEditor").value.trim();
+  $("savedMissionEdit").disabled = busy || !current;
+  const confirmPending = Boolean(current && admin.deleteConfirm?.id === current.id && admin.deleteConfirm.untilMs > Date.now());
+  $("savedMissionAdminDelete").disabled = busy || !current;
+  $("savedMissionAdminDelete").textContent = confirmPending ? "Bekräfta borttagning" : "Ta bort";
+  $("savedMissionAdminDelete").classList.toggle("warn", confirmPending);
+  $("savedMissionUpdate").disabled = busy || !editing || !editorText || editorText === editing.goal;
+  $("savedMissionCreate").disabled = busy || !editorText;
+  $("savedMissionImportPreview").disabled = busy;
+  $("savedMissionImportApply").disabled = busy || !admin.importPlan?.ok || !admin.importPlan.changes ||
+    $("savedMissionImportText").value !== admin.importText ||
+    $("savedMissionImportMerge").checked !== admin.importPlan.mergeDuplicates;
+  $("savedMissionExport").disabled = busy || missions.length === 0;
+}
+
+// Own status line: the shared statusDetail is rewritten on every render.
+function setSavedMissionRuntimeStatus(text, isError = false) {
+  $("savedMissionRuntimeStatus").textContent = text;
+  $("savedMissionRuntimeStatus").classList.toggle("error", isError);
+}
+
+const CLEANUP_REASON_SV = { DUPLICATE: "äldre dubblett", NO_KEY: "utan GF-ID" };
+
+function renderSavedMissionCleanup(missions) {
+  const admin = state.savedMissionAdmin;
+  const rows = savedMissionCleanupRows(missions);
+  const ids = new Set(rows.map((row) => row.id));
+  for (const id of [...admin.cleanupSelected]) if (!ids.has(id)) admin.cleanupSelected.delete(id);
+  $("savedMissionCleanupList").innerHTML = rows.map((row) => {
+    const note = [CLEANUP_REASON_SV[row.reason] || "", `uppdaterad ${formatSavedAt(row.updatedAt)}`].filter(Boolean).join(" · ");
+    return `<label class="row${row.reason ? " changed" : ""}"><span><input type="checkbox" data-cleanup-id="${escapeHtml(row.id)}"${admin.cleanupSelected.has(row.id) ? " checked" : ""}>${escapeHtml(row.label)}</span><span>${escapeHtml(note)}</span></label>`;
+  }).join("") || `<div class="empty">Inga sparade uppdrag.</div>`;
+  const count = admin.cleanupSelected.size;
+  const confirmPending = count > 0 && admin.cleanupConfirmUntil > Date.now();
+  $("savedMissionCleanupDelete").disabled = state.operatorSettingsBusy || count === 0;
+  $("savedMissionCleanupDelete").textContent = confirmPending
+    ? `Bekräfta borttagning av ${count}`
+    : count ? `Ta bort markerade (${count})` : "Ta bort markerade";
+  $("savedMissionCleanupDelete").classList.toggle("warn", confirmPending);
+}
+
+async function deleteSelectedCleanupMissions() {
+  const admin = state.savedMissionAdmin;
+  if (state.operatorSettingsBusy || admin.cleanupSelected.size === 0) return;
+  if (!(admin.cleanupConfirmUntil > Date.now())) {
+    admin.cleanupConfirmUntil = Date.now() + 6000;
+    renderSavedMissionAdmin();
+    setTimeout(renderSavedMissionAdmin, 6100);
+    return;
+  }
+  admin.cleanupConfirmUntil = 0;
+  const selected = new Set(admin.cleanupSelected);
+  const rows = savedMissionCleanupRows(state.operatorSettings?.savedMissions || []);
+  // A deleted duplicate's queue references move to its newer record, unless
+  // that record is deleted in the same run.
+  const merged = Object.fromEntries(rows
+    .filter((row) => selected.has(row.id) && row.reason === "DUPLICATE" && row.keeperId && !selected.has(row.keeperId))
+    .map((row) => [row.id, row.keeperId]));
+  state.operatorSettingsBusy = true;
+  renderSavedMissionAdmin();
+  let removed = 0;
+  try {
+    for (const id of selected) {
+      state.operatorSettings = await deleteMissionPreset(id);
+      admin.cleanupSelected.delete(id);
+      if (admin.editingId === id) admin.editingId = "";
+      removed += 1;
+    }
+    await appendAudit({
+      kind: "SAVED_MISSION_CLEANUP_APPLIED",
+      component: "sidepanel-settings",
+      payload: { removed, mergedIntoNewer: Object.keys(merged).length }
+    }).catch(() => undefined);
+    const sync = await notifySavedMissionsChanged("CLEANUP", merged);
+    setSavedMissionAdminStatus(`Tog bort ${removed} sparade uppdrag` +
+      (Object.keys(merged).length ? `; ${Object.keys(merged).length} dubbletters köreferenser flyttade till det nyare uppdraget` : "") +
+      `. ${state.operatorSettings.savedMissions.length}/${MAX_SAVED_MISSIONS} kvar.${syncSummaryText(sync)}`);
+  } catch (error) {
+    setSavedMissionAdminStatus(`${removed} borttagna innan felet: ${savedMissionErrorText(error)}`, true);
+  } finally {
+    state.operatorSettingsBusy = false;
+    renderOperatorSettings();
+  }
+}
+
+function setSavedMissionAdminStatus(text, isError = false) {
+  $("savedMissionAdminStatus").textContent = text;
+  $("savedMissionAdminStatus").classList.toggle("error", isError);
+}
+
+function editSelectedSavedMission() {
+  const mission = adminSelectedMission();
+  if (!mission) return;
+  state.savedMissionAdmin.editingId = mission.id;
+  $("savedMissionEditor").value = mission.goal;
+  setSavedMissionAdminStatus("");
+  renderSavedMissionAdmin();
+}
+
+function clearSavedMissionEditor() {
+  state.savedMissionAdmin.editingId = "";
+  $("savedMissionEditor").value = "";
+  renderSavedMissionAdmin();
+}
+
+async function saveSavedMissionFromEditor(mode) {
+  const goal = $("savedMissionEditor").value.trim();
+  if (!goal || state.operatorSettingsBusy) return;
+  state.operatorSettingsBusy = true;
+  renderSavedMissionAdmin();
+  try {
+    const result = await saveSavedMission(goal, {
+      mode,
+      targetId: mode === "UPDATE" ? state.savedMissionAdmin.editingId : ""
+    });
+    state.operatorSettings = result.settings;
+    state.savedMissionAdmin.editingId = result.record.id;
+    $("savedMissionEditor").value = result.record.goal;
+    await appendAudit({
+      kind: "SAVED_MISSION_ADMIN_SAVED",
+      component: "sidepanel-settings",
+      payload: { mode, action: result.action, id: result.record.id, key: savedMissionKey(result.record.goal) }
+    }).catch(() => undefined);
+    const sync = result.action === "UPDATED" ? await notifySavedMissionsChanged(`ADMIN_${mode}`) : null;
+    setSavedMissionAdminStatus(`${savedMissionActionText(result)}${syncSummaryText(sync)}`);
+  } catch (error) {
+    setSavedMissionAdminStatus(savedMissionErrorText(error), true);
+  } finally {
+    state.operatorSettingsBusy = false;
+    renderOperatorSettings();
+  }
+}
+
+async function deleteAdminSelectedMission() {
+  const mission = adminSelectedMission();
+  if (!mission || state.operatorSettingsBusy) return;
+  const admin = state.savedMissionAdmin;
+  if (!(admin.deleteConfirm?.id === mission.id && admin.deleteConfirm.untilMs > Date.now())) {
+    admin.deleteConfirm = { id: mission.id, untilMs: Date.now() + 6000 };
+    renderSavedMissionAdmin();
+    setTimeout(renderSavedMissionAdmin, 6100);
+    return;
+  }
+  admin.deleteConfirm = null;
+  state.operatorSettingsBusy = true;
+  renderSavedMissionAdmin();
+  try {
+    state.operatorSettings = await deleteMissionPreset(mission.id);
+    if (admin.editingId === mission.id) admin.editingId = "";
+    const sync = await notifySavedMissionsChanged("ADMIN_DELETE");
+    setSavedMissionAdminStatus(`Tog bort ${savedMissionKey(mission.goal) || mission.label}. Köplatser och kö-set behåller sin senaste text.` +
+      (sync?.error ? ` (synk: ${sync.error})` : ""));
+  } catch (error) {
+    setSavedMissionAdminStatus(savedMissionErrorText(error), true);
+  } finally {
+    state.operatorSettingsBusy = false;
+    renderOperatorSettings();
+  }
+}
+
+const IMPORT_ACTION_SV = { CREATE: "ny", UPDATE: "ändras", UNCHANGED: "oförändrad" };
+
+function previewSavedMissionImport() {
+  const admin = state.savedMissionAdmin;
+  const text = $("savedMissionImportText").value;
+  const parsed = parseSavedMissionImport(text);
+  admin.importText = text;
+  admin.importParsed = parsed;
+  admin.importPlan = null;
+  const list = $("savedMissionImportPreviewList");
+  if (!parsed.ok) {
+    list.innerHTML = parsed.errors.map((error) => {
+      const where = error.heading ? `${escapeHtml(error.heading)}${error.line ? ` (rad ${error.line})` : ""}: ` : "";
+      return `<div class="row"><span class="error">${where}${escapeHtml(IMPORT_ERROR_SV[error.code] || error.code)}</span><span></span></div>`;
+    }).join("");
+    setSavedMissionAdminStatus(`Importen kan inte genomföras: ${parsed.errors.length} fel. Inget har sparats.`, true);
+    renderSavedMissionAdmin();
+    return;
+  }
+  const plan = planSavedMissionImport(state.operatorSettings?.savedMissions || [], parsed.missions, {
+    maxSavedMissions: MAX_SAVED_MISSIONS,
+    mergeDuplicates: $("savedMissionImportMerge").checked
+  });
+  admin.importPlan = plan;
+  const ignored = new Map(parsed.missions.map((row) => [row.key, Number(row.ignoredLines || 0)]));
+  list.innerHTML = plan.rows.map((row) => {
+    const notes = [IMPORT_ACTION_SV[row.action] || row.action];
+    if (row.duplicateIds.length) notes.push(`${row.duplicateIds.length} dubblett${row.duplicateIds.length === 1 ? "" : "er"}${plan.mergeDuplicates ? " slås ihop" : " kvar"}`);
+    if (ignored.get(row.key)) notes.push(`${ignored.get(row.key)} rader efter tomrad ignoreras`);
+    return `<div class="row${row.action === "UNCHANGED" ? "" : " changed"}"><span>${escapeHtml(row.key)}</span><span>${escapeHtml(notes.join(" · "))}</span></div>`;
+  }).join("");
+  const c = plan.counts;
+  const summary = `${parsed.missions.length} i importen: ${c.create} nya, ${c.update} ändras, ${c.unchanged} oförändrade` +
+    (c.duplicates ? `, ${c.duplicates} dubbletter${plan.mergeDuplicates ? " slås ihop" : " lämnas"}` : "") +
+    `. Behålls utan ändring: ${c.keptNotInImport} ej i importen, ${c.keptWithoutKey} utan GF-ID. Efter import: ${plan.finalCount} / ${MAX_SAVED_MISSIONS}.` +
+    (parsed.preambleLines ? ` ${parsed.preambleLines} rader före första rubriken ignoreras.` : "");
+  setSavedMissionAdminStatus(plan.ok
+    ? plan.changes ? summary : `${summary} Inget att ändra.`
+    : `${summary} ${savedMissionErrorText(plan.error)}`, !plan.ok);
+  renderSavedMissionAdmin();
+}
+
+async function applySavedMissionImportFromPanel() {
+  const admin = state.savedMissionAdmin;
+  if (state.operatorSettingsBusy || !admin.importParsed?.ok || !admin.importPlan?.ok) return;
+  if ($("savedMissionImportText").value !== admin.importText) {
+    setSavedMissionAdminStatus("Importtexten har ändrats sedan förhandsgranskningen. Förhandsgranska igen.", true);
+    return;
+  }
+  state.operatorSettingsBusy = true;
+  renderSavedMissionAdmin();
+  try {
+    const result = await applySavedMissionImport(admin.importParsed.missions, {
+      mergeDuplicates: admin.importPlan.mergeDuplicates
+    });
+    state.operatorSettings = result.settings;
+    await appendAudit({
+      kind: "SAVED_MISSION_IMPORT_APPLIED",
+      component: "sidepanel-settings",
+      payload: {
+        counts: result.plan.counts,
+        merged: Object.keys(result.merged).length,
+        keys: result.changes.map((row) => `${row.key}:${row.action}`)
+      }
+    }).catch(() => undefined);
+    const sync = await notifySavedMissionsChanged("IMPORT", result.merged);
+    const c = result.plan.counts;
+    setSavedMissionAdminStatus(`Import klar: ${c.create} nya, ${c.update} ändrade, ${c.unchanged} oförändrade` +
+      (Object.keys(result.merged).length ? `, ${Object.keys(result.merged).length} dubbletter sammanslagna` : "") +
+      `. Varje post är återläst ur bokmärkesvalvet.${syncSummaryText(sync)}`);
+    admin.importPlan = null;
+    admin.importParsed = null;
+    $("savedMissionImportPreviewList").innerHTML = "";
+  } catch (error) {
+    setSavedMissionAdminStatus(savedMissionErrorText(error), true);
+  } finally {
+    state.operatorSettingsBusy = false;
+    renderOperatorSettings();
+  }
+}
+
+function exportSavedMissions() {
+  const missions = state.operatorSettings?.savedMissions || [];
+  if (!missions.length) return;
+  const payload = buildSavedMissionExport(missions);
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `Greenfield-sparade-uppdrag-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setSavedMissionAdminStatus(`Exporterade ${payload.count} sparade uppdrag. Filen kan importeras igen här.`);
+}
 
 function setUiTab(tab) {
   state.activeUiTab = ["overview", "runtime", "missions", "workmode"].includes(tab) ? tab : "overview";
@@ -1666,6 +2061,30 @@ $("maxActiveSessions").addEventListener("change", updateMaxActiveSessions);
 $("schedulerPriority").addEventListener("change", updateSchedulerPriority);
 $("saveMission").addEventListener("click", saveCurrentMission);
 $("savedMissionSelect").addEventListener("change", renderOperatorSettings);
+$("savedMissionAdminSelect").addEventListener("change", () => {
+  state.savedMissionAdmin.deleteConfirm = null;
+  renderSavedMissionAdmin();
+});
+$("savedMissionEdit").addEventListener("click", editSelectedSavedMission);
+$("savedMissionAdminDelete").addEventListener("click", deleteAdminSelectedMission);
+$("savedMissionEditor").addEventListener("input", renderSavedMissionAdmin);
+$("savedMissionUpdate").addEventListener("click", () => saveSavedMissionFromEditor("UPDATE"));
+$("savedMissionCreate").addEventListener("click", () => saveSavedMissionFromEditor("CREATE"));
+$("savedMissionEditorClear").addEventListener("click", clearSavedMissionEditor);
+$("savedMissionImportText").addEventListener("input", renderSavedMissionAdmin);
+$("savedMissionImportMerge").addEventListener("change", renderSavedMissionAdmin);
+$("savedMissionImportPreview").addEventListener("click", previewSavedMissionImport);
+$("savedMissionImportApply").addEventListener("click", applySavedMissionImportFromPanel);
+$("savedMissionExport").addEventListener("click", exportSavedMissions);
+$("savedMissionCleanupList").addEventListener("change", (event) => {
+  const id = event.target?.dataset?.cleanupId;
+  if (!id) return;
+  if (event.target.checked) state.savedMissionAdmin.cleanupSelected.add(id);
+  else state.savedMissionAdmin.cleanupSelected.delete(id);
+  state.savedMissionAdmin.cleanupConfirmUntil = 0;
+  renderSavedMissionAdmin();
+});
+$("savedMissionCleanupDelete").addEventListener("click", deleteSelectedCleanupMissions);
 $("loadSavedMission").addEventListener("click", loadSelectedMission);
 $("deleteSavedMission").addEventListener("click", deleteSelectedMission);
 $("goal").addEventListener("input", renderOperatorSettings);
@@ -1830,7 +2249,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.8.4" }
+      payload: { appVersion: "1.8.5" }
     });
     await snapshot();
   } catch (error) {

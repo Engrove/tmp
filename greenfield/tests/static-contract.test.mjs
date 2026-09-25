@@ -36,7 +36,7 @@ test("one managed target is bound by window and tab identity and gets overlay", 
 });
 
 test("manifest has no rollout/mode options and includes continuity infrastructure", () => {
-  assert.equal(manifest.version, "1.8.4");
+  assert.equal(manifest.version, "1.8.5");
   assert.ok(manifest.permissions.includes("offscreen"));
   assert.ok(manifest.permissions.includes("alarms"));
   assert.ok(manifest.permissions.includes("storage"));
@@ -177,14 +177,14 @@ test("v1.2.3 background resolves dedicated Greenfield control before terminal ph
   assert.match(background, /greenfieldControl\.action/);
 });
 
-test("v1.8.4 identity is consistent across runtime surfaces", () => {
+test("v1.8.5 identity is consistent across runtime surfaces", () => {
   const contracts = fs.readFileSync(new URL("../lib/contracts.mjs", import.meta.url), "utf8");
   const panelHtml = fs.readFileSync(new URL("../sidepanel.html", import.meta.url), "utf8");
-  assert.match(contracts, /APP_VERSION = "1\.8\.4"/);
-  assert.match(content, /const CONTENT_VERSION = "1\.8\.4"/);
+  assert.match(contracts, /APP_VERSION = "1\.8\.5"/);
+  assert.match(content, /const CONTENT_VERSION = "1\.8\.5"/);
   assert.match(content, /EIC Greenfield v\$\{CONTENT_VERSION\}/);
-  assert.match(sidepanel, /appVersion: "1\.8\.4"/);
-  assert.match(panelHtml, /Greenfield <span>v1\.8\.4<\/span>/);
+  assert.match(sidepanel, /appVersion: "1\.8\.5"/);
+  assert.match(panelHtml, /Greenfield <span>v1\.8\.5<\/span>/);
 });
 
 
@@ -416,7 +416,8 @@ test("v1.2.0 wires extension-wide prompt pause into SENDING without replacing ex
 test("v1.2.0 keeps saved missions persistent and bounded", () => {
   const settings = fs.readFileSync(new URL("../lib/operator-settings.mjs", import.meta.url), "utf8");
   const panelHtml = fs.readFileSync(new URL("../sidepanel.html", import.meta.url), "utf8");
-  assert.match(settings, /MAX_SAVED_MISSIONS = 24/);
+  // v1.8.5 raised the bound from 24 to 64 and replaced silent pruning with a refusal.
+  assert.match(settings, /MAX_SAVED_MISSIONS = 64/);
   assert.match(settings, /saveMissionPreset/);
   assert.match(settings, /deleteMissionPreset/);
   assert.match(sidepanel, /saveCurrentMission/);
