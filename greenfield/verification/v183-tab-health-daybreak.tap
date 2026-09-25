@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: v1.8.3 bridge errors map to tab conditions; page conditions only when they block progress
+ok 1 - v1.8.3 bridge errors map to tab conditions; page conditions only when they block progress
+  ---
+  duration_ms: 1.222595
+  type: 'test'
+  ...
+# Subtest: v1.8.3 recovery ladder: reload, hard reload, same URL, new tab, give up - spaced and budgeted
+ok 2 - v1.8.3 recovery ladder: reload, hard reload, same URL, new tab, give up - spaced and budgeted
+  ---
+  duration_ms: 2.028586
+  type: 'test'
+  ...
+# Subtest: v1.8.3 Daybreak: rotate first, then pause 2 h / 6 h / 24 h; the chain resets after 24 h; never BLOCKED
+ok 3 - v1.8.3 Daybreak: rotate first, then pause 2 h / 6 h / 24 h; the chain resets after 24 h; never BLOCKED
+  ---
+  duration_ms: 0.783491
+  type: 'test'
+  ...
+# Subtest: v1.8.3 learning control treats a provider block as post-failure and a repeat as a recurring family
+ok 4 - v1.8.3 learning control treats a provider block as post-failure and a repeat as a recurring family
+  ---
+  duration_ms: 1.216641
+  type: 'test'
+  ...
+# Subtest: v1.8.3 E2E: a hung page no longer freezes the tick; the recovery ladder acts on the tab
+ok 5 - v1.8.3 E2E: a hung page no longer freezes the tick; the recovery ladder acts on the tab
+  ---
+  duration_ms: 607.199541
+  type: 'test'
+  ...
+# Subtest: v1.8.3 E2E: a missing composer in SENDING is reloaded after the grace period; never during a dispatch
+ok 6 - v1.8.3 E2E: a missing composer in SENDING is reloaded after the grace period; never during a dispatch
+  ---
+  duration_ms: 448.659558
+  type: 'test'
+  ...
+# Subtest: v1.8.3 E2E: a Daybreak notice after Greenfield's turn rotates the same GFW into a fresh chat
+ok 7 - v1.8.3 E2E: a Daybreak notice after Greenfield's turn rotates the same GFW into a fresh chat
+  ---
+  duration_ms: 438.788449
+  type: 'test'
+  ...
+# Subtest: v1.8.3 E2E: a repeated Daybreak block pauses the queue slot for 2 h (never BLOCKED) and the queue advances
+ok 8 - v1.8.3 E2E: a repeated Daybreak block pauses the queue slot for 2 h (never BLOCKED) and the queue advances
+  ---
+  duration_ms: 524.419948
+  type: 'test'
+  ...
+# Subtest: v1.8.3 E2E: a tick stalled beyond 3 minutes is rescued by reloading the tab
+ok 9 - v1.8.3 E2E: a tick stalled beyond 3 minutes is rescued by reloading the tab
+  ---
+  duration_ms: 270.348153
+  type: 'test'
+  ...
+# Subtest: v1.8.3 E2E: the REPLACE_TAB step opens the same conversation in a new tab and the process re-binds to it
+ok 10 - v1.8.3 E2E: the REPLACE_TAB step opens the same conversation in a new tab and the process re-binds to it
+  ---
+  duration_ms: 656.388201
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3062.125958

@@ -1,0 +1,88 @@
+{
+  "schema": "eic.greenfield.v183-release-summary.v1",
+  "version": "1.8.3",
+  "generatedAt": "2026-09-25T05:35:24.658785+00:00",
+  "source": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.8.2.zip",
+    "version": "1.8.2",
+    "sha256": "d6baf1180f7b3a7a34fc980d7df42921032fe5c4123921575d6bb9c1623d9212",
+    "sizeBytes": 856520,
+    "embeddedIntegrity": {
+      "records": 277,
+      "mismatches": 0,
+      "rootDigest": "87f0555910fd86dfbfd71283eb7fc20f70a5d245dd9a45820ed860501a8234df"
+    }
+  },
+  "change": {
+    "purpose": "Operator requests 2026-09-25: (a) recover from Chrome white screen / unresponsive tab and from a partially rendered ChatGPT UI (composer missing left SENDING held on THINKING_MODE_UNVERIFIED); (b) handle the inline ChatGPT content-block notice (Daybreak) by rotating the same GFW, pausing it on repeats, never BLOCKED.",
+    "operatorDecisions": {
+      "daybreak": "first block -> rotate same GFW into a fresh chat; repeat within 24 h -> pause 2 h, then 6 h, then 24 h; chain resets after 24 h without a block; never BLOCKED",
+      "scope": "Daybreak + tab health guard"
+    },
+    "rootCause": "content bridge calls (chrome.tabs.sendMessage) had no deadline; ticks are serialized per process and the watchdog queued behind a hung tick; every transition awaited broadcast -> syncOverlay to the same tab; the SENDING safety hold never escalated to a reload",
+    "deadlines": "lib/tab-health.mjs TAB_HEALTH: bridge 15 s, overlay 5 s, inject 20 s, submit 90 s (unknown effect -> existing dispatch reconciliation), preflight 60 s",
+    "conditions": "BRIDGE_UNRESPONSIVE, BRIDGE_MISSING, TAB_DISCARDED, RENDER_STALLED (visible >=45 s and requested frame not delivered >=45 s), COMPOSER_MISSING (SENDING), THREAD_MISSING (conversation URL with 0 turns); Chrome-frozen tabs are waited out; managed tabs set autoDiscardable:false",
+    "ladder": "REINJECT (bridge missing only) -> RELOAD -> HARD_RELOAD -> NAVIGATE_SAME_URL -> REPLACE_TAB (same conversation, same window, old tab closed, existing single-tab rebind) -> GIVE_UP (session rotation TAB_HEALTH_RECOVERY_EXHAUSTED); UI grace 90 s, 45 s between steps, budget 5 actions/hour/process, no UI step while a dispatch has unknown effect",
+    "tickRescue": "watchdog does not enqueue behind a tick in flight > 3 min; reloads the tab at most every 5 min in WAITING/SENDING(no dispatch)/DETACHED/RECOVERING/ROTATING; audit TICK_STALL_RESCUE",
+    "providerNotice": "content.js detectProviderNotice: 'Daybreak' + headline (en/sv) or cyber word (en/sv/fi), outside every message turn, after the anchor user turn; acted on after two sightings >= 3 s apart and not while generating; the turn is not counted in the quantum; learning keypoints POST_FAILURE / RECURRING PROVIDER_CONTENT_BLOCK_REPEATED",
+    "pause": "queue slot: schedule.pauseUntilMs = max(existing, now + pause), updatedBy GREENFIELD, status READY, parked PROVIDER_CONTENT_BLOCKED_PAUSED, queue continues (QUEUE_WAIT when none runnable); outside a queue: hold PROVIDER_CONTENT_BLOCK_PAUSE",
+    "newPermissions": "none"
+  },
+  "gates": {
+    "TAB_HEALTH_CONDITIONS_PASS": true,
+    "RECOVERY_LADDER_PASS": true,
+    "E2E_HUNG_PAGE_F5_CTRLF5_RESUME_PASS": true,
+    "E2E_COMPOSER_MISSING_RELOAD_PASS": true,
+    "NO_STEP_DURING_DISPATCH_PASS": true,
+    "E2E_REPLACE_TAB_REBIND_PASS": true,
+    "E2E_TICK_STALL_RESCUE_PASS": true,
+    "DAYBREAK_CHAIN_2_6_24_PASS": true,
+    "E2E_DAYBREAK_ROTATE_PASS": true,
+    "E2E_DAYBREAK_QUEUE_PAUSE_NEVER_BLOCKED_PASS": true,
+    "REAL_DOM_CHECK_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
+  },
+  "executed": {
+    "baselineNpmTestOnV182": {
+      "tests": 576,
+      "pass": 576,
+      "fail": 0
+    },
+    "dedicated": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "output": "verification/v183-tab-health-daybreak.tap"
+    },
+    "realDom": {
+      "tool": "tools/verify-content-health.mjs (Playwright + Chromium)",
+      "checks": 9,
+      "pass": 9,
+      "fail": 0,
+      "output": "verification/v183-content-dom-check.json"
+    },
+    "fullNpmTest": {
+      "tests": 586,
+      "pass": 586,
+      "fail": 0,
+      "output": "verification/release-tests.tap"
+    },
+    "syntax": {
+      "files": 136,
+      "pass": 136,
+      "fail": 0,
+      "output": "verification/v183-syntax-check.txt"
+    }
+  },
+  "boundaries": {
+    "liveChromeExtensionAcceptance": "not executed",
+    "liveChatGPTDispatchAcceptance": "not executed",
+    "gpuOnlyWhiteScreen": "a white screen where page script runs and frames are delivered is not detectable without captureVisibleTab (<all_urls>/activeTab not added)",
+    "wholeBrowserFreeze": "an extension cannot act when all of Chrome is frozen",
+    "replaceTabRebind": "rebind requires exactly one ChatGPT tab in the worker window; otherwise session rotation after 6 attempts as before",
+    "navigateSameUrl": "equivalence with pasting the URL in the address bar is not proven",
+    "finnishHeadline": "unknown; detection relies on 'Daybreak' + cyber word",
+    "e2eScope": "real background.js ticks with harness timers (deadlines fired explicitly), real content.js in Chromium for detection only"
+  }
+}

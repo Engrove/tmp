@@ -1,4 +1,5 @@
 import { text } from "./common.mjs";
+import { providerBlockChainLength } from "./provider-notice.mjs";
 
 // v1.8.0 EIC Learning & Continuity Control.
 //
@@ -419,8 +420,8 @@ export function reportedLearningObligations(result) {
 
 const BOUNDARY_MESSAGE_TYPES = new Set(["MISSION_START", "MISSION_RESTORE", "SESSION_ROTATION"]);
 const FOLLOW_UP_MESSAGE_TYPES = new Set(["CONTINUATION", "READ_REQUIRED"]);
-const UNKNOWN_EFFECT_SOURCE_STATES = new Set(["PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE", "PROMPT_EFFECT_UNKNOWN"]);
-const FAILURE_DISPOSITIONS = new Set(["BLOCKED", "SESSION_UNRESPONSIVE"]);
+const UNKNOWN_EFFECT_SOURCE_STATES = new Set(["PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE", "PROMPT_EFFECT_UNKNOWN", "PROMPT_BLOCKED_BY_PROVIDER"]);
+const FAILURE_DISPOSITIONS = new Set(["BLOCKED", "SESSION_UNRESPONSIVE", "PROVIDER_CONTENT_BLOCKED"]);
 
 /** "Projekt: 59 - EIC Backend / ELLM Backend - Gf: GF-002." -> project scope. */
 export function missionLearningScope(goal) {
@@ -513,6 +514,10 @@ export function buildLearningControlContext({
     : (lastReportedBlockers ? 1 : 0);
   if (blockerStreak >= 2) {
     add(LEARNING_KEYPOINTS.RECURRING_SOFT_BLOCKER_OR_FAILURE_FAMILY, `BLOCKERS_IN_${blockerStreak}_CONSECUTIVE_RESPONSES`);
+  }
+  // v1.8.3: a repeated ChatGPT content block for this GFW is a recurring family.
+  if (providerBlockChainLength(process?.providerContentBlocks) >= 2) {
+    add(LEARNING_KEYPOINTS.RECURRING_SOFT_BLOCKER_OR_FAILURE_FAMILY, "PROVIDER_CONTENT_BLOCK_REPEATED");
   }
   if (operatorInstruction?.text) {
     add(LEARNING_KEYPOINTS.MAJOR_REPLAN_OR_SCOPE_DRIFT_RISK, "OPERATOR_INSTRUCTION_PRESENT");

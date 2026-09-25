@@ -1,6 +1,8 @@
-# EIC Autonom Agent Greenfield 1.8.2
+# EIC Autonom Agent Greenfield 1.8.3
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.8.3 gör att Greenfield inte längre fryser tillsammans med en flik som hänger. Alla anrop till sidan har tidsgräns. En vit ruta, ett halvladdat ChatGPT-gränssnitt eller en sida som inte svarar återhämtas i steg: F5, Ctrl-F5, samma URL, ny flik med samma konversation, och först därefter ny chatt. Ett Daybreak-spärrkort från ChatGPT gör att samma GFW fortsätter i en ny chatt. Upprepas det pausas GFW:n i 2, 6 eller 24 h och kön går vidare. Den blir aldrig BLOCKED.
 
 Version 1.8.2 stoppar fångst av halvfärdiga svar. I den live-körda 1.8.0-sessionen fångades 45 av 78 turer som några tecken av ett JSON-svar som fortfarande skrevs, och Greenfield skickade då nästa prompt mitt i svaret. Nu godkänns ett JSON-objekt som öppnats men inte stängts aldrig som färdigt svar. Varje process har dessutom ett varaktigt observationsspår som följer med vid köbyte och syns i diagnostikexporten (`responseObservation`), även när Audit är avslaget.
 
@@ -13,6 +15,13 @@ Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfiel
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.8.3
+
+- **Tidsgränser** på alla anrop till sidan, så att en hängd flik inte fryser processen.
+- **Flikhälsa och återhämtningsstege:** sidan svarar inte, sidan ritas inte, inmatningsfältet eller tråden saknas → F5 → Ctrl-F5 → samma URL → ny flik → ny chatt. Stegen har takt, budget och tar aldrig åtgärd mitt i ett utskick.
+- **Daybreak:** rotation till ny chatt, och vid upprepning paus 2 h → 6 h → 24 h. Aldrig BLOCKED.
+- Se [TAB_HEALTH_DAYBREAK_V1_8_3.md](docs/TAB_HEALTH_DAYBREAK_V1_8_3.md).
 
 ## Nytt i 1.8.2
 
@@ -86,10 +95,11 @@ Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad 
 
 v1.7.3:s mixed-language model safety, v1.7.2:s multi-turn-liveness, v1.7.1:s dispatch-reconciliation och v1.7.0:s semantiska modellgolv bevaras.
 
-Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.1, se [UPPDATERA_TILL_1_8_2.md](UPPDATERA_TILL_1_8_2.md); från äldre versioner, se även [UPPDATERA_TILL_1_8_1.md](UPPDATERA_TILL_1_8_1.md), [UPPDATERA_TILL_1_8_0.md](UPPDATERA_TILL_1_8_0.md), [UPPDATERA_TILL_1_7_9.md](UPPDATERA_TILL_1_7_9.md), [UPPDATERA_TILL_1_7_8.md](UPPDATERA_TILL_1_7_8.md) och [UPPDATERA_TILL_1_7_7.md](UPPDATERA_TILL_1_7_7.md).
+Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.2, se [UPPDATERA_TILL_1_8_3.md](UPPDATERA_TILL_1_8_3.md); från äldre versioner, se även [UPPDATERA_TILL_1_8_2.md](UPPDATERA_TILL_1_8_2.md), [UPPDATERA_TILL_1_8_1.md](UPPDATERA_TILL_1_8_1.md), [UPPDATERA_TILL_1_8_0.md](UPPDATERA_TILL_1_8_0.md), [UPPDATERA_TILL_1_7_9.md](UPPDATERA_TILL_1_7_9.md), [UPPDATERA_TILL_1_7_8.md](UPPDATERA_TILL_1_7_8.md) och [UPPDATERA_TILL_1_7_7.md](UPPDATERA_TILL_1_7_7.md).
 
 | Underlag | Innehåll |
 |---|---|
+| [TAB_HEALTH_DAYBREAK_V1_8_3.md](docs/TAB_HEALTH_DAYBREAK_V1_8_3.md) | Tidsgränser, flikhälsa, återhämtningsstege, Daybreak-rotation och paus |
 | [RESPONSE_OBSERVATION_V1_8_2.md](docs/RESPONSE_OBSERVATION_V1_8_2.md) | Fynd i live-export, spärr mot oavslutad JSON, observationsspår |
 | [QUEUE_SCHEDULER_V1_8_1.md](docs/QUEUE_SCHEDULER_V1_8_1.md) | Schema per köplats, `QUEUE_WAIT`, AI `SET_SCHEDULE`, kö-set-uppdatering |
 | [LEARNING_CONTROL_V1_8_0.md](docs/LEARNING_CONTROL_V1_8_0.md) | EIC Learning & Continuity Control: tre lager, keypoints, obligationer, risker |
@@ -108,6 +118,8 @@ Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.1, 
 
 ```sh
 npm test
+node --test tests/v183-tab-health-daybreak.test.mjs
+NODE_PATH="$(npm root -g)" node tools/verify-content-health.mjs   # kräver Playwright + Chromium
 node --test tests/v182-response-observation.test.mjs
 node --test tests/v181-queue-schedule.test.mjs
 node --test tests/v180-learning-control.test.mjs
@@ -121,4 +133,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.2.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.3.

@@ -3,6 +3,7 @@ import { selectNextMissionItem } from "./mission-work-queue.mjs";
 import { queuePlanningFields } from "./queue-planning.mjs";
 import { WAITING_REFRESH_ACTIONS, waitingRefreshSchedule } from "./waiting-refresh.mjs";
 import { queueItemNextRunnableAtMs, scheduleClosesAtMs } from "./queue-schedule.mjs";
+import { tabHealthStatusSv } from "./tab-health.mjs";
 
 // v1.7.9 operator overview for the in-page overlay. Pure: derived from process
 // state plus an optional read-only queue snapshot. Countdowns are sent as
@@ -143,7 +144,9 @@ export function managedOverlayOverview(process, { queue = null, now = Date.now()
     ctx ? `Aktivering #${Math.max(1, Number(ctx.activationCount || 0))}` : "",
     profile ? `Prompt ${profile}` : "",
     ctx ? `Nästa i kö: ${nextName || "ingen annan körbar"}` : "",
-    process?.safety?.hold?.code ? `Spärr: ${process.safety.hold.code}` : ""
+    process?.safety?.hold?.code ? `Spärr: ${process.safety.hold.code}` : "",
+    // v1.8.3: tab recovery in progress (visible once the page paints again).
+    tabHealthStatusSv(process?.tabHealth)
   ].filter(Boolean).join(" · ");
 
   const title = [

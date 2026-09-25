@@ -192,6 +192,23 @@ function schedulerStatusText(process) {
 
 function statusText(process) {
   if (!process) return "Ingen aktiv process i detta Chrome-fönster.";
+  // v1.8.3: tab recovery (white page, partial UI, hung page) is shown first.
+  if (process.tabHealth?.incident) {
+    const labels = {
+      BRIDGE_UNRESPONSIVE: "sidan svarar inte",
+      BRIDGE_MISSING: "Greenfield-bryggan saknas i sidan",
+      TAB_DISCARDED: "Chrome har laddat ur fliken",
+      RENDER_STALLED: "sidan ritas inte (vit ruta)",
+      COMPOSER_MISSING: "inmatningsfältet saknas",
+      THREAD_MISSING: "konversationen visas inte"
+    };
+    const incident = process.tabHealth.incident;
+    const steps = Array.isArray(incident.steps) ? incident.steps.map((row) => row.step).join(" → ") : "";
+    return `Flikåterhämtning: ${labels[incident.condition] || incident.condition}${steps ? ` · utfört: ${steps}` : " · väntar på bekräftelse"}.`;
+  }
+  if (process.safety?.hold?.code === "PROVIDER_CONTENT_BLOCK_PAUSE") {
+    return `ChatGPT-spärr (Daybreak) återkom · pausad till ${formatTime(new Date(Number(process.providerContentBlocks?.pauseUntilMs || 0)).toISOString())} · körs sedan i ny chatt.`;
+  }
   if (process.greenfieldControl?.action === "OPERATOR") {
     return `Operatörsåtgärd krävs: ${process.lastError?.message || process.lastDecision?.analysis || "mänsklig behörighet/åtgärd krävs"}.`;
   }
@@ -1813,7 +1830,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.8.2" }
+      payload: { appVersion: "1.8.3" }
     });
     await snapshot();
   } catch (error) {

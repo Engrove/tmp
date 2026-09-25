@@ -192,6 +192,21 @@ import {
   retireLogicalMissionSlots
 } from "./lib/queue-planning.mjs";
 import {
+  TAB_CONDITION,
+  TAB_HEALTH,
+  TAB_RECOVERY_STEP,
+  advanceTabHealth,
+  conditionFromBridgeError,
+  pageConditionFromHealth,
+  tabHealthStatusSv
+} from "./lib/tab-health.mjs";
+import {
+  PROVIDER_BLOCK,
+  providerBlockObjective,
+  providerNoticeBlocks,
+  recordProviderBlock
+} from "./lib/provider-notice.mjs";
+import {
   appendResponseTrace,
   responseStructuralCompleteness,
   responseTraceDetail
@@ -199,6 +214,7 @@ import {
 import {
   SCHEDULE_BLOCK,
   nextScheduleOpenAtMs,
+  normalizeQueueSchedule,
   parseScheduleEdit,
   queueItemNextRunnableAtMs,
   scheduleBlockReason
@@ -535,8 +551,32 @@ function supportedUrl(url) {
   }
 }
 
+// v1.8.3: every call into the page has a deadline. A hung renderer must not
+// hold the per-process tick chain (or a transition's overlay sync) forever.
+function withDeadline(promise, timeoutMs, code) {
+  let timer = null;
+  const deadline = new Promise((_, reject) => {
+    const expire = () => reject(Object.assign(new Error(code), { code }));
+    expire.deadlineCode = code; // lets the test harness tell deadlines from other timers
+    timer = setTimeout(expire, timeoutMs);
+  });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+}
+
+async function bridgeMessage(tabId, message, timeoutMs = TAB_HEALTH.BRIDGE_TIMEOUT_MS) {
+  try {
+    return await withDeadline(chrome.tabs.sendMessage(tabId, message), timeoutMs, "CONTENT_BRIDGE_TIMEOUT");
+  } catch (error) {
+    if (error?.code) throw error;
+    if (/Receiving end does not exist|Could not establish connection/i.test(String(error?.message || ""))) {
+      throw Object.assign(new Error(String(error.message)), { code: "CONTENT_BRIDGE_MISSING" });
+    }
+    throw error;
+  }
+}
+
 async function pingContentBridge(tabId) {
-  const result = await chrome.tabs.sendMessage(tabId, { type: "EIC_GF_PING" });
+  const result = await bridgeMessage(tabId, { type: "EIC_GF_PING" });
   if (!result?.ok) {
     const error = new Error(result?.error || "CONTENT_BRIDGE_PING_FAILED");
     error.code = result?.code || "CONTENT_BRIDGE_PING_FAILED";
@@ -546,10 +586,10 @@ async function pingContentBridge(tabId) {
 }
 
 async function injectContentBridge(tabId) {
-  await chrome.scripting.executeScript({
+  await withDeadline(chrome.scripting.executeScript({
     target: { tabId },
     files: ["lib/safety-policy.js", "lib/model-observation.js", "content.js"]
-  });
+  }), TAB_HEALTH.INJECT_TIMEOUT_MS, "CONTENT_BRIDGE_INJECT_TIMEOUT");
 }
 
 async function ensureContentBridgeVersion(tabId) {
@@ -813,10 +853,10 @@ async function syncOverlay(process, reason = "state") {
   // v1.8.1: an idle queue worker still owns its tab; keep the overview visible.
   const linked = !TERMINAL_PHASES.has(process.phase) || process.phase === PHASES.QUEUE_WAIT;
   try {
-    const overlayResult = await chrome.tabs.sendMessage(process.tabId, {
+    const overlayResult = await bridgeMessage(process.tabId, {
       type: "EIC_GF_OVERLAY_UPDATE",
       overlay: await managedOverlayPayload(process, { linked, reason })
-    });
+    }, TAB_HEALTH.OVERLAY_TIMEOUT_MS);
     const overlayChanged = overlayResult?.changed !== false;
     if (overlayChanged || reason !== "observation") {
       await appendAudit({
@@ -1026,7 +1066,7 @@ async function registerGlobalRateLimitWarning(process, pageOrResult, source, ope
 
 async function directManagedPageState(process, source = "rate-limit-recovery") {
   const expectedTurn = expectedAutonomousUserTurn(process);
-  const result = await chrome.tabs.sendMessage(process.tabId, {
+  const result = await bridgeMessage(process.tabId, {
     type: "EIC_GF_GET_PAGE_STATE",
     source,
     expectedUserTurnId: expectedTurn.id,
@@ -1080,9 +1120,9 @@ async function executeRateLimitRecoveryPreflight(process, gateClaim) {
 
   let contentResult = null;
   try {
-    contentResult = await chrome.tabs.sendMessage(process.tabId, {
+    contentResult = await bridgeMessage(process.tabId, {
       type: "EIC_GF_RATE_LIMIT_RECOVERY_PREFLIGHT"
-    });
+    }, TAB_HEALTH.PREFLIGHT_TIMEOUT_MS);
   } catch (error) {
     contentResult = {
       ok: false,
@@ -1260,6 +1300,237 @@ function tracedResponseObservation(process, reason, page, extra = {}) {
     turn: process?.turn,
     promptHash: process?.lastPrompt?.hash || "",
     detail: responseTraceDetail(page, extra)
+  });
+}
+
+// v1.8.3 tab health: one bounded recovery step per call (lib/tab-health.mjs).
+// Steps act on the tab only; a replaced tab is re-bound by the existing
+// DETACHED single-tab rebind, so this never rewrites process.tabId itself.
+async function executeTabRecoveryStep(process, step) {
+  const tabId = process.tabId;
+  let tab = null;
+  try { tab = await chrome.tabs.get(tabId); } catch {}
+  const url = tab?.url && supportedUrl(tab.url)
+    ? tab.url
+    : String(process.lastManagedUrl || process.gptRoot || "");
+  if (step === TAB_RECOVERY_STEP.REINJECT_BRIDGE) {
+    await injectContentBridge(tabId);
+  } else if (step === TAB_RECOVERY_STEP.RELOAD) {
+    await chrome.tabs.reload(tabId, { bypassCache: false });
+  } else if (step === TAB_RECOVERY_STEP.HARD_RELOAD) {
+    await chrome.tabs.reload(tabId, { bypassCache: true });
+  } else if (step === TAB_RECOVERY_STEP.NAVIGATE_SAME_URL) {
+    // Programmatic equivalent of pasting the URL into the address bar.
+    if (!supportedUrl(url)) throw Object.assign(new Error("TAB_RECOVERY_URL_UNKNOWN"), { code: "TAB_RECOVERY_URL_UNKNOWN" });
+    await chrome.tabs.update(tabId, { url });
+  } else if (step === TAB_RECOVERY_STEP.REPLACE_TAB) {
+    if (!supportedUrl(url)) throw Object.assign(new Error("TAB_RECOVERY_URL_UNKNOWN"), { code: "TAB_RECOVERY_URL_UNKNOWN" });
+    const created = await chrome.tabs.create({ windowId: process.windowId, url, active: true });
+    await chrome.tabs.remove(tabId).catch(() => undefined);
+    return { url, newTabId: created?.id ?? null };
+  }
+  return { url };
+}
+
+async function applyTabHealthCondition(process, condition, { source = "", detail = {} } = {}) {
+  const prior = process.tabHealth || null;
+  const advanced = advanceTabHealth(prior, condition, { now: Date.now() });
+  const incidentChanged = JSON.stringify(advanced.state.incident || null) !== JSON.stringify(prior?.incident || null);
+
+  if (!advanced.action || advanced.action === "BUDGET_EXHAUSTED") {
+    const reason = !condition
+      ? "TAB_HEALTH_RECOVERED"
+      : advanced.action === "BUDGET_EXHAUSTED" ? `TAB_HEALTH_BUDGET_EXHAUSTED:${condition}` : `TAB_HEALTH_${condition}`;
+    const traced = tracedResponseObservation(process, reason, {}, { source, ...detail });
+    if (!incidentChanged && !traced.changed) return { handled: false, process };
+    const saved = await saveObserved(process, {
+      tabHealth: advanced.state,
+      responseObservationTrace: traced.trace
+    }, condition ? "TAB_HEALTH_CONDITION" : "TAB_HEALTH_RECOVERED", {
+      condition,
+      source,
+      budgetExhausted: advanced.action === "BUDGET_EXHAUSTED",
+      incident: advanced.state.incident || null,
+      ...detail
+    });
+    return { handled: false, process: saved };
+  }
+
+  if (advanced.action === TAB_RECOVERY_STEP.GIVE_UP) {
+    await audit(process, "TAB_RECOVERY_EXHAUSTED", "tab-health", { condition, source, incident: advanced.state.incident, ...detail }).catch(() => undefined);
+    const rotated = await armSessionRotation({
+      ...process,
+      tabHealth: { ...advanced.state, incident: null },
+      responseObservationTrace: tracedResponseObservation(process, `TAB_RECOVERY_GIVE_UP:${condition}`, {}, { source }).trace
+    }, {
+      reasonCode: "TAB_HEALTH_RECOVERY_EXHAUSTED",
+      reason: `The managed ChatGPT tab could not be recovered (${condition}).`,
+      requestedBy: "TAB_HEALTH",
+      objective: process.objectiveState?.objective || process.lastPrompt?.a2a?.objective || process.goal,
+      previousResponseHash: process.lastResponse?.hash || "",
+      previousDisposition: "SESSION_DETACHED",
+      sourceResponseState: sessionRotationSourceState(process)
+    });
+    return { handled: true, process: rotated };
+  }
+
+  let result = {};
+  let stepError = null;
+  try {
+    result = await executeTabRecoveryStep(process, advanced.action);
+  } catch (error) {
+    stepError = errorRecord(error);
+  }
+  const saved = await saveObserved(process, {
+    tabHealth: advanced.state,
+    responseObservationTrace: tracedResponseObservation(process, `TAB_RECOVERY_${advanced.action}:${condition}`, {}, {
+      source,
+      ok: !stepError
+    }).trace
+  }, "TAB_RECOVERY_STEP", {
+    condition,
+    step: advanced.action,
+    source,
+    result,
+    error: stepError,
+    incident: advanced.state.incident,
+    ...detail
+  });
+  scheduleFast(saved.processId, 10_000);
+  return { handled: true, process: saved };
+}
+
+// Page conditions seen through a working bridge (white page with live JS,
+// missing composer, missing thread). Never while a dispatched prompt's effect
+// is being reconciled: the dispatch fence owns that window.
+async function maybeRecoverPageHealth(process, page) {
+  const pending = process.pendingPrompt;
+  const dispatchInFlight = process.phase === PHASES.SENDING &&
+    Boolean(pending?.dispatch) &&
+    pending.dispatch.acknowledged !== true &&
+    pending.dispatch.effectPossible !== false;
+  if (dispatchInFlight) return { handled: false, process };
+  const condition = pageConditionFromHealth(page?.pageHealth, { phase: process.phase });
+  if (!condition && !process.tabHealth?.incident) return { handled: false, process };
+  const health = page?.pageHealth || {};
+  return applyTabHealthCondition(process, condition, {
+    source: `page-${String(process.phase || "").toLowerCase()}`,
+    detail: {
+      frameGapMs: Number(health.frameGapMs || 0),
+      visibleForMs: Number(health.visibleForMs || 0),
+      composerPresent: health.composerPresent === true,
+      turnCount: Number(health.turnCount || 0)
+    }
+  });
+}
+
+// v1.8.3 ChatGPT content block (Daybreak notice). Two observations >= 3 s apart
+// before acting; the first block rotates the same GFW into a fresh chat, a
+// repeat within 24 h pauses it (2 h / 6 h / 24 h); it is never BLOCKED.
+async function maybeHandleProviderNotice(process, page) {
+  const notice = page?.pageHealth?.providerNotice || null;
+  const blocking = providerNoticeBlocks(notice) && page?.generating !== true &&
+    (process.phase !== PHASES.WAITING || process.lastPrompt?.acknowledged === true);
+  if (!blocking) {
+    if (!process.providerNoticePending) return { handled: false, process };
+    const cleared = await saveObserved(process, { providerNoticePending: null }, "PROVIDER_NOTICE_CLEARED", {});
+    return { handled: false, process: cleared };
+  }
+  const seen = process.providerNoticePending;
+  const now = Date.now();
+  if (!seen || seen.noticeKey !== notice.noticeKey) {
+    const saved = await saveObserved(process, {
+      providerNoticePending: { noticeKey: String(notice.noticeKey || ""), firstSeenAtMs: now },
+      responseObservationTrace: tracedResponseObservation(process, "PROVIDER_CONTENT_BLOCK_NOTICE_SEEN", page, {
+        noticeSample: String(notice.sample || "").slice(0, 200),
+        headlineMatched: notice.headlineMatched === true,
+        cyberWordMatched: notice.cyberWordMatched === true
+      }).trace
+    }, "PROVIDER_CONTENT_BLOCK_NOTICE_SEEN", {
+      noticeKey: notice.noticeKey || "",
+      sample: String(notice.sample || "").slice(0, 240),
+      headlineMatched: notice.headlineMatched === true,
+      cyberWordMatched: notice.cyberWordMatched === true,
+      afterExpectedUserTurn: notice.afterExpectedUserTurn
+    });
+    scheduleFast(saved.processId, 3000);
+    return { handled: true, process: saved };
+  }
+  if (now - Number(seen.firstSeenAtMs || 0) < 3000) {
+    scheduleFast(process.processId, 3000);
+    return { handled: true, process };
+  }
+  return { handled: true, process: await handleProviderContentBlock(process, notice) };
+}
+
+async function handleProviderContentBlock(process, notice) {
+  const now = Date.now();
+  const decision = recordProviderBlock(process.providerContentBlocks, { noticeKey: notice.noticeKey, now });
+  const baseObjective = process.objectiveState?.objective || process.lastPrompt?.a2a?.objective || process.goal;
+  const objective = providerBlockObjective(baseObjective, notice, { chainLength: decision.chainLength });
+  const current = {
+    ...process,
+    providerNoticePending: null,
+    providerContentBlocks: { ...decision.history, pauseUntilMs: 0 },
+    responseObservationTrace: tracedResponseObservation(process, `PROVIDER_CONTENT_BLOCKED:${decision.action}`, {}, {
+      chainLength: decision.chainLength,
+      pauseMs: decision.pauseMs
+    }).trace
+  };
+  await audit(current, "PROVIDER_CONTENT_BLOCK_HANDLED", "provider-notice", {
+    noticeKey: notice.noticeKey || "",
+    sample: String(notice.sample || "").slice(0, 240),
+    counted: decision.counted,
+    chainLength: decision.chainLength,
+    action: decision.action,
+    pauseMs: decision.pauseMs,
+    queueManaged: Boolean(current.queueContext?.itemId),
+    neverBlocked: true
+  }).catch(() => undefined);
+  if (decision.action === "PAUSE" && current.queueContext?.itemId) {
+    const parked = await pauseQueueSlotForProviderBlock(current, decision.pauseMs, objective);
+    if (parked) return parked;
+  }
+  if (decision.action === "PAUSE") current.providerContentBlocks.pauseUntilMs = now + decision.pauseMs;
+  return armSessionRotation(current, {
+    reasonCode: "PROVIDER_CONTENT_BLOCKED",
+    reason: "ChatGPT withheld the response with a content-block notice (Daybreak).",
+    requestedBy: "PROVIDER_NOTICE",
+    objective,
+    previousResponseHash: current.lastResponse?.hash || "",
+    previousDisposition: PROVIDER_BLOCK.DISPOSITION,
+    sourceResponseState: PROVIDER_BLOCK.SOURCE_STATE
+  });
+}
+
+// Queue-managed repeat: pause the slot with the v1.8.1 scheduler (the operator
+// sees and can clear it under Schema), park it and advance the queue. The slot
+// status stays READY; it resumes in a fresh chat when the pause ends.
+async function pauseQueueSlotForProviderBlock(process, pauseMs, objective) {
+  const { queue, settings } = await missionQueueForWindow(process.windowId);
+  const item = queueItemForProcess(queue, process);
+  if (!queue.enabled || !item) return null;
+  const now = Date.now();
+  const existing = normalizeQueueSchedule(item.schedule, { now });
+  const pauseUntilMs = Math.max(Number(existing?.pauseUntilMs || 0), now + Number(pauseMs || 0));
+  queue.items = queue.items.map((candidate) => candidate.itemId === item.itemId
+    ? {
+        ...candidate,
+        schedule: { windows: existing?.windows || [], pauseUntilMs, updatedBy: "GREENFIELD", updatedAtMs: now },
+        updatedAt: nowIso(now)
+      }
+    : candidate);
+  await persistMissionQueue(queue, settings, process, "MISSION_QUEUE_PROVIDER_BLOCK_PAUSE", {
+    itemId: item.itemId,
+    pauseMs,
+    pauseUntilMs
+  });
+  return parkQueueMissionForSchedule(process, SCHEDULE_BLOCK.PAUSED, {
+    outcome: "PROVIDER_CONTENT_BLOCKED_PAUSED",
+    summary: `ChatGPT withheld a response again (content-block notice); the GFW is paused until ${new Date(pauseUntilMs).toISOString()} and is not blocked.`,
+    previousDisposition: PROVIDER_BLOCK.DISPOSITION,
+    sourceResponseState: PROVIDER_BLOCK.SOURCE_STATE,
+    objective
   });
 }
 
@@ -1538,9 +1809,21 @@ async function tabState(process, source = "tick") {
     error.code = "MANAGED_TAB_BINDING_INVALID";
     throw error;
   }
+  // v1.8.3: a discarded tab is revived by the tab-health ladder; a tab Chrome
+  // froze to save resources is waited for (Greenfield does not fight Chrome's
+  // resource policy); managed tabs are exempt from automatic discarding.
+  if (tab.discarded === true) {
+    throw Object.assign(new Error("MANAGED_TAB_DISCARDED"), { code: "MANAGED_TAB_DISCARDED" });
+  }
+  if (tab.frozen === true) {
+    throw Object.assign(new Error("MANAGED_TAB_FROZEN"), { code: "MANAGED_TAB_FROZEN" });
+  }
+  if (tab.autoDiscardable !== false) {
+    await chrome.tabs.update(tab.id, { autoDiscardable: false }).catch(() => undefined);
+  }
   try {
     const expectedTurn = expectedAutonomousUserTurn(process);
-    const result = await chrome.tabs.sendMessage(process.tabId, {
+    const result = await bridgeMessage(process.tabId, {
       type: "EIC_GF_GET_PAGE_STATE",
       source,
       expectedUserTurnId: expectedTurn.id,
@@ -1560,7 +1843,7 @@ async function tabState(process, source = "tick") {
       }).catch(() => undefined);
 
       const bridge = await ensureContentBridgeVersion(process.tabId);
-      const refreshed = await chrome.tabs.sendMessage(process.tabId, {
+      const refreshed = await bridgeMessage(process.tabId, {
         type: "EIC_GF_GET_PAGE_STATE",
         source: `${source}-after-bridge-refresh`,
         expectedUserTurnId: expectedTurn.id,
@@ -1669,13 +1952,15 @@ async function contentSend(process, pending, operationId) {
 
   let result;
   try {
-    result = await chrome.tabs.sendMessage(process.tabId, {
+    // A timeout here is an unknown dispatch effect (catch below); the
+    // existing reconciliation observes whether the user turn materialized.
+    result = await bridgeMessage(process.tabId, {
       type: "EIC_GF_SUBMIT_PROMPT",
       prompt: pending.text,
       promptHash: pending.hash,
       dispatchId: pending.dispatch?.operationId || operationId,
       safetyContext: { policy:(await readSafety()).policy, gptRoot:process.gptRoot }
-    });
+    }, TAB_HEALTH.SUBMIT_TIMEOUT_MS);
   } catch (error) {
     await audit(process, "PROMPT_DISPATCH_TRANSPORT_ERROR", "prompt", {
       promptHash: pending.hash,
@@ -2990,7 +3275,7 @@ async function enterQueueWait(current, queue, { reason, parkedItemId }) {
 // v1.8.1 dispatch gate: a prompt that was never dispatched is not posted
 // outside the slot's schedule (pause resume, rotation, recovery, activation
 // race). The slot is parked with its next objective and quantum progress.
-async function parkQueueMissionForSchedule(process, block) {
+async function parkQueueMissionForSchedule(process, block, overrides = {}) {
   const { queue, settings } = await missionQueueForWindow(process.windowId);
   const item = queueItemForProcess(queue, process);
   if (!queue.enabled || !item) return null;
@@ -3004,18 +3289,22 @@ async function parkQueueMissionForSchedule(process, block) {
     Math.max(0, Number(process.queueContext?.interactionCount || 0))
   );
   const objective = String(
+    overrides.objective ||
     process.objectiveState?.objective ||
     process.lastDecision?.nextPrompt ||
     process.goal ||
     ""
   ).trim();
-  const resume = queueResumeRecordFromAnalysis({
-    current: process,
-    effectiveNextPrompt: objective,
-    previousDisposition: process.lastDecision?.disposition || "CONTINUE",
-    analysisEvidence: null,
-    sessionReason: block
-  });
+  const resume = {
+    ...queueResumeRecordFromAnalysis({
+      current: process,
+      effectiveNextPrompt: objective,
+      previousDisposition: overrides.previousDisposition || process.lastDecision?.disposition || "CONTINUE",
+      analysisEvidence: null,
+      sessionReason: overrides.previousDisposition || block
+    }),
+    ...(overrides.sourceResponseState ? { sourceResponseState: overrides.sourceResponseState, processStatusRequest: "" } : {})
+  };
   const parkedSnapshot = {
     ...deepClone(process),
     pendingPrompt: null,
@@ -3043,13 +3332,13 @@ async function parkQueueMissionForSchedule(process, block) {
     item,
     parkedSnapshot,
     resume,
-    outcome: scheduleParkOutcome(block),
-    summary: block === SCHEDULE_BLOCK.PAUSED
+    outcome: overrides.outcome || scheduleParkOutcome(block),
+    summary: overrides.summary || (block === SCHEDULE_BLOCK.PAUSED
       ? "The slot's pauseUntil began before the next prompt; the slot was parked."
-      : "The slot's run window closed before the next prompt; the slot was parked.",
+      : "The slot's run window closed before the next prompt; the slot was parked."),
     resumedQuantumProgress,
     idleWhenNoNext: true,
-    parkDetail: { maxInteractions, scheduleBlock: block, dispatchGate: true }
+    parkDetail: { maxInteractions, scheduleBlock: block, dispatchGate: !overrides.outcome, overrideOutcome: overrides.outcome || "" }
   });
 }
 
@@ -3761,7 +4050,7 @@ async function tickRotating(process) {
   let page;
   try {
     await ensureContentBridgeVersion(tab.id);
-    const result = await chrome.tabs.sendMessage(tab.id, {
+    const result = await bridgeMessage(tab.id, {
       type: "EIC_GF_GET_PAGE_STATE",
       source: "session-rotation-ready-check",
       expectedUserTurnId: "",
@@ -3944,6 +4233,22 @@ async function tickSending(process) {
       if (parked) return parked;
     }
   }
+
+  // v1.8.3: never post into a conversation ChatGPT has content-blocked, honour
+  // a provider-block pause, and recover a page that cannot take a prompt.
+  if (!pending.dispatch) {
+    const notice = await maybeHandleProviderNotice(process, page);
+    if (notice.handled) return notice.process;
+    process = notice.process;
+    const providerPauseUntilMs = Number(process.providerContentBlocks?.pauseUntilMs || 0);
+    if (providerPauseUntilMs > Date.now()) {
+      return holdForSafety(process, { code: "PROVIDER_CONTENT_BLOCK_PAUSE", retryAtMs: providerPauseUntilMs });
+    }
+  }
+  const pageHealth = await maybeRecoverPageHealth(process, page);
+  if (pageHealth.handled) return pageHealth.process;
+  process = pageHealth.process;
+  pending = process.pendingPrompt;
 
   // v1.7.7: a COMPACT prompt may only be posted into the exact conversation it
   // was composed for. A conversation change before the first dispatch upgrades
@@ -4680,6 +4985,15 @@ async function tickWaiting(process) {
   } catch (error) {
     return handleDetached(process, error);
   }
+
+  // v1.8.3: a page that is not drawn or lost its thread is recovered in place;
+  // a ChatGPT content block ends this turn with a fresh-chat rotation.
+  const pageHealth = await maybeRecoverPageHealth(process, page);
+  if (pageHealth.handled) return pageHealth.process;
+  process = pageHealth.process;
+  const providerNotice = await maybeHandleProviderNotice(process, page);
+  if (providerNotice.handled) return providerNotice.process;
+  process = providerNotice.process;
 
   if (!process.lastPrompt?.modelProof && !process.safety?.turnProof) {
     process.safety = {...process.safety,qualityIncident:{code:"IN_FLIGHT_MODEL_UNVERIFIED",atMs:Date.now(),turn:process.turn}};
@@ -6547,6 +6861,26 @@ async function tickDetached(process) {
   try {
     await tabState(process, "detached-reconcile");
   } catch (error) {
+    // v1.8.3: a tab Chrome froze is waited for; a tab that exists but whose
+    // page does not answer (hung renderer, missing bridge, discarded) is
+    // recovered in place - reload ... new tab - before any session rotation.
+    if (error?.code === "MANAGED_TAB_FROZEN") {
+      const traced = tracedResponseObservation(process, "TAB_FROZEN_BY_CHROME", {});
+      const waiting = traced.changed
+        ? await saveObserved(process, { responseObservationTrace: traced.trace }, "TAB_FROZEN_BY_CHROME", {})
+        : process;
+      scheduleFast(waiting.processId, 30_000);
+      return waiting;
+    }
+    const tabCondition = conditionFromBridgeError(error?.code);
+    if (tabCondition) {
+      const recovered = await applyTabHealthCondition(process, tabCondition, {
+        source: "detached",
+        detail: { errorCode: String(error?.code || "") }
+      });
+      if (!recovered.handled) scheduleFast(recovered.process.processId, 5000);
+      return recovered.process;
+    }
     // First preserve the existing deterministic single-tab rebind. If that
     // cannot restore a usable owner surface after bounded attempts, rotate the
     // ChatGPT session rather than waiting forever on a broken conversation.
@@ -6643,7 +6977,10 @@ async function tickDetached(process) {
     : PHASES.WAITING;
   const next = await commitTransition(process, target, {
     detached: null,
-    lastError: null
+    lastError: null,
+    ...(process.tabHealth?.incident
+      ? { tabHealth: advanceTabHealth(process.tabHealth, "", { now: Date.now() }).state }
+      : {})
   }, {
     kind: "TARGET_REATTACHED",
     component: "chrome",
@@ -6875,14 +7212,46 @@ async function handleUnhandledTickError(processId, reason, error) {
   }
 }
 
+// v1.8.3 safety net: every call into the page has a deadline, but an unknown
+// hang must still not freeze a worker. The watchdog sees a tick that has run
+// longer than TICK_STALL_MS and reloads the managed tab, which rejects the
+// pending page calls and releases the tick chain.
+const tickStartedAtMs = new Map();
+const tickRescuedAtMs = new Map();
+
 function enqueueTick(processId, reason) {
   return queues.enqueue(processId, async () => {
+    tickStartedAtMs.set(processId, Date.now());
     try {
       return await tickProcess(processId, reason);
     } catch (error) {
       return handleUnhandledTickError(processId, reason, error);
+    } finally {
+      tickStartedAtMs.delete(processId);
     }
   });
+}
+
+async function rescueStalledTick(processId) {
+  const startedAt = Number(tickStartedAtMs.get(processId) || 0);
+  const now = Date.now();
+  if (!startedAt || now - startedAt < TAB_HEALTH.TICK_STALL_MS) return false;
+  if (now - Number(tickRescuedAtMs.get(processId) || 0) < TAB_HEALTH.TICK_RESCUE_SPACING_MS) return false;
+  tickRescuedAtMs.set(processId, now);
+  const process = await findProcessById(processId).catch(() => null);
+  if (!process?.tabId) return false;
+  // Only where the page is what a tick waits on. ANALYZING waits on the local
+  // analyzer, and a dispatch in flight belongs to the dispatch reconciliation.
+  if (![PHASES.WAITING, PHASES.SENDING, PHASES.DETACHED, PHASES.RECOVERING, PHASES.ROTATING].includes(process.phase)) return false;
+  const dispatch = process.pendingPrompt?.dispatch;
+  if (process.phase === PHASES.SENDING && dispatch && dispatch.acknowledged !== true && dispatch.effectPossible !== false) return false;
+  const reloaded = await chrome.tabs.reload(process.tabId).then(() => true, () => false);
+  await audit(process, "TICK_STALL_RESCUE", "tab-health", {
+    stalledMs: now - startedAt,
+    tabId: process.tabId,
+    reloaded
+  }).catch(() => undefined);
+  return reloaded;
 }
 
 async function startRun({ windowId, goal, auditSessionId = "", schedulerPriority = DEFAULT_GREENFIELD_PRIORITY }) {
@@ -6928,7 +7297,7 @@ async function startRun({ windowId, goal, auditSessionId = "", schedulerPriority
   let page;
   try {
     const bridge = await ensureContentBridgeVersion(tab.id);
-    const result = await chrome.tabs.sendMessage(tab.id, {
+    const result = await bridgeMessage(tab.id, {
       type: "EIC_GF_GET_PAGE_STATE",
       source: bridge.refreshed ? "start-after-bridge-refresh" : "start"
     });
@@ -7843,7 +8212,7 @@ async function panelSafetyAction(message,sender) {
       const [tab]=await chrome.tabs.query({windowId:message.windowId,active:true});
       if(tab?.id && supportedUrl(tab.url)) {
         await ensureContentBridgeVersion(tab.id);
-        const observation=await chrome.tabs.sendMessage(tab.id,{type:"EIC_GF_GET_PAGE_STATE"});
+        const observation=await bridgeMessage(tab.id,{type:"EIC_GF_GET_PAGE_STATE"});
         if(observation?.ok)modelInspection={url:observation.state.url,evidence:observation.state.modelEvidence};
       }
     }catch(error){modelInspection={error:String(error.message)};}
@@ -7862,7 +8231,7 @@ async function panelSafetyAction(message,sender) {
     const [tab]=await chrome.tabs.query({windowId:message.windowId,active:true});
     if (!tab?.id || !supportedUrl(tab.url)) throw new Error("EIC_SURFACE_UNVERIFIED");
     await ensureContentBridgeVersion(tab.id);
-    const response=await chrome.tabs.sendMessage(tab.id,{type:"EIC_GF_GET_PAGE_STATE"});
+    const response=await bridgeMessage(tab.id,{type:"EIC_GF_GET_PAGE_STATE"});
     if (!response?.ok) throw new Error("MODEL_EVIDENCE_MISSING");
     const root=(await readEicSurfaceState()).lastKnownGoodEicUrl || deriveGptRoot(tab.url);
     const inspection=Safety.evaluateModel(response.state.modelEvidence,(await readSafety()).policy,{url:response.state.url,gptRoot:root});
@@ -8031,6 +8400,11 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
   if (!alarm?.name?.startsWith(WATCH_PREFIX)) return;
   const processId = alarm.name.slice(WATCH_PREFIX.length);
+  if (tickStartedAtMs.has(processId)) {
+    // A tick is still running: do not pile up more ticks behind it.
+    void rescueStalledTick(processId);
+    return;
+  }
   void enqueueTick(processId, "watchdog");
 });
 

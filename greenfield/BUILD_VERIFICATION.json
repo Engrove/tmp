@@ -1,31 +1,46 @@
 {
   "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.8.2",
-  "releaseChannel": "1.8.2",
-  "generatedAt": "2026-09-24T10:19:15.771169+00:00",
+  "appVersion": "1.8.3",
+  "releaseChannel": "1.8.3",
+  "generatedAt": "2026-09-25T05:35:24.658785+00:00",
   "sourceBaseline": {
-    "source": "Greenfield v1.8.1 release package (this delivery chain)",
-    "file": "EIC_Autonom_Agent_Greenfield_v1.8.1.zip",
-    "version": "1.8.1",
-    "sha256": "b2959bbbd70976ca50f93da54e2962178b0bbb3476e9ec4592a309e42dfc7488",
-    "sizeBytes": 836027,
+    "source": "Greenfield v1.8.2 release package (this delivery chain)",
+    "file": "EIC_Autonom_Agent_Greenfield_v1.8.2.zip",
+    "version": "1.8.2",
+    "sha256": "d6baf1180f7b3a7a34fc980d7df42921032fe5c4123921575d6bb9c1623d9212",
+    "sizeBytes": 856520,
     "embeddedIntegrity": {
-      "records": 270,
+      "records": 277,
       "mismatches": 0,
-      "rootDigest": "e5fb3fe65ba166f9f2df150ff82b366747e977d0ca655d5117a2535787226df6"
+      "rootDigest": "87f0555910fd86dfbfd71283eb7fc20f70a5d245dd9a45820ed860501a8234df"
     }
   },
   "change": {
-    "purpose": "Operator request (1) follow-up after the live diagnostics export 2026-09-24T10:03:20Z: stop admitting unfinished answers and make the reason for a held response durable.",
-    "evidence": {
-      "file": "Greenfield-diagnostics-2026-09-24T10-03-20-340Z.json (appVersion 1.8.0)",
-      "shortCaptures": "45 of 78 recorded turns < 50 chars; 17 of 26 stored response texts short, all 17 unterminated JSON objects; all 9 full texts closed JSON",
-      "interleave": "process 5df3f599: '{' captured from node -6 09:50:29Z, turn 13 posted 09:55:52Z, same node completed 10:00:18Z (EXTERNAL_TURN_INTERLEAVED)",
-      "process3182ea75": "turn 2 posted 05:39:18Z; completed answer seen 06:02:07Z (lastMaterialAt, STALE_SESSION_COUNTER_RESET) but never admitted; 120-minute queue rotation 08:02:08Z; rejecting gate not recoverable (Persistent Audit off, candidate state cleared at park)"
+    "purpose": "Operator requests 2026-09-25: (a) recover from Chrome white screen / unresponsive tab and from a partially rendered ChatGPT UI (composer missing left SENDING held on THINKING_MODE_UNVERIFIED); (b) handle the inline ChatGPT content-block notice (Daybreak) by rotating the same GFW, pausing it on repeats, never BLOCKED.",
+    "operatorDecisions": {
+      "daybreak": "first block -> rotate same GFW into a fresh chat; repeat within 24 h -> pause 2 h, then 6 h, then 24 h; chain resets after 24 h without a block; never BLOCKED",
+      "scope": "Daybreak + tab health guard"
     },
-    "guard": "lib/response-observation.mjs responseStructuralCompleteness: leading object (after optional JSON/```json label), first keyed object anywhere, or trailing '{' that is not closed -> never admitted; tickWaiting keeps waiting, stale ladder bounds; replay 17/17 held, 9/9 admitted",
-    "trace": "process.responseObservationTrace ring (live <=16, parked <=8), ids/lengths/flags only, written on reason/identity change or at most once per minute, carried in existing writes where one occurs; diagnostics export responseObservation index per live process and parked slot",
-    "storage": "worst case ~15 KB per live trace, ~7.5 KB per parked snapshot (checkpoint duplicates)",
+    "rootCause": "content bridge calls (chrome.tabs.sendMessage) had no deadline; ticks are serialized per process and the watchdog queued behind a hung tick; every transition awaited broadcast -> syncOverlay to the same tab; the SENDING safety hold never escalated to a reload",
+    "deadlines": "lib/tab-health.mjs TAB_HEALTH: bridge 15 s, overlay 5 s, inject 20 s, submit 90 s (unknown effect -> existing dispatch reconciliation), preflight 60 s",
+    "conditions": "BRIDGE_UNRESPONSIVE, BRIDGE_MISSING, TAB_DISCARDED, RENDER_STALLED (visible >=45 s and requested frame not delivered >=45 s), COMPOSER_MISSING (SENDING), THREAD_MISSING (conversation URL with 0 turns); Chrome-frozen tabs are waited out; managed tabs set autoDiscardable:false",
+    "ladder": "REINJECT (bridge missing only) -> RELOAD -> HARD_RELOAD -> NAVIGATE_SAME_URL -> REPLACE_TAB (same conversation, same window, old tab closed, existing single-tab rebind) -> GIVE_UP (session rotation TAB_HEALTH_RECOVERY_EXHAUSTED); UI grace 90 s, 45 s between steps, budget 5 actions/hour/process, no UI step while a dispatch has unknown effect",
+    "tickRescue": "watchdog does not enqueue behind a tick in flight > 3 min; reloads the tab at most every 5 min in WAITING/SENDING(no dispatch)/DETACHED/RECOVERING/ROTATING; audit TICK_STALL_RESCUE",
+    "providerNotice": "content.js detectProviderNotice: 'Daybreak' + headline (en/sv) or cyber word (en/sv/fi), outside every message turn, after the anchor user turn; acted on after two sightings >= 3 s apart and not while generating; the turn is not counted in the quantum; learning keypoints POST_FAILURE / RECURRING PROVIDER_CONTENT_BLOCK_REPEATED",
+    "pause": "queue slot: schedule.pauseUntilMs = max(existing, now + pause), updatedBy GREENFIELD, status READY, parked PROVIDER_CONTENT_BLOCKED_PAUSED, queue continues (QUEUE_WAIT when none runnable); outside a queue: hold PROVIDER_CONTENT_BLOCK_PAUSE",
+    "newPermissions": "none",
+    "carriedFrom1_8_2": {
+      "purpose": "Operator request (1) follow-up after the live diagnostics export 2026-09-24T10:03:20Z: stop admitting unfinished answers and make the reason for a held response durable.",
+      "evidence": {
+        "file": "Greenfield-diagnostics-2026-09-24T10-03-20-340Z.json (appVersion 1.8.0)",
+        "shortCaptures": "45 of 78 recorded turns < 50 chars; 17 of 26 stored response texts short, all 17 unterminated JSON objects; all 9 full texts closed JSON",
+        "interleave": "process 5df3f599: '{' captured from node -6 09:50:29Z, turn 13 posted 09:55:52Z, same node completed 10:00:18Z (EXTERNAL_TURN_INTERLEAVED)",
+        "process3182ea75": "turn 2 posted 05:39:18Z; completed answer seen 06:02:07Z (lastMaterialAt, STALE_SESSION_COUNTER_RESET) but never admitted; 120-minute queue rotation 08:02:08Z; rejecting gate not recoverable (Persistent Audit off, candidate state cleared at park)"
+      },
+      "guard": "lib/response-observation.mjs responseStructuralCompleteness: leading object (after optional JSON/```json label), first keyed object anywhere, or trailing '{' that is not closed -> never admitted; tickWaiting keeps waiting, stale ladder bounds; replay 17/17 held, 9/9 admitted",
+      "trace": "process.responseObservationTrace ring (live <=16, parked <=8), ids/lengths/flags only, written on reason/identity change or at most once per minute, carried in existing writes where one occurs; diagnostics export responseObservation index per live process and parked slot",
+      "storage": "worst case ~15 KB per live trace, ~7.5 KB per parked snapshot (checkpoint duplicates)"
+    },
     "carriedFrom1_8_1": {
       "purpose": "Operator requests 2026-09-24: (2) re-save a queue set from the active queue; (3) per-slot scheduler with run and pause times, AI-adjustable like quantum/priority, instructed and mandated in the FULL prompt. Request (1) (a final-quantum response never captured, Greenfield kept waiting) is not changed here: its root cause is in response capture and awaits the operator's diagnostics export.",
       "operatorDecisions": {
@@ -105,30 +120,63 @@
     }
   },
   "verification": {
-    "baselineTestCommand": "npm test (on v1.8.1)",
-    "baselineTests": 569,
-    "baselinePass": 569,
+    "baselineTestCommand": "npm test (on v1.8.2)",
+    "baselineTests": 576,
+    "baselinePass": 576,
     "baselineFail": 0,
-    "dedicatedCommand": "node --test tests/v182-response-observation.test.mjs",
-    "dedicatedOutput": "verification/v182-response-observation.tap",
-    "dedicatedTests": 7,
-    "dedicatedPass": 7,
+    "dedicatedCommand": "node --test tests/v183-tab-health-daybreak.test.mjs",
+    "dedicatedOutput": "verification/v183-tab-health-daybreak.tap",
+    "dedicatedTests": 10,
+    "dedicatedPass": 10,
     "dedicatedFail": 0,
+    "realDomCommand": "NODE_PATH=\"$(npm root -g)\" node tools/verify-content-health.mjs",
+    "realDomOutput": "verification/v183-content-dom-check.json",
+    "realDomChecks": 9,
+    "realDomPass": 9,
+    "realDomFail": 0,
     "testCommand": "npm test",
     "testOutput": "verification/release-tests.tap",
-    "tests": 576,
-    "pass": 576,
+    "tests": 586,
+    "pass": 586,
     "fail": 0,
     "skipped": 0,
     "syntaxCommand": "node --check <each .js/.mjs/.cjs>",
-    "syntaxOutput": "verification/v182-syntax-check.txt",
-    "syntaxFiles": 132,
-    "syntaxPass": 132,
+    "syntaxOutput": "verification/v183-syntax-check.txt",
+    "syntaxFiles": 136,
+    "syntaxPass": 136,
     "syntaxFail": 0,
     "nodeVersion": "v22.22.2",
     "errors": []
   },
   "regressionMatrix": [
+    {
+      "case": "page stops answering in WAITING",
+      "expected": "CONTENT_BRIDGE_TIMEOUT after 15 s; DETACHED; F5, then Ctrl-F5 45 s later; resumes WAITING when the page answers"
+    },
+    {
+      "case": "composer missing in SENDING",
+      "expected": "no step before 90 s grace; RELOAD after; never while a dispatch is in flight"
+    },
+    {
+      "case": "ladder exhausted",
+      "expected": "REPLACE_TAB opens the same conversation and re-binds; then GIVE_UP -> session rotation TAB_HEALTH_RECOVERY_EXHAUSTED"
+    },
+    {
+      "case": "tick hung > 3 min",
+      "expected": "watchdog does not queue behind it; tab reloaded; TICK_STALL_RESCUE audited; spacing 5 min"
+    },
+    {
+      "case": "first Daybreak notice",
+      "expected": "ROTATING same GFW, FULL prompt, previousDisposition PROVIDER_CONTENT_BLOCKED, sourceResponseState PROMPT_BLOCKED_BY_PROVIDER"
+    },
+    {
+      "case": "Daybreak repeat within 24 h in a queue",
+      "expected": "slot READY with pauseUntil ~2 h (then 6 h, 24 h), updatedBy GREENFIELD, quantum not counted, next slot active; never BLOCKED"
+    },
+    {
+      "case": "Daybreak text inside an assistant answer or operator bubble",
+      "expected": "not a notice (real DOM)"
+    },
     {
       "case": "stalled JSON prefix, no generation signal",
       "expected": "not captured; RESPONSE_STRUCTURALLY_INCOMPLETE traced; waiting continues"
@@ -319,10 +367,11 @@
     }
   ],
   "evidenceBoundaries": {
-    "packageSourceAndNodeTests": "verified locally from the v1.8.1 package produced in this delivery chain",
-    "liveEvidence": "operator diagnostics export 2026-09-24T10:03:20Z (read-only analysis, not included in the package)",
-    "harnessE2E": "real background.js tickWaiting hold/capture, trace write bound, queue rotation snapshot and diagnostics index in the Node harness",
-    "openRootCauses": "root cause of the false generation signal during long deep-reasoning answers is not fixed; the guard is format-based; reason not recoverable from the export; the next export after a recurrence shows it in responseObservation",
+    "packageSourceAndNodeTests": "verified locally from the v1.8.2 package produced in this delivery chain",
+    "liveEvidence": "operator screenshots 2026-09-25 (white screen report, missing composer, Daybreak notice en/sv); not included in the package",
+    "harnessE2E": "real background.js ticks with harness timers (deadlines fired explicitly), real content.js in Chromium for detection only",
+    "openBoundaries": "a white screen where page script runs and frames are delivered is not detectable without captureVisibleTab (<all_urls>/activeTab not added); an extension cannot act when all of Chrome is frozen; rebind requires exactly one ChatGPT tab in the worker window; otherwise session rotation after 6 attempts as before; unknown; detection relies on 'Daybreak' + cyber word",
+    "carriedOpenRootCauses1_8_2": "root cause of the false generation signal during long deep-reasoning answers is not fixed; the guard is format-based; reason not recoverable from the export; the next export after a recurrence shows it in responseObservation",
     "liveChromeExtensionInstall": "not executed in this environment",
     "providerOrChatGPTLiveDispatch": "not executed in this environment"
   }

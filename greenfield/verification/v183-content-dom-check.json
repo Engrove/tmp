@@ -1,0 +1,164 @@
+{
+  "tool": "verify-content-health",
+  "url": "https://chatgpt.com/g/g-69e0b4be-eic/c/6ab5fa1b-cf04-83eb-bfa1-7e3230efac0f",
+  "checks": [
+    {
+      "name": "english notice detected",
+      "pass": true
+    },
+    {
+      "name": "english notice follows the last user turn",
+      "pass": true
+    },
+    {
+      "name": "swedish notice detected",
+      "pass": true
+    },
+    {
+      "name": "assistant text mentioning Daybreak is not a notice",
+      "pass": true
+    },
+    {
+      "name": "operator bubble mentioning Daybreak is not a notice",
+      "pass": true
+    },
+    {
+      "name": "healthy page: no notice, composer present, thread present",
+      "pass": true
+    },
+    {
+      "name": "missing composer is reported",
+      "pass": true
+    },
+    {
+      "name": "no frames for 70 s while visible -> frameGapMs >= 45000",
+      "pass": true
+    },
+    {
+      "name": "painting page -> frameGapMs < 45000",
+      "pass": true
+    }
+  ],
+  "results": {
+    "daybreakEnglish": {
+      "ok": true,
+      "pageHealth": {
+        "readyState": "complete",
+        "visibilityState": "visible",
+        "visibleForMs": 20,
+        "frameGapMs": 0,
+        "composerPresent": true,
+        "conversationUrl": true,
+        "turnCount": 2,
+        "providerNotice": {
+          "kind": "CONTENT_BLOCKED_DAYBREAK",
+          "outsideMessageTurns": true,
+          "headlineMatched": true,
+          "cyberWordMatched": true,
+          "afterExpectedUserTurn": true,
+          "sample": "This content can’t be shown We take extra care with some cybersecurity requests. If you’re doing authorized security work, apply for Daybreak to get broader access. Learn more×",
+          "noticeKey": "/g/g-69e0b4be-eic/c/6ab5fa1b-cf04-83eb-bfa1-7e3230efac0f|u1"
+        }
+      }
+    },
+    "daybreakSwedish": {
+      "ok": true,
+      "pageHealth": {
+        "readyState": "complete",
+        "visibilityState": "visible",
+        "visibleForMs": 19,
+        "frameGapMs": 0,
+        "composerPresent": true,
+        "conversationUrl": true,
+        "turnCount": 1,
+        "providerNotice": {
+          "kind": "CONTENT_BLOCKED_DAYBREAK",
+          "outsideMessageTurns": true,
+          "headlineMatched": true,
+          "cyberWordMatched": true,
+          "afterExpectedUserTurn": true,
+          "sample": "Det här innehållet kan inte visas Vi är särskilt försiktiga med förfrågningar som rör cybersäkerhet. Om du är säkerhetsexpert kan du vara berättigad att använda Daybreak.",
+          "noticeKey": "/g/g-69e0b4be-eic/c/6ab5fa1b-cf04-83eb-bfa1-7e3230efac0f|u1"
+        }
+      }
+    },
+    "assistantMentionsDaybreak": {
+      "ok": true,
+      "pageHealth": {
+        "readyState": "complete",
+        "visibilityState": "visible",
+        "visibleForMs": 21,
+        "frameGapMs": 0,
+        "composerPresent": true,
+        "conversationUrl": true,
+        "turnCount": 2,
+        "providerNotice": null
+      }
+    },
+    "operatorBubbleMentionsDaybreak": {
+      "ok": true,
+      "pageHealth": {
+        "readyState": "complete",
+        "visibilityState": "visible",
+        "visibleForMs": 18,
+        "frameGapMs": 0,
+        "composerPresent": true,
+        "conversationUrl": true,
+        "turnCount": 1,
+        "providerNotice": null
+      }
+    },
+    "composerMissing": {
+      "ok": true,
+      "pageHealth": {
+        "readyState": "complete",
+        "visibilityState": "visible",
+        "visibleForMs": 20,
+        "frameGapMs": 0,
+        "composerPresent": false,
+        "conversationUrl": true,
+        "turnCount": 2,
+        "providerNotice": null
+      }
+    },
+    "healthy": {
+      "ok": true,
+      "pageHealth": {
+        "readyState": "complete",
+        "visibilityState": "visible",
+        "visibleForMs": 24,
+        "frameGapMs": 0,
+        "composerPresent": true,
+        "conversationUrl": true,
+        "turnCount": 2,
+        "providerNotice": null
+      }
+    },
+    "renderStalled": {
+      "ok": true,
+      "pageHealth": {
+        "readyState": "complete",
+        "visibilityState": "visible",
+        "visibleForMs": 70013,
+        "frameGapMs": 59990,
+        "composerPresent": true,
+        "conversationUrl": true,
+        "turnCount": 2,
+        "providerNotice": null
+      }
+    },
+    "renderPainting": {
+      "ok": true,
+      "pageHealth": {
+        "readyState": "complete",
+        "visibilityState": "visible",
+        "visibleForMs": 70010,
+        "frameGapMs": 6,
+        "composerPresent": true,
+        "conversationUrl": true,
+        "turnCount": 2,
+        "providerNotice": null
+      }
+    }
+  }
+}

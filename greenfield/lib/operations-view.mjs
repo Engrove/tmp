@@ -12,6 +12,7 @@ export const REASONS = Object.freeze({
   EIC_SURFACE_UNVERIFIED:"Rätt EIC GPT-yta är inte verifierad",
   CHAT_MODE_REQUIRED:"Greenfield kräver vanligt Chat-läge",
   BLOCKING_CHATGPT_UI:"ChatGPT visar en blockerande dialog",
+  PROVIDER_CONTENT_BLOCK_PAUSE:"ChatGPT-spärr (Daybreak) återkom: GFW pausad, fortsätter sedan i ny chatt",
   PROVIDER_QUOTA_OR_FALLBACK:"ChatGPT visar kvotgräns eller fallback",
   PROVIDER_QUOTA_HOLD:"Kontogräns: nya utskick är spärrade",
   OPERATOR_ADMISSION_PAUSED:"Nya utskick pausade av operatören",

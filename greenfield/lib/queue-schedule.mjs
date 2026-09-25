@@ -17,7 +17,8 @@ export const SCHEDULE_BLOCK = Object.freeze({
   PAUSED: "SCHEDULE_PAUSED",
   OUTSIDE_WINDOW: "OUTSIDE_RUN_WINDOW"
 });
-export const SCHEDULE_EDITORS = Object.freeze(["OPERATOR", "AI"]);
+// GREENFIELD: a runtime pause set by Greenfield itself (v1.8.3 provider content block).
+export const SCHEDULE_EDITORS = Object.freeze(["OPERATOR", "AI", "GREENFIELD"]);
 
 const DAY_NAMES_EN = Object.freeze(["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
 const DAY_NAMES_SV = Object.freeze(["", "Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"]);

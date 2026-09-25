@@ -1,7 +1,7 @@
 (() => {
   const BRIDGE = "__EIC_GF_CONTENT_V2__";
   const OVERLAY_ID = "eic-gf-linked-overlay";
-  const CONTENT_VERSION = "1.8.2";
+  const CONTENT_VERSION = "1.8.3";
   const previousBridge = globalThis[BRIDGE] || null;
   const DOCUMENT_ID = previousBridge?.documentId || crypto.randomUUID();
   const dispatchRecords = previousBridge?.dispatchRecords instanceof Map
@@ -551,6 +551,109 @@
     };
   }
 
+  // v1.8.3 page health for Greenfield's tab-health check. Numbers and flags
+  // only. The render probe asks for one animation frame every 10 s while the
+  // page is visible; timers keep running when the renderer paints nothing, so
+  // an outstanding probe proves a visible page that is not being drawn.
+  const renderProbe = {
+    requestedAtMs: 0,
+    lastFrameAtMs: Date.now(),
+    visibleSinceMs: document.visibilityState === "visible" ? Date.now() : 0
+  };
+  const renderProbeTimer = setInterval(() => {
+    if (document.visibilityState !== "visible") {
+      renderProbe.requestedAtMs = 0;
+      return;
+    }
+    if (renderProbe.requestedAtMs) return;
+    renderProbe.requestedAtMs = Date.now();
+    try {
+      requestAnimationFrame(() => {
+        renderProbe.lastFrameAtMs = Date.now();
+        renderProbe.requestedAtMs = 0;
+      });
+    } catch {}
+  }, 10000);
+  function onRenderProbeVisibility() {
+    renderProbe.visibleSinceMs = document.visibilityState === "visible" ? Date.now() : 0;
+    if (!renderProbe.visibleSinceMs) renderProbe.requestedAtMs = 0;
+  }
+  document.addEventListener?.("visibilitychange", onRenderProbeVisibility);
+  listeners.push(() => {
+    clearInterval(renderProbeTimer);
+    document.removeEventListener?.("visibilitychange", onRenderProbeVisibility);
+  });
+
+  // ChatGPT's inline content-block notice (sv/en screenshots 2026-09-25):
+  // "This content can't be shown" / "Det här innehållet kan inte visas" …
+  // "apply for Daybreak". It is rendered outside every message turn, between
+  // the thread and the composer. Two independent markers are required:
+  // "Daybreak" plus the headline or a cybersecurity word. Text inside a
+  // message (e.g. an EIC answer or an operator prompt that mentions Daybreak)
+  // never counts.
+  const PROVIDER_NOTICE_HEADLINES = [
+    /this content can[\u2019']?t be shown/i,
+    /this content cannot be shown/i,
+    /det här innehållet kan inte visas/i
+  ];
+  const PROVIDER_NOTICE_CYBER = /cyber\s*security|cybersäkerhet|kyberturvallisuu/i;
+  const MESSAGE_TURN_SELECTOR = "[data-message-author-role], [data-testid^='conversation-turn-'], article[data-turn-id], [data-turn-id], [data-eic-gf-ui='true']";
+
+  function detectProviderNotice(anchorEntry) {
+    const root = document.querySelector("main") || document.body;
+    if (!root || !String(root.textContent || "").includes("Daybreak")) return null;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => String(node.nodeValue || "").includes("Daybreak")
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_SKIP
+    });
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const start = node.parentElement;
+      if (!start || start.closest(MESSAGE_TURN_SELECTOR) || !visible(start)) continue;
+      // Grow to the notice card: stop before an ancestor that contains a
+      // message turn or is too large to be a single notice.
+      let container = start;
+      for (let i = 0; i < 8; i += 1) {
+        const parent = container.parentElement;
+        if (!parent || parent === root || parent === document.body) break;
+        if (parent.querySelector(MESSAGE_TURN_SELECTOR)) break;
+        if (String(parent.textContent || "").length > 1200) break;
+        container = parent;
+      }
+      const text = String(container.innerText || container.textContent || "").replace(/\s+/g, " ").trim();
+      const headlineMatched = PROVIDER_NOTICE_HEADLINES.some((re) => re.test(text));
+      const cyberWordMatched = PROVIDER_NOTICE_CYBER.test(text);
+      if (!headlineMatched && !cyberWordMatched) continue;
+      const anchor = anchorEntry?.owner || null;
+      return {
+        kind: "CONTENT_BLOCKED_DAYBREAK",
+        outsideMessageTurns: true,
+        headlineMatched,
+        cyberWordMatched,
+        afterExpectedUserTurn: anchor
+          ? Boolean(anchor.compareDocumentPosition(container) & Node.DOCUMENT_POSITION_FOLLOWING)
+          : null,
+        sample: text.slice(0, 240),
+        noticeKey: `${location.pathname}|${anchorEntry?.id || ""}`.slice(0, 160)
+      };
+    }
+    return null;
+  }
+
+  function pageHealthState(entries, anchorEntry) {
+    const now = Date.now();
+    return {
+      readyState: document.readyState,
+      visibilityState: document.visibilityState,
+      visibleForMs: renderProbe.visibleSinceMs ? now - renderProbe.visibleSinceMs : 0,
+      frameGapMs: renderProbe.requestedAtMs ? now - renderProbe.requestedAtMs : 0,
+      composerPresent: Boolean(getComposer()),
+      conversationUrl: /\/c\/[0-9a-z-]{8,}/i.test(location.pathname),
+      turnCount: entries.length,
+      providerNotice: detectProviderNotice(anchorEntry)
+    };
+  }
+
   async function pageState({ expectedUserTurnId = "", expectedUserIndex = null } = {}) {
     const entries = canonicalEntries();
     const users = entries.filter((entry) => entry.role === "user");
@@ -597,6 +700,7 @@
       composerTextHash: composerText ? await sha256Hex(composerText) : "",
       rateLimitWarning,
       modelEvidence: globalThis.GreenfieldModelObservation?.observe() || null,
+      pageHealth: pageHealthState(entries, autonomous.userEntry || lastUser),
       autonomousTurn: {
         expectedUserTurnId: autonomous.expectedUserTurnId || "",
         expectedUserIndex: Number.isInteger(autonomous.expectedUserIndex) ? autonomous.expectedUserIndex : null,

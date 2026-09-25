@@ -321,6 +321,9 @@ function loadContentScript() {
 
 test("v1.7.9 content overlay renders the overview lines and counts the TTL down locally", async () => {
   const page = loadContentScript();
+  // v1.8.3: the content script also runs a render-health probe interval; the
+  // overlay countdown is measured relative to that baseline.
+  const baselineIntervals = page.intervals.size;
   const start = page.now();
   const overlay = {
     linked: true,
@@ -349,7 +352,7 @@ test("v1.7.9 content overlay renders the overview lines and counts the TTL down 
   assert.equal(lines[3], "Tur 3 · Session 1 · Aktivering #2 · Prompt COMPACT · Nästa i kö: GF-044");
   assert.match(page.overlay().style.cssText, /white-space:pre-line/);
   assert.match(page.overlay().title, /Gf: GF-002/);
-  assert.equal(page.intervals.size, 1);
+  assert.equal(page.intervals.size, baselineIntervals + 1, "the countdown timer runs");
 
   page.tick(62_000);
   assert.equal(page.overlay().textContent.split("\n")[2], "TTL 1:46:10 → köbyte till GF-044 · nästa F5 om 16:10");
@@ -363,7 +366,7 @@ test("v1.7.9 content overlay renders the overview lines and counts the TTL down 
   });
   assert.equal(sending.changed, true);
   assert.equal(page.overlay().textContent.split("\n")[2], "Förbereder utskick");
-  assert.equal(page.intervals.size, 0, "countdown timer stops when no deadline exists");
+  assert.equal(page.intervals.size, baselineIntervals, "countdown timer stops when no deadline exists");
 
   await page.send({ type: "EIC_GF_OVERLAY_UPDATE", overlay: { linked: false, reason: "terminal" } });
   assert.equal(page.overlay(), null);

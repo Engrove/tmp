@@ -1,3 +1,13 @@
+# 1.8.3 – tab health recovery and ChatGPT content-block (Daybreak) handling
+
+- Rotorsak till att Greenfield frös med fliken: anrop till sidan saknade tidsgräns, tickar körs seriellt per process och varje fasövergång väntade in overlay-synken till samma flik. Nu har alla anrop till sidan en deadline: 15 s för tillstånd, 5 s för overlay, 20 s för injektion och 90 s för utskick (okänd effekt, befintlig avstämning).
+- Flikhälsa: sidan svarar inte, bryggan saknas, fliken urladdad, sidan ritas inte (renderingssond, bara synlig sida), inmatningsfält saknas (SENDING), tråd saknas. Återhämtningsstege: återinjicera → F5 → Ctrl-F5 → samma URL → ny flik (samma konversation, befintlig ombindning) → session-rotation. Gränssnittsvillkor väntas ut i 90 s, stegen tas med 45 s mellanrum, högst 5 åtgärder per timme, aldrig under ett utskick. En hängd tick räddas efter 3 min genom omladdning. Frysta flikar avvaktas, och Greenfields flikar markeras `autoDiscardable: false`.
+- Daybreak-kort (”This content can't be shown” / ”Det här innehållet kan inte visas” + Daybreak, utanför meddelandeturer): första spärren roterar samma GFW till ny chatt med FULL-prompt (effekter okända, inte ordagrant, BLOCKED om innehållet krävs). Upprepning inom 24 h pausar GFW:n 2 h → 6 h → 24 h via schemaläggarens paus-till och kön går vidare. Platsen blir aldrig BLOCKED, och den spärrade turen räknas inte i kvanten.
+- Verifierat i riktig DOM (Playwright/Chromium) 9/9: kort på engelska och svenska, inga träffar i EIC-svar eller operatörsbubbla, saknat inmatningsfält, renderingsstopp mot normal ritning.
+- Lokal Node/static/harness/DOM-verifiering är inte samma sak som live Chrome/ChatGPT-acceptans.
+
+---
+
 # 1.8.2 – no capture of unfinished JSON answers, durable observation trace
 
 - Rotorsak ur live-exporten 2026-09-24: 45 av 78 turer fångades som några tecken av ett JSON-svar som fortfarande skrevs (`{`, `{"schema": …`), efter 5–30 min med Greenfields genereringssignal falsk. Greenfield analyserade då ett icke-svar och skickade nästa prompt mitt i det riktiga svaret.
