@@ -1,7 +1,7 @@
 (() => {
   const BRIDGE = "__EIC_GF_CONTENT_V2__";
   const OVERLAY_ID = "eic-gf-linked-overlay";
-  const CONTENT_VERSION = "1.8.6";
+  const CONTENT_VERSION = "1.8.7";
   const previousBridge = globalThis[BRIDGE] || null;
   const DOCUMENT_ID = previousBridge?.documentId || crypto.randomUUID();
   const dispatchRecords = previousBridge?.dispatchRecords instanceof Map
@@ -33,8 +33,11 @@
   // <button>försöka igen med en snabbare modell</button> … Läs mer") is page
   // status while the request is still processing, never assistant output.
   // The English wording is an assumption (no captured sample).
+  // v1.8.7: ChatGPT now also writes "begäran" (screenshot 2026-09-26: "Våra
+  // system bearbetar den här begäran lite till innan de svarar."), with a
+  // short status heading above it ("Planerade åtkomst").
   const PROVIDER_PROCESSING_NOTICE =
-    /^(?:Våra system bearbetar (?:den här|denna) förfrågan|Our systems are (?:still )?(?:processing|working on) (?:this|your) request)/iu;
+    /^(?:Våra system bearbetar (?:den här|denna) förfrågan|Våra system bearbetar (?:den här|denna) begäran|Our systems are (?:still )?(?:processing|working on) (?:this|your) request)/iu;
   const PROVIDER_PROCESSING_NOTICE_MAX_CHARS = 400;
 
   function providerProcessingNoticeText(value) {
@@ -50,6 +53,15 @@
       if (!root.contains(element)) continue;
       if (providerProcessingNoticeText(element.textContent)) element.remove();
     }
+  }
+
+  // While the processing notice is shown the request is still being worked
+  // on: a lone short heading next to it (no JSON, no sentence) is its status
+  // line, not an answer.
+  function providerProcessingHeadingOnly(text) {
+    const value = String(text || "").trim();
+    return value.length > 0 && value.length <= 80 && !value.includes("\n") &&
+      !/[{}\[\]<>]/u.test(value) && !/[.!?:;]$/u.test(value);
   }
 
   function assistantLifecycleStatusText(value) {
@@ -543,11 +555,14 @@
     for (const node of clone.querySelectorAll(
       "button, textarea, input, select, [contenteditable='true'], [data-eic-gf-ui='true']"
     )) node.remove();
+    const textBeforeNoticeStrip = entry.role === "assistant" ? String(clone.textContent || "") : "";
     if (entry.role === "assistant") stripProviderProcessingNotice(clone);
+    const noticeRemoved = textBeforeNoticeStrip !== "" && String(clone.textContent || "") !== textBeforeNoticeStrip;
     const rendered = clone.innerText || clone.textContent || entry.owner.innerText || entry.owner.textContent || "";
     // The conceptual turn remains the owner so structured/final fragments stay
     // together, but presentation/reasoning lifecycle lines are not assistant output.
-    return semanticMessageText(entry, rendered);
+    const text = semanticMessageText(entry, rendered);
+    return noticeRemoved && providerProcessingHeadingOnly(text) ? "" : text;
   }
 
   function generationSignals(lastAssistantEntry) {
@@ -1229,7 +1244,36 @@
     if (message.type === "EIC_GF_OVERLAY_UPDATE") {
       return { ok: true, changed: updateOverlay(message.overlay || null) };
     }
+    if (message.type === "EIC_GF_SELECT_GPT") {
+      return selectPinnedGpt(message.slug);
+    }
     return null;
+  }
+
+  // v1.8.7: ChatGPT's newer shell lists pinned GPTs as buttons without href
+  // (real DOM 2026-09-26: section[data-app-action-sidebar-section-heading=
+  // "Pinned"] > button "EIC" + button aria-label "Ta bort fästning för GPT").
+  // Clicks the one pinned GPT whose name is the expected GPT's slug; never the
+  // unpin button, never a recent chat, never anything in the composer.
+  function selectPinnedGpt(slug) {
+    const S = globalThis.GreenfieldSafetyPolicy;
+    const wanted = String(slug || "").trim().toLowerCase();
+    if (!wanted || !S?.gptNameSlug) return { ok: false, clicked: false, code: "GPT_SLUG_MISSING", candidates: 0 };
+    const candidates = [];
+    for (const section of document.querySelectorAll("section[data-app-action-sidebar-section-heading='Pinned']")) {
+      for (const button of section.querySelectorAll("button")) {
+        if (button.closest("form, [data-eic-gf-ui='true']")) continue;
+        if (button.hasAttribute("data-app-action-sidebar-section-toggle")) continue;
+        if (/ta bort|remove|poista|fästning|unpin/iu.test(String(button.getAttribute("aria-label") || ""))) continue;
+        const name = String(button.innerText || button.textContent || "").replace(/\s+/g, " ").trim();
+        if (name && name.length <= 80 && S.gptNameSlug(name) === wanted) candidates.push(button);
+      }
+    }
+    if (candidates.length !== 1) {
+      return { ok: false, clicked: false, code: candidates.length ? "PINNED_GPT_AMBIGUOUS" : "PINNED_GPT_NOT_FOUND", candidates: candidates.length };
+    }
+    candidates[0].click();
+    return { ok: true, clicked: true, code: "PINNED_GPT_CLICKED", candidates: 1 };
   }
 
   const onMessage = (message, _sender, sendResponse) => {

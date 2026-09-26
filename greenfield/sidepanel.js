@@ -1263,7 +1263,7 @@ async function startMissionQueue() {
     state.process = result.process || state.process;
     state.missionQueue = result.missionQueue || state.missionQueue;
   } catch (error) {
-    $("statusDetail").textContent = error?.message || String(error);
+    $("statusDetail").textContent = reasonLabel(error?.message || String(error));
     await appendAuditError({
       error,
       scope: "WINDOW",
@@ -2249,7 +2249,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.8.6" }
+      payload: { appVersion: "1.8.7" }
     });
     await snapshot();
   } catch (error) {

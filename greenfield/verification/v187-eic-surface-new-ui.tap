@@ -1,0 +1,88 @@
+TAP version 13
+# Subtest: v1.8.7 repro: a slugless conversation URL is the same EIC GPT and keeps the named root
+ok 1 - v1.8.7 repro: a slugless conversation URL is the same EIC GPT and keeps the named root
+  ---
+  duration_ms: 1.365623
+  type: 'test'
+  ...
+# Subtest: v1.8.7 repro: the model gate accepts the EIC conversation at its slugless URL
+ok 2 - v1.8.7 repro: the model gate accepts the EIC conversation at its slugless URL
+  ---
+  duration_ms: 7.229455
+  type: 'test'
+  ...
+# Subtest: v1.8.7 repro: the model gate accepts EIC shown at '/' by its composer pill and header
+ok 3 - v1.8.7 repro: the model gate accepts EIC shown at '/' by its composer pill and header
+  ---
+  duration_ms: 3.303235
+  type: 'test'
+  ...
+# Subtest: v1.8.7 repro: a rotation root derived from a slugless URL keeps the named EIC root
+ok 4 - v1.8.7 repro: a rotation root derived from a slugless URL keeps the named EIC root
+  ---
+  duration_ms: 0.239062
+  type: 'test'
+  ...
+# Subtest: v1.8.7 repro: a slugless URL never erases the remembered named EIC root
+ok 5 - v1.8.7 repro: a slugless URL never erases the remembered named EIC root
+  ---
+  duration_ms: 0.811319
+  type: 'test'
+  ...
+# Subtest: v1.8.7 the '/' proof is the GPT name and fails closed on anything else
+ok 6 - v1.8.7 the '/' proof is the GPT name and fails closed on anything else
+  ---
+  duration_ms: 0.54902
+  type: 'test'
+  ...
+# Subtest: v1.8.7 the processing gate for 'Pro' is unchanged: THINKING_MODE_UNVERIFIED, never a quarantine code
+ok 7 - v1.8.7 the processing gate for 'Pro' is unchanged: THINKING_MODE_UNVERIFIED, never a quarantine code
+  ---
+  duration_ms: 0.372517
+  type: 'test'
+  ...
+# Subtest: v1.8.7 repro E2E: queue start from ChatGPT home navigates to the EIC GPT, not to standard chat
+ok 8 - v1.8.7 repro E2E: queue start from ChatGPT home navigates to the EIC GPT, not to standard chat
+  ---
+  duration_ms: 543.40695
+  type: 'test'
+  ...
+# Subtest: v1.8.7 repro E2E: a rotation that lands in standard chat is steered to EIC before anything is sent
+ok 9 - v1.8.7 repro E2E: a rotation that lands in standard chat is steered to EIC before anything is sent
+  ---
+  duration_ms: 604.447196
+  type: 'test'
+  ...
+# Subtest: v1.8.7 E2E: EIC never selectable -> BLOCKED SESSION_ROTATION_EIC_NOT_SELECTED, nothing sent
+ok 10 - v1.8.7 E2E: EIC never selectable -> BLOCKED SESSION_ROTATION_EIC_NOT_SELECTED, nothing sent
+  ---
+  duration_ms: 599.063535
+  type: 'test'
+  ...
+# Subtest: v1.8.7 E2E: without any known EIC address the queue refuses to start (no standard chat)
+ok 11 - v1.8.7 E2E: without any known EIC address the queue refuses to start (no standard chat)
+  ---
+  duration_ms: 67.212848
+  type: 'test'
+  ...
+# Subtest: v1.8.7 E2E surface guard: accepts EIC shown at '/', stays out of a rotation, still recovers standard chat
+ok 12 - v1.8.7 E2E surface guard: accepts EIC shown at '/', stays out of a rotation, still recovers standard chat
+  ---
+  duration_ms: 95.667466
+  type: 'test'
+  ...
+# Subtest: v1.8.7 content selects only a pinned GPT and reads the processing notice's new wording
+ok 13 - v1.8.7 content selects only a pinned GPT and reads the processing notice's new wording
+  ---
+  duration_ms: 0.732926
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2014.236087

@@ -1,6 +1,8 @@
-# EIC Autonom Agent Greenfield 1.8.6
+# EIC Autonom Agent Greenfield 1.8.7
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.8.7 anpassar Greenfield till ChatGPT:s nya gränssnitt. Köstarten kunde öppna standardchatten i stället för EIC och fastna där med spärren EIC_SURFACE_UNVERIFIED. Köstart och ny chatt går nu alltid till den verifierade EIC-GPT:n. Visar ChatGPT ändå standardchatten väljs EIC under Fästa, och ingen prompt skickas förrän sidan visar EIC. GPT-adresser utan namnslug (/g/g-<id>/c/…) känns igen som samma GPT, och EIC vald på startsidan bevisas med EIC-pillret och rubriken. Den nya väntetexten ”Våra system bearbetar den här begäran …” fångas aldrig som svar. En funktionell riskanalys av hela applikationen finns i [docs/RISKANALYS_FUNKTION_V1_8_7.md](docs/RISKANALYS_FUNKTION_V1_8_7.md).
 
 Version 1.8.6 rättar att kön kunde hänga i timmar när TTL hade gått ut. En modellspärr i WAITING stoppade hela tidsstegen: F5 30 kördes, men varken Ctrl-F5 60/90 eller köbytet vid 120 min. Spärrade processer höll dessutom sina kapacitetsplatser. Nu fortsätter tidsstegen under spärren, och inget skickas förrän modellbeviset är giltigt igen. Greenfield läser också tänknivån i ChatGPT:s nya modellväljare (”Extra hög”, ”Hög”). ”Direkt” spärras som tidigare.
 
@@ -21,6 +23,15 @@ Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfiel
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.8.7
+
+- **Köstart utan standardchatt:** roten för en köplats är flikens GPT, processens GPT eller den senast verifierade EIC-adressen, aldrig `chatgpt.com/`. Saknas alla tre avbryts köstarten med `EIC_GPT_ROOT_UNKNOWN`.
+- **Landningskontroll i ny chatt:** sidan måste visa EIC (GPT-id i adressen, eller EIC-pillret och rubriken vid `/`). Annars prövas adressen utan namn, sedan klick på EIC under Fästa (högst tre). Efter 2 min utan EIC blir köplatsen `SESSION_ROTATION_EIC_NOT_SELECTED` och får försöka igen efter pausen.
+- **GPT-identitet = id:** `/g/g-<id>-eic` och `/g/g-<id>` är samma GPT. Den namngivna adressen behålls som återställningsadress.
+- **Ytvakten** godtar EIC vid startsidan och navigerar inte under en rotation.
+- **Väntetexten** ”… den här begäran …” med statusrubrik räknas som status, inte svar.
+- **Oförändrat:** modellspärren. Väljarläget ”Pro” hålls som `THINKING_MODE_UNVERIFIED` (policyfråga, se riskanalysen).
 
 ## Nytt i 1.8.6
 
@@ -119,10 +130,11 @@ Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad 
 
 v1.7.3:s mixed-language model safety, v1.7.2:s multi-turn-liveness, v1.7.1:s dispatch-reconciliation och v1.7.0:s semantiska modellgolv bevaras.
 
-Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.5, se [UPPDATERA_TILL_1_8_6.md](UPPDATERA_TILL_1_8_6.md); från äldre versioner, se även [UPPDATERA_TILL_1_8_5.md](UPPDATERA_TILL_1_8_5.md), [UPPDATERA_TILL_1_8_4.md](UPPDATERA_TILL_1_8_4.md), [UPPDATERA_TILL_1_8_3.md](UPPDATERA_TILL_1_8_3.md), [UPPDATERA_TILL_1_8_2.md](UPPDATERA_TILL_1_8_2.md), [UPPDATERA_TILL_1_8_1.md](UPPDATERA_TILL_1_8_1.md), [UPPDATERA_TILL_1_8_0.md](UPPDATERA_TILL_1_8_0.md), [UPPDATERA_TILL_1_7_9.md](UPPDATERA_TILL_1_7_9.md), [UPPDATERA_TILL_1_7_8.md](UPPDATERA_TILL_1_7_8.md) och [UPPDATERA_TILL_1_7_7.md](UPPDATERA_TILL_1_7_7.md).
+Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.6, se [UPPDATERA_TILL_1_8_7.md](UPPDATERA_TILL_1_8_7.md); från äldre versioner, se även [UPPDATERA_TILL_1_8_6.md](UPPDATERA_TILL_1_8_6.md), [UPPDATERA_TILL_1_8_5.md](UPPDATERA_TILL_1_8_5.md), [UPPDATERA_TILL_1_8_4.md](UPPDATERA_TILL_1_8_4.md), [UPPDATERA_TILL_1_8_3.md](UPPDATERA_TILL_1_8_3.md), [UPPDATERA_TILL_1_8_2.md](UPPDATERA_TILL_1_8_2.md), [UPPDATERA_TILL_1_8_1.md](UPPDATERA_TILL_1_8_1.md), [UPPDATERA_TILL_1_8_0.md](UPPDATERA_TILL_1_8_0.md), [UPPDATERA_TILL_1_7_9.md](UPPDATERA_TILL_1_7_9.md), [UPPDATERA_TILL_1_7_8.md](UPPDATERA_TILL_1_7_8.md) och [UPPDATERA_TILL_1_7_7.md](UPPDATERA_TILL_1_7_7.md).
 
 | Underlag | Innehåll |
 |---|---|
+| [RISKANALYS_FUNKTION_V1_8_7.md](docs/RISKANALYS_FUNKTION_V1_8_7.md) | Funktionell riskanalys av hela applikationen, kända okända och åtgärder |
 | [TAB_HEALTH_DAYBREAK_V1_8_3.md](docs/TAB_HEALTH_DAYBREAK_V1_8_3.md) | Tidsgränser, flikhälsa, återhämtningsstege, Daybreak-rotation och paus |
 | [RESPONSE_OBSERVATION_V1_8_2.md](docs/RESPONSE_OBSERVATION_V1_8_2.md) | Fynd i live-export, spärr mot oavslutad JSON, observationsspår |
 | [QUEUE_SCHEDULER_V1_8_1.md](docs/QUEUE_SCHEDULER_V1_8_1.md) | Schema per köplats, `QUEUE_WAIT`, AI `SET_SCHEDULE`, kö-set-uppdatering |
@@ -142,6 +154,8 @@ Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.5, 
 
 ```sh
 npm test
+node --test tests/v187-eic-surface-new-ui.test.mjs
+NODE_PATH="$(npm root -g)" node tools/verify-eic-surface.mjs   # kräver Playwright + Chromium
 node --test tests/v186-hold-ladder-model-picker.test.mjs
 NODE_PATH="$(npm root -g)" node tools/verify-model-picker.mjs   # kräver Playwright + Chromium
 node --test tests/v185-saved-missions.test.mjs
@@ -164,4 +178,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.6.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.7.

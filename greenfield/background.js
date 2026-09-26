@@ -152,10 +152,16 @@ import {
   managedSurfaceIsLive
 } from "./lib/managed-surface-liveness.mjs";
 import {
+  canonicalGptRoot,
   classifyManagedEicSurface,
+  customGptRoot,
+  gptSlug,
+  preferNamedRoot,
   readEicSurfaceState,
   rememberGoodEicUrl,
-  recoveryDecision
+  recoveryDecision,
+  resolveManagedGptRoot,
+  sameGpt
 } from "./lib/managed-eic-surface.mjs";
 import {
   MISSION_PAUSE_ACTION,
@@ -2409,10 +2415,14 @@ async function activateQueueItem({
     throw error;
   }
 
-  const gptRoot = deriveGptRoot(tab.url || "", priorProcess?.gptRoot || "");
+  // v1.8.7: a queue slot always starts in the EIC GPT. ChatGPT's newer shell
+  // shows a pinned GPT at "/", so a tab at "/" no longer implies standard
+  // chat and a generic root would open standard chat instead of EIC.
+  const surfaceState = await readEicSurfaceState(chrome.storage.local).catch(() => ({ lastKnownGoodEicUrl: "" }));
+  const gptRoot = resolveManagedGptRoot(tab.url || "", priorProcess?.gptRoot || "", surfaceState.lastKnownGoodEicUrl || "");
   if (!gptRoot) {
-    const error = new Error("GPT_ROOT_UNRESOLVED");
-    error.code = "GPT_ROOT_UNRESOLVED";
+    const error = new Error("EIC_GPT_ROOT_UNKNOWN");
+    error.code = "EIC_GPT_ROOT_UNKNOWN";
     throw error;
   }
 
@@ -3751,8 +3761,16 @@ async function resolveRotationRoot(process) {
   try {
     tab = await chrome.tabs.get(process.tabId);
   } catch {}
-  const gptRoot = deriveGptRoot(tab?.url || "", process.gptRoot || "");
+  const surfaceState = await readEicSurfaceState(chrome.storage.local).catch(() => ({ lastKnownGoodEicUrl: "" }));
+  const gptRoot = resolveManagedGptRoot(tab?.url || "", process.gptRoot || "", surfaceState.lastKnownGoodEicUrl || "");
   return { gptRoot, tab };
+}
+
+// v1.8.7: a tab belongs to a process's GPT when it shows the same GPT id, or
+// no GPT id at all (a session rotation navigates such a tab to the GPT).
+function tabMatchesGptRoot(url, gptRoot) {
+  if (!customGptRoot(url)) return true;
+  return Boolean(customGptRoot(gptRoot)) && sameGpt(url, gptRoot);
 }
 
 async function armSessionRotation(process, {
@@ -3918,6 +3936,77 @@ async function saveRotationState(process, sessionRotation, kind, payload = {}) {
   return next;
 }
 
+// v1.8.7: a fresh chat that is not the EIC GPT is steered to it, in order:
+// the GPT address without its name slug (the form the newer ChatGPT shell
+// uses), then a click on the pinned GPT in the sidebar (content script), at
+// most EIC_LANDING_MAX_SELECTS times, EIC_LANDING_SELECT_GAP_MS apart. The
+// operator may also select EIC by hand. Never sends in standard chat; after
+// EIC_LANDING_TIMEOUT_MS the rotation blocks with a specific code.
+const EIC_LANDING_TIMEOUT_MS = 120_000;
+const EIC_LANDING_SELECT_GAP_MS = 4_000;
+const EIC_LANDING_MAX_SELECTS = 3;
+
+async function steerRotationToEic(process, rotation, tab, gptRoot, landing, page) {
+  const now = Date.now();
+  const prior = rotation.eicLanding || {};
+  const eicLanding = {
+    firstUnverifiedAtMs: Number(prior.firstUnverifiedAtMs || now),
+    lastKind: landing.kind,
+    observedUrl: String(page?.url || tab.url || "").slice(0, 300),
+    canonicalNavigated: prior.canonicalNavigated === true,
+    selectAttempts: Number(prior.selectAttempts || 0),
+    lastSelectAtMs: Number(prior.lastSelectAtMs || 0),
+    lastSelect: prior.lastSelect || null
+  };
+  const canonical = canonicalGptRoot(gptRoot);
+  if (!eicLanding.canonicalNavigated && canonical && canonical !== gptRoot) {
+    eicLanding.canonicalNavigated = true;
+    const next = await saveRotationState(process, { ...rotation, eicLanding }, "SESSION_ROTATION_EIC_LANDING_CANONICAL_NAVIGATE", {
+      rotationId: rotation.rotationId,
+      kind: landing.kind,
+      observedUrl: eicLanding.observedUrl,
+      url: canonical
+    });
+    await chrome.tabs.update(tab.id, { url: canonical }).catch(() => undefined);
+    scheduleFast(next.processId, 1500);
+    return next;
+  }
+  if (eicLanding.selectAttempts < EIC_LANDING_MAX_SELECTS && now - eicLanding.lastSelectAtMs >= EIC_LANDING_SELECT_GAP_MS) {
+    let result;
+    try {
+      result = await bridgeMessage(tab.id, { type: "EIC_GF_SELECT_GPT", slug: gptSlug(gptRoot) });
+    } catch (error) {
+      result = { ok: false, code: String(error?.code || error?.message || "BRIDGE_ERROR").slice(0, 120) };
+    }
+    eicLanding.selectAttempts += 1;
+    eicLanding.lastSelectAtMs = now;
+    eicLanding.lastSelect = {
+      ok: result?.ok === true,
+      clicked: result?.clicked === true,
+      code: String(result?.code || ""),
+      candidates: Number(result?.candidates || 0)
+    };
+    const next = await saveRotationState(process, { ...rotation, eicLanding }, "SESSION_ROTATION_EIC_SELECT_ATTEMPT", {
+      rotationId: rotation.rotationId,
+      kind: landing.kind,
+      attempt: eicLanding.selectAttempts,
+      ...eicLanding.lastSelect
+    });
+    scheduleFast(next.processId, 1500);
+    return next;
+  }
+  if (!prior.firstUnverifiedAtMs) {
+    const next = await saveRotationState(process, { ...rotation, eicLanding }, "SESSION_ROTATION_EIC_LANDING_UNVERIFIED", {
+      rotationId: rotation.rotationId,
+      kind: landing.kind
+    });
+    scheduleFast(next.processId, 2000);
+    return next;
+  }
+  scheduleFast(process.processId, 2000);
+  return process;
+}
+
 async function tickRotating(process) {
   const rotation = process.sessionRotation;
   if (!rotation?.rotationId || !process.pendingPrompt?.text || !process.pendingPrompt?.hash) {
@@ -3932,7 +4021,8 @@ async function tickRotating(process) {
     });
   }
 
-  const gptRoot = deriveGptRoot(rotation.gptRoot || "", process.gptRoot || "");
+  const rotationSurface = await readEicSurfaceState(chrome.storage.local).catch(() => ({ lastKnownGoodEicUrl: "" }));
+  const gptRoot = resolveManagedGptRoot(rotation.gptRoot || "", process.gptRoot || "", rotationSurface.lastKnownGoodEicUrl || "");
   if (!gptRoot) {
     const error = Object.assign(new Error("SESSION_ROTATION_GPT_ROOT_UNRESOLVED"), {
       code: "SESSION_ROTATION_GPT_ROOT_UNRESOLVED"
@@ -3965,7 +4055,7 @@ async function tickRotating(process) {
       const candidates = tabs.filter((candidate) =>
         Number.isInteger(candidate.id) &&
         supportedUrl(candidate.url) &&
-        deriveGptRoot(candidate.url || "", gptRoot) === gptRoot
+        tabMatchesGptRoot(candidate.url || "", gptRoot)
       );
       if (candidates.length === 1) tab = candidates[0];
     }
@@ -4094,6 +4184,24 @@ async function tickRotating(process) {
     0,
     Date.now() - (Date.parse(rotation.navigationStartedAt || rotation.requestedAt || "") || Date.now())
   );
+  const eicLandingFirstMs = Number(rotation.eicLanding?.firstUnverifiedAtMs || 0);
+  if (eicLandingFirstMs && Date.now() - eicLandingFirstMs >= EIC_LANDING_TIMEOUT_MS) {
+    const error = Object.assign(new Error("SESSION_ROTATION_EIC_NOT_SELECTED"), {
+      code: "SESSION_ROTATION_EIC_NOT_SELECTED"
+    });
+    return commitTransition(process, PHASES.BLOCKED, {
+      lastError: errorRecord(error)
+    }, {
+      kind: "SESSION_ROTATION_BLOCKED_EIC_NOT_SELECTED",
+      component: "session-rotation",
+      detail: {
+        rotationId: rotation.rotationId,
+        targetTabId: tab.id,
+        gptRoot,
+        eicLanding: rotation.eicLanding
+      }
+    });
+  }
   if (navigationAgeMs >= 5 * 60 * 1000) {
     const error = Object.assign(new Error("SESSION_ROTATION_CHAT_READY_TIMEOUT"), {
       code: "SESSION_ROTATION_CHAT_READY_TIMEOUT"
@@ -4210,6 +4318,11 @@ async function tickRotating(process) {
     return process;
   }
 
+  // v1.8.7: the fresh chat must be the EIC GPT. ChatGPT's newer shell can
+  // show standard chat for a GPT address, and shows a selected GPT at "/".
+  const landing = Safety.eicSurfaceProof(page.modelEvidence, page.url || tab.url || "", gptRoot);
+  if (!landing.ok) return steerRotationToEic(process, rotation, tab, gptRoot, landing, page);
+
   const readyRotation = {
     ...rotation,
     state: SESSION_ROTATION_STATES.READY_TO_RESUME,
@@ -4240,6 +4353,7 @@ async function tickRotating(process) {
       targetTabId: tab.id,
       gptRoot,
       newChatVerified: true,
+      eicSurface: landing.kind,
       observedUserCount: Number(page.userCount || 0),
       composerReady: page.composerReady === true,
       messageType: pendingPrompt.a2a?.messageType || ""
@@ -7014,8 +7128,7 @@ async function tickDetached(process) {
       const candidates = tabs.filter((tab) =>
         Number.isInteger(tab.id) &&
         supportedUrl(tab.url) &&
-        deriveGptRoot(tab.url || "", process.gptRoot || "") ===
-          deriveGptRoot(process.gptRoot || "", process.gptRoot || "")
+        tabMatchesGptRoot(tab.url || "", process.gptRoot || "")
       );
       if (candidates.length === 1 && candidates[0].id !== process.tabId) {
         const rebound = {
@@ -7469,7 +7582,12 @@ async function startRun({ windowId, goal, auditSessionId = "", schedulerPriority
 
   const surfaceState = await readEicSurfaceState(chrome.storage.local).catch(() => ({ lastKnownGoodEicUrl: "" }));
   const surfaceClass = classifyManagedEicSurface(tab.url || "", surfaceState.lastKnownGoodEicUrl || "");
-  if (!surfaceClass.ok) {
+  // v1.8.7: ChatGPT's newer shell shows a selected GPT at "/"; the page's own
+  // GPT name (composer pill / header) proves the last verified EIC there.
+  const eicByName = !surfaceClass.ok && surfaceClass.kind === "GENERIC_CHATGPT" && surfaceState.lastKnownGoodEicUrl &&
+    Safety.eicSurfaceProof(page.modelEvidence, page.url || tab.url || "", surfaceState.lastKnownGoodEicUrl).ok;
+  if (eicByName) surfaceClass.observedRoot = surfaceState.lastKnownGoodEicUrl;
+  if (!surfaceClass.ok && !eicByName) {
     if (surfaceState.lastKnownGoodEicUrl) {
       await chrome.tabs.update(tab.id, { url: surfaceState.lastKnownGoodEicUrl });
       const error = new Error("ACTIVE_EIC_TAB_RECOVERY_TRIGGERED");
@@ -8533,6 +8651,13 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   void enqueueTick(processId, "watchdog");
 });
 
+async function pageShowsExpectedGpt(tab, gptRoot) {
+  await ensureContentBridgeVersion(tab.id);
+  const result = await bridgeMessage(tab.id, { type: "EIC_GF_GET_PAGE_STATE", source: "eic-surface-guard" });
+  if (!result?.ok) return null;
+  return Safety.eicSurfaceProof(result.state?.modelEvidence, result.state?.url || tab.url || "", gptRoot);
+}
+
 async function enforceManagedEicSurface(process, tab) {
   if (!process || !tab || !Number.isInteger(tab.id)) return { action: "SKIP" };
   const globalState = await readEicSurfaceState(chrome.storage.local).catch(() => ({ lastKnownGoodEicUrl: "" }));
@@ -8545,6 +8670,20 @@ async function enforceManagedEicSurface(process, tab) {
     wrongSinceMs: priorSince,
     now: Date.now()
   });
+  if (decision.action !== "ACCEPT" && decision.expectedRoot) {
+    // v1.8.7: a session rotation owns navigation until its fresh chat is
+    // verified as EIC (tickRotating); the guard does not navigate under it.
+    if (process.phase === PHASES.ROTATING) return { ...decision, action: "ROTATION_OWNS_NAVIGATION" };
+    // ChatGPT's newer shell shows a selected GPT at "/": a generic address is
+    // accepted when the page itself shows the expected GPT by name.
+    if (decision.classification === "GENERIC_CHATGPT") {
+      const shown = await pageShowsExpectedGpt(tab, decision.expectedRoot).catch(() => null);
+      if (shown?.ok) {
+        eicSurfaceWrongSince.delete(key);
+        return { ...decision, action: "ACCEPT", classification: "EIC_BY_NAME", wrongSinceMs: 0 };
+      }
+    }
+  }
   if (decision.action === "ACCEPT") {
     eicSurfaceWrongSince.delete(key);
     await rememberGoodEicUrl(decision.expectedRoot, chrome.storage.local).catch(() => undefined);

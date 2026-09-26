@@ -1,4 +1,6 @@
-# Greenfield 1.8.6 – börja här
+# Greenfield 1.8.7 – börja här
+
+Greenfield 1.8.7 anpassar köstarten till ChatGPT:s nya gränssnitt. Kön öppnar aldrig standardchatten. Den går till den verifierade EIC-GPT:n, väljer vid behov EIC under **Fästa** och skickar först när sidan visar EIC. Håll därför EIC fäst i sidofältet. Se [UPPDATERA_TILL_1_8_7.md](UPPDATERA_TILL_1_8_7.md) och den funktionella riskanalysen [docs/RISKANALYS_FUNKTION_V1_8_7.md](docs/RISKANALYS_FUNKTION_V1_8_7.md).
 
 Greenfield 1.8.6 rättar att kön kunde hänga efter att TTL gått ut, när ChatGPT:s modellval inte kunde verifieras. Tidsstegen (Ctrl-F5 60/90, köbyte vid 120 min) fortsätter nu under spärren, och ingen prompt skickas utan giltigt modellbevis. Tänknivån i ChatGPT:s nya modellväljare (”Extra hög”, ”Hög”) godkänns. Står väljaren på ”Direkt” väntar Greenfield tills du väljer en tänknivå. Se [UPPDATERA_TILL_1_8_6.md](UPPDATERA_TILL_1_8_6.md).
 
@@ -97,14 +99,14 @@ Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s auton
 - Bounded finska termer för modell-/reasoning-UI stöds.
 - Diagnostiken anger `effortEvidenceSource` så att en operator kan se om beviset kom från `COMPOSER_SELECTED_CONTROL` eller en svagare strukturell fallback.
 
-## Installation över 1.8.5
+## Installation över 1.8.6
 
 1. Pausa nya Greenfield-utskick.
 2. Säkerhetskopiera den uppackade tilläggsmappen.
-3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.8.6.zip`.
+3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.8.7.zip`.
 4. Kopiera innehållet över samma mapp som Chrome redan använder så extension-ID/lokal state bevaras.
 5. I `chrome://extensions`, välj **Läs in igen**.
-6. Verifiera att panelen visar `v1.8.6`. Följ sedan [UPPDATERA_TILL_1_8_6.md](UPPDATERA_TILL_1_8_6.md). Kommer du från 1.8.4, följ även [UPPDATERA_TILL_1_8_5.md](UPPDATERA_TILL_1_8_5.md).
+6. Verifiera att panelen visar `v1.8.7`. Följ sedan [UPPDATERA_TILL_1_8_7.md](UPPDATERA_TILL_1_8_7.md). Kommer du från 1.8.5, följ även [UPPDATERA_TILL_1_8_6.md](UPPDATERA_TILL_1_8_6.md).
 7. Återgå till den exakta EIC-konversation som hör till workern.
 8. Kör **Kontrollera modell igen** och exportera diagnostik om safety-hold kvarstår.
 9. Låt Greenfield reconcilea befintlig process-state; gör inget manuellt omskick av en dispatch med okänd effekt.

@@ -1,7 +1,7 @@
 import { loadPersistedProcessInventory, saveProcess } from "./process-store.mjs";
 import { getWorkerBinding, restoreWorkerBinding } from "./worker-identity.mjs";
 import { loadMissionWorkQueue, saveMissionWorkQueue } from "./mission-work-queue.mjs";
-import { customGptRoot } from "./managed-eic-surface.mjs";
+import { sameGpt } from "./managed-eic-surface.mjs";
 import { TERMINAL_PHASES, PHASES } from "./contracts.mjs";
 import { CHECKPOINT_PREFIX, readCheckpoint } from "./durable-checkpoint.mjs";
 import { autonomousUserTurnProof, expectedAutonomousUserTurn } from "./turn-causality.mjs";
@@ -74,7 +74,7 @@ export async function reconcileRestart({ local, session, tabs, ensureBridge }) {
       // and use the exact stored prompt hash only as a legacy fallback. Never guess by window number.
       const expectedHash=original.pendingPrompt?.dispatch && original.pendingPrompt.dispatch.effectPossible!==false ? original.pendingPrompt.hash : original.lastPrompt?.hash;
       const expectedTurn=expectedAutonomousUserTurn(original);
-      const sameRoot=liveTabs.filter(t=>customGptRoot(t.url)===customGptRoot(original.gptRoot) && conversationKey(t.url));
+      const sameRoot=liveTabs.filter(t=>sameGpt(t.url,original.gptRoot) && conversationKey(t.url));
       const proven=[];
       if ((expectedHash || expectedTurn.id || Number.isInteger(expectedTurn.index)) && sameRoot.length<=16) for (const candidate of sameRoot) {
         try {

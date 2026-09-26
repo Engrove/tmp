@@ -97,6 +97,63 @@
     return containsSemanticTerm(s, "thinking|reasoning|tänkande|tänketid|tänknivå|ajattelu|ajatteluaika|päättely|päättelytaso|reasoning effort|thinking time|extended|utökad|utökat|förlängd|laajennettu|pidennetty|heavy|max|maximum|maximal|djupgående|djup|deep|deeper|intensiv|syvä|syvällinen");
   }
 
+  // v1.8.7: ChatGPT's newer shell addresses a custom GPT as /g/g-<id> without
+  // the name slug (/g/g-<id>-eic before), and can show a pinned GPT at "/"
+  // after a client-side selection. The GPT identity is the id token only; the
+  // slug is the GPT's name and is kept as a name, never as the identity.
+  const CHATGPT_HOSTS = ["chatgpt.com", "chat.openai.com"];
+  function gptRef(value) {
+    let u;
+    try { u = new URL(String(value || "")); } catch { return null; }
+    if (u.protocol !== "https:" || !CHATGPT_HOSTS.includes(u.hostname)) return null;
+    const parts = u.pathname.split("/").filter(Boolean);
+    const segment = parts[0] === "g" ? String(parts[1] || "") : "";
+    if (!/^g-/.test(segment)) return null;
+    const m = /^(g-p-[A-Za-z0-9]+|g-[A-Za-z0-9]+)(?:-(.+))?$/.exec(segment);
+    const id = m ? m[1] : segment;
+    return {
+      origin: u.origin,
+      segment,
+      id,
+      slug: m && m[2] ? m[2].toLowerCase() : "",
+      root: `${u.origin}/g/${segment}`,
+      canonicalRoot: `${u.origin}/g/${id}`
+    };
+  }
+  function sameGpt(a, b) {
+    const x = gptRef(a), y = gptRef(b);
+    return Boolean(x && y && x.origin === y.origin && x.id === y.id);
+  }
+  function gptNameSlug(name) {
+    return String(name || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+  function gptNameMatchesRoot(name, gptRoot) {
+    const slug = gptRef(gptRoot)?.slug || "";
+    return Boolean(slug && gptNameSlug(name) === slug);
+  }
+  // Which GPT the page shows: by id when the URL carries /g/<id>, otherwise
+  // (generic URL such as "/") by the GPT name the composer pill and the page
+  // header show, which must match the slug of the expected root.
+  function eicSurfaceProof(evidence, url, gptRoot) {
+    const root = gptRef(gptRoot);
+    const no = (kind) => ({ ok: false, code: "EIC_SURFACE_UNVERIFIED", kind });
+    if (!root) return no("ROOT_INVALID");
+    let target;
+    try { target = new URL(String(url || "")); } catch { return no("URL_INVALID"); }
+    if (target.protocol !== "https:" || !CHATGPT_HOSTS.includes(target.hostname) || target.origin !== root.origin) return no("URL_UNSUPPORTED");
+    const observed = gptRef(url);
+    if (observed) return observed.id === root.id ? { ok: true, code: "EIC_SURFACE_VERIFIED", kind: "URL_GPT_ID" } : no("WRONG_GPT_ID");
+    if (target.pathname.split("/").filter(Boolean)[0] === "g") return no("URL_UNSUPPORTED");
+    const composerName = String(evidence?.gptSurface?.composerName || "").trim();
+    const headerName = String(evidence?.gptSurface?.headerName || "").trim();
+    if (evidence?.gptSurface?.ambiguous === true) return no("GPT_NAME_AMBIGUOUS");
+    if (composerName && headerName && gptNameSlug(composerName) !== gptNameSlug(headerName)) return no("GPT_NAME_CONFLICT");
+    const name = composerName || headerName;
+    if (!name) return no("GENERIC_NO_GPT");
+    return gptNameMatchesRoot(name, gptRoot) ? { ok: true, code: "EIC_SURFACE_VERIFIED", kind: "GPT_NAME_MATCH" } : no("WRONG_GPT_NAME");
+  }
+
   function evaluateModel(evidence, policy = defaults, { now = Date.now(), url = "", gptRoot = "" } = {}) {
     const deny = (code) => ({
       allowed: false, code,
@@ -107,11 +164,8 @@
     if (!evidence || !["CHATGPT_UI_CONTROLS_V1","CHATGPT_UI_CONTROLS_V2"].includes(evidence.source)) return deny("MODEL_EVIDENCE_MISSING");
     if (!Number.isFinite(evidence.observedAtMs) || now - evidence.observedAtMs > 15000 || now < evidence.observedAtMs - 1000) return deny("MODEL_EVIDENCE_STALE");
 
-    let target, root;
-    try { target = new URL(url); root = new URL(gptRoot); } catch { return deny("EIC_SURFACE_UNVERIFIED"); }
-    if (target.protocol !== "https:" || !["chatgpt.com", "chat.openai.com"].includes(target.hostname) ||
-        target.origin !== root.origin || !/^\/g\/g-[^/]+/.test(root.pathname) ||
-        !(target.pathname === root.pathname.replace(/\/$/, "") || target.pathname.startsWith(root.pathname.replace(/\/$/, "") + "/"))) return deny("EIC_SURFACE_UNVERIFIED");
+    const surface = eicSurfaceProof(evidence, url, gptRoot);
+    if (!surface.ok) return deny("EIC_SURFACE_UNVERIFIED");
     if (evidence.mode === "WORK" || evidence.mode === "CODEX") return deny("CHAT_MODE_REQUIRED");
     if (evidence.blockingUi) return deny("BLOCKING_CHATGPT_UI");
     if (evidence.quota?.active) return deny("PROVIDER_QUOTA_OR_FALLBACK");
@@ -168,6 +222,7 @@
       observedModelVersion: observedVersion?.text || "",
       minimumModelVersion: requiredVersion.text,
       modelNamePolicy: "NUMERIC_MINIMUM_FAMILY_AGNOSTIC",
+      eicSurface: surface.kind,
       visibleUiOnly: true
     };
   }
@@ -198,6 +253,7 @@
 
   globalThis.GreenfieldSafetyPolicy = Object.freeze({
     defaults, normalizePolicy, evaluateModel, quotaSignal, resetTime, estimateTokens,
-    effort, modelVersion, compareVersions, reasoningSignal, degradedModelSignal
+    effort, modelVersion, compareVersions, reasoningSignal, degradedModelSignal,
+    gptRef, sameGpt, gptNameSlug, gptNameMatchesRoot, eicSurfaceProof
   });
 })();

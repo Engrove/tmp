@@ -68,6 +68,40 @@
     return semantic.length === 1 ? {label:unique[0],ambiguous:false} : {label:"",ambiguous:true};
   }
 
+  // v1.8.7: which GPT the page shows, for pages whose URL carries no /g/<id>
+  // (ChatGPT's newer shell shows a selected GPT at "/"). Real DOM 2026-09-26:
+  // the composer has a GPT pill <button aria-label="Ta bort EIC">…EIC</button>
+  // and the page header <span>EIC</span><button aria-label="GPT-åtgärder">.
+  // The English/Finnish labels are assumptions (no captured sample).
+  const GPT_PILL_LABEL = /^(?:Ta bort|Remove|Poista)\s+(.+)$/u;
+  const GPT_ACTIONS = "button[aria-label='GPT-åtgärder'], button[aria-label='GPT actions'], button[aria-label='GPT-toiminnot']";
+  const plain = el => String(el?.innerText || el?.textContent || "").replace(/\s+/g," ").trim();
+  function gptSurface() {
+    const composerNames = [];
+    for (const form of document.querySelectorAll("form")) {
+      if (!form.querySelector("[contenteditable='true'], textarea")) continue;
+      for (const button of form.querySelectorAll("button[aria-label]")) {
+        if (!visible(button)) continue;
+        const m = GPT_PILL_LABEL.exec(String(button.getAttribute("aria-label") || "").replace(/\s+/g," ").trim());
+        const text = plain(button);
+        if (m && text && text.length <= 80 && m[1] === text) composerNames.push(text);
+      }
+    }
+    const headerNames = [];
+    for (const button of document.querySelectorAll(GPT_ACTIONS)) {
+      if (!visible(button) || button.closest("form")) continue;
+      const text = plain(button.previousElementSibling);
+      if (text && text.length <= 80) headerNames.push(text);
+    }
+    const composer = [...new Set(composerNames)], header = [...new Set(headerNames)];
+    return {
+      composerName: composer.length === 1 ? composer[0] : "",
+      headerName: header.length === 1 ? header[0] : "",
+      ambiguous: composer.length > 1 || header.length > 1,
+      version: 1
+    };
+  }
+
   function observe() {
     const S = globalThis.GreenfieldSafetyPolicy;
 
@@ -183,6 +217,7 @@
       blockingUi:notices.some(e=>e.matches("[role='dialog'],[role='alertdialog'],[aria-modal='true']") && !S.quotaSignal(e.innerText || e.textContent || "")),
       adapterVersion:5,
       effortEvidenceSource,
+      gptSurface:gptSurface(),
       controlsSeen:{
         model:controlLabels,
         effort:effortLabels,
@@ -192,6 +227,6 @@
     };
   }
   globalThis.GreenfieldModelObservation = Object.freeze({
-    observe, parseCurrentModelNotice, parseRecommendedModel, resolveModelLabels, resolveEffortLabels
+    observe, gptSurface, parseCurrentModelNotice, parseRecommendedModel, resolveModelLabels, resolveEffortLabels
   });
 })();

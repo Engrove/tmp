@@ -1,0 +1,87 @@
+{
+  "schema": "eic.greenfield.v187-release-summary.v1",
+  "version": "1.8.7",
+  "generatedAt": "2026-09-26T08:20:59.620757+00:00",
+  "source": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.8.6.zip",
+    "version": "1.8.6",
+    "sha256": "81fdd48fd05adf364faeea5ae469fe3df6f9ce8607286e12eb5684aa6b90ef7e",
+    "sizeBytes": 956407,
+    "embeddedIntegrity": {
+      "records": 311,
+      "mismatches": 0,
+      "rootDigest": "9fc6b681f0a5ff6631f58fd6aaccb53061d82a4b7208e03aaac0e015c2142fd3"
+    }
+  },
+  "change": {
+    "purpose": "Operator report 2026-09-26: 'ChatGPT har uppdaterat sitt UI så EIC startas inte upp längre vid start av kö. Greenfield defaultar till ChatGPT standard chatt istället för EIC.' Screenshots: overlay 'SENDING · GF-045 · Spärr: EIC_SURFACE_UNVERIFIED' on standard chat; EIC selected at chatgpt.com/ with composer pill 'EIC'. Follow-up screenshot: new processing notice 'Planerade åtkomst / Våra system bearbetar den här begäran lite till innan de svarar.'",
+    "rootCause": "(1) activateQueueItem resolved the queue slot's GPT root with deriveGptRoot(tab.url, priorProcess.gptRoot); a tab at chatgpt.com/ (where ChatGPT's newer shell shows a pinned GPT after a client-side selection) with no prior custom root gave the generic root 'https://chatgpt.com/', and the rotation navigated there: standard chat. lastKnownGoodEicUrl was not consulted. (2) tickRotating accepted any fresh chat (userCount 0, composer ready) as the landing, so SENDING began in standard chat and the send-time proof held EIC_SURFACE_UNVERIFIED. (3) GPT identity was compared by the full path segment including the name slug; the newer shell's URLs omit it (/g/g-<id>/c/<conv> instead of /g/g-<id>-eic/c/<conv>), so EIC conversations classified as WRONG_CUSTOM_GPT/EIC_SURFACE_UNVERIFIED. (4) content.js matched the processing notice only with 'förfrågan'; the newer wording 'begäran' with a status heading became assistant text ('Planerade åtkomstVåra system bearbetar …').",
+    "fix": "lib/safety-policy.js: gptRef/sameGpt (identity = g-<id> token), eicSurfaceProof (URL with /g/: id must match; generic URL: composer pill/header GPT name must slugify to the expected root's slug; conflict, ambiguity or no name = EIC_SURFACE_UNVERIFIED), used by evaluateModel. lib/managed-eic-surface.mjs: identity-based classify, preferNamedRoot, resolveManagedGptRoot (tab GPT -> process GPT -> last verified EIC, never generic); rememberGoodEicUrl never replaces a named root by a slugless one of the same GPT. lib/session-rotation.mjs deriveGptRoot keeps the named root. lib/model-observation.js: gptSurface {composerName, headerName} (adapterVersion stays 5). content.js: EIC_GF_SELECT_GPT clicks the unique pinned GPT (section Pinned) by name, never the unpin button or a recent chat; processing notice 'begäran' and a lone status heading next to the notice are status. background.js: queue start throws EIC_GPT_ROOT_UNKNOWN instead of using a generic root; tickRotating landing check (slugless address, then up to 3 pinned-GPT clicks 4 s apart, BLOCKED SESSION_ROTATION_EIC_NOT_SELECTED after 120 s); surface guard accepts EIC shown by name at '/', and does not navigate during ROTATING; startRun accepts EIC shown by name at '/'; restart recovery and rebind compare GPT identity.",
+    "newPermissions": "none",
+    "runtimeChange": "queue start/rotation land only in the EIC GPT; slugless GPT URLs recognised; EIC at '/' proven by GPT name; new processing-notice wording is status"
+  },
+  "gates": {
+    "QUEUE_START_NEVER_GENERIC_ROOT_PASS": true,
+    "ROTATION_LANDING_VERIFIED_EIC_PASS": true,
+    "SLUGLESS_GPT_IDENTITY_PASS": true,
+    "EIC_BY_NAME_FAIL_CLOSED_PASS": true,
+    "PINNED_GPT_SELECT_ONLY_PASS": true,
+    "PROCESSING_NOTICE_BEGARAN_PASS": true,
+    "MODEL_POLICY_UNCHANGED_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
+  },
+  "executed": {
+    "baselineNpmTestOnV186": {
+      "tests": 609,
+      "pass": 609,
+      "fail": 0
+    },
+    "reproductionBeforeFix": "tests/v187-eic-surface-new-ui.test.mjs on v1.8.6 code: 0/13. E2E queue start from chatgpt.com/ with a remembered EIC root: v1.8.6 first navigation 'https://chatgpt.com/' (expected the EIC root); rotation landing in standard chat: v1.8.6 navigations ['https://chatgpt.com/'] and SENDING in standard chat.",
+    "dedicated": {
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "output": "verification/v187-eic-surface-new-ui.tap",
+      "e2e": "real background.js ticks (harness): startMissionQueue from chatgpt.com/ -> EIC root, one prompt; every GPT address opens standard chat -> EIC root, slugless address, one pinned-GPT click, then one prompt; never selectable -> BLOCKED SESSION_ROTATION_EIC_NOT_SELECTED, 0 prompts, 3 clicks; no known EIC address -> EIC_GPT_ROOT_UNKNOWN, no navigation"
+    },
+    "realDomEicSurface": {
+      "tool": "tools/verify-eic-surface.mjs (Chromium; lib/safety-policy.js + lib/model-observation.js + content.js)",
+      "checks": 26,
+      "pass": 26,
+      "fail": 0,
+      "output": "verification/v187-eic-surface-check.json",
+      "negativeControlOnV186": "same tool on v1.8.6 scripts (select rows omitted: no such message): 9/26; the notice 'begäran' + heading became assistant text 'Planerade åtkomstVåra system bearbetar den här begäran lite till innan de svarar.'; EIC at '/' and the slugless conversation URL EIC_SURFACE_UNVERIFIED"
+    },
+    "regressionBrowserTools": {
+      "verify-processing-notice": "24/24",
+      "verify-saved-mission-admin": "20/20",
+      "verify-content-health": "9/9",
+      "verify-model-picker": "10/10"
+    },
+    "fullNpmTest": {
+      "tests": 622,
+      "pass": 622,
+      "fail": 0,
+      "output": "verification/release-tests.tap"
+    },
+    "syntax": {
+      "files": 146,
+      "pass": 146,
+      "fail": 0,
+      "output": "verification/v187-syntax-check.txt"
+    },
+    "functionalRiskAnalysis": "docs/RISKANALYS_FUNKTION_V1_8_7.md"
+  },
+  "boundaries": {
+    "liveChromeExtensionAcceptance": "not executed",
+    "newShellConversationDom": "the page export 2026-09-26 covers only the landing pages (0 matches for data-message-author-role, stop-button, send-button); turn markers, stop button and streaming in the newer shell's conversation view are unverified",
+    "pinnedGptClick": "synthetic element.click() verified only against hand-written markup with the exported structure; whether ChatGPT acts on it is decided at the first live queue start (audit SESSION_ROTATION_EIC_SELECT_ATTEMPT)",
+    "gptSlugNavigation": "whether navigating to /g/g-<id>-eic selects the GPT in the newer shell is not proven by an export; a screenshot 2026-09-26 shows such a URL in a running EIC conversation; the fallback chain makes it non-critical",
+    "proModelPicker": "picker text 'Pro' (data-selected-reasoning-effort='medium') stays THINKING_MODE_UNVERIFIED: policy decision pending with the operator",
+    "gptDeprecation": "ChatGPT banner 2026-09-26: GPTs not migrated to plugins are unavailable after 11 December; not addressed",
+    "processingNoticeMarkup": "the 'begäran' notice and heading come from a screenshot and operator text, not a DOM export",
+    "englishFinnishLabels": "'Remove <name>', 'GPT actions', 'Poista', 'GPT-toiminnot' are assumptions (no sample)",
+    "sensitiveInputs": "the operator's pasted page HTML contained account tokens and personal data; it is not packaged or committed; fixtures are hand-written with synthetic ids"
+  }
+}

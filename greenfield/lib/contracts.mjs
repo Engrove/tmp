@@ -1,5 +1,5 @@
 export const APP_NAME = "EIC Autonom Agent Greenfield";
-export const APP_VERSION = "1.8.6";
+export const APP_VERSION = "1.8.7";
 export const AUDIT_SCHEMA = "eic.greenfield.audit.v2";
 export const PROCESS_SCHEMA = "eic.greenfield.process.v1";
 export const ANALYSIS_SCHEMA = "eic.greenfield.hjalmar-d2.v3";

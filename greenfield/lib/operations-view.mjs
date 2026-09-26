@@ -10,6 +10,8 @@ export const REASONS = Object.freeze({
   THINKING_EFFORT_UNKNOWN:"Tänkenivån kan inte rankas mot valt golv",
   THINKING_EFFORT_TOO_LOW:"För låg tänkenivå",
   EIC_SURFACE_UNVERIFIED:"Rätt EIC GPT-yta är inte verifierad",
+  EIC_GPT_ROOT_UNKNOWN:"EIC-adressen är okänd: öppna en EIC-konversation (adress /g/…) en gång och starta kön igen",
+  SESSION_ROTATION_EIC_NOT_SELECTED:"EIC kunde inte väljas i ny chatt: välj EIC i sidofältet (Fästa) och starta kön igen",
   CHAT_MODE_REQUIRED:"Greenfield kräver vanligt Chat-läge",
   BLOCKING_CHATGPT_UI:"ChatGPT visar en blockerande dialog",
   PROVIDER_CONTENT_BLOCK_PAUSE:"ChatGPT-spärr (Daybreak) återkom: GFW pausad, fortsätter sedan i ny chatt",

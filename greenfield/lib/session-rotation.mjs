@@ -1,3 +1,5 @@
+import { customGptRoot, preferNamedRoot } from "./managed-eic-surface.mjs";
+
 export const SESSION_ACTIONS = Object.freeze({
   KEEP: "KEEP",
   ROTATE_SESSION_NOW: "ROTATE_SESSION_NOW",
@@ -25,31 +27,18 @@ function validChatGptUrl(value) {
   }
 }
 
-function customGptRoot(value) {
-  try {
-    const parsed = new URL(String(value || ""));
-    if (parsed.protocol !== "https:" || !CHATGPT_HOSTS.has(parsed.hostname)) return "";
-    const parts = parsed.pathname.split("/").filter(Boolean);
-    const gIndex = parts.indexOf("g");
-    if (gIndex >= 0 && parts[gIndex + 1]) {
-      return `${parsed.origin}/g/${parts[gIndex + 1]}`;
-    }
-    return "";
-  } catch {
-    return "";
-  }
-}
-
 /**
  * Resolve the canonical GPT landing surface used to start a fresh chat.
  *
  * Prefer a live custom-GPT path from the currently managed tab. If a conversation
  * URL no longer carries the /g/<id-slug> segment, use the previously persisted
  * root from the same process. Generic ChatGPT sessions fall back to the origin.
+ * v1.8.7: the live and persisted roots of the same GPT (same id) resolve to the
+ * one that carries the name slug; ChatGPT's newer URLs omit it.
  */
 export function deriveGptRoot(url, fallback = "") {
   const liveCustom = customGptRoot(url);
-  if (liveCustom) return liveCustom;
+  if (liveCustom) return preferNamedRoot(liveCustom, fallback);
 
   const fallbackCustom = customGptRoot(fallback);
   if (fallbackCustom) return fallbackCustom;
