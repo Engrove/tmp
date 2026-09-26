@@ -1,0 +1,752 @@
+{
+  "environment": "local analysis runtime",
+  "node": "v22.16.0",
+  "fileCount": 149,
+  "results": [
+    {
+      "path": "background.js",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "content.js",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/a2a.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/audit-store.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/canonical-json.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/common.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/continuation-guard.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/contracts.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/conversation-recovery.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/dispatch-reconciliation.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/durable-checkpoint.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/global-capacity-scheduler.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/global-prompt-gate.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/greenfield-control.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/hjalmar-d2.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/instruction-store.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/keyed-queue.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/language-contract.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/learning-control.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/managed-eic-surface.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/managed-surface-liveness.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/mission-delegation.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/mission-pause.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/mission-queue-set-vault.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/mission-queue-sets.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/mission-work-queue.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/model-config.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/model-observation.js",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/nano-task.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/nano.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/operations-view.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/operator-backup.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/operator-settings.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/overlay-summary.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/panel-details-state.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/process-status.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/process-store.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/prompt-profile.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/provider-notice.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/queue-control-policy.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/queue-planning.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/queue-schedule.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/rc1-checkpoint-migration.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/recovery-report.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/response-contract.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/response-observation.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/response-stability.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/restart-recovery.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/runtime-control.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/safety-hold-reconciliation.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/safety-policy.js",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/saved-mission-catalog.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/saved-mission-vault.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/send-fence.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/session-health.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/session-rotation.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/startup-diagnostics.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/state.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/storage-contract-probe.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/storage-health.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/storage-retention.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/tab-health.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/turn-causality.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/usage-governor.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/waiting-refresh.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/work-mode.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "lib/worker-identity.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "offscreen.js",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "sidepanel.js",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/a2a.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/continuation-guard.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/global-capacity-scheduler.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/greenfield-control.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/helpers/background-harness.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/helpers/chrome-json-storage.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/hjalmar-d2.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/keyed-queue.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/mission-pause.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/mission-work-queue.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/model-config.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/nano-task.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/nano.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/observation-wire.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/response-contract.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/response-stability.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/saved-mission-vault.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/send-fence.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/session-health.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/session-rotation.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/state.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/static-contract.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/turn-causality.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v111-live-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v1110-continuity-liveness-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v1111-stale-session-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v112-live-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v113-live-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v114-live-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v115-live-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v116-live-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v117-live-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v118-manual-interleave-deterministic.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v120-global-prompt-pause.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v121-owner-fallback-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v133-live-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v135-rate-limit-recovery.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v135-rate-limit-static.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v136-capacity-scheduler-static.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v137-multi-mission-static.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v138-live-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v139-queue-durability-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v140-mission-delegation.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v150-capacity-rearm-regression.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v151-worker-isolation-pause-sets.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v152-work-mode-background-surface.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v153-durable-queue-status.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v160-backup-boundaries.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v160-runtime-integration.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v160-safety-recovery.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v161-chrome-serialization.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v170-model-compatibility.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v171-dispatch-reconciliation.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v172-multiturn-liveness.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v173-language-model-safety.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v174-ordered-loop-queue.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v175-storage-retention.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v176-owner-state-current-focus.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v177-runtime-control-e2e.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v177-runtime-control.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v178-prompt-continuity.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v179-stale-rotation-overlay.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v180-learning-control.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v181-queue-schedule.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v182-response-observation.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v183-tab-health-daybreak.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v184-pattern-attributes.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v185-saved-missions.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v186-hold-ladder-model-picker.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v187-eic-surface-new-ui.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v188-recovery-boundaries.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tests/v188-waiting-and-target-recovery.test.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tools/replay-dispatch-audit.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tools/replay-multiturn-audit.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tools/verify-content-health.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tools/verify-eic-surface.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tools/verify-model-picker.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tools/verify-processing-notice.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tools/verify-saved-mission-admin.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "tools/verify-sidepanel-patterns.mjs",
+      "exitCode": 0,
+      "stderr": ""
+    }
+  ]
+}

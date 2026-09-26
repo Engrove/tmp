@@ -1,0 +1,313 @@
+TAP version 13
+# Subtest: v1.8.8 regression: observed generation defers every stale-ladder action before the bounded limit
+not ok 1 - v1.8.8 regression: observed generation defers every stale-ladder action before the bounded limit
+  ---
+  duration_ms: 1.898547
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:45:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    generation must not be interrupted at 31m
+    
+    'F5' !== 'WAIT'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'WAIT'
+  actual: 'F5'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:51:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: v1.8.8 generation hold is bounded and never weakens unacknowledged/completed-response gates
+not ok 2 - v1.8.8 generation hold is bounded and never weakens unacknowledged/completed-response gates
+  ---
+  duration_ms: 0.298038
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:57:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'F5' !== 'WAIT'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'WAIT'
+  actual: 'F5'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:59:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: v1.8.8 regression: overdue recovery steps have a real settle interval, not one destructive action per tick
+not ok 3 - v1.8.8 regression: overdue recovery steps have a real settle interval, not one destructive action per tick
+  ---
+  duration_ms: 0.227503
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:66:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'CTRL_F5' !== 'WAIT'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'WAIT'
+  actual: 'CTRL_F5'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:72:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.8.8 countdown uses the same late-stage timing as the recovery evaluator
+not ok 4 - v1.8.8 countdown uses the same late-stage timing as the recovery evaluator
+  ---
+  duration_ms: 0.283927
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:80:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    [32m+ actual[39m [31m- expected[39m
+    
+    [32m+[39m 1790413200000
+    [31m- [39m1790416920000
+            ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1790416920000
+  actual: 1790413200000
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:82:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.8.8 E2E: a long generated response is not reloaded or resent at 31/121 minutes
+not ok 5 - v1.8.8 E2E: a long generated response is not reloaded or resent at 31/121 minutes
+  ---
+  duration_ms: 387.387345
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:86:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    [32m+ actual[39m [31m- expected[39m
+    
+    [32m+[39m [
+    [32m+[39m   {
+    [32m+[39m     bypassCache: false
+    [32m+[39m   }
+    [32m+[39m ]
+    [31m-[39m []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      bypassCache: false
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:97:14)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.8.8 E2E: model-evidence hold preserves bounded generation wait but cannot deadlock recovery
+not ok 6 - v1.8.8 E2E: model-evidence hold preserves bounded generation wait but cannot deadlock recovery
+  ---
+  duration_ms: 266.71567
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:107:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    [32m+ actual[39m [31m- expected[39m
+    
+    [32m+[39m [
+    [32m+[39m   'F5'
+    [32m+[39m ]
+    [31m-[39m []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'F5'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:118:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.8.8 E2E: generation ending without a response resumes the ordinary bounded ladder
+not ok 7 - v1.8.8 E2E: generation ending without a response resumes the ordinary bounded ladder
+  ---
+  duration_ms: 266.180802
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:141:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:151:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.8.8 regression: current or remembered EIC identity wins over an unrelated active GPT URL
+not ok 8 - v1.8.8 regression: current or remembered EIC identity wins over an unrelated active GPT URL
+  ---
+  duration_ms: 0.530198
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:160:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    [32mactual[39m [31mexpected[39m
+    
+    [39m'[39m[39mh[39m[39mt[39m[39mt[39m[39mp[39m[39ms[39m[39m:[39m[39m/[39m[39m/[39m[39mc[39m[39mh[39m[39ma[39m[39mt[39m[39mg[39m[39mp[39m[39mt[39m[39m.[39m[39mc[39m[39mo[39m[39mm[39m[39m/[39m[39mg[39m[39m/[39m[39mg[39m[39m-[39m[32mo[39m[39mt[39m[32mh[39m[39me[39m[32mr[39m[32m-[39m[32mm[39m[32ma[39m[31ms[39m[39mt[39m[32ml[39m[32mo[39m[32mg[39m[32mg[39m[31m-[39m[31me[39m[31mi[39m[31mc[39m[39m'[39m
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'https://chatgpt.com/g/g-test-eic'
+  actual: 'https://chatgpt.com/g/g-other-matlogg'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:161:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.8.8 E2E: a queue started from a different GPT navigates to remembered EIC
+not ok 9 - v1.8.8 E2E: a queue started from a different GPT navigates to remembered EIC
+  ---
+  duration_ms: 96.411981
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:168:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    [32mactual[39m [31mexpected[39m
+    
+    [39m'[39m[39mh[39m[39mt[39m[39mt[39m[39mp[39m[39ms[39m[39m:[39m[39m/[39m[39m/[39m[39mc[39m[39mh[39m[39ma[39m[39mt[39m[39mg[39m[39mp[39m[39mt[39m[39m.[39m[39mc[39m[39mo[39m[39mm[39m[39m/[39m[39mg[39m[39m/[39m[39mg[39m[39m-[39m[32mo[39m[39mt[39m[32mh[39m[39me[39m[32mr[39m[32m-[39m[32mm[39m[32ma[39m[31ms[39m[39mt[39m[32ml[39m[32mo[39m[32mg[39m[32mg[39m[31m-[39m[31me[39m[31mi[39m[31mc[39m[39m'[39m
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'https://chatgpt.com/g/g-test-eic'
+  actual: 'https://chatgpt.com/g/g-other-matlogg'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:181:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.8.8 regression: an in-flight EIC root redirect must not erase the last conversation address
+not ok 10 - v1.8.8 regression: an in-flight EIC root redirect must not erase the last conversation address
+  ---
+  duration_ms: 216.390781
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:187:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    a landing page is not the unanswered conversation
+    [32mactual[39m [31mexpected[39m
+    
+    [39m'[39m[39mh[39m[39mt[39m[39mt[39m[39mp[39m[39ms[39m[39m:[39m[39m/[39m[39m/[39m[39mc[39m[39mh[39m[39ma[39m[39mt[39m[39mg[39m[39mp[39m[39mt[39m[39m.[39m[39mc[39m[39mo[39m[39mm[39m[39m/[39m[39mg[39m[39m/[39m[39mg[39m[39m-[39m[39mt[39m[39me[39m[39ms[39m[39mt[39m[39m-[39m[39me[39m[39mi[39m[39mc[39m[31m/[39m[31mc[39m[31m/[39m[31ma[39m[31mb[39m[31mc[39m[31m-[39m[31m1[39m[31m2[39m[31m3[39m[39m'[39m
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'https://chatgpt.com/g/g-test-eic/c/abc-123'
+  actual: 'https://chatgpt.com/g/g-test-eic'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:195:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.8.8 E2E: tab recovery restores the known unanswered conversation, not its redirected landing root
+not ok 11 - v1.8.8 E2E: tab recovery restores the known unanswered conversation, not its redirected landing root
+  ---
+  duration_ms: 204.460136
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:198:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    [32mactual[39m [31mexpected[39m
+    
+    [39m'[39m[39mh[39m[39mt[39m[39mt[39m[39mp[39m[39ms[39m[39m:[39m[39m/[39m[39m/[39m[39mc[39m[39mh[39m[39ma[39m[39mt[39m[39mg[39m[39mp[39m[39mt[39m[39m.[39m[39mc[39m[39mo[39m[39mm[39m[39m/[39m[39mg[39m[39m/[39m[39mg[39m[39m-[39m[39mt[39m[39me[39m[39ms[39m[39mt[39m[39m-[39m[39me[39m[39mi[39m[39mc[39m[31m/[39m[31mc[39m[31m/[39m[31ma[39m[31mb[39m[31mc[39m[31m-[39m[31m1[39m[31m2[39m[31m3[39m[39m'[39m
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'https://chatgpt.com/g/g-test-eic/c/abc-123'
+  actual: 'https://chatgpt.com/g/g-test-eic'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:207:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.8.8 E2E: a healthy empty landing page cannot clear a missing in-flight thread incident
+not ok 12 - v1.8.8 E2E: a healthy empty landing page cannot clear a missing in-flight thread incident
+  ---
+  duration_ms: 271.750799
+  type: 'test'
+  location: '/mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:212:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    [32m+ actual[39m [31m- expected[39m
+    
+    [32m+[39m undefined
+    [31m- [39m'THREAD_MISSING'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'THREAD_MISSING'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/data/greenfield_v1_8_8_work/EIC_Autonom_Agent_Greenfield_v1.8.7/tests/v188-waiting-and-target-recovery.test.mjs:225:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 0
+# fail 12
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1782.132386

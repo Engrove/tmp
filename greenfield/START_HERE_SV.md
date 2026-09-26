@@ -1,4 +1,6 @@
-# Greenfield 1.8.7 – börja här
+# Greenfield 1.8.8 – börja här
+
+Version 1.8.8 rättar fyra kvarvarande felgrupper: verifierad generering får en tidsbegränsad respit från återhämtning, sena återhämtningssteg separeras med minst 60 sekunder, en annan aktiv GPT får inte byta köns bundna mål, och en omdirigering till GPT-roten raderar inte en pågående konversations återställningsadress. Respiten är högst fyra timmar från promptens utskick och kräver positiv stopp-/strömningssignal. Modellkrav, kvalitetskarantän och runtimeControl-kontrakt är oförändrade. Se [UPPDATERA_TILL_1_8_8.md](UPPDATERA_TILL_1_8_8.md) och [funktionell patchanalys](docs/RISKANALYS_FUNKTION_V1_8_8.md). **Live Chrome är inte verifierat i denna leverans.**
 
 Greenfield 1.8.7 anpassar köstarten till ChatGPT:s nya gränssnitt. Kön öppnar aldrig standardchatten. Den går till den verifierade EIC-GPT:n, väljer vid behov EIC under **Fästa** och skickar först när sidan visar EIC. Håll därför EIC fäst i sidofältet. Se [UPPDATERA_TILL_1_8_7.md](UPPDATERA_TILL_1_8_7.md) och den funktionella riskanalysen [docs/RISKANALYS_FUNKTION_V1_8_7.md](docs/RISKANALYS_FUNKTION_V1_8_7.md).
 

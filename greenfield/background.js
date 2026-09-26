@@ -1,6 +1,7 @@
 import "./lib/safety-policy.js";
 import { readSafety, usageSummary, budgetDecision, reserveUsage, authorizeUsageSend, recordUsageOutput, usageIdentity, observeProviderQuota, probeProviderRecovery, updateSafetyPolicy, pauseAdmission } from "./lib/usage-governor.mjs";
 import { conversationKey, reconcileRestart } from "./lib/restart-recovery.mjs";
+import { conversationRecoveryUrl, shouldRememberManagedUrl, expectedThreadMissing } from "./lib/conversation-recovery.mjs";
 import { reconcileRecoveryReportWithLiveObservation } from "./lib/recovery-report.mjs";
 import { createOperatorBackup, restoreOperatorBackup } from "./lib/operator-backup.mjs";
 import { storageHealth } from "./lib/storage-health.mjs";
@@ -104,6 +105,7 @@ import {
   externalAssistantInterleaveEvidence
 } from "./lib/turn-causality.mjs";
 import {
+  hasCurrentGenerationEvidence,
   createWaitingRefreshState,
   evaluateWaitingRefresh,
   resetWaitingRefreshOnAssistantResponse,
@@ -1322,9 +1324,15 @@ async function executeTabRecoveryStep(process, step) {
   const tabId = process.tabId;
   let tab = null;
   try { tab = await chrome.tabs.get(tabId); } catch {}
-  const url = tab?.url && supportedUrl(tab.url)
-    ? tab.url
-    : String(process.lastManagedUrl || process.gptRoot || "");
+  const observedUrl = tab?.url && supportedUrl(tab.url) ? tab.url : "";
+  const url = conversationRecoveryUrl(process, observedUrl);
+  if (url !== observedUrl && supportedUrl(url) &&
+      [TAB_RECOVERY_STEP.RELOAD, TAB_RECOVERY_STEP.HARD_RELOAD].includes(step)) {
+    // An empty GPT landing page cannot recover the outstanding thread by
+    // reloading itself. Revisit the previously proven conversation instead.
+    await chrome.tabs.update(tabId, { url });
+    return { url, restoredConversation: true };
+  }
   if (step === TAB_RECOVERY_STEP.REINJECT_BRIDGE) {
     await injectContentBridge(tabId);
   } else if (step === TAB_RECOVERY_STEP.RELOAD) {
@@ -1422,7 +1430,8 @@ async function maybeRecoverPageHealth(process, page) {
     pending.dispatch.acknowledged !== true &&
     pending.dispatch.effectPossible !== false;
   if (dispatchInFlight) return { handled: false, process };
-  const condition = pageConditionFromHealth(page?.pageHealth, { phase: process.phase });
+  const condition = pageConditionFromHealth(page?.pageHealth, { phase: process.phase }) ||
+    (expectedThreadMissing(process, page) ? "THREAD_MISSING" : "");
   if (!condition && !process.tabHealth?.incident) return { handled: false, process };
   const health = page?.pageHealth || {};
   return applyTabHealthCondition(process, condition, {
@@ -1594,7 +1603,8 @@ async function executeWaitingRefresh(process, decision) {
 
   // Write-ahead the exact stale-session milestone before the page effect. A
   // service-worker restart/reload callback loss must not repeat the same
-  // F5/Ctrl-F5 milestone. The next effect is never due before the next 30m edge.
+  // F5/Ctrl-F5 milestone. Nominal edges stay 30/60/90/120m, with a real
+  // settle interval between late recovery effects after a suspended worker.
   const armed = await saveObserved(process, {
     waitingRefresh,
     sessionHealth: markSessionHealthRecovery(process.sessionHealth)
@@ -1724,15 +1734,34 @@ async function maybeEscalateWaitingRefresh(process, page, {
     process.waitingRefresh.promptHash === (process.lastPrompt?.hash || "") &&
     Number(process.waitingRefresh.turn || 0) === Number(process.turn || 0)
   );
-  const refreshState = refreshStateMatches ? process.waitingRefresh : null;
+  const refreshState = refreshStateMatches ? process.waitingRefresh : createWaitingRefreshState({
+    now: Date.now(),
+    page: {},
+    promptHash: process.lastPrompt?.hash || "",
+    turn: Number(process.turn || 0),
+    staleSince: process.lastPrompt?.sentAt || process.lastMaterialAt || process.startedAt || ""
+  });
   const refreshDecision = evaluateWaitingRefresh({
     now: Date.now(),
     staleSince: refreshState?.staleSince || "",
     waitingSince: process.lastPrompt?.sentAt || process.lastMaterialAt || process.startedAt || "",
     acknowledged: process.lastPrompt?.acknowledged === true,
     responseComplete: false,
-    stage: refreshState?.stage || ""
+    stage: refreshState?.stage || "",
+    generating: hasCurrentGenerationEvidence(page),
+    requestedAt: refreshState?.requestedAt || ""
   });
+  const generationHoldUntilMs = Number(refreshDecision.generationHoldUntilMs || 0);
+  if (generationHoldUntilMs !== Number(refreshState.generationHoldUntilMs || 0)) {
+    process = await saveObserved(process, {
+      waitingRefresh: { ...refreshState, generationHoldUntilMs }
+    }, generationHoldUntilMs ? "WAITING_GENERATION_DEFERRED" : "WAITING_GENERATION_DEFERRAL_ENDED", {
+      generationHoldUntilMs,
+      generating: page.generating === true,
+      promptHash: process.lastPrompt?.hash || "",
+      noPromptSent: true
+    });
+  }
 
   if (refreshDecision.action === WAITING_REFRESH_ACTIONS.F5 ||
       refreshDecision.action === WAITING_REFRESH_ACTIONS.CTRL_F5) {
@@ -5244,6 +5273,7 @@ async function tickWaiting(process) {
     // two held processes kept TTL at 0:00 for 11-16 h and both capacity slots).
     const refreshEscalation = await maybeEscalateWaitingRefresh(process, page, { reason: `SAFETY_HOLD:${holdCode}` });
     if (refreshEscalation.handled) return refreshEscalation.process;
+    process = refreshEscalation.process;
     return holdForSafety(process,process.safety?.proof || {code:"MODEL_EVIDENCE_MISSING"});
   }
 
@@ -5488,6 +5518,7 @@ async function tickWaiting(process) {
       reason: causal.reason
     });
     if (refreshEscalation.handled) return refreshEscalation.process;
+    process = refreshEscalation.process;
 
     const lastMaterialMs = Date.parse(process.lastMaterialAt || process.updatedAt || process.startedAt || "");
     const idleMs = Number.isFinite(lastMaterialMs) ? Date.now() - lastMaterialMs : 0;
@@ -5570,6 +5601,7 @@ async function tickWaiting(process) {
       reason: notNewReason
     });
     if (refreshEscalation.handled) return refreshEscalation.process;
+    process = refreshEscalation.process;
     scheduleFast(process.processId, FAST_RECHECK_MS);
     return process;
   }
@@ -5645,6 +5677,7 @@ async function tickWaiting(process) {
       reason: `RESPONSE_STABILITY_${String(advanced.reason || "INCOMPLETE")}`
     });
     if (refreshEscalation.handled) return refreshEscalation.process;
+    process = refreshEscalation.process;
     scheduleFast(process.processId, FAST_RECHECK_MS);
     return process;
   }
@@ -5664,6 +5697,7 @@ async function tickWaiting(process) {
       reason: `RESPONSE_STRUCTURALLY_INCOMPLETE_${structural.reason}`
     });
     if (refreshEscalation.handled) return refreshEscalation.process;
+    process = refreshEscalation.process;
     scheduleFast(process.processId, FAST_RECHECK_MS);
     return process;
   }
@@ -8282,8 +8316,10 @@ async function observeSafetyForProcess(process, page) {
     process.lastManagedUrl !== page.url ||
     Date.now()-Number(prior.persistedObservationAtMs || 0)>30000;
   process.safety = next;
-  // Only positively bound EIC URLs replace the durable recovery address.
-  if (classifyManagedEicSurface(page.url,process.gptRoot).ok) process.lastManagedUrl = page.url;
+  // Surface proof also supports the new shell's generic /c/<id> URL, but a
+  // root redirect during an in-flight turn must not erase its recovery address.
+  if (Safety.eicSurfaceProof(page.modelEvidence, page.url, process.gptRoot).ok &&
+      shouldRememberManagedUrl(process, page.url)) process.lastManagedUrl = page.url;
   if (changed) {
     process.safety.persistedObservationAtMs=Date.now();
     await saveProcess(process);

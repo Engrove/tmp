@@ -1,0 +1,7 @@
+{
+  "status": "NOT_EXECUTED_PAST_NAVIGATION",
+  "assertionsExecuted": 0,
+  "reason": "ERR_BLOCKED_BY_ADMINISTRATOR before DOM assertions in bounded Chromium retry",
+  "scope": "Synthetic DOM-tool attempt, not an authenticated live Chrome session",
+  "priorPackageOutputs": "Historical v1.8.7 and earlier browser outputs are not v1.8.8 evidence"
+}

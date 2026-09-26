@@ -1,4 +1,16 @@
 export const WAITING_STALE_INTERVAL_MS = 30 * 60 * 1000;
+// v1.8.8: a current generation signal may defer disruptive recovery, but a
+// stuck stop-button must not hold the slot forever. This is a client recovery
+// budget, not a claim about provider response time or model eligibility.
+export const WAITING_GENERATION_LIMIT_MS = 4 * 60 * 60 * 1000;
+export const WAITING_RECOVERY_SETTLE_MS = 60 * 1000;
+
+// A busy/disabled composer alone also occurs during loading and UI holds.
+// Deferral needs the bridge's current positive stop/streaming observation.
+export function hasCurrentGenerationEvidence(page) {
+  return page?.generating === true &&
+    (page?.signals?.stopVisible === true || page?.signals?.streaming === true);
+}
 
 // Backward-compatible aliases retained for older deterministic imports. In v1.1.11
 // the entire stale-session ladder advances on one 30-minute cadence; there is no
@@ -108,6 +120,7 @@ export function createWaitingRefreshState({
     staleSince: staleSince || new Date(now).toISOString(),
     resetCount: 0,
     lastAssistantObservedAt: "",
+    generationHoldUntilMs: 0,
     ...marker,
     promptHash: String(promptHash || ""),
     turn: Number(turn || 0),
@@ -148,6 +161,7 @@ export function resetWaitingRefreshOnAssistantResponse({
       staleSince: new Date(now).toISOString(),
       resetCount: Number(base.resetCount || 0) + 1,
       lastAssistantObservedAt: new Date(now).toISOString(),
+      generationHoldUntilMs: 0,
       ...marker,
       promptHash: String(promptHash || base.promptHash || ""),
       turn: Number(turn || base.turn || 0),
@@ -163,7 +177,9 @@ export function evaluateWaitingRefresh({
   waitingSince = "",
   acknowledged = false,
   responseComplete = false,
-  stage = ""
+  stage = "",
+  generating = false,
+  requestedAt = ""
 } = {}) {
   if (acknowledged !== true || responseComplete === true) {
     return {
@@ -183,6 +199,32 @@ export function evaluateWaitingRefresh({
       action: WAITING_REFRESH_ACTIONS.WAIT,
       code: "STALE_SESSION_ANCHOR_MISSING",
       waitMs: 0,
+      stage: normalizedStage
+    };
+  }
+
+  const promptStartedAt = parseTime(waitingSince) ?? startedAt;
+  const generationHoldUntilMs = promptStartedAt + WAITING_GENERATION_LIMIT_MS;
+  if (generating === true && Number(now) < generationHoldUntilMs) {
+    return {
+      action: WAITING_REFRESH_ACTIONS.WAIT,
+      code: "WAITING_ACTIVE_GENERATION",
+      waitMs,
+      stage: normalizedStage,
+      generationHoldUntilMs
+    };
+  }
+
+  // After a suspended worker or a generation deferral, several wall-clock
+  // milestones can already be overdue. Let each actual reload settle before
+  // the next one instead of exhausting all remaining steps in seconds.
+  const requestedAtMs = parseTime(requestedAt);
+  if (normalizedStage && requestedAtMs != null &&
+      Number(now) < requestedAtMs + WAITING_RECOVERY_SETTLE_MS) {
+    return {
+      action: WAITING_REFRESH_ACTIONS.WAIT,
+      code: "WAITING_RECOVERY_SETTLING",
+      waitMs,
       stage: normalizedStage
     };
   }
@@ -273,7 +315,7 @@ const WAITING_REFRESH_NEXT_STEP = Object.freeze({
   [WAITING_REFRESH_STAGES.CTRL_F5_90]: Object.freeze({ action: WAITING_REFRESH_ACTIONS.ROTATE, intervals: 4 })
 });
 
-export function waitingRefreshSchedule({ staleSince = "", stage = "" } = {}) {
+export function waitingRefreshSchedule({ staleSince = "", stage = "", requestedAt = "" } = {}) {
   const anchorMs = parseTime(staleSince);
   if (anchorMs == null) return null;
   const normalizedStage = normalizeWaitingRefreshStage(stage);
@@ -281,11 +323,15 @@ export function waitingRefreshSchedule({ staleSince = "", stage = "" } = {}) {
     ? WAITING_REFRESH_NEXT_STEP[normalizedStage]
     : null;
   if (!step) return null;
-  return {
-    anchorMs,
-    stage: normalizedStage,
-    nextAction: step.action,
-    nextAtMs: anchorMs + step.intervals * WAITING_STALE_INTERVAL_MS,
-    rotateAtMs: anchorMs + 4 * WAITING_STALE_INTERVAL_MS
-  };
+  const requestedAtMs = parseTime(requestedAt);
+  const nextAtMs = Math.max(
+    anchorMs + step.intervals * WAITING_STALE_INTERVAL_MS,
+    normalizedStage && requestedAtMs != null ? requestedAtMs + WAITING_RECOVERY_SETTLE_MS : 0
+  );
+  let rotateAtMs = nextAtMs;
+  for (let interval = step.intervals + 1; interval <= 4; interval += 1) {
+    rotateAtMs = Math.max(anchorMs + interval * WAITING_STALE_INTERVAL_MS,
+      rotateAtMs + WAITING_RECOVERY_SETTLE_MS);
+  }
+  return { anchorMs, stage: normalizedStage, nextAction: step.action, nextAtMs, rotateAtMs };
 }

@@ -25,16 +25,17 @@ export function preferNamedRoot(primary, secondary = "") {
   return gptSlug(a) || !gptSlug(b) ? a : b;
 }
 
-// Root for a queue start or rotation: the tab's GPT, else the process's GPT,
-// else the last GPT verified as EIC. Never a generic ChatGPT address: a
-// generic root lands in standard chat in ChatGPT's newer shell.
+// Root for a queue start or rotation: preserve the process's bound GPT,
+// otherwise the last verified EIC root. An incidental different GPT in the
+// active tab must not retarget a queued mission. A first-use operator-selected
+// custom GPT remains the fallback only when neither binding exists.
 export function resolveManagedGptRoot(url = "", processRoot = "", globalRoot = "") {
   const live = customGptRoot(url);
   const prior = customGptRoot(processRoot);
   const global = customGptRoot(globalRoot);
-  if (live) return preferNamedRoot(preferNamedRoot(live, prior), global);
-  if (prior) return preferNamedRoot(prior, global);
-  return global;
+  if (prior) return preferNamedRoot(preferNamedRoot(prior, live), global);
+  if (global) return preferNamedRoot(global, live);
+  return live;
 }
 
 export function classifyManagedEicSurface(url, expectedRoot = "") {

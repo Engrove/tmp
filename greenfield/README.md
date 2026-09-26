@@ -1,6 +1,8 @@
-# EIC Autonom Agent Greenfield 1.8.7
+# EIC Autonom Agent Greenfield 1.8.8
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.8.8 rättar fyra kvarvarande felgrupper: verifierad generering får en tidsbegränsad respit från återhämtning, sena återhämtningssteg separeras med minst 60 sekunder, en annan aktiv GPT får inte byta köns bundna mål, och en omdirigering till GPT-roten raderar inte en pågående konversations återställningsadress. Respiten är högst fyra timmar från promptens utskick och kräver positiv stopp-/strömningssignal. Modellkrav, kvalitetskarantän och runtimeControl-kontrakt är oförändrade. Se [UPPDATERA_TILL_1_8_8.md](UPPDATERA_TILL_1_8_8.md) och [funktionell patchanalys](docs/RISKANALYS_FUNKTION_V1_8_8.md). **Live Chrome är inte verifierat i denna leverans.**
 
 Version 1.8.7 anpassar Greenfield till ChatGPT:s nya gränssnitt. Köstarten kunde öppna standardchatten i stället för EIC och fastna där med spärren EIC_SURFACE_UNVERIFIED. Köstart och ny chatt går nu alltid till den verifierade EIC-GPT:n. Visar ChatGPT ändå standardchatten väljs EIC under Fästa, och ingen prompt skickas förrän sidan visar EIC. GPT-adresser utan namnslug (/g/g-<id>/c/…) känns igen som samma GPT, och EIC vald på startsidan bevisas med EIC-pillret och rubriken. Den nya väntetexten ”Våra system bearbetar den här begäran …” fångas aldrig som svar. En funktionell riskanalys av hela applikationen finns i [docs/RISKANALYS_FUNKTION_V1_8_7.md](docs/RISKANALYS_FUNKTION_V1_8_7.md).
 

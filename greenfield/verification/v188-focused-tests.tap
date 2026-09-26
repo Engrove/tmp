@@ -1,0 +1,130 @@
+TAP version 13
+# Subtest: v1.8.8 boundary: a busy composer or an unbacked generating boolean is not positive generation evidence
+ok 1 - v1.8.8 boundary: a busy composer or an unbacked generating boolean is not positive generation evidence
+  ---
+  duration_ms: 0.760294
+  type: 'test'
+  ...
+# Subtest: v1.8.8 boundary: completion clears generation deferral, stage and requested-at state
+ok 2 - v1.8.8 boundary: completion clears generation deferral, stage and requested-at state
+  ---
+  duration_ms: 0.503117
+  type: 'test'
+  ...
+# Subtest: v1.8.8 boundary: a planned fresh-session rotation does not restore the old conversation
+ok 3 - v1.8.8 boundary: a planned fresh-session rotation does not restore the old conversation
+  ---
+  duration_ms: 0.675617
+  type: 'test'
+  ...
+# Subtest: v1.8.8 boundary: recovery cannot borrow a conversation from another GPT or origin
+ok 4 - v1.8.8 boundary: recovery cannot borrow a conversation from another GPT or origin
+  ---
+  duration_ms: 0.247853
+  type: 'test'
+  ...
+# Subtest: v1.8.8 boundary: missing-thread detection waits for an empty, fully loaded page, never interrupts proven generation
+ok 5 - v1.8.8 boundary: missing-thread detection waits for an empty, fully loaded page, never interrupts proven generation
+  ---
+  duration_ms: 0.326281
+  type: 'test'
+  ...
+# Subtest: v1.8.8 boundary: an EIC-proven generic conversation URL is retained; an unproven name is not
+ok 6 - v1.8.8 boundary: an EIC-proven generic conversation URL is retained; an unproven name is not
+  ---
+  duration_ms: 342.194233
+  type: 'test'
+  ...
+# Subtest: v1.8.8 boundary: in-flight quality quarantine still stops recovery even past the generation limit
+ok 7 - v1.8.8 boundary: in-flight quality quarantine still stops recovery even past the generation limit
+  ---
+  duration_ms: 307.558746
+  type: 'test'
+  ...
+# Subtest: v1.8.8 boundary: a response that completes during the generation grace is captured without reload or resend
+ok 8 - v1.8.8 boundary: a response that completes during the generation grace is captured without reload or resend
+  ---
+  duration_ms: 423.279772
+  type: 'test'
+  ...
+# Subtest: v1.8.8 regression: observed generation defers every stale-ladder action before the bounded limit
+ok 9 - v1.8.8 regression: observed generation defers every stale-ladder action before the bounded limit
+  ---
+  duration_ms: 1.424163
+  type: 'test'
+  ...
+# Subtest: v1.8.8 generation hold is bounded and never weakens unacknowledged/completed-response gates
+ok 10 - v1.8.8 generation hold is bounded and never weakens unacknowledged/completed-response gates
+  ---
+  duration_ms: 0.162795
+  type: 'test'
+  ...
+# Subtest: v1.8.8 regression: overdue recovery steps have a real settle interval, not one destructive action per tick
+ok 11 - v1.8.8 regression: overdue recovery steps have a real settle interval, not one destructive action per tick
+  ---
+  duration_ms: 0.235385
+  type: 'test'
+  ...
+# Subtest: v1.8.8 countdown uses the same late-stage timing as the recovery evaluator
+ok 12 - v1.8.8 countdown uses the same late-stage timing as the recovery evaluator
+  ---
+  duration_ms: 0.185849
+  type: 'test'
+  ...
+# Subtest: v1.8.8 E2E: a long generated response is not reloaded or resent at 31/121 minutes
+ok 13 - v1.8.8 E2E: a long generated response is not reloaded or resent at 31/121 minutes
+  ---
+  duration_ms: 421.702018
+  type: 'test'
+  ...
+# Subtest: v1.8.8 E2E: model-evidence hold preserves bounded generation wait but cannot deadlock recovery
+ok 14 - v1.8.8 E2E: model-evidence hold preserves bounded generation wait but cannot deadlock recovery
+  ---
+  duration_ms: 671.244157
+  type: 'test'
+  ...
+# Subtest: v1.8.8 E2E: generation ending without a response resumes the ordinary bounded ladder
+ok 15 - v1.8.8 E2E: generation ending without a response resumes the ordinary bounded ladder
+  ---
+  duration_ms: 338.535401
+  type: 'test'
+  ...
+# Subtest: v1.8.8 regression: current or remembered EIC identity wins over an unrelated active GPT URL
+ok 16 - v1.8.8 regression: current or remembered EIC identity wins over an unrelated active GPT URL
+  ---
+  duration_ms: 0.542226
+  type: 'test'
+  ...
+# Subtest: v1.8.8 E2E: a queue started from a different GPT navigates to remembered EIC
+ok 17 - v1.8.8 E2E: a queue started from a different GPT navigates to remembered EIC
+  ---
+  duration_ms: 126.01507
+  type: 'test'
+  ...
+# Subtest: v1.8.8 regression: an in-flight EIC root redirect must not erase the last conversation address
+ok 18 - v1.8.8 regression: an in-flight EIC root redirect must not erase the last conversation address
+  ---
+  duration_ms: 213.271397
+  type: 'test'
+  ...
+# Subtest: v1.8.8 E2E: tab recovery restores the known unanswered conversation, not its redirected landing root
+ok 19 - v1.8.8 E2E: tab recovery restores the known unanswered conversation, not its redirected landing root
+  ---
+  duration_ms: 199.030785
+  type: 'test'
+  ...
+# Subtest: v1.8.8 E2E: a healthy empty landing page cannot clear a missing in-flight thread incident
+ok 20 - v1.8.8 E2E: a healthy empty landing page cannot clear a missing in-flight thread incident
+  ---
+  duration_ms: 288.228357
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2329.458405

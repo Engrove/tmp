@@ -50,7 +50,7 @@ function sortedSlots(queue) {
     .sort((a, b) => (Number(a.order) - Number(b.order)) || String(a.itemId).localeCompare(String(b.itemId)));
 }
 
-function staleCountdown(process, rotateText) {
+function staleCountdown(process, rotateText, now) {
   if (process?.phase !== "WAITING" || process?.lastPrompt?.acknowledged !== true) return [];
   const refresh = process.waitingRefresh;
   const matches = Boolean(
@@ -58,9 +58,16 @@ function staleCountdown(process, rotateText) {
     refresh.promptHash === (process.lastPrompt?.hash || "") &&
     Number(refresh.turn || 0) === Number(process.turn || 0)
   );
+  if (matches && Number(refresh.generationHoldUntilMs || 0) > now) {
+    return [{
+      template: "Generering observerad · maximal respit {t}",
+      atMs: Number(refresh.generationHoldUntilMs)
+    }];
+  }
   const schedule = waitingRefreshSchedule({
     staleSince: matches ? refresh.staleSince : (process.lastPrompt?.sentAt || process.lastMaterialAt || process.startedAt || ""),
-    stage: matches ? refresh.stage : ""
+    stage: matches ? refresh.stage : "",
+    requestedAt: matches ? refresh.requestedAt : ""
   });
   if (!schedule) return [];
   const segments = [{ template: `TTL {t} → ${rotateText}`, atMs: schedule.rotateAtMs }];
@@ -122,7 +129,7 @@ export function managedOverlayOverview(process, { queue = null, now = Date.now()
   }
 
   const rotateText = ctx && nextName ? `köbyte till ${nextName}` : "ny chatt";
-  const countdown = staleCountdown(process, rotateText);
+  const countdown = staleCountdown(process, rotateText, now);
   // v1.8.1: the active slot's run window end (the slot parks after that turn).
   const windowClosesAtMs = ctx ? scheduleClosesAtMs(item?.schedule || ctx.schedule || null, now) : null;
   if (windowClosesAtMs && windowClosesAtMs > now) {
