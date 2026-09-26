@@ -399,6 +399,9 @@ body[data-active-tab="workmode"] [data-ui-tab="workmode"] {
   font-size: 10px;
 }
 
+.queue-start-status { color: var(--danger); font-weight: 600; margin-top: 8px; }
+.queue-start-status[hidden] { display: none; }
+
 .queue-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;

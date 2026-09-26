@@ -1,0 +1,433 @@
+{
+  "tool": "tools/verify-eic-surface.mjs",
+  "contentVersion": "1.8.9",
+  "rows": {
+    "eicAtHome": {
+      "gptSurface": {
+        "composerName": "EIC",
+        "headerName": "EIC",
+        "ambiguous": false,
+        "version": 1
+      },
+      "surface": {
+        "ok": true,
+        "code": "EIC_SURFACE_VERIFIED",
+        "kind": "GPT_NAME_MATCH"
+      },
+      "proof": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE"
+      },
+      "heavyFloor": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE"
+      },
+      "modelLabel": "Pro Välj ChatGPT-modell",
+      "effortLabel": "Pro Välj ChatGPT-modell",
+      "effortEvidenceSource": "MODEL_SWITCHER_SELECTED_EFFORT",
+      "adapterVersion": 5,
+      "composerReady": true,
+      "blockingUi": false,
+      "quotaActive": false,
+      "rateLimitActive": false,
+      "providerNotice": null
+    },
+    "standardAtHome": {
+      "gptSurface": {
+        "composerName": "",
+        "headerName": "",
+        "ambiguous": false,
+        "version": 1
+      },
+      "surface": {
+        "ok": false,
+        "code": "EIC_SURFACE_UNVERIFIED",
+        "kind": "GENERIC_NO_GPT"
+      },
+      "proof": {
+        "allowed": false,
+        "code": "EIC_SURFACE_UNVERIFIED"
+      },
+      "heavyFloor": {
+        "allowed": false,
+        "code": "EIC_SURFACE_UNVERIFIED"
+      },
+      "modelLabel": "Pro Välj ChatGPT-modell",
+      "effortLabel": "Pro Välj ChatGPT-modell",
+      "effortEvidenceSource": "MODEL_SWITCHER_SELECTED_EFFORT",
+      "adapterVersion": 5,
+      "composerReady": true,
+      "blockingUi": false,
+      "quotaActive": false,
+      "rateLimitActive": false,
+      "providerNotice": null
+    },
+    "otherGptAtHome": {
+      "gptSurface": {
+        "composerName": "Lycurgus III",
+        "headerName": "Lycurgus III",
+        "ambiguous": false,
+        "version": 1
+      },
+      "surface": {
+        "ok": false,
+        "code": "EIC_SURFACE_UNVERIFIED",
+        "kind": "WRONG_GPT_NAME"
+      },
+      "proof": {
+        "allowed": false,
+        "code": "EIC_SURFACE_UNVERIFIED"
+      },
+      "heavyFloor": {
+        "allowed": false,
+        "code": "EIC_SURFACE_UNVERIFIED"
+      },
+      "modelLabel": "Pro Välj ChatGPT-modell",
+      "effortLabel": "Pro Välj ChatGPT-modell",
+      "effortEvidenceSource": "MODEL_SWITCHER_SELECTED_EFFORT",
+      "adapterVersion": 5,
+      "composerReady": true,
+      "blockingUi": false,
+      "quotaActive": false,
+      "rateLimitActive": false,
+      "providerNotice": null
+    },
+    "eicConversationSlugless": {
+      "gptSurface": {
+        "composerName": "",
+        "headerName": "",
+        "ambiguous": false,
+        "version": 1
+      },
+      "surface": {
+        "ok": true,
+        "code": "EIC_SURFACE_VERIFIED",
+        "kind": "URL_GPT_ID"
+      },
+      "proof": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE"
+      },
+      "heavyFloor": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE"
+      },
+      "modelLabel": "Pro Välj ChatGPT-modell",
+      "effortLabel": "Pro Välj ChatGPT-modell",
+      "effortEvidenceSource": "MODEL_SWITCHER_SELECTED_EFFORT",
+      "adapterVersion": 5,
+      "composerReady": true,
+      "blockingUi": false,
+      "quotaActive": false,
+      "rateLimitActive": false,
+      "providerNotice": null
+    },
+    "eicAtHomeMeasurementVisible": {
+      "gptSurface": {
+        "composerName": "EIC",
+        "headerName": "EIC",
+        "ambiguous": false,
+        "version": 1
+      },
+      "surface": {
+        "ok": true,
+        "code": "EIC_SURFACE_VERIFIED",
+        "kind": "GPT_NAME_MATCH"
+      },
+      "proof": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE"
+      },
+      "heavyFloor": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE"
+      },
+      "modelLabel": "Resonemangsansträngning Pro Välj ChatGPT-modell",
+      "effortLabel": "Resonemangsansträngning Pro Välj ChatGPT-modell",
+      "effortEvidenceSource": "MODEL_SWITCHER_SELECTED_EFFORT",
+      "adapterVersion": 5,
+      "composerReady": true,
+      "blockingUi": false,
+      "quotaActive": false,
+      "rateLimitActive": false,
+      "providerNotice": null
+    },
+    "eicAtHomeExtraHog": {
+      "gptSurface": {
+        "composerName": "EIC",
+        "headerName": "EIC",
+        "ambiguous": false,
+        "version": 1
+      },
+      "surface": {
+        "ok": true,
+        "code": "EIC_SURFACE_VERIFIED",
+        "kind": "GPT_NAME_MATCH"
+      },
+      "proof": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE"
+      },
+      "heavyFloor": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE"
+      },
+      "modelLabel": "Extra hög Välj ChatGPT-modell",
+      "effortLabel": "Extra hög Välj ChatGPT-modell",
+      "effortEvidenceSource": "MODEL_SWITCHER_SELECTED_EFFORT",
+      "adapterVersion": 5,
+      "composerReady": true,
+      "blockingUi": false,
+      "quotaActive": false,
+      "rateLimitActive": false,
+      "providerNotice": null
+    },
+    "eicAtHomeMigrationBanner": {
+      "gptSurface": {
+        "composerName": "EIC",
+        "headerName": "EIC",
+        "ambiguous": false,
+        "version": 1
+      },
+      "surface": {
+        "ok": true,
+        "code": "EIC_SURFACE_VERIFIED",
+        "kind": "GPT_NAME_MATCH"
+      },
+      "proof": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE"
+      },
+      "heavyFloor": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE"
+      },
+      "modelLabel": "Extra hög Välj ChatGPT-modell",
+      "effortLabel": "Extra hög Välj ChatGPT-modell",
+      "effortEvidenceSource": "MODEL_SWITCHER_SELECTED_EFFORT",
+      "adapterVersion": 5,
+      "composerReady": true,
+      "blockingUi": false,
+      "quotaActive": false,
+      "rateLimitActive": false,
+      "providerNotice": null
+    },
+    "discoveryCandidates": {
+      "ok": true,
+      "candidates": [
+        {
+          "gptId": "g-0a1b2c3d4e5f60718293a4b5c6d7e8f9",
+          "href": "/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9/c/00000000-0000-4000-8000-0000000000a1"
+        },
+        {
+          "gptId": "g-ffeeddccbbaa99887766554433221100",
+          "href": "/g/g-ffeeddccbbaa99887766554433221100/c/00000000-0000-4000-8000-0000000000b1"
+        }
+      ]
+    },
+    "selectEic": {
+      "result": {
+        "ok": true,
+        "clicked": true,
+        "code": "PINNED_GPT_CLICKED",
+        "candidates": 1
+      },
+      "clicks": [
+        "pin-1"
+      ],
+      "afterSurface": {
+        "ok": true,
+        "code": "EIC_SURFACE_VERIFIED",
+        "kind": "GPT_NAME_MATCH"
+      },
+      "afterGptSurface": {
+        "composerName": "EIC",
+        "headerName": "EIC",
+        "ambiguous": false,
+        "version": 1
+      }
+    },
+    "selectAmbiguous": {
+      "result": {
+        "ok": false,
+        "clicked": false,
+        "code": "PINNED_GPT_AMBIGUOUS",
+        "candidates": 2
+      },
+      "clicks": [],
+      "afterSurface": {
+        "ok": false,
+        "code": "EIC_SURFACE_UNVERIFIED",
+        "kind": "GENERIC_NO_GPT"
+      },
+      "afterGptSurface": {
+        "composerName": "",
+        "headerName": "",
+        "ambiguous": false,
+        "version": 1
+      }
+    },
+    "selectMissing": {
+      "result": {
+        "ok": false,
+        "clicked": false,
+        "code": "PINNED_GPT_NOT_FOUND",
+        "candidates": 0
+      },
+      "clicks": [],
+      "afterSurface": {
+        "ok": false,
+        "code": "EIC_SURFACE_UNVERIFIED",
+        "kind": "GENERIC_NO_GPT"
+      },
+      "afterGptSurface": {
+        "composerName": "",
+        "headerName": "",
+        "ambiguous": false,
+        "version": 1
+      }
+    },
+    "noticeNewWithHeading": {
+      "assistantFound": true,
+      "assistantText": "",
+      "providerNotice": null
+    },
+    "noticeNewOnly": {
+      "assistantFound": true,
+      "assistantText": "",
+      "providerNotice": null
+    },
+    "noticeOldWording": {
+      "assistantFound": true,
+      "assistantText": "",
+      "providerNotice": null
+    },
+    "answerWithNewNotice": {
+      "assistantFound": true,
+      "assistantText": "{\"ok\":true,\"answer\":\"EIC svar\"}",
+      "providerNotice": null
+    },
+    "headingWithoutNotice": {
+      "assistantFound": true,
+      "assistantText": "Planerade åtkomst",
+      "providerNotice": null
+    },
+    "noticeNewWithoutRoleNode": {
+      "assistantFound": false,
+      "assistantText": "",
+      "providerNotice": null
+    }
+  },
+  "checks": [
+    {
+      "name": "EIC at '/': pill and header read as 'EIC'",
+      "pass": true
+    },
+    {
+      "name": "EIC at '/': surface verified by GPT name",
+      "pass": true
+    },
+    {
+      "name": "standard chat at '/': no GPT name, EIC_SURFACE_UNVERIFIED",
+      "pass": true
+    },
+    {
+      "name": "another GPT at '/': EIC_SURFACE_UNVERIFIED (WRONG_GPT_NAME)",
+      "pass": true
+    },
+    {
+      "name": "slugless EIC conversation URL: verified by GPT id",
+      "pass": true
+    },
+    {
+      "name": "picker 'Pro' (effort medium): allowed as Heavy via the model picker, also under a Heavy floor",
+      "pass": true
+    },
+    {
+      "name": "picker 'Extra hög' with EIC at '/': allowed",
+      "pass": true
+    },
+    {
+      "name": "new composer (contenteditable, no #prompt-textarea) is ready",
+      "pass": true
+    },
+    {
+      "name": "model adapter unchanged (adapterVersion 5)",
+      "pass": true
+    },
+    {
+      "name": "GPT migration banner (assumed markup): no block, quota, rate limit or provider notice; still allowed",
+      "pass": true
+    },
+    {
+      "name": "discovery candidates: GPT ids from Recents, most frequent first; no project or plain chats; ids and hrefs only",
+      "pass": true
+    },
+    {
+      "name": "select: clicks only the pinned EIC button",
+      "pass": true
+    },
+    {
+      "name": "select: EIC then shown at '/' and verified",
+      "pass": true
+    },
+    {
+      "name": "select: two pinned 'EIC' -> PINNED_GPT_AMBIGUOUS, nothing clicked",
+      "pass": true
+    },
+    {
+      "name": "select: EIC not pinned -> PINNED_GPT_NOT_FOUND, recent chat 'EIC' not clicked",
+      "pass": true
+    },
+    {
+      "name": "notice 'begäran' + heading 'Planerade åtkomst': assistant text empty",
+      "pass": true
+    },
+    {
+      "name": "notice 'begäran' alone: assistant text empty",
+      "pass": true
+    },
+    {
+      "name": "notice 'förfrågan' (v1.8.5 wording): assistant text empty",
+      "pass": true
+    },
+    {
+      "name": "answer + new notice: answer kept, notice removed",
+      "pass": true
+    },
+    {
+      "name": "heading without notice is not stripped (boundary)",
+      "pass": true
+    },
+    {
+      "name": "turn without role node: no assistant entry",
+      "pass": true
+    },
+    {
+      "name": "noticeNewWithHeading: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "noticeNewOnly: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "noticeOldWording: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "answerWithNewNotice: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "headingWithoutNotice: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "noticeNewWithoutRoleNode: notice text never in assistant text",
+      "pass": true
+    }
+  ],
+  "passed": 27,
+  "total": 27
+}

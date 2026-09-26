@@ -1,4 +1,4 @@
-// v1.8.7 real-DOM check for ChatGPT's newer shell (operator report and page
+// v1.8.7/1.8.9 real-DOM check for ChatGPT's newer shell (operator report and page
 // export 2026-09-26). Hand-written markup with the element structure of that
 // export; synthetic ids, no exported page content:
 //   - EIC selected at "/": composer pill <button aria-label="Ta bort EIC">EIC</button>,
@@ -49,8 +49,18 @@ const pinned = (names) => `<section data-app-action-sidebar-section="" data-app-
   ${names.map((name, i) => `<div><button type="button" data-fixture-id="pin-${i}"><div><span><span aria-hidden="true">${ICON}</span></span><span>${name}</span></div></button>
     <div><span><button type="button" data-fixture-id="unpin-${i}" aria-label="Ta bort fästning för GPT">${ICON}</button></span></div></div>`).join("")}
 </section>`;
+// Recents as exported 2026-09-26: <a data-interactive-row-link aria-label=<title>
+// href="/g/g-<id>/c/<conv>">; plus a project chat and a plain chat (synthetic).
+const RECENT_LINKS = [
+  ["/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9/c/00000000-0000-4000-8000-0000000000a1", "Nattrapport"],
+  ["/g/g-ffeeddccbbaa99887766554433221100/c/00000000-0000-4000-8000-0000000000b1", "Matlogg"],
+  ["/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9/c/00000000-0000-4000-8000-0000000000a2", "Status"],
+  ["/g/g-p-00112233445566778899aabbccddeeff-projekt/c/00000000-0000-4000-8000-0000000000c1", "Projekt"],
+  ["/c/00000000-0000-4000-8000-0000000000d1", "Vanlig chatt"]
+];
 const recents = `<section data-app-action-sidebar-section="" data-app-action-sidebar-section-heading="Recents">
-  <button type="button" data-fixture-id="recent-eic"><span>EIC</span></button><a href="/c/00000000-0000-4000-8000-0000000000aa">EIC</a></section>`;
+  <button type="button" data-fixture-id="recent-eic"><span>EIC</span></button><a href="/c/00000000-0000-4000-8000-0000000000aa">EIC</a>
+  ${RECENT_LINKS.map(([href, title]) => `<a data-interactive-row-link="true" aria-label="${title}" href="${href}" data-discover="true"><span data-thread-title="true">${title}</span></a>`).join("")}</section>`;
 // A click on the pinned "EIC" button selects the GPT client-side (URL stays
 // "/"), as observed; every click is recorded.
 const spa = `<script>
@@ -106,7 +116,9 @@ const gate = (tab, url, gptRoot) => tab.evaluate(({ url, gptRoot }) => {
   const S = globalThis.GreenfieldSafetyPolicy;
   const evidence = globalThis.GreenfieldModelObservation.observe();
   const proof = S.evaluateModel(evidence, S.defaults, { url, gptRoot });
+  const heavy = S.evaluateModel(evidence, { ...S.defaults, minimumEffort: "heavy" }, { url, gptRoot });
   return { gptSurface: evidence.gptSurface, surface: S.eicSurfaceProof(evidence, url, gptRoot), proof: { allowed: proof.allowed, code: proof.code },
+    heavyFloor: { allowed: heavy.allowed, code: heavy.code },
     modelLabel: evidence.modelLabel, effortLabel: evidence.effortLabel, effortEvidenceSource: evidence.effortEvidenceSource, adapterVersion: evidence.adapterVersion };
 }, { url, gptRoot });
 
@@ -128,6 +140,12 @@ for (const [name, spec] of Object.entries({
   rows[name] = { ...g, composerReady: state.composerReady === true, blockingUi: state.modelEvidence?.blockingUi === true,
     quotaActive: state.modelEvidence?.quota?.active === true, rateLimitActive: state.rateLimitWarning?.active === true,
     providerNotice: state.pageHealth?.providerNotice ?? null };
+  await context.close();
+}
+
+{
+  const { context, tab } = await open(browser, HOME, page({ gpt: "EIC" }));
+  rows.discoveryCandidates = await call(tab, { type: "EIC_GF_GPT_CONVERSATION_LINKS" });
   await context.close();
 }
 
@@ -163,14 +181,22 @@ check("EIC at '/': surface verified by GPT name", rows.eicAtHome.surface.ok && r
 check("standard chat at '/': no GPT name, EIC_SURFACE_UNVERIFIED", !rows.standardAtHome.gptSurface.composerName && !rows.standardAtHome.gptSurface.headerName && rows.standardAtHome.proof.code === "EIC_SURFACE_UNVERIFIED");
 check("another GPT at '/': EIC_SURFACE_UNVERIFIED (WRONG_GPT_NAME)", rows.otherGptAtHome.proof.code === "EIC_SURFACE_UNVERIFIED" && rows.otherGptAtHome.surface.kind === "WRONG_GPT_NAME");
 check("slugless EIC conversation URL: verified by GPT id", rows.eicConversationSlugless.surface.ok && rows.eicConversationSlugless.surface.kind === "URL_GPT_ID");
-check("picker 'Pro' (effort medium): THINKING_MODE_UNVERIFIED, not a quarantine code",
-  rows.eicAtHome.proof.code === "THINKING_MODE_UNVERIFIED" && rows.eicAtHomeMeasurementVisible.proof.code === "THINKING_MODE_UNVERIFIED");
+// v1.8.9: "Pro" is the top thinking level by operator decision 2026-09-26
+// (v1.8.7/1.8.8: THINKING_MODE_UNVERIFIED).
+check("picker 'Pro' (effort medium): allowed as Heavy via the model picker, also under a Heavy floor",
+  rows.eicAtHome.proof.allowed === true && rows.eicAtHome.effortEvidenceSource === "MODEL_SWITCHER_SELECTED_EFFORT" &&
+  rows.eicAtHome.heavyFloor.allowed === true && rows.eicAtHomeMeasurementVisible.proof.allowed === true);
 check("picker 'Extra hög' with EIC at '/': allowed", rows.eicAtHomeExtraHog.proof.allowed === true);
 check("new composer (contenteditable, no #prompt-textarea) is ready", rows.eicAtHome.composerReady && rows.standardAtHome.composerReady);
 check("model adapter unchanged (adapterVersion 5)", rows.eicAtHome.adapterVersion === 5);
 check("GPT migration banner (assumed markup): no block, quota, rate limit or provider notice; still allowed",
   !rows.eicAtHomeMigrationBanner.blockingUi && !rows.eicAtHomeMigrationBanner.quotaActive && !rows.eicAtHomeMigrationBanner.rateLimitActive &&
   rows.eicAtHomeMigrationBanner.providerNotice === null && rows.eicAtHomeMigrationBanner.proof.allowed === true);
+check("discovery candidates: GPT ids from Recents, most frequent first; no project or plain chats; ids and hrefs only",
+  JSON.stringify(rows.discoveryCandidates) === JSON.stringify({ ok: true, candidates: [
+    { gptId: "g-0a1b2c3d4e5f60718293a4b5c6d7e8f9", href: RECENT_LINKS[0][0] },
+    { gptId: "g-ffeeddccbbaa99887766554433221100", href: RECENT_LINKS[1][0] }
+  ] }));
 check("select: clicks only the pinned EIC button", rows.selectEic.result?.ok && JSON.stringify(rows.selectEic.clicks) === JSON.stringify(["pin-1"]));
 check("select: EIC then shown at '/' and verified", rows.selectEic.afterSurface.ok && rows.selectEic.afterGptSurface.composerName === "EIC");
 check("select: two pinned 'EIC' -> PINNED_GPT_AMBIGUOUS, nothing clicked", rows.selectAmbiguous.result?.code === "PINNED_GPT_AMBIGUOUS" && rows.selectAmbiguous.clicks.length === 0);

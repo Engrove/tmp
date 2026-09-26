@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: v1.8.9 repro E2E: fresh install, EIC selected at chatgpt.com/ -> the queue starts, finds EIC's id and sends one prompt in EIC
+ok 1 - v1.8.9 repro E2E: fresh install, EIC selected at chatgpt.com/ -> the queue starts, finds EIC's id and sends one prompt in EIC
+  ---
+  duration_ms: 821.636564
+  type: 'test'
+  ...
+# Subtest: v1.8.9 repro: the picker's 'Pro' is the highest thinking level (operator decision 2026-09-26)
+ok 2 - v1.8.9 repro: the picker's 'Pro' is the highest thinking level (operator decision 2026-09-26)
+  ---
+  duration_ms: 0.760658
+  type: 'test'
+  ...
+# Subtest: v1.8.9 repro: the side panel keeps a queue-start error visible instead of re-rendering it away
+ok 3 - v1.8.9 repro: the side panel keeps a queue-start error visible instead of re-rendering it away
+  ---
+  duration_ms: 1.025041
+  type: 'test'
+  ...
+# Subtest: v1.8.9 no EIC shown at chatgpt.com/ and nothing remembered -> EIC_GPT_ROOT_UNKNOWN, no navigation
+ok 4 - v1.8.9 no EIC shown at chatgpt.com/ and nothing remembered -> EIC_GPT_ROOT_UNKNOWN, no navigation
+  ---
+  duration_ms: 92.489244
+  type: 'test'
+  ...
+# Subtest: v1.8.9 EIC selected but no GPT conversation in the sidebar -> EIC_GPT_ROOT_UNKNOWN, no navigation
+ok 5 - v1.8.9 EIC selected but no GPT conversation in the sidebar -> EIC_GPT_ROOT_UNKNOWN, no navigation
+  ---
+  duration_ms: 66.915934
+  type: 'test'
+  ...
+# Subtest: v1.8.9 no candidate shows EIC -> BLOCKED EIC_GPT_ROOT_UNKNOWN, queue stopped (no slot churn), nothing sent
+ok 6 - v1.8.9 no candidate shows EIC -> BLOCKED EIC_GPT_ROOT_UNKNOWN, queue stopped (no slot churn), nothing sent
+  ---
+  duration_ms: 276.432189
+  type: 'test'
+  ...
+# Subtest: v1.8.9 the surface guard never binds or remembers a GPT while discovery visits candidates
+ok 7 - v1.8.9 the surface guard never binds or remembers a GPT while discovery visits candidates
+  ---
+  duration_ms: 156.274969
+  type: 'test'
+  ...
+# Subtest: v1.8.9 a candidate that never shows its GPT name is skipped after its time limit
+ok 8 - v1.8.9 a candidate that never shows its GPT name is skipped after its time limit
+  ---
+  duration_ms: 657.451484
+  type: 'test'
+  ...
+# Subtest: v1.8.9 'Pro' ranking is whole-word only; other thinking-level rules unchanged
+ok 9 - v1.8.9 'Pro' ranking is whole-word only; other thinking-level rules unchanged
+  ---
+  duration_ms: 0.596903
+  type: 'test'
+  ...
+# Subtest: v1.8.9 content lists sidebar GPT conversations for EIC discovery (ids and hrefs only)
+ok 10 - v1.8.9 content lists sidebar GPT conversations for EIC discovery (ids and hrefs only)
+  ---
+  duration_ms: 0.7362
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2184.036111

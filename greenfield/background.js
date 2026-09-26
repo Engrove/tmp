@@ -2449,7 +2449,10 @@ async function activateQueueItem({
   // chat and a generic root would open standard chat instead of EIC.
   const surfaceState = await readEicSurfaceState(chrome.storage.local).catch(() => ({ lastKnownGoodEicUrl: "" }));
   const gptRoot = resolveManagedGptRoot(tab.url || "", priorProcess?.gptRoot || "", surfaceState.lastKnownGoodEicUrl || "");
-  if (!gptRoot) {
+  // v1.8.9: with nothing remembered (e.g. a fresh install) the operator's GPT
+  // selected at "/" has no id on the page; the rotation first finds its id.
+  const eicDiscovery = gptRoot ? null : await planEicRootDiscovery(tab);
+  if (!gptRoot && !eicDiscovery) {
     const error = new Error("EIC_GPT_ROOT_UNKNOWN");
     error.code = "EIC_GPT_ROOT_UNKNOWN";
     throw error;
@@ -2480,6 +2483,7 @@ async function activateQueueItem({
     auditSessionId: auditSessionId || priorProcess?.auditSessionId || BACKGROUND_AUDIT_SESSION_ID,
     priorProcess
   });
+  if (eicDiscovery) process.sessionRotation = { ...process.sessionRotation, eicDiscovery };
 
   const consumedProcessStatusRequest =
     String(item.resume?.processStatusRequest || "").toUpperCase() === PROCESS_STATUS_REQUEST;
@@ -3965,6 +3969,123 @@ async function saveRotationState(process, sessionRotation, kind, payload = {}) {
   return next;
 }
 
+// v1.8.9: EIC root discovery. ChatGPT's newer shell shows a GPT selected at
+// "/" by name only (composer pill + page header); its id appears in the URL of
+// its conversations (/g/g-<id>/c/<conv>). When no root is remembered, the
+// queue start opens up to 3 GPT conversations from the sidebar's "Senaste"
+// and binds the id whose page (id in the URL) shows the selected GPT's name.
+// Nothing is sent before the id is bound; without a match the queue stops.
+const EIC_DISCOVERY_CANDIDATE_MS = 20_000;
+
+async function planEicRootDiscovery(tab) {
+  let page = null;
+  try {
+    await ensureContentBridgeVersion(tab.id);
+    const result = await bridgeMessage(tab.id, { type: "EIC_GF_GET_PAGE_STATE", source: "eic-root-discovery-plan" });
+    page = result?.ok ? result.state || {} : null;
+  } catch {}
+  const surface = page?.modelEvidence?.gptSurface || {};
+  const name = String(surface.composerName || "").trim();
+  if (!page || surface.ambiguous === true || !name || name !== String(surface.headerName || "").trim()) return null;
+  const slug = Safety.gptNameSlug(name);
+  const origin = supportedUrl(page.url || tab.url) ? new URL(page.url || tab.url).origin : "";
+  if (!slug || !origin) return null;
+  let links = null;
+  try { links = await bridgeMessage(tab.id, { type: "EIC_GF_GPT_CONVERSATION_LINKS" }); } catch {}
+  const candidates = (Array.isArray(links?.candidates) ? links.candidates : [])
+    .map((candidate) => ({ gptId: String(candidate?.gptId || ""), href: String(candidate?.href || "") }))
+    .filter((candidate) => /^g-[A-Za-z0-9]+$/.test(candidate.gptId) &&
+      candidate.href.startsWith(`/g/${candidate.gptId}`) && /\/c\/[A-Za-z0-9-]+$/.test(candidate.href))
+    .slice(0, 3);
+  if (!candidates.length) return null;
+  return { state: "PENDING", name, slug, origin, candidates, index: 0, tried: [], startedAtMs: Date.now() };
+}
+
+async function failEicRootDiscovery(process, reason) {
+  // Every slot would need the same unknown address: stop the queue instead of
+  // blocking one slot after the other.
+  try {
+    const { queue, settings } = await missionQueueForWindow(process.windowId);
+    if (queue.enabled) {
+      queue.enabled = false;
+      await persistMissionQueue(queue, settings, process, "MISSION_QUEUE_STOPPED_EIC_ROOT_UNKNOWN", { reason });
+    }
+  } catch {}
+  const discovery = process.sessionRotation?.eicDiscovery || {};
+  const error = Object.assign(new Error("EIC_GPT_ROOT_UNKNOWN"), { code: "EIC_GPT_ROOT_UNKNOWN" });
+  return commitTransition(process, PHASES.BLOCKED, { lastError: errorRecord(error) }, {
+    kind: "EIC_ROOT_DISCOVERY_FAILED",
+    component: "session-rotation",
+    detail: { reason, name: discovery.name || "", tried: discovery.tried || [] }
+  });
+}
+
+async function tickEicRootDiscovery(process, rotation) {
+  const d = rotation.eicDiscovery;
+  const candidate = d.candidates?.[d.index];
+  if (!candidate) return failEicRootDiscovery(process, "NO_CANDIDATE_SHOWS_GPT");
+  let tab = null;
+  try {
+    tab = await chrome.tabs.get(process.tabId);
+    if (tab.windowId !== process.windowId) tab = null;
+  } catch {}
+  if (!tab) return failEicRootDiscovery(process, "MANAGED_TAB_LOST");
+  const now = Date.now();
+  if (d.state === "PENDING") {
+    const next = await saveRotationState(process, {
+      ...rotation,
+      eicDiscovery: { ...d, state: "NAVIGATING", navigatedAtMs: now }
+    }, "EIC_ROOT_DISCOVERY_CANDIDATE_OPENED", { gptId: candidate.gptId, candidate: d.index + 1, of: d.candidates.length, name: d.name });
+    try {
+      await chrome.tabs.update(tab.id, { url: `${d.origin}${candidate.href}` });
+    } catch (error) {
+      return enterRecovery(next, error, PHASES.ROTATING);
+    }
+    scheduleFast(next.processId, 1500);
+    return next;
+  }
+
+  let page = null;
+  if (tab.status === "complete") {
+    try {
+      await ensureContentBridgeVersion(tab.id);
+      const result = await bridgeMessage(tab.id, { type: "EIC_GF_GET_PAGE_STATE", source: "eic-root-discovery" });
+      page = result?.ok ? result.state || {} : null;
+    } catch {}
+  }
+  const observed = Safety.gptRef(page?.url || "");
+  const surface = page?.modelEvidence?.gptSurface || {};
+  const names = [surface.headerName, surface.composerName].map((value) => String(value || "").trim()).filter(Boolean);
+  const slugs = [...new Set(names.map((value) => Safety.gptNameSlug(value)))];
+  const shownSlug = surface.ambiguous === true || slugs.length !== 1 ? "" : slugs[0];
+  const onCandidate = Boolean(observed && observed.id === candidate.gptId);
+  if (onCandidate && shownSlug === d.slug) {
+    const root = observed.slug === d.slug ? observed.root : `${observed.origin}/g/${observed.id}-${d.slug}`;
+    await rememberGoodEicUrl(root, chrome.storage.local).catch(() => undefined);
+    const next = await saveRotationState({ ...process, gptRoot: root }, {
+      ...rotation,
+      gptRoot: root,
+      eicDiscovery: { ...d, state: "BOUND", root, boundAtMs: now }
+    }, "EIC_ROOT_DISCOVERED", { gptId: observed.id, name: d.name, root, candidate: d.index + 1 });
+    scheduleFast(next.processId, 200);
+    return next;
+  }
+  const otherName = onCandidate && shownSlug && shownSlug !== d.slug;
+  if (otherName || now - Number(d.navigatedAtMs || now) >= EIC_DISCOVERY_CANDIDATE_MS) {
+    const result = otherName ? "OTHER_GPT_NAME" : "NO_PROOF_IN_TIME";
+    const tried = [...(d.tried || []), { gptId: candidate.gptId, result }];
+    const next = await saveRotationState(process, {
+      ...rotation,
+      eicDiscovery: { ...d, state: "PENDING", index: d.index + 1, tried }
+    }, "EIC_ROOT_DISCOVERY_CANDIDATE_REJECTED", { gptId: candidate.gptId, result });
+    if (!d.candidates[d.index + 1]) return failEicRootDiscovery(next, "NO_CANDIDATE_SHOWS_GPT");
+    scheduleFast(next.processId, 200);
+    return next;
+  }
+  scheduleFast(process.processId, 1000);
+  return process;
+}
+
 // v1.8.7: a fresh chat that is not the EIC GPT is steered to it, in order:
 // the GPT address without its name slug (the form the newer ChatGPT shell
 // uses), then a click on the pinned GPT in the sidebar (content script), at
@@ -4049,6 +4170,8 @@ async function tickRotating(process) {
       component: "session-rotation"
     });
   }
+
+  if (rotation.eicDiscovery && rotation.eicDiscovery.state !== "BOUND") return tickEicRootDiscovery(process, rotation);
 
   const rotationSurface = await readEicSurfaceState(chrome.storage.local).catch(() => ({ lastKnownGoodEicUrl: "" }));
   const gptRoot = resolveManagedGptRoot(rotation.gptRoot || "", process.gptRoot || "", rotationSurface.lastKnownGoodEicUrl || "");
@@ -8696,6 +8819,11 @@ async function pageShowsExpectedGpt(tab, gptRoot) {
 
 async function enforceManagedEicSurface(process, tab) {
   if (!process || !tab || !Number.isInteger(tab.id)) return { action: "SKIP" };
+  // v1.8.9: while the EIC root is being discovered the tab visits other GPTs'
+  // conversations; only the discovery may bind (and remember) a GPT.
+  if (process.sessionRotation?.eicDiscovery && process.sessionRotation.eicDiscovery.state !== "BOUND") {
+    return { action: "EIC_DISCOVERY_OWNS_NAVIGATION" };
+  }
   const globalState = await readEicSurfaceState(chrome.storage.local).catch(() => ({ lastKnownGoodEicUrl: "" }));
   const key = process.processId;
   const priorSince = Number(eicSurfaceWrongSince.get(key) || 0);

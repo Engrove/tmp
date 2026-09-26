@@ -1262,8 +1262,13 @@ async function startMissionQueue() {
     if (!result?.ok) throw new Error(result?.error || result?.code || "Arbetskön kunde inte startas.");
     state.process = result.process || state.process;
     state.missionQueue = result.missionQueue || state.missionQueue;
+    state.queueStartNotice = null;
   } catch (error) {
-    $("statusDetail").textContent = reasonLabel(error?.message || String(error));
+    // v1.8.9: the finally-snapshot re-renders the status line; keep the reason
+    // in state so the operator sees why the queue did not start.
+    const code = String(error?.message || error || "");
+    state.queueStartNotice = { code, text: `Arbetskön startade inte: ${reasonLabel(code)}`, atMs: Date.now() };
+    $("statusDetail").textContent = state.queueStartNotice.text;
     await appendAuditError({
       error,
       scope: "WINDOW",
@@ -1503,9 +1508,12 @@ async function render() {
   renderFleetStatus();
   const process = state.process;
   const active = activeProcess(process);
+  if (active) state.queueStartNotice = null;
   $("phase").textContent = process?.phase || "IDLE";
   $("turn").textContent = process?.turn ?? "—";
-  $("statusDetail").textContent = statusText(process);
+  $("statusDetail").textContent = state.queueStartNotice?.text || statusText(process);
+  $("queueStartStatus").textContent = state.queueStartNotice?.text || "";
+  $("queueStartStatus").hidden = !state.queueStartNotice;
   const missionPauseMs = missionPauseRemainingMs(process);
   const pauseMs = promptPauseRemainingMs(process);
   const configuredDelay = Number(state.operatorSettings?.postDelaySeconds || 0);
@@ -2249,7 +2257,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.8.8" }
+      payload: { appVersion: "1.8.9" }
     });
     await snapshot();
   } catch (error) {

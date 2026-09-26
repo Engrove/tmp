@@ -1,7 +1,7 @@
 (() => {
   const BRIDGE = "__EIC_GF_CONTENT_V2__";
   const OVERLAY_ID = "eic-gf-linked-overlay";
-  const CONTENT_VERSION = "1.8.8";
+  const CONTENT_VERSION = "1.8.9";
   const previousBridge = globalThis[BRIDGE] || null;
   const DOCUMENT_ID = previousBridge?.documentId || crypto.randomUUID();
   const dispatchRecords = previousBridge?.dispatchRecords instanceof Map
@@ -1247,7 +1247,34 @@
     if (message.type === "EIC_GF_SELECT_GPT") {
       return selectPinnedGpt(message.slug);
     }
+    if (message.type === "EIC_GF_GPT_CONVERSATION_LINKS") {
+      return { ok: true, candidates: sidebarGptConversationLinks() };
+    }
     return null;
+  }
+
+  // v1.8.9: ChatGPT's newer shell shows a selected GPT at "/" without its id.
+  // Its sidebar lists recent conversations as <a href="/g/g-<id>/c/<conv>">
+  // (real DOM 2026-09-26, section[data-app-action-sidebar-section-heading=
+  // "Recents"]). Returns one conversation per GPT id, most frequent first (at
+  // most 3); the background opens each and binds the id whose page shows the
+  // selected GPT's name. Only ids and hrefs leave the page, never titles.
+  function sidebarGptConversationLinks() {
+    const byId = new Map();
+    let position = 0;
+    for (const link of document.querySelectorAll("section[data-app-action-sidebar-section-heading='Recents'] a[href]")) {
+      const href = String(link.getAttribute("href") || "");
+      const match = /^\/g\/(g-[A-Za-z0-9]+)(?:-[^/]*)?\/c\/[A-Za-z0-9-]+$/.exec(href);
+      if (!match || href.startsWith("/g/g-p-")) continue; // project chats, not GPTs
+      const row = byId.get(match[1]) || { gptId: match[1], href, count: 0, first: position };
+      row.count += 1;
+      byId.set(match[1], row);
+      position += 1;
+    }
+    return [...byId.values()]
+      .sort((a, b) => b.count - a.count || a.first - b.first)
+      .slice(0, 3)
+      .map(({ gptId, href }) => ({ gptId, href }));
   }
 
   // v1.8.7: ChatGPT's newer shell lists pinned GPTs as buttons without href
