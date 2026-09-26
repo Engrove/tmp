@@ -1,7 +1,7 @@
 (() => {
   const BRIDGE = "__EIC_GF_CONTENT_V2__";
   const OVERLAY_ID = "eic-gf-linked-overlay";
-  const CONTENT_VERSION = "1.8.9";
+  const CONTENT_VERSION = "1.8.10";
   const previousBridge = globalThis[BRIDGE] || null;
   const DOCUMENT_ID = previousBridge?.documentId || crypto.randomUUID();
   const dispatchRecords = previousBridge?.dispatchRecords instanceof Map
@@ -135,6 +135,24 @@
       element.getAttribute("aria-hidden") !== "true";
   }
 
+  // v1.8.10: ChatGPT's app shell (production build read 2026-09-26, route
+  // g/:gizmoId/c/:conversationId) renders no data-message-author-role,
+  // data-message-id or data-turn-id. A user message is div.group/user-message
+  // after an sr-only "Du sa:" heading; its data-chatgpt-search-message-ids
+  // (the message id) is absent while the message is still optimistic. An
+  // assistant message is div[data-chatgpt-search-message-ids="<id> …"] whose
+  // own h4[data-conversation-role='assistant'] reads "ChatGPT sa:".
+  const SHELL_USER_MESSAGE_SELECTOR = "[class~='group/user-message']";
+  const SHELL_MESSAGE_SELECTOR = `${SHELL_USER_MESSAGE_SELECTOR}, [data-chatgpt-search-message-ids]`;
+
+  function shellMessageRole(element) {
+    if (element.matches(SHELL_USER_MESSAGE_SELECTOR)) return "user";
+    for (const child of element.children) {
+      if (child.matches("[data-conversation-role='assistant']")) return "assistant";
+    }
+    return "";
+  }
+
   function firstVisible(selectors) {
     for (const selector of selectors) {
       for (const element of document.querySelectorAll(selector)) {
@@ -169,12 +187,17 @@
     const selectors = [
       "button[data-testid='stop-button']",
       "button[aria-label='Stop generating']",
-      "button[aria-label='Avbryt generering']"
+      "button[aria-label='Avbryt generering']",
+      // v1.8.10: the app shell's composer form turns its primary button into
+      // "Stoppa" (sv-SE) / "Stop" (en) while a response streams (ChatGPT
+      // build read 2026-09-26; its locale file has "Stoppa").
+      "form[data-chatgpt-composer] button[aria-label='Stoppa']",
+      "form[data-chatgpt-composer] button[aria-label='Stop']"
     ];
     for (const selector of selectors) {
       for (const element of document.querySelectorAll(selector)) {
         if (!visible(element)) continue;
-        if (element.closest("[data-message-author-role], [data-eic-gf-ui='true']")) continue;
+        if (element.closest(`[data-message-author-role], ${SHELL_MESSAGE_SELECTOR}, [data-eic-gf-ui='true']`)) continue;
         if (element.disabled || element.getAttribute("aria-disabled") === "true") continue;
         return element;
       }
@@ -457,7 +480,7 @@
         node.getAttribute?.("data-message-id") ||
         ""
       );
-      const candidate = {
+      add({
         node,
         owner,
         role,
@@ -465,7 +488,36 @@
         ownerKind: resolved.ownerKind,
         ownerTrusted: resolved.ownerTrusted,
         replicaCount: 1
-      };
+      });
+    }
+
+    let shellCount = 0;
+    for (const node of document.querySelectorAll(SHELL_MESSAGE_SELECTOR)) {
+      if (node.closest("[data-message-author-role], [data-eic-gf-ui='true']")) continue;
+      const role = shellMessageRole(node);
+      if (!role) continue;
+      let outer = node.parentElement?.closest(SHELL_MESSAGE_SELECTOR) || null;
+      while (outer && !shellMessageRole(outer)) outer = outer.parentElement?.closest(SHELL_MESSAGE_SELECTOR) || null;
+      if (outer) continue;
+      const ids = String(node.getAttribute("data-chatgpt-search-message-ids") || "").trim();
+      add({
+        node,
+        owner: node,
+        role,
+        id: ids ? ids.split(/\s+/)[0] : "",
+        ownerKind: "SHELL_MESSAGE",
+        ownerTrusted: true,
+        replicaCount: 1
+      });
+      shellCount += 1;
+    }
+    if (shellCount && shellCount < out.length) {
+      out.sort((a, b) => (a.owner.compareDocumentPosition(b.owner) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+    }
+    return out;
+
+    function add(candidate) {
+      const { role, id, owner } = candidate;
       const stableKey = id ? `${role}|${id}` : "";
       if (stableKey && stableEntryIndex.has(stableKey)) {
         const index = stableEntryIndex.get(stableKey);
@@ -484,12 +536,11 @@
         } else {
           prior.replicaCount = Number(prior.replicaCount || 1) + 1;
         }
-        continue;
+        return;
       }
       if (stableKey) stableEntryIndex.set(stableKey, out.length);
       out.push(candidate);
     }
-    return out;
   }
 
   function resolveAutonomousTurn(entries, expectedUserTurnId = "", expectedUserIndex = null) {
@@ -555,6 +606,9 @@
     for (const node of clone.querySelectorAll(
       "button, textarea, input, select, [contenteditable='true'], [data-eic-gf-ui='true']"
     )) node.remove();
+    // v1.8.10 app shell: the sr-only "ChatGPT sa:" heading and the sent-time
+    // stamp sit inside the assistant message element.
+    for (const node of clone.querySelectorAll("[data-conversation-role], [data-assistant-message-sent-time]")) node.remove();
     const textBeforeNoticeStrip = entry.role === "assistant" ? String(clone.textContent || "") : "";
     if (entry.role === "assistant") stripProviderProcessingNotice(clone);
     const noticeRemoved = textBeforeNoticeStrip !== "" && String(clone.textContent || "") !== textBeforeNoticeStrip;
@@ -638,7 +692,10 @@
     /det här innehållet kan inte visas/i
   ];
   const PROVIDER_NOTICE_CYBER = /cyber\s*security|cybersäkerhet|kyberturvallisuu/i;
-  const MESSAGE_TURN_SELECTOR = "[data-message-author-role], [data-testid^='conversation-turn-'], article[data-turn-id], [data-turn-id], [data-eic-gf-ui='true']";
+  // v1.8.10: in the app shell the cyber notice is rendered inside the turn row
+  // (div[data-content-search-turn-key]) as a sibling after the user message,
+  // so only the message elements themselves are excluded, never the turn row.
+  const MESSAGE_TURN_SELECTOR = `[data-message-author-role], [data-testid^='conversation-turn-'], article[data-turn-id], [data-turn-id], ${SHELL_MESSAGE_SELECTOR}, [data-eic-gf-ui='true']`;
 
   function detectProviderNotice(anchorEntry) {
     const root = document.querySelector("main") || document.body;
@@ -830,20 +887,27 @@
 
   async function waitForMaterialization(before, promptHash, timeoutMs = 15000, expectedComposerHash = "") {
     const started = Date.now();
+    // v1.8.10: the app shell shows "Stoppa" and the optimistic user message
+    // before ChatGPT gives that message an id. Keep reading (same budget)
+    // until the materialized user turn can be receipted; the first evidence
+    // is kept in case it never can.
+    let firstEvidence = null;
     while (Date.now() - started < timeoutMs) {
       const state = await pageState();
       const evidence = materializationEvidence(before, state, promptHash);
       if (evidence) {
-        return {
-          acknowledged: true,
-          evidence,
-          elapsedMs: Date.now() - started,
-          state,
-          rateLimitDetected: false,
-          rateLimitNoEffectConfirmed: false
-        };
-      }
-      if (state.rateLimitWarning?.active === true) {
+        if (materializedUserTurnReceipt(before, state)) {
+          return {
+            acknowledged: true,
+            evidence,
+            elapsedMs: Date.now() - started,
+            state,
+            rateLimitDetected: false,
+            rateLimitNoEffectConfirmed: false
+          };
+        }
+        firstEvidence = firstEvidence || { evidence, elapsedMs: Date.now() - started };
+      } else if (state.rateLimitWarning?.active === true) {
         const noEffectConfirmed =
           Number(state.userCount || 0) === Number(before.userCount || 0) &&
           state.lastUserHash !== promptHash &&
@@ -862,6 +926,16 @@
         };
       }
       await new Promise((resolve) => setTimeout(resolve, document.visibilityState === "hidden" ? 600 : 180));
+    }
+    if (firstEvidence) {
+      return {
+        acknowledged: true,
+        evidence: firstEvidence.evidence,
+        elapsedMs: firstEvidence.elapsedMs,
+        state: await pageState(),
+        rateLimitDetected: false,
+        rateLimitNoEffectConfirmed: false
+      };
     }
     return {
       acknowledged: false,

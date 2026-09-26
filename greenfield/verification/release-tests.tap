@@ -1,3926 +1,3950 @@
 
-> eic-autonom-agent-greenfield@1.8.9 test
+> eic-autonom-agent-greenfield@1.8.10 test
 > node --test tests/*.test.mjs
 
 TAP version 13
 # Subtest: A2A envelope carries standard Agent presentation and response schema
 ok 1 - A2A envelope carries standard Agent presentation and response schema
   ---
-  duration_ms: 8.720555
+  duration_ms: 8.861576
   type: 'test'
   ...
 # Subtest: one-shot operator instruction is structured and one-shot
 ok 2 - one-shot operator instruction is structured and one-shot
   ---
-  duration_ms: 0.516655
+  duration_ms: 0.522581
   type: 'test'
   ...
 # Subtest: A2A prompt is valid JSON and not a trailer protocol
 ok 3 - A2A prompt is valid JSON and not a trailer protocol
   ---
-  duration_ms: 0.662063
+  duration_ms: 0.735756
   type: 'test'
   ...
 # Subtest: A2A native control contains failure acceptance and claim boundaries
 ok 4 - A2A native control contains failure acceptance and claim boundaries
   ---
-  duration_ms: 0.379973
+  duration_ms: 0.353777
   type: 'test'
   ...
 # Subtest: A2A binds previousDisposition from explicit controller disposition
 ok 5 - A2A binds previousDisposition from explicit controller disposition
   ---
-  duration_ms: 0.540894
+  duration_ms: 0.651615
   type: 'test'
   ...
 # Subtest: A2A carries objective identity and bounded local analysis evidence
 ok 6 - A2A carries objective identity and bounded local analysis evidence
   ---
-  duration_ms: 0.506863
+  duration_ms: 0.545324
   type: 'test'
   ...
 # Subtest: A2A requires Nano task directives to be authored in English
 ok 7 - A2A requires Nano task directives to be authored in English
   ---
-  duration_ms: 0.481866
+  duration_ms: 0.490527
   type: 'test'
   ...
 # Subtest: v1.3.7 queued A2A envelope exposes YIELD_TO_QUEUE and checkpoint control only for queue-managed missions
 ok 8 - v1.3.7 queued A2A envelope exposes YIELD_TO_QUEUE and checkpoint control only for queue-managed missions
   ---
-  duration_ms: 16.427125
+  duration_ms: 16.742281
   type: 'test'
   ...
 # Subtest: protocol UNKNOWN is advisory and does not block a materially new controller continuation
 ok 9 - protocol UNKNOWN is advisory and does not block a materially new controller continuation
   ---
-  duration_ms: 1.267783
+  duration_ms: 1.275881
   type: 'test'
   ...
 # Subtest: protocol BLOCKED is advisory metadata, not a continuation barrier
 ok 10 - protocol BLOCKED is advisory metadata, not a continuation barrier
   ---
-  duration_ms: 1.523014
+  duration_ms: 1.468664
   type: 'test'
   ...
 # Subtest: protocol DONE is advisory metadata and cannot terminate the controller by itself
 ok 11 - protocol DONE is advisory metadata and cannot terminate the controller by itself
   ---
-  duration_ms: 0.252302
+  duration_ms: 0.226209
   type: 'test'
   ...
 # Subtest: pending operator instruction remains ordinary controller input even when protocol says DONE
 ok 12 - pending operator instruction remains ordinary controller input even when protocol says DONE
   ---
-  duration_ms: 0.13884
+  duration_ms: 0.135529
   type: 'test'
   ...
 # Subtest: same unresolved objective is converted into a materially different alternative
 ok 13 - same unresolved objective is converted into a materially different alternative
   ---
-  duration_ms: 1.9588
+  duration_ms: 0.404579
   type: 'test'
   ...
 # Subtest: stale previous Hjalmar prompt yields to newer target guidance
 ok 14 - stale previous Hjalmar prompt yields to newer target guidance
   ---
-  duration_ms: 0.212161
+  duration_ms: 0.153663
   type: 'test'
   ...
 # Subtest: running Nano task must reach a terminal state before normal CONTINUE
 ok 15 - running Nano task must reach a terminal state before normal CONTINUE
   ---
-  duration_ms: 0.421573
+  duration_ms: 0.276457
   type: 'test'
   ...
 # Subtest: terminal Nano task failure may continue with failure evidence instead of blocking the whole run
 ok 16 - terminal Nano task failure may continue with failure evidence instead of blocking the whole run
   ---
-  duration_ms: 0.212418
+  duration_ms: 0.183256
   type: 'test'
   ...
 # Subtest: Nano CONTEXT_REQUIRED may continue in EIC without replaying the impossible local task
 ok 17 - Nano CONTEXT_REQUIRED may continue in EIC without replaying the impossible local task
   ---
-  duration_ms: 3.55674
+  duration_ms: 0.546889
   type: 'test'
   ...
 # Subtest: unknown Nano task effect remains a hard exact-once boundary
 ok 18 - unknown Nano task effect remains a hard exact-once boundary
   ---
-  duration_ms: 0.447528
+  duration_ms: 0.38002
   type: 'test'
   ...
 # Subtest: completed Nano task directive cannot be reissued back to target
 ok 19 - completed Nano task directive cannot be reissued back to target
   ---
-  duration_ms: 0.211989
+  duration_ms: 0.199503
   type: 'test'
   ...
 # Subtest: completed Nano task with sanitized materially-new prompt is admissible
 ok 20 - completed Nano task with sanitized materially-new prompt is admissible
   ---
-  duration_ms: 0.219501
+  duration_ms: 0.126969
   type: 'test'
   ...
 # Subtest: capacity defaults to two and is bounded to 1..4
 ok 21 - capacity defaults to two and is bounded to 1..4
   ---
-  duration_ms: 0.978617
+  duration_ms: 1.046273
   type: 'test'
   ...
 # Subtest: priority aging raises one level every three minutes and LOW reaches URGENT after nine
 ok 22 - priority aging raises one level every three minutes and LOW reaches URGENT after nine
   ---
-  duration_ms: 0.466148
+  duration_ms: 0.363929
   type: 'test'
   ...
 # Subtest: two active turns are admitted, third waits, and release wakes the next waiter
 ok 23 - two active turns are admitted, third waits, and release wakes the next waiter
   ---
-  duration_ms: 4.064207
+  duration_ms: 5.324149
   type: 'test'
   ...
 # Subtest: higher priority overtakes an older lower priority waiter while both are young
 ok 24 - higher priority overtakes an older lower priority waiter while both are young
   ---
-  duration_ms: 0.868952
+  duration_ms: 1.06539
   type: 'test'
   ...
 # Subtest: anti-starvation: an old LOW waiter eventually outranks later URGENT arrivals by age tie-break
 ok 25 - anti-starvation: an old LOW waiter eventually outranks later URGENT arrivals by age tie-break
   ---
-  duration_ms: 0.875766
+  duration_ms: 0.917899
   type: 'test'
   ...
 # Subtest: same effective priority is deterministic FIFO by readySince then ticket
 ok 26 - same effective priority is deterministic FIFO by readySince then ticket
   ---
-  duration_ms: 1.884818
+  duration_ms: 1.426456
   type: 'test'
   ...
 # Subtest: priority update reorders waiters but never preempts already active turns
 ok 27 - priority update reorders waiters but never preempts already active turns
   ---
-  duration_ms: 0.647673
+  duration_ms: 0.675142
   type: 'test'
   ...
 # Subtest: lowering capacity is non-preemptive and blocks new slots until active count falls
 ok 28 - lowering capacity is non-preemptive and blocks new slots until active count falls
   ---
-  duration_ms: 0.353941
+  duration_ms: 0.30235
   type: 'test'
   ...
 # Subtest: anti-starvation queue never drops an older waiter when more sessions arrive
 ok 29 - anti-starvation queue never drops an older waiter when more sessions arrive
   ---
-  duration_ms: 102.173822
+  duration_ms: 123.368717
   type: 'test'
   ...
 # Subtest: reconciliation preserves observed active turns and eligible queued waiters after worker restart
 ok 30 - reconciliation preserves observed active turns and eligible queued waiters after worker restart
   ---
-  duration_ms: 1.027021
+  duration_ms: 1.557019
   type: 'test'
   ...
 # Subtest: v1.3.8 observed-effect adoption cannot be used as an ordinary capacity bypass
 ok 31 - v1.3.8 observed-effect adoption cannot be used as an ordinary capacity bypass
   ---
-  duration_ms: 0.841971
+  duration_ms: 1.332216
   type: 'test'
   ...
 # Subtest: v1.3.8 owner-observed in-flight effects remain truthful even when configured capacity is already full
 ok 32 - v1.3.8 owner-observed in-flight effects remain truthful even when configured capacity is already full
   ---
-  duration_ms: 0.243162
+  duration_ms: 0.436428
   type: 'test'
   ...
 # Subtest: v1.2.2 maps CONTINUE + executable nextSuggestedAction to NEXT even when target blocker strings made Hjalmar say BLOCKED
 ok 33 - v1.2.2 maps CONTINUE + executable nextSuggestedAction to NEXT even when target blocker strings made Hjalmar say BLOCKED
   ---
-  duration_ms: 1.001821
+  duration_ms: 1.07646
   type: 'test'
   ...
 # Subtest: v1.2.2 keeps human authority distinct as OPERATOR
 ok 34 - v1.2.2 keeps human authority distinct as OPERATOR
   ---
-  duration_ms: 0.200896
+  duration_ms: 0.245502
   type: 'test'
   ...
 # Subtest: v1.2.2 keeps exact-once unknown effect as hard BLOCK
 ok 35 - v1.2.2 keeps exact-once unknown effect as hard BLOCK
   ---
-  duration_ms: 0.136505
+  duration_ms: 0.143089
   type: 'test'
   ...
 # Subtest: v1.2.2 does not invent NEXT when both controller and target have no executable continuation
 ok 36 - v1.2.2 does not invent NEXT when both controller and target have no executable continuation
   ---
-  duration_ms: 1.20455
+  duration_ms: 1.259041
   type: 'test'
   ...
 # Subtest: v1.2.2 carries normal CONTINUE and DONE without remapping
 ok 37 - v1.2.2 carries normal CONTINUE and DONE without remapping
   ---
-  duration_ms: 0.305422
+  duration_ms: 0.369151
   type: 'test'
   ...
 # Subtest: v1.2.3 explicit EIC session rotation remains ACTIVE/NEXT even when local Hjalmar is BLOCKED
 ok 38 - v1.2.3 explicit EIC session rotation remains ACTIVE/NEXT even when local Hjalmar is BLOCKED
   ---
-  duration_ms: 0.129215
+  duration_ms: 0.311247
   type: 'test'
   ...
 # Subtest: v1.2.3 explicit EIC STOP_PROCESS and legacy status=DONE are terminal controls
 ok 39 - v1.2.3 explicit EIC STOP_PROCESS and legacy status=DONE are terminal controls
   ---
-  duration_ms: 0.244225
+  duration_ms: 0.443643
   type: 'test'
   ...
 # Subtest: fixed D2 accepts grounded continuation
 ok 40 - fixed D2 accepts grounded continuation
   ---
-  duration_ms: 2.287968
+  duration_ms: 2.491718
   type: 'test'
   ...
 # Subtest: material ambiguity cannot pass as CONTINUE
 ok 41 - material ambiguity cannot pass as CONTINUE
   ---
-  duration_ms: 0.309143
+  duration_ms: 0.660403
   type: 'test'
   ...
 # Subtest: READ_REQUIRED carries one next prompt
 ok 42 - READ_REQUIRED carries one next prompt
   ---
-  duration_ms: 0.124986
+  duration_ms: 0.145287
   type: 'test'
   ...
 # Subtest: human authority must block
 ok 43 - human authority must block
   ---
-  duration_ms: 0.143956
+  duration_ms: 0.435919
   type: 'test'
   ...
 # Subtest: BLOCKED must not smuggle a continuation prompt
 ok 44 - BLOCKED must not smuggle a continuation prompt
   ---
-  duration_ms: 0.265684
+  duration_ms: 0.252129
   type: 'test'
   ...
 # Subtest: Hjalmar D2 treats a queued operator instruction as mandatory next-step input
 ok 45 - Hjalmar D2 treats a queued operator instruction as mandatory next-step input
   ---
-  duration_ms: 0.479591
+  duration_ms: 0.653038
   type: 'test'
   ...
 # Subtest: Hjalmar evidence binding requires protocol metadata to be mirrored without forcing final disposition
 ok 46 - Hjalmar evidence binding requires protocol metadata to be mirrored without forcing final disposition
   ---
-  duration_ms: 0.341976
+  duration_ms: 0.307312
   type: 'test'
   ...
 # Subtest: Hjalmar cannot claim Nano task satisfaction without actual completed task result
 ok 47 - Hjalmar cannot claim Nano task satisfaction without actual completed task result
   ---
-  duration_ms: 0.128165
+  duration_ms: 0.229821
   type: 'test'
   ...
 # Subtest: completed requested Nano task cannot be misreported as NOT_REQUESTED
 ok 48 - completed requested Nano task cannot be misreported as NOT_REQUESTED
   ---
-  duration_ms: 0.319551
+  duration_ms: 0.45217
   type: 'test'
   ...
 # Subtest: runtime reconciliation owns Nano task assessment and consumes reissued directive
 ok 49 - runtime reconciliation owns Nano task assessment and consumes reissued directive
   ---
-  duration_ms: 0.921903
+  duration_ms: 0.995943
   type: 'test'
   ...
 # Subtest: runtime reconciliation mirrors protocol BLOCKED metadata without forcing controller BLOCKED
 ok 50 - runtime reconciliation mirrors protocol BLOCKED metadata without forcing controller BLOCKED
   ---
-  duration_ms: 0.276589
+  duration_ms: 0.671605
   type: 'test'
   ...
 # Subtest: runtime reconciliation mirrors protocol DONE metadata without forcing controller DONE
 ok 51 - runtime reconciliation mirrors protocol DONE metadata without forcing controller DONE
   ---
-  duration_ms: 0.107106
+  duration_ms: 0.202323
   type: 'test'
   ...
 # Subtest: deterministically satisfied Nano task owns Hjalmar assessment
 ok 52 - deterministically satisfied Nano task owns Hjalmar assessment
   ---
-  duration_ms: 0.112536
+  duration_ms: 0.166714
   type: 'test'
   ...
 # Subtest: terminal failed Nano task reissue is sanitized instead of forcing a caller-visible blocker
 ok 53 - terminal failed Nano task reissue is sanitized instead of forcing a caller-visible blocker
   ---
-  duration_ms: 0.152538
+  duration_ms: 0.27482
   type: 'test'
   ...
 # Subtest: prompt-closure context requirement remains a non-blocking Nano terminal outcome
 ok 54 - prompt-closure context requirement remains a non-blocking Nano terminal outcome
   ---
-  duration_ms: 0.169299
+  duration_ms: 0.232473
   type: 'test'
   ...
 # Subtest: runtime repairs a false Hjalmar BLOCKED caused only by Nano missing prompt context
 ok 55 - runtime repairs a false Hjalmar BLOCKED caused only by Nano missing prompt context
   ---
-  duration_ms: 0.292996
+  duration_ms: 0.244006
   type: 'test'
   ...
 # Subtest: unknown Nano effect cannot be normalized into ordinary CONTINUE
 ok 56 - unknown Nano effect cannot be normalized into ordinary CONTINUE
   ---
-  duration_ms: 1.397168
+  duration_ms: 1.63104
   type: 'test'
   ...
 # Subtest: Hjalmar prompt is bounded for Chrome Nano small context and omits raw turn transcripts
 ok 57 - Hjalmar prompt is bounded for Chrome Nano small context and omits raw turn transcripts
   ---
-  duration_ms: 0.28313
+  duration_ms: 0.307144
   type: 'test'
   ...
 # Subtest: same process is serialized
 ok 58 - same process is serialized
   ---
-  duration_ms: 26.79217
+  duration_ms: 28.282365
   type: 'test'
   ...
 # Subtest: different processes are not globally serialized
 ok 59 - different processes are not globally serialized
   ---
-  duration_ms: 35.428687
+  duration_ms: 35.62845
   type: 'test'
   ...
 # Subtest: v1.3.1 mission pause bounds are 5 minutes through 24 hours
 ok 60 - v1.3.1 mission pause bounds are 5 minutes through 24 hours
   ---
-  duration_ms: 0.8611
+  duration_ms: 1.468632
   type: 'test'
   ...
 # Subtest: PAUSE_PROCESS is a CONTINUE control with an explicit next action
 ok 61 - PAUSE_PROCESS is a CONTINUE control with an explicit next action
   ---
-  duration_ms: 1.260458
+  duration_ms: 2.125208
   type: 'test'
   ...
 # Subtest: non-pause responses cannot smuggle pauseSeconds
 ok 62 - non-pause responses cannot smuggle pauseSeconds
   ---
-  duration_ms: 0.158241
+  duration_ms: 0.281804
   type: 'test'
   ...
 # Subtest: mission pause receipt is deterministic around its not-before timestamp
 ok 63 - mission pause receipt is deterministic around its not-before timestamp
   ---
-  duration_ms: 3.764373
+  duration_ms: 6.426611
   type: 'test'
   ...
 # Subtest: state graph has a dedicated ANALYZING -> PAUSED -> SENDING path
 ok 64 - state graph has a dedicated ANALYZING -> PAUSED -> SENDING path
   ---
-  duration_ms: 0.338985
+  duration_ms: 1.767682
   type: 'test'
   ...
 # Subtest: strict A2A response parser accepts a valid timed pause
 ok 65 - strict A2A response parser accepts a valid timed pause
   ---
-  duration_ms: 2.259575
+  duration_ms: 2.636937
   type: 'test'
   ...
 # Subtest: strict A2A response parser rejects an out-of-range timed pause
 ok 66 - strict A2A response parser rejects an out-of-range timed pause
   ---
-  duration_ms: 0.316165
+  duration_ms: 0.443058
   type: 'test'
   ...
 # Subtest: renderer-safe control salvage retains PAUSE_PROCESS plus pauseSeconds
 ok 67 - renderer-safe control salvage retains PAUSE_PROCESS plus pauseSeconds
   ---
-  duration_ms: 0.158472
+  duration_ms: 0.240778
   type: 'test'
   ...
 # Subtest: A2A response contract teaches pause briefly and separately from the global 0-300 second gate
 ok 68 - A2A response contract teaches pause briefly and separately from the global 0-300 second gate
   ---
-  duration_ms: 2.435936
+  duration_ms: 3.966241
   type: 'test'
   ...
 # Subtest: MISSION_START source uses compact initial objective instead of mission duplication
 ok 69 - MISSION_START source uses compact initial objective instead of mission duplication
   ---
-  duration_ms: 1.055215
+  duration_ms: 1.325302
   type: 'test'
   ...
 # Subtest: long pause uses a one-shot Chrome alarm and recreates it during hydration
 ok 70 - long pause uses a one-shot Chrome alarm and recreates it during hydration
   ---
-  duration_ms: 0.723854
+  duration_ms: 0.98966
   type: 'test'
   ...
 # Subtest: mission pause remains distinct from the global prompt gate
 ok 71 - mission pause remains distinct from the global prompt gate
   ---
-  duration_ms: 0.219954
+  duration_ms: 0.364235
   type: 'test'
   ...
 # Subtest: side panel wires the PAUSED stage, countdown and explicit early-resume control
 ok 72 - side panel wires the PAUSED stage, countdown and explicit early-resume control
   ---
-  duration_ms: 0.16663
+  duration_ms: 0.319042
   type: 'test'
   ...
 # Subtest: v1.3.7 queue operational tuning values normalize to bounded global settings
 ok 73 - v1.3.7 queue operational tuning values normalize to bounded global settings
   ---
-  duration_ms: 1.122498
+  duration_ms: 1.222384
   type: 'test'
   ...
 # Subtest: queue add is durable and allows the same saved mission in independent scheduling slots
 ok 74 - queue add is durable and allows the same saved mission in independent scheduling slots
   ---
-  duration_ms: 18.944562
+  duration_ms: 19.858054
   type: 'test'
   ...
 # Subtest: queue selection follows explicit cyclic slot order and skips unavailable slots
 ok 75 - queue selection follows explicit cyclic slot order and skips unavailable slots
   ---
-  duration_ms: 0.905782
+  duration_ms: 1.096784
   type: 'test'
   ...
 # Subtest: queue turn control marks the final permitted interaction before it is sent
 ok 76 - queue turn control marks the final permitted interaction before it is sent
   ---
-  duration_ms: 14.754791
+  duration_ms: 15.925532
   type: 'test'
   ...
 # Subtest: active queue item quantum cannot be changed mid-flight but priority remains mutable
 ok 77 - active queue item quantum cannot be changed mid-flight but priority remains mutable
   ---
-  duration_ms: 10.513643
+  duration_ms: 18.109323
   type: 'test'
   ...
 # Subtest: normalization never preserves an activeItemId that does not name an ACTIVE item
 ok 78 - normalization never preserves an activeItemId that does not name an ACTIVE item
   ---
-  duration_ms: 0.265883
+  duration_ms: 0.436163
   type: 'test'
   ...
 # Subtest: queue persistence readback rejects no state in the normal durable path
 ok 79 - queue persistence readback rejects no state in the normal durable path
   ---
-  duration_ms: 2.177118
+  duration_ms: 3.840641
   type: 'test'
   ...
 # Subtest: all LanguageModel option paths declare English output
 ok 80 - all LanguageModel option paths declare English output
   ---
-  duration_ms: 3.011499
+  duration_ms: 2.38768
   type: 'test'
   ...
 # Subtest: primary and fallback preserve system instruction shape
 ok 81 - primary and fallback preserve system instruction shape
   ---
-  duration_ms: 0.439432
+  duration_ms: 0.28022
   type: 'test'
   ...
 # Subtest: Nano task directive is explicit and deterministic
 ok 82 - Nano task directive is explicit and deterministic
   ---
-  duration_ms: 2.014863
+  duration_ms: 2.444563
   type: 'test'
   ...
 # Subtest: ordinary Nano prose is not treated as a Nano task
 ok 83 - ordinary Nano prose is not treated as a Nano task
   ---
-  duration_ms: 0.191848
+  duration_ms: 0.339157
   type: 'test'
   ...
 # Subtest: Nano task has durable request identity and fresh one-prompt isolation contract
 ok 84 - Nano task has durable request identity and fresh one-prompt isolation contract
   ---
-  duration_ms: 6.057108
+  duration_ms: 6.512817
   type: 'test'
   ...
 # Subtest: Nano execution prompt is runtime-owned English direct-execution policy
 ok 85 - Nano execution prompt is runtime-owned English direct-execution policy
   ---
-  duration_ms: 0.303208
+  duration_ms: 0.298962
   type: 'test'
   ...
 # Subtest: Nano task persists source separately from English execution prompt
 ok 86 - Nano task persists source separately from English execution prompt
   ---
-  duration_ms: 1.203144
+  duration_ms: 1.136355
   type: 'test'
   ...
 # Subtest: Nano task directive owns one line and leaves continuation instructions outside the local task
 ok 87 - Nano task directive owns one line and leaves continuation instructions outside the local task
   ---
-  duration_ms: 0.140087
+  duration_ms: 0.139137
   type: 'test'
   ...
 # Subtest: deterministic exact-plain-text Nano verifier can close literal output semantics
 ok 88 - deterministic exact-plain-text Nano verifier can close literal output semantics
   ---
-  duration_ms: 0.481805
+  duration_ms: 0.557816
   type: 'test'
   ...
 # Subtest: generic Nano tasks remain semantically UNVERIFIED after execution
 ok 89 - generic Nano tasks remain semantically UNVERIFIED after execution
   ---
-  duration_ms: 0.188965
+  duration_ms: 0.205041
   type: 'test'
   ...
 # Subtest: v1.3.0 rejects an EIC/file-dependent Nano task before any model call
 ok 90 - v1.3.0 rejects an EIC/file-dependent Nano task before any model call
   ---
-  duration_ms: 0.598903
+  duration_ms: 0.723198
   type: 'test'
   ...
 # Subtest: v1.3.0 admits complex reasoning when all task data is inline in a structured prompt
 ok 91 - v1.3.0 admits complex reasoning when all task data is inline in a structured prompt
   ---
-  duration_ms: 0.546791
+  duration_ms: 0.623759
   type: 'test'
   ...
 # Subtest: v1.3.0 keeps simple legacy self-contained Nano tasks valid
 ok 92 - v1.3.0 keeps simple legacy self-contained Nano tasks valid
   ---
-  duration_ms: 0.32945
+  duration_ms: 0.306174
   type: 'test'
   ...
 # Subtest: v1.3.0 execution prompt makes the single-prompt epistemic boundary explicit
 ok 93 - v1.3.0 execution prompt makes the single-prompt epistemic boundary explicit
   ---
-  duration_ms: 0.357746
+  duration_ms: 0.293377
   type: 'test'
   ...
 # Subtest: v1.3.0 recognizes Nano context-required fail-closed output
 ok 94 - v1.3.0 recognizes Nano context-required fail-closed output
   ---
-  duration_ms: 0.458366
+  duration_ms: 1.934111
   type: 'test'
   ...
 # Subtest: Nano normalizes and validates compact advisory output
 ok 95 - Nano normalizes and validates compact advisory output
   ---
-  duration_ms: 1.938421
+  duration_ms: 2.11403
   type: 'test'
   ...
 # Subtest: Nano rejects empty advisory output
 ok 96 - Nano rejects empty advisory output
   ---
-  duration_ms: 0.983117
+  duration_ms: 1.720655
   type: 'test'
   ...
 # Subtest: Nano prompt explicitly has advisory-only authority
 ok 97 - Nano prompt explicitly has advisory-only authority
   ---
-  duration_ms: 0.602631
+  duration_ms: 0.733941
   type: 'test'
   ...
 # Subtest: Nano observer prompt is aggressively bounded for Chrome Nano small context
 ok 98 - Nano observer prompt is aggressively bounded for Chrome Nano small context
   ---
-  duration_ms: 0.346561
+  duration_ms: 0.354083
   type: 'test'
   ...
 # Subtest: response observation fields have producer and consumer ends
 ok 99 - response observation fields have producer and consumer ends
   ---
-  duration_ms: 1.384861
+  duration_ms: 2.288208
   type: 'test'
   ...
 # Subtest: response candidate identity binds autonomous user pair + document + assistant + owner + hash + count
 ok 100 - response candidate identity binds autonomous user pair + document + assistant + owner + hash + count
   ---
-  duration_ms: 0.303735
+  duration_ms: 0.364009
   type: 'test'
   ...
 # Subtest: untrusted or causally unmatched observations are held before optional protocol parsing
 ok 101 - untrusted or causally unmatched observations are held before optional protocol parsing
   ---
-  duration_ms: 0.280216
+  duration_ms: 0.57118
   type: 'test'
   ...
 # Subtest: content bridge version has both producer and verifier ends
 ok 102 - content bridge version has both producer and verifier ends
   ---
-  duration_ms: 0.487173
+  duration_ms: 0.570477
   type: 'test'
   ...
 # Subtest: trusted response owner is a single-role structural boundary
 ok 103 - trusted response owner is a single-role structural boundary
   ---
-  duration_ms: 0.162484
+  duration_ms: 0.237026
   type: 'test'
   ...
 # Subtest: autonomous user-turn causality has producer, transport, consumer and invariant ends
 ok 104 - autonomous user-turn causality has producer, transport, consumer and invariant ends
   ---
-  duration_ms: 0.460401
+  duration_ms: 0.677787
   type: 'test'
   ...
 # Subtest: external manual interleave has producer, persisted transport, A2A consumer and deterministic fixture
 ok 105 - external manual interleave has producer, persisted transport, A2A consumer and deterministic fixture
   ---
-  duration_ms: 0.45609
+  duration_ms: 0.687276
   type: 'test'
   ...
 # Subtest: accepted response provenance is serialized into bounded A2A analysisEvidence
 ok 106 - accepted response provenance is serialized into bounded A2A analysisEvidence
   ---
-  duration_ms: 1.3647
+  duration_ms: 3.184422
   type: 'test'
   ...
 # Subtest: v1.2.1 owner fallback is a bounded causal exception, not a general trust promotion
 ok 107 - v1.2.1 owner fallback is a bounded causal exception, not a general trust promotion
   ---
-  duration_ms: 4.302033
+  duration_ms: 0.651666
   type: 'test'
   ...
 # Subtest: target response parser finds canonical JSON inside ChatGPT wrapper/footer
 ok 108 - target response parser finds canonical JSON inside ChatGPT wrapper/footer
   ---
-  duration_ms: 3.234913
+  duration_ms: 4.063215
   type: 'test'
   ...
 # Subtest: target response parser rejects additional properties instead of fabricating status
 ok 109 - target response parser rejects additional properties instead of fabricating status
   ---
-  duration_ms: 0.547699
+  duration_ms: 0.533502
   type: 'test'
   ...
 # Subtest: target response validation requires canonical status
 ok 110 - target response validation requires canonical status
   ---
-  duration_ms: 0.251268
+  duration_ms: 0.303138
   type: 'test'
   ...
 # Subtest: target response parser repairs renderer-lost quote escapes only when canonical schema validates
 ok 111 - target response parser repairs renderer-lost quote escapes only when canonical schema validates
   ---
-  duration_ms: 0.755989
+  duration_ms: 0.858569
   type: 'test'
   ...
 # Subtest: renderer repair cannot elevate a non-canonical object
 ok 112 - renderer repair cannot elevate a non-canonical object
   ---
-  duration_ms: 0.240866
+  duration_ms: 0.289571
   type: 'test'
   ...
 # Subtest: target response parser repairs live renderer quote loss when embedded quoted metadata is followed by commas
 ok 113 - target response parser repairs live renderer quote loss when embedded quoted metadata is followed by commas
   ---
-  duration_ms: 0.292232
+  duration_ms: 0.323854
   type: 'test'
   ...
 # Subtest: renderer repair preserves normal multi-item JSON arrays
 ok 114 - renderer repair preserves normal multi-item JSON arrays
   ---
-  duration_ms: 1.336439
+  duration_ms: 1.537799
   type: 'test'
   ...
 # Subtest: control-plane salvage admits one canonical status when renderer corrupts only descriptive JSON strings
 ok 115 - control-plane salvage admits one canonical status when renderer corrupts only descriptive JSON strings
   ---
-  duration_ms: 0.267046
+  duration_ms: 0.293013
   type: 'test'
   ...
 # Subtest: control-plane salvage remains fail-closed when canonical status is absent
 ok 116 - control-plane salvage remains fail-closed when canonical status is absent
   ---
-  duration_ms: 0.503497
+  duration_ms: 0.536882
   type: 'test'
   ...
 # Subtest: control-plane salvage remains fail-closed when status field is ambiguous before summary
 ok 117 - control-plane salvage remains fail-closed when status field is ambiguous before summary
   ---
-  duration_ms: 0.380705
+  duration_ms: 0.41892
   type: 'test'
   ...
 # Subtest: v1.2.3 accepts explicit session rotation control and bounded reason
 ok 118 - v1.2.3 accepts explicit session rotation control and bounded reason
   ---
-  duration_ms: 0.361283
+  duration_ms: 0.423985
   type: 'test'
   ...
 # Subtest: v1.2.3 rejects unknown or contradictory session controls
 ok 119 - v1.2.3 rejects unknown or contradictory session controls
   ---
-  duration_ms: 0.133349
+  duration_ms: 0.145288
   type: 'test'
   ...
 # Subtest: renderer-safe control salvage carries one exact sessionAction without prose interpretation
 ok 120 - renderer-safe control salvage carries one exact sessionAction without prose interpretation
   ---
-  duration_ms: 0.268746
+  duration_ms: 0.288503
   type: 'test'
   ...
 # Subtest: v1.3.7 accepts explicit queue yield only for CONTINUE with restart-safe next action
 ok 121 - v1.3.7 accepts explicit queue yield only for CONTINUE with restart-safe next action
   ---
-  duration_ms: 0.160601
+  duration_ms: 0.173402
   type: 'test'
   ...
 # Subtest: v1.3.7 rejects queue yield when status is terminal or next action is empty
 ok 122 - v1.3.7 rejects queue yield when status is terminal or next action is empty
   ---
-  duration_ms: 0.086717
+  duration_ms: 0.15718
   type: 'test'
   ...
 # Subtest: complete response requires repeated stable reads of one trusted document/message identity
 ok 123 - complete response requires repeated stable reads of one trusted document/message identity
   ---
-  duration_ms: 3.021156
+  duration_ms: 2.822964
   type: 'test'
   ...
 # Subtest: changed document/message/hash/count starts a new candidate instead of mixing states
 ok 124 - changed document/message/hash/count starts a new candidate instead of mixing states
   ---
-  duration_ms: 0.429307
+  duration_ms: 0.328766
   type: 'test'
   ...
 # Subtest: streaming response cannot complete
 ok 125 - streaming response cannot complete
   ---
-  duration_ms: 0.143389
+  duration_ms: 0.182008
   type: 'test'
   ...
 # Subtest: untrusted role-node fragment never becomes terminal even when bytes repeat
 ok 126 - untrusted role-node fragment never becomes terminal even when bytes repeat
   ---
-  duration_ms: 0.282712
+  duration_ms: 0.332516
   type: 'test'
   ...
 # Subtest: causal user-turn mismatch is held even when assistant ownership is structurally trusted
 ok 127 - causal user-turn mismatch is held even when assistant ownership is structurally trusted
   ---
-  duration_ms: 0.151145
+  duration_ms: 0.179772
   type: 'test'
   ...
 # Subtest: documentId and assistant owner trust are mandatory two-ended observation fields
 ok 128 - documentId and assistant owner trust are mandatory two-ended observation fields
   ---
-  duration_ms: 0.147453
+  duration_ms: 0.150314
   type: 'test'
   ...
 # Subtest: v1.2.1 exact-ID visible causal fallback is admissible without making ROLE_NODE_FALLBACK generally trusted
 ok 129 - v1.2.1 exact-ID visible causal fallback is admissible without making ROLE_NODE_FALLBACK generally trusted
   ---
-  duration_ms: 0.247101
+  duration_ms: 0.239632
   type: 'test'
   ...
 # Subtest: v1.2.1 causal fallback requires five stable reads and at least five seconds
 ok 130 - v1.2.1 causal fallback requires five stable reads and at least five seconds
   ---
-  duration_ms: 0.269892
+  duration_ms: 0.346857
   type: 'test'
   ...
 # Subtest: v1.2.1 causal fallback remains fail-closed for hidden, ordinal, or closed response slots
 ok 131 - v1.2.1 causal fallback remains fail-closed for hidden, ordinal, or closed response slots
   ---
-  duration_ms: 0.368776
+  duration_ms: 4.096847
   type: 'test'
   ...
 # Subtest: v1.3.3 holds the exact 42-char hidden trusted canonical A2A prefix instead of terminalizing it
 ok 132 - v1.3.3 holds the exact 42-char hidden trusted canonical A2A prefix instead of terminalizing it
   ---
-  duration_ms: 0.644855
+  duration_ms: 1.088035
   type: 'test'
   ...
 # Subtest: v1.3.3 still terminalizes a complete hidden trusted ROTATE_SESSION_NOW A2A response
 ok 133 - v1.3.3 still terminalizes a complete hidden trusted ROTATE_SESSION_NOW A2A response
   ---
-  duration_ms: 0.321517
+  duration_ms: 0.362226
   type: 'test'
   ...
 # Subtest: v1.3.3 leaves stable protocol-absent prose behavior unchanged
 ok 134 - v1.3.3 leaves stable protocol-absent prose behavior unchanged
   ---
-  duration_ms: 0.135688
+  duration_ms: 0.153625
   type: 'test'
   ...
 # Subtest: v1.3.8 lifecycle-only assistant chrome is never a terminal response even for a hidden trusted turn owner
 ok 135 - v1.3.8 lifecycle-only assistant chrome is never a terminal response even for a hidden trusted turn owner
   ---
-  duration_ms: 0.285951
+  duration_ms: 0.455253
   type: 'test'
   ...
 # Subtest: v1.3.8 exact ten-character Working fragment cannot mask the later PAUSE_PROCESS control
 ok 136 - v1.3.8 exact ten-character Working fragment cannot mask the later PAUSE_PROCESS control
   ---
-  duration_ms: 0.215806
+  duration_ms: 0.364647
   type: 'test'
   ...
 # Subtest: v1.2.2 saved mission vault survives extension-local uninstall and a new extension identity
 ok 137 - v1.2.2 saved mission vault survives extension-local uninstall and a new extension identity
   ---
-  duration_ms: 10.808507
+  duration_ms: 12.678862
   type: 'test'
   ...
 # Subtest: v1.2.2 migrates v1.2.1 local saved missions into the durable profile owner on first load
 ok 138 - v1.2.2 migrates v1.2.1 local saved missions into the durable profile owner on first load
   ---
-  duration_ms: 0.975977
+  duration_ms: 1.106921
   type: 'test'
   ...
 # Subtest: v1.2.2 durability contract is extension-install and extension-id independent
 ok 139 - v1.2.2 durability contract is extension-install and extension-id independent
   ---
-  duration_ms: 0.157428
+  duration_ms: 0.168617
   type: 'test'
   ...
 # Subtest: fresh prompt may dispatch
 ok 140 - fresh prompt may dispatch
   ---
-  duration_ms: 0.752724
+  duration_ms: 0.895181
   type: 'test'
   ...
 # Subtest: effect-possible dispatch can never auto resend
 ok 141 - effect-possible dispatch can never auto resend
   ---
-  duration_ms: 0.218916
+  duration_ms: 0.26783
   type: 'test'
   ...
 # Subtest: observed user count confirms existing dispatch without resend
 ok 142 - observed user count confirms existing dispatch without resend
   ---
-  duration_ms: 0.113605
+  duration_ms: 0.125427
   type: 'test'
   ...
 # Subtest: only confirmed no-effect permits a retry
 ok 143 - only confirmed no-effect permits a retry
   ---
-  duration_ms: 0.094602
+  duration_ms: 0.110706
   type: 'test'
   ...
 # Subtest: unknown transport in same content document replays the same dispatch id
 ok 144 - unknown transport in same content document replays the same dispatch id
   ---
-  duration_ms: 1.194122
+  duration_ms: 1.142805
   type: 'test'
   ...
 # Subtest: unknown transport after document replacement never blind-resends
 ok 145 - unknown transport after document replacement never blind-resends
   ---
-  duration_ms: 0.174331
+  duration_ms: 0.18618
   type: 'test'
   ...
 # Subtest: session health measures TTFR from actual prompt post, excluding pre-post waits
 ok 146 - session health measures TTFR from actual prompt post, excluding pre-post waits
   ---
-  duration_ms: 1.300974
+  duration_ms: 1.601197
   type: 'test'
   ...
 # Subtest: session health prompt accounting is idempotent for the same prompt hash
 ok 147 - session health prompt accounting is idempotent for the same prompt hash
   ---
-  duration_ms: 0.195827
+  duration_ms: 0.276521
   type: 'test'
   ...
 # Subtest: session health establishes a per-session TTFR baseline and rising signal
 ok 148 - session health establishes a per-session TTFR baseline and rising signal
   ---
-  duration_ms: 0.413901
+  duration_ms: 0.494128
   type: 'test'
   ...
 # Subtest: recovery-tainted samples do not seed clean TTFR baseline
 ok 149 - recovery-tainted samples do not seed clean TTFR baseline
   ---
-  duration_ms: 0.163682
+  duration_ms: 0.187836
   type: 'test'
   ...
 # Subtest: session rotation resets pressure telemetry but not mission lineage fields outside this module
 ok 150 - session rotation resets pressure telemetry but not mission lineage fields outside this module
   ---
-  duration_ms: 0.227123
+  duration_ms: 0.311434
   type: 'test'
   ...
 # Subtest: A2A transport is minified JSON and carries advisory session health without removing control semantics
 ok 151 - A2A transport is minified JSON and carries advisory session health without removing control semantics
   ---
-  duration_ms: 5.702262
+  duration_ms: 7.01282
   type: 'test'
   ...
 # Subtest: session health stays advisory: high proxy pressure does not mutate sessionAction or mission authority
 ok 152 - session health stays advisory: high proxy pressure does not mutate sessionAction or mission authority
   ---
-  duration_ms: 0.51931
+  duration_ms: 0.562426
   type: 'test'
   ...
 # Subtest: v1.8.0 preserves the v1.3.1 A2A contract apart from additive health, owner-state, mixed-language/status control, runtime-control/prompt-profile/learning-control metadata and the intentional 0-300 prompt-gate range
 ok 153 - v1.8.0 preserves the v1.3.1 A2A contract apart from additive health, owner-state, mixed-language/status control, runtime-control/prompt-profile/learning-control metadata and the intentional 0-300 prompt-gate range
   ---
-  duration_ms: 2.677833
+  duration_ms: 3.372153
   type: 'test'
   ...
 # Subtest: missing pre-v1.3.2 health state initializes at the current session lineage instead of session 1
 ok 154 - missing pre-v1.3.2 health state initializes at the current session lineage instead of session 1
   ---
-  duration_ms: 0.390817
+  duration_ms: 0.349618
   type: 'test'
   ...
 # Subtest: reconciled unknown-effect prompt timing is retained but excluded from clean latency baseline
 ok 155 - reconciled unknown-effect prompt timing is retained but excluded from clean latency baseline
   ---
-  duration_ms: 0.453555
+  duration_ms: 0.565405
   type: 'test'
   ...
 # Subtest: custom GPT root is derived from the live managed tab URL and strips conversation state
 ok 156 - custom GPT root is derived from the live managed tab URL and strips conversation state
   ---
-  duration_ms: 1.994571
+  duration_ms: 2.326473
   type: 'test'
   ...
 # Subtest: persisted custom GPT root wins when a conversation URL no longer carries the GPT path
 ok 157 - persisted custom GPT root wins when a conversation URL no longer carries the GPT path
   ---
-  duration_ms: 0.154951
+  duration_ms: 0.184399
   type: 'test'
   ...
 # Subtest: generic ChatGPT root is a bounded fallback and non-ChatGPT URLs are rejected
 ok 158 - generic ChatGPT root is a bounded fallback and non-ChatGPT URLs are rejected
   ---
-  duration_ms: 0.16311
+  duration_ms: 0.176298
   type: 'test'
   ...
 # Subtest: session action control is explicit and defaults safely to KEEP
 ok 159 - session action control is explicit and defaults safely to KEEP
   ---
-  duration_ms: 0.186382
+  duration_ms: 0.15805
   type: 'test'
   ...
 # Subtest: rotation record preserves session identity boundary without inventing a mission restart
 ok 160 - rotation record preserves session identity boundary without inventing a mission restart
   ---
-  duration_ms: 0.46944
+  duration_ms: 0.633407
   type: 'test'
   ...
 # Subtest: background has one session-rotation path for stale, detached and explicit EIC control
 ok 161 - background has one session-rotation path for stale, detached and explicit EIC control
   ---
-  duration_ms: 2.577695
+  duration_ms: 2.423274
   type: 'test'
   ...
 # Subtest: process starts with one canonical owner in SENDING
 ok 162 - process starts with one canonical owner in SENDING
   ---
-  duration_ms: 4.905534
+  duration_ms: 7.504375
   type: 'test'
   ...
 # Subtest: generation rejects stale callbacks
 ok 163 - generation rejects stale callbacks
   ---
-  duration_ms: 0.533629
+  duration_ms: 1.035915
   type: 'test'
   ...
 # Subtest: illegal phase jump is rejected
 ok 164 - illegal phase jump is rejected
   ---
-  duration_ms: 0.685757
+  duration_ms: 1.018973
   type: 'test'
   ...
 # Subtest: transient recovery has no fatal retry budget
 ok 165 - transient recovery has no fatal retry budget
   ---
-  duration_ms: 3.505931
+  duration_ms: 5.190331
   type: 'test'
   ...
 # Subtest: DONE is reached from ANALYZING controller decision, never directly from WAITING protocol metadata
 ok 166 - DONE is reached from ANALYZING controller decision, never directly from WAITING protocol metadata
   ---
-  duration_ms: 0.315455
+  duration_ms: 0.436733
   type: 'test'
   ...
 # Subtest: ROTATING is non-terminal and invalidates prior generation ownership
 ok 167 - ROTATING is non-terminal and invalidates prior generation ownership
   ---
-  duration_ms: 0.214653
+  duration_ms: 0.24657
   type: 'test'
   ...
 # Subtest: process persists GPT root and starts at session sequence 1
 ok 168 - process persists GPT root and starts at session sequence 1
   ---
-  duration_ms: 0.127578
+  duration_ms: 0.739051
   type: 'test'
   ...
 # Subtest: runtime uses per-process keyed queue, not legacy global operationQueue
 ok 169 - runtime uses per-process keyed queue, not legacy global operationQueue
   ---
-  duration_ms: 2.83381
+  duration_ms: 3.40673
   type: 'test'
   ...
 # Subtest: v1.1.12 Audit persistence defaults off while FIFO observability remains live
 ok 170 - v1.1.12 Audit persistence defaults off while FIFO observability remains live
   ---
-  duration_ms: 0.474591
+  duration_ms: 0.528236
   type: 'test'
   ...
 # Subtest: one managed target is bound by window and tab identity and gets overlay
 ok 171 - one managed target is bound by window and tab identity and gets overlay
   ---
-  duration_ms: 0.189316
+  duration_ms: 0.233251
   type: 'test'
   ...
 # Subtest: manifest has no rollout/mode options and includes continuity infrastructure
 ok 172 - manifest has no rollout/mode options and includes continuity infrastructure
   ---
-  duration_ms: 0.254351
+  duration_ms: 0.280822
   type: 'test'
   ...
 # Subtest: one-shot next instruction is app-owned, audited and enters next A2A envelope
 ok 173 - one-shot next instruction is app-owned, audited and enters next A2A envelope
   ---
-  duration_ms: 0.56023
+  duration_ms: 0.605555
   type: 'test'
   ...
 # Subtest: Nano precedes fixed Hjalmar D2 in the local analysis pipeline
 ok 174 - Nano precedes fixed Hjalmar D2 in the local analysis pipeline
   ---
-  duration_ms: 0.166057
+  duration_ms: 0.182344
   type: 'test'
   ...
 # Subtest: Prompt API session declares output language
 ok 175 - Prompt API session declares output language
   ---
-  duration_ms: 0.383029
+  duration_ms: 0.344868
   type: 'test'
   ...
 # Subtest: duplicate prompt auto-resend path is absent
 ok 176 - duplicate prompt auto-resend path is absent
   ---
-  duration_ms: 0.324391
+  duration_ms: 0.331598
   type: 'test'
   ...
 # Subtest: SENDING imports its dispatch reconciliation and no tick exception can escape forensic Audit
 ok 177 - SENDING imports its dispatch reconciliation and no tick exception can escape forensic Audit
   ---
-  duration_ms: 0.683055
+  duration_ms: 0.716609
   type: 'test'
   ...
 # Subtest: unknown send transport can only replay the same dispatch id in the same content document
 ok 178 - unknown send transport can only replay the same dispatch id in the same content document
   ---
-  duration_ms: 0.425163
+  duration_ms: 0.458934
   type: 'test'
   ...
 # Subtest: multi-window analysis shares one offscreen host without a global process lock
 ok 179 - multi-window analysis shares one offscreen host without a global process lock
   ---
-  duration_ms: 0.388853
+  duration_ms: 0.400482
   type: 'test'
   ...
 # Subtest: first LanguageModel activation is invoked directly from the Start user gesture
 ok 180 - first LanguageModel activation is invoked directly from the Start user gesture
   ---
-  duration_ms: 0.168672
+  duration_ms: 0.211035
   type: 'test'
   ...
 # Subtest: A2A response protocol is optional metadata and controller disposition owns continuation
 ok 181 - A2A response protocol is optional metadata and controller disposition owns continuation
   ---
-  duration_ms: 1.165686
+  duration_ms: 1.229399
   type: 'test'
   ...
 # Subtest: WAITING never transitions directly from A2A protocol metadata to DONE or BLOCKED
 ok 182 - WAITING never transitions directly from A2A protocol metadata to DONE or BLOCKED
   ---
-  duration_ms: 0.266141
+  duration_ms: 0.325348
   type: 'test'
   ...
 # Subtest: manual chat interleaving is audited, persisted as bounded evidence and not admitted as autonomous
 ok 183 - manual chat interleaving is audited, persisted as bounded evidence and not admitted as autonomous
   ---
-  duration_ms: 1.038654
+  duration_ms: 1.145183
   type: 'test'
   ...
 # Subtest: Nano task lane is fresh one-prompt and does not blind replay unknown effect
 ok 184 - Nano task lane is fresh one-prompt and does not blind replay unknown effect
   ---
-  duration_ms: 0.351669
+  duration_ms: 0.372642
   type: 'test'
   ...
 # Subtest: continuation admission is deterministic and emits bounded analysis evidence
 ok 185 - continuation admission is deterministic and emits bounded analysis evidence
   ---
-  duration_ms: 0.209304
+  duration_ms: 0.235568
   type: 'test'
   ...
 # Subtest: v1.2.3 background resolves dedicated Greenfield control before terminal phase handling
 ok 186 - v1.2.3 background resolves dedicated Greenfield control before terminal phase handling
   ---
-  duration_ms: 0.179421
+  duration_ms: 0.255412
   type: 'test'
   ...
-# Subtest: v1.8.9 identity is consistent across runtime surfaces
-ok 187 - v1.8.9 identity is consistent across runtime surfaces
+# Subtest: v1.8.10 identity is consistent across runtime surfaces
+ok 187 - v1.8.10 identity is consistent across runtime surfaces
   ---
-  duration_ms: 0.343135
+  duration_ms: 0.371441
   type: 'test'
   ...
 # Subtest: v1.1.2 reconciles Hjalmar mirror facts and sanitizes consumed Nano task directives
 ok 188 - v1.1.2 reconciles Hjalmar mirror facts and sanitizes consumed Nano task directives
   ---
-  duration_ms: 0.350458
+  duration_ms: 0.414866
   type: 'test'
   ...
 # Subtest: v1.3.0 gives Nano a prompt-closed English runtime-owned execution prompt and audits source separately
 ok 189 - v1.3.0 gives Nano a prompt-closed English runtime-owned execution prompt and audits source separately
   ---
-  duration_ms: 0.27862
+  duration_ms: 0.345726
   type: 'test'
   ...
 # Subtest: renderer quote repair remains available but UNKNOWN protocol status is no longer terminal
 ok 190 - renderer quote repair remains available but UNKNOWN protocol status is no longer terminal
   ---
-  duration_ms: 0.213151
+  duration_ms: 0.186333
   type: 'test'
   ...
 # Subtest: v1.1.3 surfaces Nano task and observer results in the side panel without clearing the last task on response capture
 ok 191 - v1.1.3 surfaces Nano task and observer results in the side panel without clearing the last task on response capture
   ---
-  duration_ms: 0.503573
+  duration_ms: 0.586436
   type: 'test'
   ...
 # Subtest: v1.1.3 bounded analysisEvidence carries Nano prompt metadata
 ok 192 - v1.1.3 bounded analysisEvidence carries Nano prompt metadata
   ---
-  duration_ms: 0.350418
+  duration_ms: 0.436696
   type: 'test'
   ...
 # Subtest: v1.1.5 durably commits isolated Nano Task before advisory Nano/Hjalmar stages
 ok 193 - v1.1.5 durably commits isolated Nano Task before advisory Nano/Hjalmar stages
   ---
-  duration_ms: 0.375765
+  duration_ms: 0.464874
   type: 'test'
   ...
 # Subtest: v1.1.5 treats observer/Hjalmar model-format failures as audited advisory fallback
 ok 194 - v1.1.5 treats observer/Hjalmar model-format failures as audited advisory fallback
   ---
-  duration_ms: 0.080892
+  duration_ms: 0.10457
   type: 'test'
   ...
 # Subtest: v1.1.5 preserves unknown exact-once Nano effects as UNKNOWN_EFFECT instead of false FAILED
 ok 195 - v1.1.5 preserves unknown exact-once Nano effects as UNKNOWN_EFFECT instead of false FAILED
   ---
-  duration_ms: 0.167648
+  duration_ms: 0.20136
   type: 'test'
   ...
 # Subtest: v1.1.5 A2A sanitizer retains Nano prompt metadata and line-scopes the directive
 ok 196 - v1.1.5 A2A sanitizer retains Nano prompt metadata and line-scopes the directive
   ---
-  duration_ms: 0.276886
+  duration_ms: 0.319054
   type: 'test'
   ...
 # Subtest: v1.3.0 enforces Nano prompt-closure without imposing a task-complexity ceiling
 ok 197 - v1.3.0 enforces Nano prompt-closure without imposing a task-complexity ceiling
   ---
-  duration_ms: 0.335771
+  duration_ms: 0.360626
   type: 'test'
   ...
 # Subtest: v1.1.6 separates renderer-degraded response control from full JSON schema validity
 ok 198 - v1.1.6 separates renderer-degraded response control from full JSON schema validity
   ---
-  duration_ms: 0.199952
+  duration_ms: 0.230874
   type: 'test'
   ...
 # Subtest: v1.1.6 exact-literal verifier recognizes the direct grammar and preserves raw whitespace semantics
 ok 199 - v1.1.6 exact-literal verifier recognizes the direct grammar and preserves raw whitespace semantics
   ---
-  duration_ms: 0.146698
+  duration_ms: 0.177972
   type: 'test'
   ...
 # Subtest: v1.1.9 response observation closes structural, causal and interleave producer-to-consumer wires before parsing
 ok 200 - v1.1.9 response observation closes structural, causal and interleave producer-to-consumer wires before parsing
   ---
-  duration_ms: 0.383106
+  duration_ms: 0.490205
   type: 'test'
   ...
 # Subtest: v1.1.7 keeps Chrome Nano model prompts compact and does not forward raw turn transcripts
 ok 201 - v1.1.7 keeps Chrome Nano model prompts compact and does not forward raw turn transcripts
   ---
-  duration_ms: 0.350668
+  duration_ms: 0.363695
   type: 'test'
   ...
 # Subtest: v1.1.7 local-model context budgets have producer and execution consumer ends
 ok 202 - v1.1.7 local-model context budgets have producer and execution consumer ends
   ---
-  duration_ms: 0.189257
+  duration_ms: 0.221146
   type: 'test'
   ...
 # Subtest: v1.1.12 persistent Audit reads are indexed and bounded, never global getAll
 ok 203 - v1.1.12 persistent Audit reads are indexed and bounded, never global getAll
   ---
-  duration_ms: 0.122002
+  duration_ms: 0.147085
   type: 'test'
   ...
 # Subtest: v1.1.12 Audit write path no longer serializes on a global counter
 ok 204 - v1.1.12 Audit write path no longer serializes on a global counter
   ---
-  duration_ms: 0.075052
+  duration_ms: 0.138298
   type: 'test'
   ...
 # Subtest: v1.1.12 ordinary side-panel Audit rendering uses FIFO state, not IndexedDB history
 ok 205 - v1.1.12 ordinary side-panel Audit rendering uses FIFO state, not IndexedDB history
   ---
-  duration_ms: 0.250318
+  duration_ms: 0.202608
   type: 'test'
   ...
 # Subtest: v1.1.12 PAGE_STATE_OBSERVED omits repeated raw assistant response text
 ok 206 - v1.1.12 PAGE_STATE_OBSERVED omits repeated raw assistant response text
   ---
-  duration_ms: 0.167636
+  duration_ms: 0.192608
   type: 'test'
   ...
 # Subtest: v1.1.12 high-frequency unchanged Audit diagnostics are coalesced before persistence
 ok 207 - v1.1.12 high-frequency unchanged Audit diagnostics are coalesced before persistence
   ---
-  duration_ms: 0.082231
+  duration_ms: 0.092424
   type: 'test'
   ...
 # Subtest: v1.2.0 wires extension-wide prompt pause into SENDING without replacing exact-once dispatch
 ok 208 - v1.2.0 wires extension-wide prompt pause into SENDING without replacing exact-once dispatch
   ---
-  duration_ms: 0.408119
+  duration_ms: 0.55865
   type: 'test'
   ...
 # Subtest: v1.2.0 keeps saved missions persistent and bounded
 ok 209 - v1.2.0 keeps saved missions persistent and bounded
   ---
-  duration_ms: 0.399277
+  duration_ms: 0.446523
   type: 'test'
   ...
 # Subtest: v1.2.1 breaks deterministic owner-untrusted polling without weakening hidden-fragment or causal isolation guards
 ok 210 - v1.2.1 breaks deterministic owner-untrusted polling without weakening hidden-fragment or causal isolation guards
   ---
-  duration_ms: 0.204548
+  duration_ms: 0.232813
   type: 'test'
   ...
 # Subtest: v1.3.2 Session Health is wired from post boundary through response capture and resets on rotation
 ok 211 - v1.3.2 Session Health is wired from post boundary through response capture and resets on rotation
   ---
-  duration_ms: 0.289779
+  duration_ms: 0.511173
   type: 'test'
   ...
 # Subtest: v1.3.3 canonical A2A partial-response hold is wired before terminal parsing
 ok 212 - v1.3.3 canonical A2A partial-response hold is wired before terminal parsing
   ---
-  duration_ms: 0.10803
+  duration_ms: 0.167418
   type: 'test'
   ...
 # Subtest: expected autonomous user turn is persisted from dispatch identity
 ok 213 - expected autonomous user turn is persisted from dispatch identity
   ---
-  duration_ms: 2.669751
+  duration_ms: 2.057587
   type: 'test'
   ...
 # Subtest: manual latest assistant cannot replace the causally paired autonomous assistant
 ok 214 - manual latest assistant cannot replace the causally paired autonomous assistant
   ---
-  duration_ms: 0.640538
+  duration_ms: 0.513462
   type: 'test'
   ...
 # Subtest: mismatched resolved user turn is non-admissible
 ok 215 - mismatched resolved user turn is non-admissible
   ---
-  duration_ms: 0.31616
+  duration_ms: 0.310218
   type: 'test'
   ...
 # Subtest: ordinal fallback can reconcile a missing persisted user-turn id without assuming latest turn
 ok 216 - ordinal fallback can reconcile a missing persisted user-turn id without assuming latest turn
   ---
-  duration_ms: 0.288427
+  duration_ms: 0.231636
   type: 'test'
   ...
 # Subtest: v1.1.0 live false-fail-closed fixture is corrected rather than blocked
 ok 217 - v1.1.0 live false-fail-closed fixture is corrected rather than blocked
   ---
-  duration_ms: 4.946607
+  duration_ms: 3.986037
   type: 'test'
   ...
 # Subtest: repeated current objective is replanned instead of terminally blocked
 ok 218 - repeated current objective is replanned instead of terminally blocked
   ---
-  duration_ms: 1.928366
+  duration_ms: 2.052042
   type: 'test'
   ...
 # Subtest: repeated prior decision adopts materially newer target guidance when safe
 ok 219 - repeated prior decision adopts materially newer target guidance when safe
   ---
-  duration_ms: 0.291918
+  duration_ms: 0.268536
   type: 'test'
   ...
 # Subtest: repeated prior decision is replanned even when target offers no newer guidance
 ok 220 - repeated prior decision is replanned even when target offers no newer guidance
   ---
-  duration_ms: 0.162548
+  duration_ms: 0.24112
   type: 'test'
   ...
 # Subtest: recoverable repetition never masks a real unknown-effect Nano boundary
 ok 221 - recoverable repetition never masks a real unknown-effect Nano boundary
   ---
-  duration_ms: 0.23061
+  duration_ms: 0.238397
   type: 'test'
   ...
 # Subtest: closed autonomous response slot is classified as producer loss, not indefinite waiting
 ok 222 - closed autonomous response slot is classified as producer loss, not indefinite waiting
   ---
-  duration_ms: 0.914532
+  duration_ms: 0.718366
   type: 'test'
   ...
 # Subtest: content resolver proves the old response slot is closed by the next user boundary
 ok 223 - content resolver proves the old response slot is closed by the next user boundary
   ---
-  duration_ms: 0.656
+  duration_ms: 0.671904
   type: 'test'
   ...
 # Subtest: WAITING may transition directly to SENDING for bounded continuity rearm
 ok 224 - WAITING may transition directly to SENDING for bounded continuity rearm
   ---
-  duration_ms: 5.418
+  duration_ms: 5.840227
   type: 'test'
   ...
 # Subtest: background handles producer loss before the generic long-idle keepalive path
 ok 225 - background handles producer loss before the generic long-idle keepalive path
   ---
-  duration_ms: 2.330854
+  duration_ms: 1.728281
   type: 'test'
   ...
 # Subtest: v1.2.3 stale ladder is exactly 30m F5 -> 60m Ctrl-F5 -> 90m Ctrl-F5 -> 120m session rotation
 ok 226 - v1.2.3 stale ladder is exactly 30m F5 -> 60m Ctrl-F5 -> 90m Ctrl-F5 -> 120m session rotation
   ---
-  duration_ms: 1.336155
+  duration_ms: 1.41435
   type: 'test'
   ...
 # Subtest: every completed assistant response resets stale time and stage regardless of response semantics
 ok 227 - every completed assistant response resets stale time and stage regardless of response semantics
   ---
-  duration_ms: 1.396449
+  duration_ms: 1.577614
   type: 'test'
   ...
 # Subtest: streaming/generating output is not treated as a returned response until completion
 ok 228 - streaming/generating output is not treated as a returned response until completion
   ---
-  duration_ms: 0.145613
+  duration_ms: 0.150148
   type: 'test'
   ...
 # Subtest: reload-only DOM identity churn with same response count/hash does not reset stale time
 ok 229 - reload-only DOM identity churn with same response count/hash does not reset stale time
   ---
-  duration_ms: 0.108545
+  duration_ms: 0.121477
   type: 'test'
   ...
 # Subtest: legacy v1.1.10 in-flight refresh stages migrate monotonically
 ok 230 - legacy v1.1.10 in-flight refresh stages migrate monotonically
   ---
-  duration_ms: 0.202247
+  duration_ms: 0.255693
   type: 'test'
   ...
 # Subtest: response-ready short-circuits stale escalation
 ok 231 - response-ready short-circuits stale escalation
   ---
-  duration_ms: 0.125131
+  duration_ms: 0.13932
   type: 'test'
   ...
 # Subtest: waiting state captures a stale anchor and assistant baseline
 ok 232 - waiting state captures a stale anchor and assistant baseline
   ---
-  duration_ms: 0.287291
+  duration_ms: 0.224266
   type: 'test'
   ...
 # Subtest: background implements stale-only 30/60/90/120 escalation and protocol-agnostic reset
 ok 233 - background implements stale-only 30/60/90/120 escalation and protocol-agnostic reset
   ---
-  duration_ms: 2.666873
+  duration_ms: 2.187818
   type: 'test'
   ...
 # Subtest: stale ladder remains available at all unresolved WAIT exits but not as RECOVERING policy
 ok 234 - stale ladder remains available at all unresolved WAIT exits but not as RECOVERING policy
   ---
-  duration_ms: 3.264998
+  duration_ms: 3.733945
   type: 'test'
   ...
 # Subtest: v1.1.2 live renderer regression reparses CONTINUE and recovers pending Nano task
 ok 235 - v1.1.2 live renderer regression reparses CONTINUE and recovers pending Nano task
   ---
-  duration_ms: 3.099616
+  duration_ms: 4.449852
   type: 'test'
   ...
 # Subtest: historical v1.1.2 UNKNOWN protocol status is advisory in the current controller
 ok 236 - historical v1.1.2 UNKNOWN protocol status is advisory in the current controller
   ---
-  duration_ms: 1.659055
+  duration_ms: 0.404462
   type: 'test'
   ...
 # Subtest: v1.1.3 live comma-followed quoted metadata reparses canonically
 ok 237 - v1.1.3 live comma-followed quoted metadata reparses canonically
   ---
-  duration_ms: 3.567817
+  duration_ms: 2.994776
   type: 'test'
   ...
 # Subtest: v1.1.4 live Nano result is deterministically SATISFIED despite later observed state corruption
 ok 238 - v1.1.4 live Nano result is deterministically SATISFIED despite later observed state corruption
   ---
-  duration_ms: 0.9157
+  duration_ms: 0.970906
   type: 'test'
   ...
 # Subtest: v1.1.5 reconciliation consumes the v1.1.4 reissued directive instead of blocking
 ok 239 - v1.1.5 reconciliation consumes the v1.1.4 reissued directive instead of blocking
   ---
-  duration_ms: 0.916786
+  duration_ms: 1.083419
   type: 'test'
   ...
 # Subtest: v1.1.5 live renderer evidence quote loss preserves canonical CONTINUE control without full-schema promotion
 ok 240 - v1.1.5 live renderer evidence quote loss preserves canonical CONTINUE control without full-schema promotion
   ---
-  duration_ms: 4.162704
+  duration_ms: 3.944614
   type: 'test'
   ...
 # Subtest: v1.1.5 exact literal task grammar and one terminal line ending are deterministically satisfied
 ok 241 - v1.1.5 exact literal task grammar and one terminal line ending are deterministically satisfied
   ---
-  duration_ms: 0.361246
+  duration_ms: 0.390982
   type: 'test'
   ...
 # Subtest: exact literal semantic verifier does not broadly trim arbitrary whitespace
 ok 242 - exact literal semantic verifier does not broadly trim arbitrary whitespace
   ---
-  duration_ms: 0.211041
+  duration_ms: 0.279164
   type: 'test'
   ...
 # Subtest: v1.1.6 exact hidden fragment cannot terminalize; complete trusted owner can
 ok 243 - v1.1.6 exact hidden fragment cannot terminalize; complete trusted owner can
   ---
-  duration_ms: 4.676394
+  duration_ms: 6.4554
   type: 'test'
   ...
 # Subtest: v1.1.7 protocol DONE incident cannot directly terminate WAITING in current semantics
 ok 244 - v1.1.7 protocol DONE incident cannot directly terminate WAITING in current semantics
   ---
-  duration_ms: 1.173145
+  duration_ms: 2.744123
   type: 'test'
   ...
 # Subtest: v1.1.7 manual prose may lack A2A without becoming a continuation blocker
 ok 245 - v1.1.7 manual prose may lack A2A without becoming a continuation blocker
   ---
-  duration_ms: 1.782966
+  duration_ms: 0.833732
   type: 'test'
   ...
 # Subtest: v1.1.7 manual interleave cannot hijack causally paired autonomous response candidate
 ok 246 - v1.1.7 manual interleave cannot hijack causally paired autonomous response candidate
   ---
-  duration_ms: 2.547793
+  duration_ms: 2.432062
   type: 'test'
   ...
 # Subtest: exact content resolver keeps the autonomous assistant before the next manual user boundary
 ok 247 - exact content resolver keeps the autonomous assistant before the next manual user boundary
   ---
-  duration_ms: 1.525861
+  duration_ms: 1.41213
   type: 'test'
   ...
 # Subtest: deterministic interleave preserves autonomous ownership when manual pair becomes latest
 ok 248 - deterministic interleave preserves autonomous ownership when manual pair becomes latest
   ---
-  duration_ms: 5.18849
+  duration_ms: 5.340851
   type: 'test'
   ...
 # Subtest: external interleave evidence is bounded into next A2A responseObservation
 ok 249 - external interleave evidence is bounded into next A2A responseObservation
   ---
-  duration_ms: 6.865415
+  duration_ms: 7.794862
   type: 'test'
   ...
 # Subtest: deterministic acceptance uses fixtures only and adds no production admission delay
 ok 250 - deterministic acceptance uses fixtures only and adds no production admission delay
   ---
-  duration_ms: 1.75041
+  duration_ms: 2.46452
   type: 'test'
   ...
 # Subtest: operator delay is bounded to 0..300 seconds and persists with readback
 ok 251 - operator delay is bounded to 0..300 seconds and persists with readback
   ---
-  duration_ms: 1.645587
+  duration_ms: 1.809704
   type: 'test'
   ...
 # Subtest: operator max active sessions persists with default two and 1..4 bounds
 ok 252 - operator max active sessions persists with default two and 1..4 bounds
   ---
-  duration_ms: 1.752231
+  duration_ms: 2.048435
   type: 'test'
   ...
 # Subtest: saved missions are reusable, deduplicated by goal and deletable
 ok 253 - saved missions are reusable, deduplicated by goal and deletable
   ---
-  duration_ms: 1.753565
+  duration_ms: 2.34109
   type: 'test'
   ...
 # Subtest: global reservations serialize two Greenfield windows into spaced prompt slots
 ok 254 - global reservations serialize two Greenfield windows into spaced prompt slots
   ---
-  duration_ms: 4.447013
+  duration_ms: 5.128065
   type: 'test'
   ...
 # Subtest: send lease prevents simultaneous page effects and actual post time re-establishes spacing
 ok 255 - send lease prevents simultaneous page effects and actual post time re-establishes spacing
   ---
-  duration_ms: 1.643585
+  duration_ms: 1.721028
   type: 'test'
   ...
 # Subtest: captured v1.2.0 FORENSIC/Audit loop observation has an exact visible causal fallback path in v1.2.1
 ok 256 - captured v1.2.0 FORENSIC/Audit loop observation has an exact visible causal fallback path in v1.2.1
   ---
-  duration_ms: 2.682188
+  duration_ms: 2.690634
   type: 'test'
   ...
 # Subtest: v1.2.1 causal fallback still selects the assistant inside the dispatched user-turn slot, not a later manual pair
 ok 257 - v1.2.1 causal fallback still selects the assistant inside the dispatched user-turn slot, not a later manual pair
   ---
-  duration_ms: 0.859815
+  duration_ms: 0.66742
   type: 'test'
   ...
 # Subtest: v1.2.1 response slot closure cannot be bypassed by a fallback-owned assistant
 ok 258 - v1.2.1 response slot closure cannot be bypassed by a fallback-owned assistant
   ---
-  duration_ms: 0.387813
+  duration_ms: 0.299121
   type: 'test'
   ...
 # Subtest: v1.2.1 source includes coherent renderer-replica ownership and idempotent overlay sync
 ok 259 - v1.2.1 source includes coherent renderer-replica ownership and idempotent overlay sync
   ---
-  duration_ms: 0.399431
+  duration_ms: 0.376945
   type: 'test'
   ...
 # Subtest: v1.3.3 live regression: 42-char hidden trusted canonical prefix is held before parsing
 ok 260 - v1.3.3 live regression: 42-char hidden trusted canonical prefix is held before parsing
   ---
-  duration_ms: 2.709717
+  duration_ms: 2.527009
   type: 'test'
   ...
 # Subtest: v1.3.3 live regression: completed hidden trusted response reaches explicit rotation control
 ok 261 - v1.3.3 live regression: completed hidden trusted response reaches explicit rotation control
   ---
-  duration_ms: 2.280963
+  duration_ms: 3.371824
   type: 'test'
   ...
 # Subtest: rate-limit warning globally blocks all affected clients and deduplicates the same incident
 ok 262 - rate-limit warning globally blocks all affected clients and deduplicates the same incident
   ---
-  duration_ms: 9.804374
+  duration_ms: 9.053702
   type: 'test'
   ...
 # Subtest: recovery is serialized and each affected client must complete its first-release preflight
 ok 263 - recovery is serialized and each affected client must complete its first-release preflight
   ---
-  duration_ms: 1.993838
+  duration_ms: 2.084605
   type: 'test'
   ...
 # Subtest: a new warning during serial recovery immediately starts a new, escalated epoch
 ok 264 - a new warning during serial recovery immediately starts a new, escalated epoch
   ---
-  duration_ms: 0.756165
+  duration_ms: 0.954632
   type: 'test'
   ...
 # Subtest: serial recovery returns to NORMAL only after the full success ramp
 ok 265 - serial recovery returns to NORMAL only after the full success ramp
   ---
-  duration_ms: 3.031868
+  duration_ms: 3.279958
   type: 'test'
   ...
 # Subtest: v1.3.5 wires a profile-global rate-limit circuit breaker into sending
 ok 266 - v1.3.5 wires a profile-global rate-limit circuit breaker into sending
   ---
-  duration_ms: 0.999347
+  duration_ms: 1.483942
   type: 'test'
   ...
 # Subtest: v1.3.5 recovery prefers a structurally safe acknowledgement and otherwise uses Ctrl-F5 equivalent reload
 ok 267 - v1.3.5 recovery prefers a structurally safe acknowledgement and otherwise uses Ctrl-F5 equivalent reload
   ---
-  duration_ms: 0.385455
+  duration_ms: 0.603089
   type: 'test'
   ...
 # Subtest: v1.3.5 warning detection is language-tolerant but does not use acknowledgement text as the selector
 ok 268 - v1.3.5 warning detection is language-tolerant but does not use acknowledgement text as the selector
   ---
-  duration_ms: 0.174221
+  duration_ms: 0.349768
   type: 'test'
   ...
 # Subtest: v1.3.5 exposes 0..300 second normal spacing and rate-limit recovery state in UI
 ok 269 - v1.3.5 exposes 0..300 second normal spacing and rate-limit recovery state in UI
   ---
-  duration_ms: 0.230128
+  duration_ms: 0.349986
   type: 'test'
   ...
 # Subtest: v1.3.6 bounds active ChatGPT turns with a profile-global capacity scheduler
 ok 270 - v1.3.6 bounds active ChatGPT turns with a profile-global capacity scheduler
   ---
-  duration_ms: 1.084736
+  duration_ms: 1.185158
   type: 'test'
   ...
 # Subtest: v1.3.6 priority is non-starving through aging plus oldest-ready tie break
 ok 271 - v1.3.6 priority is non-starving through aging plus oldest-ready tie break
   ---
-  duration_ms: 0.178169
+  duration_ms: 0.219244
   type: 'test'
   ...
 # Subtest: v1.3.6 recovery controls effective capacity without preempting active turns
 ok 272 - v1.3.6 recovery controls effective capacity without preempting active turns
   ---
-  duration_ms: 0.201808
+  duration_ms: 0.21152
   type: 'test'
   ...
 # Subtest: v1.3.6 reconstructs active turn ownership before hydrated ticks
 ok 273 - v1.3.6 reconstructs active turn ownership before hydrated ticks
   ---
-  duration_ms: 0.586815
+  duration_ms: 1.748153
   type: 'test'
   ...
 # Subtest: v1.3.6 side panel exposes capacity 1..4 and per-session priorities
 ok 274 - v1.3.6 side panel exposes capacity 1..4 and per-session priorities
   ---
-  duration_ms: 0.276382
+  duration_ms: 0.357262
   type: 'test'
   ...
 # Subtest: v1.3.6 operator settings persist maxActiveSessions with default two
 ok 275 - v1.3.6 operator settings persist maxActiveSessions with default two
   ---
-  duration_ms: 0.103985
+  duration_ms: 0.135891
   type: 'test'
   ...
 # Subtest: capacity wait is event-driven instead of the previous one-second gate polling loop
 ok 276 - capacity wait is event-driven instead of the previous one-second gate polling loop
   ---
-  duration_ms: 0.368912
+  duration_ms: 0.359277
   type: 'test'
   ...
-# Subtest: v1.8.9 version identity is coherent across executable package surfaces
-ok 277 - v1.8.9 version identity is coherent across executable package surfaces
+# Subtest: v1.8.10 version identity is coherent across executable package surfaces
+ok 277 - v1.8.10 version identity is coherent across executable package surfaces
   ---
-  duration_ms: 2.894769
+  duration_ms: 2.787539
   type: 'test'
   ...
 # Subtest: v1.3.7 side panel exposes serial mission work queue and adjustable global parameters
 ok 278 - v1.3.7 side panel exposes serial mission work queue and adjustable global parameters
   ---
-  duration_ms: 1.290345
+  duration_ms: 1.49131
   type: 'test'
   ...
 # Subtest: v1.3.7 background keeps multi-window scheduler while serializing missions inside one worker
 ok 279 - v1.3.7 background keeps multi-window scheduler while serializing missions inside one worker
   ---
-  duration_ms: 2.266513
+  duration_ms: 2.079896
   type: 'test'
   ...
 # Subtest: mission switch uses fresh-chat verification plus optional hard reload, not reload as isolation
 ok 280 - mission switch uses fresh-chat verification plus optional hard reload, not reload as isolation
   ---
-  duration_ms: 3.606225
+  duration_ms: 4.089316
   type: 'test'
   ...
 # Subtest: queue prompt contract checkpoint and explicit YIELD_TO_QUEUE control are wired end-to-end
 ok 281 - queue prompt contract checkpoint and explicit YIELD_TO_QUEUE control are wired end-to-end
   ---
-  duration_ms: 0.377302
+  duration_ms: 0.363836
   type: 'test'
   ...
 # Subtest: v1.3.8 live managed-surface index rejects closed window/tab ghosts while retaining two real sessions
 ok 282 - v1.3.8 live managed-surface index rejects closed window/tab ghosts while retaining two real sessions
   ---
-  duration_ms: 2.660377
+  duration_ms: 2.218385
   type: 'test'
   ...
 # Subtest: v1.3.8 ghost scheduler slots reconcile from 4 active records down to two live managed surfaces
 ok 283 - v1.3.8 ghost scheduler slots reconcile from 4 active records down to two live managed surfaces
   ---
-  duration_ms: 3.656458
+  duration_ms: 3.903298
   type: 'test'
   ...
 # Subtest: v1.3.8 full PAUSE_PROCESS response remains parseable after the lifecycle-fragment guard
 ok 284 - v1.3.8 full PAUSE_PROCESS response remains parseable after the lifecycle-fragment guard
   ---
-  duration_ms: 1.789142
+  duration_ms: 1.911971
   type: 'test'
   ...
 # Subtest: v1.3.8 runtime wiring prunes stale surfaces and releases scheduler ownership on tab/window close
 ok 285 - v1.3.8 runtime wiring prunes stale surfaces and releases scheduler ownership on tab/window close
   ---
-  duration_ms: 3.371512
+  duration_ms: 3.767419
   type: 'test'
   ...
 # Subtest: v1.3.9 BLOCKED remains in the active mission queue, yields to other work, then becomes retryable
 ok 286 - v1.3.9 BLOCKED remains in the active mission queue, yields to other work, then becomes retryable
   ---
-  duration_ms: 2.633614
+  duration_ms: 3.779172
   type: 'test'
   ...
 # Subtest: v1.5.1 quarantines legacy window-keyed queue state instead of importing it into a fresh worker
 ok 287 - v1.5.1 quarantines legacy window-keyed queue state instead of importing it into a fresh worker
   ---
-  duration_ms: 5.67909
+  duration_ms: 7.156269
   type: 'test'
   ...
 # Subtest: v1.5.1 worker-keyed queues never orphan-rebind across Chrome windows or worker identities
 ok 288 - v1.5.1 worker-keyed queues never orphan-rebind across Chrome windows or worker identities
   ---
-  duration_ms: 9.314899
+  duration_ms: 13.776107
   type: 'test'
   ...
 # Subtest: v1.3.9 queue base parameters round-trip through profile-local operator settings
 ok 289 - v1.3.9 queue base parameters round-trip through profile-local operator settings
   ---
-  duration_ms: 2.233127
+  duration_ms: 2.213683
   type: 'test'
   ...
 # Subtest: v1.3.9 UI captures queue settings before busy-state render can rewrite the controls
 ok 290 - v1.3.9 UI captures queue settings before busy-state render can rewrite the controls
   ---
-  duration_ms: 2.842298
+  duration_ms: 2.657063
   type: 'test'
   ...
 # Subtest: v1.4.0 mission delegation response contract is bounded, explicit and not compatible with DONE
 ok 291 - v1.4.0 mission delegation response contract is bounded, explicit and not compatible with DONE
   ---
-  duration_ms: 2.991699
+  duration_ms: 2.85305
   type: 'test'
   ...
 # Subtest: v1.4.0 queued A2A advertises delegation to another live worker while ordinary A2A does not
 ok 292 - v1.4.0 queued A2A advertises delegation to another live worker while ordinary A2A does not
   ---
-  duration_ms: 23.790568
+  duration_ms: 27.542954
   type: 'test'
   ...
 # Subtest: v1.4.0 delegation registry never assigns a request back to the supervising window
 ok 293 - v1.4.0 delegation registry never assigns a request back to the supervising window
   ---
-  duration_ms: 2.013021
+  duration_ms: 2.558252
   type: 'test'
   ...
 # Subtest: v1.4.0 delegation requestId is idempotent and conflicting reuse is rejected
 ok 294 - v1.4.0 delegation requestId is idempotent and conflicting reuse is rejected
   ---
-  duration_ms: 1.710737
+  duration_ms: 2.095227
   type: 'test'
   ...
 # Subtest: v1.4.0 delegated mission is created in worker queue with provenance and dedupes against history
 ok 295 - v1.4.0 delegated mission is created in worker queue with provenance and dedupes against history
   ---
-  duration_ms: 19.383365
+  duration_ms: 27.47253
   type: 'test'
   ...
 # Subtest: v1.4.0 orphaned assignment can be reclaimed only after its target queue is no longer live
 ok 296 - v1.4.0 orphaned assignment can be reclaimed only after its target queue is no longer live
   ---
-  duration_ms: 1.238289
+  duration_ms: 0.78984
   type: 'test'
   ...
 # Subtest: v1.4.0 delegation lifecycle can recover, apply and complete durably
 ok 297 - v1.4.0 delegation lifecycle can recover, apply and complete durably
   ---
-  duration_ms: 2.547238
+  duration_ms: 1.415107
   type: 'test'
   ...
 # Subtest: v1.4.0 background source path persists only delegation requests; worker tick owns queue insertion
 ok 298 - v1.4.0 background source path persists only delegation requests; worker tick owns queue insertion
   ---
-  duration_ms: 3.299142
+  duration_ms: 2.703352
   type: 'test'
   ...
 # Subtest: v1.5.0 same-process prompt replacement is safe only after explicit scheduler cancellation
 ok 299 - v1.5.0 same-process prompt replacement is safe only after explicit scheduler cancellation
   ---
-  duration_ms: 3.749322
+  duration_ms: 4.105587
   type: 'test'
   ...
 # Subtest: v1.5.0 producer-loss recovery cancels stale scheduler ownership before new prompt re-arm
 ok 300 - v1.5.0 producer-loss recovery cancels stale scheduler ownership before new prompt re-arm
   ---
-  duration_ms: 0.431835
+  duration_ms: 0.351947
   type: 'test'
   ...
 # Subtest: v1.5.0 idle keepalive cancels stale scheduler ownership before replacing the prompt
 ok 301 - v1.5.0 idle keepalive cancels stale scheduler ownership before replacing the prompt
   ---
-  duration_ms: 0.23843
+  duration_ms: 0.241747
   type: 'test'
   ...
 # Subtest: v1.5.0 release package does not ship the temporary capacity probe
 ok 302 - v1.5.0 release package does not ship the temporary capacity probe
   ---
-  duration_ms: 0.138514
+  duration_ms: 0.298005
   type: 'test'
   ...
 # Subtest: v1.5.0 sending path self-heals a stale same-process active prompt before entering capacity wait
 ok 303 - v1.5.0 sending path self-heals a stale same-process active prompt before entering capacity wait
   ---
-  duration_ms: 0.340413
+  duration_ms: 0.337438
   type: 'test'
   ...
 # Subtest: v1.5.1 worker identity is stable across service-worker style re-reads and distinct per Chrome window
 ok 304 - v1.5.1 worker identity is stable across service-worker style re-reads and distinct per Chrome window
   ---
-  duration_ms: 5.290764
+  duration_ms: 6.249933
   type: 'test'
   ...
 # Subtest: v1.5.1 closed-window binding release prevents numeric Chrome window-id reuse from inheriting worker identity
 ok 305 - v1.5.1 closed-window binding release prevents numeric Chrome window-id reuse from inheriting worker identity
   ---
-  duration_ms: 1.316202
+  duration_ms: 1.764899
   type: 'test'
   ...
 # Subtest: v1.5.1 fresh worker never adopts another worker queue or legacy window-keyed queue
 ok 306 - v1.5.1 fresh worker never adopts another worker queue or legacy window-keyed queue
   ---
-  duration_ms: 8.519479
+  duration_ms: 11.154618
   type: 'test'
   ...
 # Subtest: v1.5.1 global queue registry is serialized and metadata-only under concurrent worker writes
 ok 307 - v1.5.1 global queue registry is serialized and metadata-only under concurrent worker writes
   ---
-  duration_ms: 58.091237
+  duration_ms: 56.204039
   type: 'test'
   ...
 # Subtest: v1.5.1 same-worker concurrent queue writes fail stale instead of silently losing an update
 ok 308 - v1.5.1 same-worker concurrent queue writes fail stale instead of silently losing an update
   ---
-  duration_ms: 64.345558
+  duration_ms: 67.683928
   type: 'test'
   ...
 # Subtest: v1.5.1 process store ignores legacy window state and only returns a live exact worker binding
 ok 309 - v1.5.1 process store ignores legacy window state and only returns a live exact worker binding
   ---
-  duration_ms: 10.157378
+  duration_ms: 5.280123
   type: 'test'
   ...
 # Subtest: v1.5.1 process owner token fences worker, run and generation
 ok 310 - v1.5.1 process owner token fences worker, run and generation
   ---
-  duration_ms: 0.456805
+  duration_ms: 0.483475
   type: 'test'
   ...
 # Subtest: v1.7.4 queue-managed PAUSE_PROCESS parks and advances instead of holding the worker
 ok 311 - v1.7.4 queue-managed PAUSE_PROCESS parks and advances instead of holding the worker
   ---
-  duration_ms: 0.239421
+  duration_ms: 0.25834
   type: 'test'
   ...
 # Subtest: v1.7.4 600-second PAUSE_PROCESS parses and becomes queue-local while preserving not-before timing
 ok 312 - v1.7.4 600-second PAUSE_PROCESS parses and becomes queue-local while preserving not-before timing
   ---
-  duration_ms: 2.297892
+  duration_ms: 2.316714
   type: 'test'
   ...
 # Subtest: v1.5.1 queue sets save configuration only and apply fresh READY identities to each worker
 ok 313 - v1.5.1 queue sets save configuration only and apply fresh READY identities to each worker
   ---
-  duration_ms: 2.084448
+  duration_ms: 2.044082
   type: 'test'
   ...
 # Subtest: v1.5.1 concurrent named-set writes preserve both sets
 ok 314 - v1.5.1 concurrent named-set writes preserve both sets
   ---
-  duration_ms: 25.447544
+  duration_ms: 23.496689
   type: 'test'
   ...
 # Subtest: v1.5.1 static wiring has no orphan queue adoption and validates sidepanel worker ownership
 ok 315 - v1.5.1 static wiring has no orphan queue adoption and validates sidepanel worker ownership
   ---
-  duration_ms: 3.273727
+  duration_ms: 3.894558
   type: 'test'
   ...
 # Subtest: v1.5.2 BACKGROUND_SLEEP parks queue work instead of holding the worker
 ok 316 - v1.5.2 BACKGROUND_SLEEP parks queue work instead of holding the worker
   ---
-  duration_ms: 1.028768
+  duration_ms: 1.011891
   type: 'test'
   ...
 # Subtest: v1.5.2 BACKGROUND_SLEEP contract requires bounded pause and restart-safe continuation
 ok 317 - v1.5.2 BACKGROUND_SLEEP contract requires bounded pause and restart-safe continuation
   ---
-  duration_ms: 2.695617
+  duration_ms: 2.106316
   type: 'test'
   ...
 # Subtest: v1.5.2 EIC surface guard distinguishes generic ChatGPT and recovers only after grace
 ok 318 - v1.5.2 EIC surface guard distinguishes generic ChatGPT and recovers only after grace
   ---
-  duration_ms: 1.071601
+  duration_ms: 0.862935
   type: 'test'
   ...
 # Subtest: v1.5.2 WMT pointer admission is fresh, bounded and capability-keyed
 ok 319 - v1.5.2 WMT pointer admission is fresh, bounded and capability-keyed
   ---
-  duration_ms: 1.177158
+  duration_ms: 0.442461
   type: 'test'
   ...
 # Subtest: v1.5.2 Work Mode prequeue dedupes and claims one WMT locally
 ok 320 - v1.5.2 Work Mode prequeue dedupes and claims one WMT locally
   ---
-  duration_ms: 0.702781
+  duration_ms: 0.719207
   type: 'test'
   ...
 # Subtest: v1.5.2 static Work Mode and surface recovery wiring are present without replacing existing queue
 ok 321 - v1.5.2 static Work Mode and surface recovery wiring are present without replacing existing queue
   ---
-  duration_ms: 3.133881
+  duration_ms: 3.004794
   type: 'test'
   ...
 # Subtest: v1.5.3 queue sets survive extension-local reset through Chrome-profile bookmark vault
 ok 322 - v1.5.3 queue sets survive extension-local reset through Chrome-profile bookmark vault
   ---
-  duration_ms: 9.506375
+  duration_ms: 12.626299
   type: 'test'
   ...
 # Subtest: v1.5.3 first read migrates legacy local queue sets into durable vault
 ok 323 - v1.5.3 first read migrates legacy local queue sets into durable vault
   ---
-  duration_ms: 1.3716
+  duration_ms: 1.733851
   type: 'test'
   ...
 # Subtest: v1.5.3 fleet status tab is wired to global snapshot
 ok 324 - v1.5.3 fleet status tab is wired to global snapshot
   ---
-  duration_ms: 2.223814
+  duration_ms: 3.462416
   type: 'test'
   ...
 # Subtest: v1.6 legacy 1.5.3 update finds a unique EIC tab by the exact persisted prompt hash
 ok 325 - v1.6 legacy 1.5.3 update finds a unique EIC tab by the exact persisted prompt hash
   ---
-  duration_ms: 42.114164
+  duration_ms: 37.699209
   type: 'test'
   ...
 # Subtest: v1.6 legacy migration refuses two conversations containing the same prior prompt
 ok 326 - v1.6 legacy migration refuses two conversations containing the same prior prompt
   ---
-  duration_ms: 13.305505
+  duration_ms: 7.928508
   type: 'test'
   ...
 # Subtest: v1.6 backup round trip preserves identity and budgets, disables queues, and quarantines prior effects
 ok 327 - v1.6 backup round trip preserves identity and budgets, disables queues, and quarantines prior effects
   ---
-  duration_ms: 22.363925
+  duration_ms: 21.865936
   type: 'test'
   ...
 # Subtest: v1.6 backup checksum rejection happens before any target writes
 ok 328 - v1.6 backup checksum rejection happens before any target writes
   ---
-  duration_ms: 6.791779
+  duration_ms: 11.36609
   type: 'test'
   ...
 # Subtest: v1.6 restored templates survive a panel read without replacing existing profile templates
 ok 329 - v1.6 restored templates survive a panel read without replacing existing profile templates
   ---
-  duration_ms: 35.044372
+  duration_ms: 30.321841
   type: 'test'
   ...
 # Subtest: v1.6 backup cannot overwrite an existing run or erase prior usage
 ok 330 - v1.6 backup cannot overwrite an existing run or erase prior usage
   ---
-  duration_ms: 7.340053
+  duration_ms: 17.714262
   type: 'test'
   ...
 # Subtest: v1.6 interrupted import remains durably paused and cannot automatically dispatch
 ok 331 - v1.6 interrupted import remains durably paused and cannot automatically dispatch
   ---
-  duration_ms: 14.364541
+  duration_ms: 17.798146
   type: 'test'
   ...
 # Subtest: v1.6 damaged checkpoint remains exportable but cannot be imported as healthy
 ok 332 - v1.6 damaged checkpoint remains exportable but cannot be imported as healthy
   ---
-  duration_ms: 6.811068
+  duration_ms: 6.482234
   type: 'test'
   ...
 # Subtest: v1.6 deleting a process removes both durable slots and prevents resurrection
 ok 333 - v1.6 deleting a process removes both durable slots and prevents resurrection
   ---
-  duration_ms: 4.224137
+  duration_ms: 5.040398
   type: 'test'
   ...
 # Subtest: v1.6 final dispatch authorization applies pacing to delayed reservations
 ok 334 - v1.6 final dispatch authorization applies pacing to delayed reservations
   ---
-  duration_ms: 7.019619
+  duration_ms: 21.484643
   type: 'test'
   ...
 # Subtest: v1.6 final authorization returns the latest saved model requirement
 ok 335 - v1.6 final authorization returns the latest saved model requirement
   ---
-  duration_ms: 3.553095
+  duration_ms: 5.697414
   type: 'test'
   ...
 # Subtest: v1.6 stale, missing and future proofs cannot reserve usage or clear a provider hold
 ok 336 - v1.6 stale, missing and future proofs cannot reserve usage or clear a provider hold
   ---
-  duration_ms: 5.069068
+  duration_ms: 7.013398
   type: 'test'
   ...
 # Subtest: v1.6 later exact manual materialization wins over an earlier confirmed no-effect receipt
 ok 337 - v1.6 later exact manual materialization wins over an earlier confirmed no-effect receipt
   ---
-  duration_ms: 0.261981
+  duration_ms: 0.33545
   type: 'test'
   ...
 # Subtest: v1.7.5 nominal ninety-percent storage pressure no longer blocks dispatch
 ok 338 - v1.7.5 nominal ninety-percent storage pressure no longer blocks dispatch
   ---
-  duration_ms: 256.368404
+  duration_ms: 328.529881
   type: 'test'
   ...
 # Subtest: v1.6 startup exposes corrupted usage as a blocking runtime fault
 ok 339 - v1.6 startup exposes corrupted usage as a blocking runtime fault
   ---
-  duration_ms: 66.383174
+  duration_ms: 72.044753
   type: 'test'
   ...
 # Subtest: v1.6 observation adapter excludes model-looking text inside conversation content and hidden controls
 ok 340 - v1.6 observation adapter excludes model-looking text inside conversation content and hidden controls
   ---
-  duration_ms: 2.170202
+  duration_ms: 2.303393
   type: 'test'
   ...
 # Subtest: v1.6 observation adapter reports conflicting selected controls as ambiguous
 ok 341 - v1.6 observation adapter reports conflicting selected controls as ambiguous
   ---
-  duration_ms: 0.951806
+  duration_ms: 1.057895
   type: 'test'
   ...
 # Subtest: v1.6 observation adapter detects selected Work mode and provider notices
 ok 342 - v1.6 observation adapter detects selected Work mode and provider notices
   ---
-  duration_ms: 1.915084
+  duration_ms: 2.136862
   type: 'test'
   ...
 # Subtest: v1.6 real sending path reserves durable usage and records a model receipt before the effect
 ok 343 - v1.6 real sending path reserves durable usage and records a model receipt before the effect
   ---
-  duration_ms: 363.425363
+  duration_ms: 447.228054
   type: 'test'
   ...
 # Subtest: v1.6 real sending path rejects a downgraded model before any submission
 ok 344 - v1.6 real sending path rejects a downgraded model before any submission
   ---
-  duration_ms: 193.933984
+  duration_ms: 206.313822
   type: 'test'
   ...
 # Subtest: v1.6 a manual composer draft is preserved without submission
 ok 345 - v1.6 a manual composer draft is preserved without submission
   ---
-  duration_ms: 187.947511
+  duration_ms: 181.932503
   type: 'test'
   ...
 # Subtest: v1.6 lost send callback and changed document cause a durable no-resend hold
 ok 346 - v1.6 lost send callback and changed document cause a durable no-resend hold
   ---
-  duration_ms: 228.355825
+  duration_ms: 248.402484
   type: 'test'
   ...
 # Subtest: v1.6 an empty transport reply is unknown effect, never confirmed no effect
 ok 347 - v1.6 an empty transport reply is unknown effect, never confirmed no effect
   ---
-  duration_ms: 250.783495
+  duration_ms: 249.406727
   type: 'test'
   ...
 # Subtest: v1.6 a model downgrade during a real waiting turn quarantines the response
 ok 348 - v1.6 a model downgrade during a real waiting turn quarantines the response
   ---
-  duration_ms: 372.621079
+  duration_ms: 428.643666
   type: 'test'
   ...
 # Subtest: v1.6 current dispatch authorization rejects another tab or operation
 ok 349 - v1.6 current dispatch authorization rejects another tab or operation
   ---
-  duration_ms: 103.822681
+  duration_ms: 147.952762
   type: 'test'
   ...
 # Subtest: v1.6 paused global admission cannot be bypassed by direct dispatch authorization
 ok 350 - v1.6 paused global admission cannot be bypassed by direct dispatch authorization
   ---
-  duration_ms: 206.433896
+  duration_ms: 226.792411
   type: 'test'
   ...
 # Subtest: v1.6 startup reconstructs the scan alarm and returns explicit fleet health data
 ok 351 - v1.6 startup reconstructs the scan alarm and returns explicit fleet health data
   ---
-  duration_ms: 65.395446
+  duration_ms: 73.043128
   type: 'test'
   ...
 # Subtest: v1.6 policy mutation is denied to a page pretending to be the side panel
 ok 352 - v1.6 policy mutation is denied to a page pretending to be the side panel
   ---
-  duration_ms: 64.952047
+  duration_ms: 77.285595
   type: 'test'
   ...
 # Subtest: v1.6 explicit GPT-5.6 Thinking and Extended passes the visible UI gate
 ok 353 - v1.6 explicit GPT-5.6 Thinking and Extended passes the visible UI gate
   ---
-  duration_ms: 8.794845
+  duration_ms: 9.770801
   type: 'test'
   ...
 # Subtest: v1.6 rejects instant
 ok 354 - v1.6 rejects instant
   ---
-  duration_ms: 1.046116
+  duration_ms: 4.934415
   type: 'test'
   ...
 # Subtest: v1.6 rejects auto
 ok 355 - v1.6 rejects auto
   ---
-  duration_ms: 0.232242
+  duration_ms: 0.200401
   type: 'test'
   ...
 # Subtest: v1.6 rejects mini
 ok 356 - v1.6 rejects mini
   ---
-  duration_ms: 0.17008
+  duration_ms: 0.183493
   type: 'test'
   ...
 # Subtest: v1.6 rejects different version
 ok 357 - v1.6 rejects different version
   ---
-  duration_ms: 0.26903
+  duration_ms: 0.366715
   type: 'test'
   ...
 # Subtest: v1.6 rejects malformed explicit model token
 ok 358 - v1.6 rejects malformed explicit model token
   ---
-  duration_ms: 0.113969
+  duration_ms: 0.161584
   type: 'test'
   ...
 # Subtest: v1.6 rejects ambiguous controls
 ok 359 - v1.6 rejects ambiguous controls
   ---
-  duration_ms: 0.132919
+  duration_ms: 0.526625
   type: 'test'
   ...
 # Subtest: v1.6 rejects standard effort
 ok 360 - v1.6 rejects standard effort
   ---
-  duration_ms: 1.403385
+  duration_ms: 3.845135
   type: 'test'
   ...
 # Subtest: v1.6 rejects light effort
 ok 361 - v1.6 rejects light effort
   ---
-  duration_ms: 0.491046
+  duration_ms: 0.599546
   type: 'test'
   ...
 # Subtest: v1.6 rejects missing effort
 ok 362 - v1.6 rejects missing effort
   ---
-  duration_ms: 0.448
+  duration_ms: 0.430031
   type: 'test'
   ...
 # Subtest: v1.6 rejects Work mode
 ok 363 - v1.6 rejects Work mode
   ---
-  duration_ms: 0.153657
+  duration_ms: 0.328121
   type: 'test'
   ...
 # Subtest: v1.6 rejects Codex mode
 ok 364 - v1.6 rejects Codex mode
   ---
-  duration_ms: 0.07428
+  duration_ms: 0.278525
   type: 'test'
   ...
 # Subtest: v1.6 rejects stale evidence
 ok 365 - v1.6 rejects stale evidence
   ---
-  duration_ms: 0.038572
+  duration_ms: 0.059027
   type: 'test'
   ...
 # Subtest: v1.6 rejects future evidence
 ok 366 - v1.6 rejects future evidence
   ---
-  duration_ms: 0.030823
+  duration_ms: 0.040815
   type: 'test'
   ...
 # Subtest: v1.6 rejects Nano self report
 ok 367 - v1.6 rejects Nano self report
   ---
-  duration_ms: 0.029818
+  duration_ms: 0.036841
   type: 'test'
   ...
 # Subtest: v1.6 rejects blocking dialog
 ok 368 - v1.6 rejects blocking dialog
   ---
-  duration_ms: 0.087618
+  duration_ms: 0.121662
   type: 'test'
   ...
 # Subtest: v1.6 rejects provider quota
 ok 369 - v1.6 rejects provider quota
   ---
-  duration_ms: 0.048105
+  duration_ms: 0.06012
   type: 'test'
   ...
 # Subtest: v1.6 stronger effort is allowed; lower effort is not silently substituted
 ok 370 - v1.6 stronger effort is allowed; lower effort is not silently substituted
   ---
-  duration_ms: 1.343495
+  duration_ms: 1.558125
   type: 'test'
   ...
 # Subtest: v1.6 model and effort defaults cannot be disabled with malformed configuration
 ok 371 - v1.6 model and effort defaults cannot be disabled with malformed configuration
   ---
-  duration_ms: 0.695511
+  duration_ms: 0.724646
   type: 'test'
   ...
 # Subtest: v1.6 wrong custom GPT, generic ChatGPT and lookalike hosts are denied
 ok 372 - v1.6 wrong custom GPT, generic ChatGPT and lookalike hosts are denied
   ---
-  duration_ms: 0.225601
+  duration_ms: 0.207034
   type: 'test'
   ...
 # Subtest: v1.6 recognizes quota/fallback notice: You've reached the GPT-5.6 Thinking limit. Try again later.
 ok 373 - v1.6 recognizes quota/fallback notice: You've reached the GPT-5.6 Thinking limit. Try again later.
   ---
-  duration_ms: 1.017117
+  duration_ms: 1.161681
   type: 'test'
   ...
 # Subtest: v1.6 recognizes quota/fallback notice: Du har nått gränsen för GPT-5.6 Thinking. Återställs 16:22.
 ok 374 - v1.6 recognizes quota/fallback notice: Du har nått gränsen för GPT-5.6 Thinking. Återställs 16:22.
   ---
-  duration_ms: 0.608276
+  duration_ms: 0.797086
   type: 'test'
   ...
 # Subtest: v1.6 recognizes quota/fallback notice: Responses will use another model until your limit resets.
 ok 375 - v1.6 recognizes quota/fallback notice: Responses will use another model until your limit resets.
   ---
-  duration_ms: 0.051719
+  duration_ms: 0.099131
   type: 'test'
   ...
 # Subtest: v1.6 a bare clock time never fabricates a quota reset date
 ok 376 - v1.6 a bare clock time never fabricates a quota reset date
   ---
-  duration_ms: 0.295133
+  duration_ms: 0.275997
   type: 'test'
   ...
 # Subtest: v1.6 explicit reset timestamps include a one-minute margin
 ok 377 - v1.6 explicit reset timestamps include a one-minute margin
   ---
-  duration_ms: 0.470583
+  duration_ms: 0.481391
   type: 'test'
   ...
 # Subtest: v1.6 visible token measurement is explicitly an estimate and includes UTF-8 bytes
 ok 378 - v1.6 visible token measurement is explicitly an estimate and includes UTF-8 bytes
   ---
-  duration_ms: 1.405497
+  duration_ms: 1.360165
   type: 'test'
   ...
 # Subtest: v1.6 concurrent workers cannot race through the last global usage slot
 ok 379 - v1.6 concurrent workers cannot race through the last global usage slot
   ---
-  duration_ms: 56.524723
+  duration_ms: 56.589099
   type: 'test'
   ...
 # Subtest: v1.6 a lost acknowledgement and repeated same dispatch reserve once
 ok 380 - v1.6 a lost acknowledgement and repeated same dispatch reserve once
   ---
-  duration_ms: 3.744844
+  duration_ms: 2.445697
   type: 'test'
   ...
 # Subtest: v1.6 budget survives a service-worker-style recreation of the storage wrapper
 ok 381 - v1.6 budget survives a service-worker-style recreation of the storage wrapper
   ---
-  duration_ms: 5.105731
+  duration_ms: 3.980325
   type: 'test'
   ...
 # Subtest: v1.6 user pause and provider hold still block a previously reserved prompt
 ok 382 - v1.6 user pause and provider hold still block a previously reserved prompt
   ---
-  duration_ms: 11.158941
+  duration_ms: 8.771109
   type: 'test'
   ...
 # Subtest: v1.6 output accounting is idempotent and cannot refund reserved uncertainty
 ok 383 - v1.6 output accounting is idempotent and cannot refund reserved uncertainty
   ---
-  duration_ms: 3.44939
+  duration_ms: 4.363184
   type: 'test'
   ...
 # Subtest: v1.6 rolling windows do not reset at a calendar boundary
 ok 384 - v1.6 rolling windows do not reset at a calendar boundary
   ---
-  duration_ms: 10.606637
+  duration_ms: 9.513093
   type: 'test'
   ...
 # Subtest: v1.6 the weekly limit remains binding when the daily window expires
 ok 385 - v1.6 the weekly limit remains binding when the daily window expires
   ---
-  duration_ms: 3.029804
+  duration_ms: 5.011741
   type: 'test'
   ...
 # Subtest: v1.6 a clock rollback never replenishes usage
 ok 386 - v1.6 a clock rollback never replenishes usage
   ---
-  duration_ms: 4.737458
+  duration_ms: 1.655407
   type: 'test'
   ...
 # Subtest: v1.6 oversize prompt and response reserve are checked before any send
 ok 387 - v1.6 oversize prompt and response reserve are checked before any send
   ---
-  duration_ms: 0.339333
+  duration_ms: 0.30373
   type: 'test'
   ...
 # Subtest: v1.6 a quota hold without an explicit date cannot expire automatically
 ok 388 - v1.6 a quota hold without an explicit date cannot expire automatically
   ---
-  duration_ms: 3.919459
+  duration_ms: 2.786428
   type: 'test'
   ...
 # Subtest: v1.6 quota recovery requires two good probes after the advertised reset
 ok 389 - v1.6 quota recovery requires two good probes after the advertised reset
   ---
-  duration_ms: 8.44511
+  duration_ms: 7.742856
   type: 'test'
   ...
 # Subtest: v1.6 repeated quota observation does not perpetually postpone the same relative deadline
 ok 390 - v1.6 repeated quota observation does not perpetually postpone the same relative deadline
   ---
-  duration_ms: 4.938721
+  duration_ms: 2.433945
   type: 'test'
   ...
 # Subtest: v1.7.5 checksummed data round-trips and compacts to one recovery slot
 ok 391 - v1.7.5 checksummed data round-trips and compacts to one recovery slot
   ---
-  duration_ms: 2.07789
+  duration_ms: 1.314781
   type: 'test'
   ...
 # Subtest: v1.6 a concurrent reader waits for publication instead of misdiagnosing a crash
 ok 392 - v1.6 a concurrent reader waits for publication instead of misdiagnosing a crash
   ---
-  duration_ms: 1.498311
+  duration_ms: 1.202493
   type: 'test'
   ...
 # Subtest: v1.6 interrupted publish recovers data but never authorizes a rolled-back dispatch
 ok 393 - v1.6 interrupted publish recovers data but never authorizes a rolled-back dispatch
   ---
-  duration_ms: 1.747636
+  duration_ms: 1.744496
   type: 'test'
   ...
 # Subtest: v1.6 corrupt primary is visible, not an empty or healthy state
 ok 394 - v1.6 corrupt primary is visible, not an empty or healthy state
   ---
-  duration_ms: 0.84612
+  duration_ms: 0.998263
   type: 'test'
   ...
 # Subtest: v1.7.5 corrupt sole recovery slot fails closed instead of rolling back
 ok 395 - v1.7.5 corrupt sole recovery slot fails closed instead of rolling back
   ---
-  duration_ms: 2.144876
+  duration_ms: 1.040361
   type: 'test'
   ...
 # Subtest: v1.6 exhausted storage is a hard failure before compatibility publication
 ok 396 - v1.6 exhausted storage is a hard failure before compatibility publication
   ---
-  duration_ms: 0.611819
+  duration_ms: 0.859514
   type: 'test'
   ...
 # Subtest: v1.6 all invalid copies fail explicitly rather than normalizing to an empty queue
 ok 397 - v1.6 all invalid copies fail explicitly rather than normalizing to an empty queue
   ---
-  duration_ms: 0.280529
+  duration_ms: 0.230115
   type: 'test'
   ...
 # Subtest: v1.6 cold Chrome restart rebinds only by exact conversation and persisted user-turn identity
 ok 398 - v1.6 cold Chrome restart rebinds only by exact conversation and persisted user-turn identity
   ---
-  duration_ms: 14.05346
+  duration_ms: 13.040797
   type: 'test'
   ...
 # Subtest: v1.6 reused window IDs cannot steal another conversation
 ok 399 - v1.6 reused window IDs cannot steal another conversation
   ---
-  duration_ms: 3.793132
+  duration_ms: 3.939881
   type: 'test'
   ...
 # Subtest: v1.6 duplicate restored tabs are quarantined without guessing
 ok 400 - v1.6 duplicate restored tabs are quarantined without guessing
   ---
-  duration_ms: 4.503521
+  duration_ms: 4.173368
   type: 'test'
   ...
 # Subtest: v1.6 a matching URL alone does not prove the prior prompt
 ok 401 - v1.6 a matching URL alone does not prove the prior prompt
   ---
-  duration_ms: 0.162626
+  duration_ms: 0.229344
   type: 'test'
   ...
 # Subtest: v1.6 observation of the exact earlier user turn permits recovery after manual interleave
 ok 402 - v1.6 observation of the exact earlier user turn permits recovery after manual interleave
   ---
-  duration_ms: 0.15268
+  duration_ms: 0.119899
   type: 'test'
   ...
 # Subtest: v1.6 generic roots, query strings and window numbers cannot stand in for a conversation ID
 ok 403 - v1.6 generic roots, query strings and window numbers cannot stand in for a conversation ID
   ---
-  duration_ms: 0.070325
+  duration_ms: 0.077427
   type: 'test'
   ...
 # Subtest: v1.6 repeated technical failures back off instead of retrying every thirty seconds forever
 ok 404 - v1.6 repeated technical failures back off instead of retrying every thirty seconds forever
   ---
-  duration_ms: 0.496639
+  duration_ms: 0.45599
   type: 'test'
   ...
 # Subtest: v1.6 UI stale data, quota holds and no workers cannot masquerade as healthy live work
 ok 405 - v1.6 UI stale data, quota holds and no workers cannot masquerade as healthy live work
   ---
-  duration_ms: 0.399519
+  duration_ms: 0.430126
   type: 'test'
   ...
 # Subtest: v1.6.1 reproduces RC1 false corruption when Chrome changes dictionary field order
 ok 406 - v1.6.1 reproduces RC1 false corruption when Chrome changes dictionary field order
   ---
-  duration_ms: 9.940899
+  duration_ms: 12.948776
   type: 'test'
   ...
 # Subtest: v1.6.1 canonical encoding ignores nested object order but preserves array order and values
 ok 407 - v1.6.1 canonical encoding ignores nested object order but preserves array order and values
   ---
-  duration_ms: 0.301848
+  duration_ms: 0.368172
   type: 'test'
   ...
 # Subtest: v1.6.1 v2 checkpoints survive serialization and a recreated storage owner
 ok 408 - v1.6.1 v2 checkpoints survive serialization and a recreated storage owner
   ---
-  duration_ms: 8.307833
+  duration_ms: 9.577627
   type: 'test'
   ...
 # Subtest: v1.6.1 v2 checksum covers revision metadata as well as content
 ok 409 - v1.6.1 v2 checksum covers revision metadata as well as content
   ---
-  duration_ms: 2.865404
+  duration_ms: 2.902041
   type: 'test'
   ...
 # Subtest: v1.6.1 startup repairs the stranded empty RC1 queue while archiving the original
 ok 410 - v1.6.1 startup repairs the stranded empty RC1 queue while archiving the original
   ---
-  duration_ms: 4.558155
+  duration_ms: 4.794684
   type: 'test'
   ...
 # Subtest: v1.6.1 recovery preserves queued missions, parks the queue and pauses admission
 ok 411 - v1.6.1 recovery preserves queued missions, parks the queue and pauses admission
   ---
-  duration_ms: 11.043965
+  duration_ms: 15.776588
   type: 'test'
   ...
 # Subtest: v1.6.1 a committed RC1 record can migrate without inventing lost data or changing queue enablement
 ok 412 - v1.6.1 a committed RC1 record can migrate without inventing lost data or changing queue enablement
   ---
-  duration_ms: 9.883995
+  duration_ms: 10.212629
   type: 'test'
   ...
 # Subtest: v1.6.1 actual damage cannot be reclassified as field-order corruption
 ok 413 - v1.6.1 actual damage cannot be reclassified as field-order corruption
   ---
-  duration_ms: 3.512216
+  duration_ms: 3.581683
   type: 'test'
   ...
 # Subtest: v1.6.1 unknown nested RC1 ordering is not guessed past the old checksum
 ok 414 - v1.6.1 unknown nested RC1 ordering is not guessed past the old checksum
   ---
-  duration_ms: 5.349624
+  duration_ms: 5.652701
   type: 'test'
   ...
 # Subtest: v1.6.1 failed evidence archiving leaves all original RC1 records untouched
 ok 415 - v1.6.1 failed evidence archiving leaves all original RC1 records untouched
   ---
-  duration_ms: 2.000057
+  duration_ms: 1.698698
   type: 'test'
   ...
 # Subtest: v1.6.1 interrupted migration publication resumes from verified archived evidence
 ok 416 - v1.6.1 interrupted migration publication resumes from verified archived evidence
   ---
-  duration_ms: 7.249819
+  duration_ms: 11.754113
   type: 'test'
   ...
 # Subtest: v1.6.1 RC1 safety-journal recovery retains usage and provider hold instead of resetting quota
 ok 417 - v1.6.1 RC1 safety-journal recovery retains usage and provider hold instead of resetting quota
   ---
-  duration_ms: 7.58257
+  duration_ms: 4.70908
   type: 'test'
   ...
 # Subtest: v1.6.1 queue updates and usage reservation survive realistic storage serialization
 ok 418 - v1.6.1 queue updates and usage reservation survive realistic storage serialization
   ---
-  duration_ms: 9.849019
+  duration_ms: 11.478389
   type: 'test'
   ...
 # Subtest: v1.6.1 backup survives Chrome message reordering and import into serialized storage
 ok 419 - v1.6.1 backup survives Chrome message reordering and import into serialized storage
   ---
-  duration_ms: 14.335837
+  duration_ms: 19.504682
   type: 'test'
   ...
 # Subtest: v1.6.1 raw diagnostics preserve unreadable checkpoint evidence and exclude service credentials
 ok 420 - v1.6.1 raw diagnostics preserve unreadable checkpoint evidence and exclude service credentials
   ---
-  duration_ms: 0.948545
+  duration_ms: 1.075331
   type: 'test'
   ...
 # Subtest: v1.6.1 installed-storage contract probe reports reordered keys and removes only its own test data
 ok 421 - v1.6.1 installed-storage contract probe reports reordered keys and removes only its own test data
   ---
-  duration_ms: 1.359742
+  duration_ms: 1.830437
   type: 'test'
   ...
 # Subtest: v1.6.1 an interrupted disposable startup probe cannot permanently block the next start
 ok 422 - v1.6.1 an interrupted disposable startup probe cannot permanently block the next start
   ---
-  duration_ms: 1.563042
+  duration_ms: 1.490442
   type: 'test'
   ...
 # Subtest: v1.6.1 real background can start and send with serialized Chrome storage
 ok 423 - v1.6.1 real background can start and send with serialized Chrome storage
   ---
-  duration_ms: 276.518293
+  duration_ms: 344.547993
   type: 'test'
   ...
 # Subtest: v1.6.1 real startup recovers the reproduced RC1 state before accepting a new run
 ok 424 - v1.6.1 real startup recovers the reproduced RC1 state before accepting a new run
   ---
-  duration_ms: 245.427916
+  duration_ms: 245.901988
   type: 'test'
   ...
 # Subtest: v1.6.1 operator can inspect the active model before creating any worker process
 ok 425 - v1.6.1 operator can inspect the active model before creating any worker process
   ---
-  duration_ms: 64.847059
+  duration_ms: 69.475059
   type: 'test'
   ...
 # Subtest: v1.6.1 diagnostic export still works when startup is blocked by an unreadable record
 ok 426 - v1.6.1 diagnostic export still works when startup is blocked by an unreadable record
   ---
-  duration_ms: 65.617707
+  duration_ms: 68.460025
   type: 'test'
   ...
 # Subtest: v1.6.1 current-use notice identifies Luna and never substitutes the recommended Sol
 ok 427 - v1.6.1 current-use notice identifies Luna and never substitutes the recommended Sol
   ---
-  duration_ms: 2.613394
+  duration_ms: 2.487253
   type: 'test'
   ...
 # Subtest: v1.7 model floor is family-agnostic for Sol, Luna and Astra
 ok 428 - v1.7 model floor is family-agnostic for Sol, Luna and Astra
   ---
-  duration_ms: 7.859356
+  duration_ms: 9.774674
   type: 'test'
   ...
 # Subtest: v1.7 numeric model floor accepts newer versions and rejects older versions
 ok 429 - v1.7 numeric model floor accepts newer versions and rejects older versions
   ---
-  duration_ms: 1.834768
+  duration_ms: 2.258271
   type: 'test'
   ...
 # Subtest: v1.7 family suffix in configured floor is informational, not an exact-name pin
 ok 430 - v1.7 family suffix in configured floor is informational, not an exact-name pin
   ---
-  duration_ms: 0.553215
+  duration_ms: 0.634385
   type: 'test'
   ...
 # Subtest: v1.7 screenshot case can start when model name is not exposed but Djupgående control is visible
 ok 431 - v1.7 screenshot case can start when model name is not exposed but Djupgående control is visible
   ---
-  duration_ms: 0.183998
+  duration_ms: 0.198388
   type: 'test'
   ...
 # Subtest: v1.7 unknown future reasoning label is accepted at Extended floor when the reasoning control itself is identified
 ok 432 - v1.7 unknown future reasoning label is accepted at Extended floor when the reasoning control itself is identified
   ---
-  duration_ms: 0.168022
+  duration_ms: 0.248259
   type: 'test'
   ...
 # Subtest: v1.7 unknown reasoning label does not silently satisfy Heavy floor
 ok 433 - v1.7 unknown reasoning label does not silently satisfy Heavy floor
   ---
-  duration_ms: 0.337345
+  duration_ms: 0.599294
   type: 'test'
   ...
 # Subtest: v1.7 Djupgående and Deep are Heavy-class effort labels
 ok 434 - v1.7 Djupgående and Deep are Heavy-class effort labels
   ---
-  duration_ms: 0.161535
+  duration_ms: 0.23316
   type: 'test'
   ...
 # Subtest: v1.7 explicit degraded labels still fail closed despite compatible version
 ok 435 - v1.7 explicit degraded labels still fail closed despite compatible version
   ---
-  duration_ms: 0.206766
+  duration_ms: 0.265968
   type: 'test'
   ...
 # Subtest: v1.7 malformed explicit GPT token does not become unnamed compatibility evidence
 ok 436 - v1.7 malformed explicit GPT token does not become unnamed compatibility evidence
   ---
-  duration_ms: 0.28798
+  duration_ms: 0.333423
   type: 'test'
   ...
 # Subtest: v1.7 model parser is generic across future family names
 ok 437 - v1.7 model parser is generic across future family names
   ---
-  duration_ms: 1.397205
+  duration_ms: 1.640912
   type: 'test'
   ...
 # Subtest: v1.7 current-use parser accepts future family names without a family whitelist
 ok 438 - v1.7 current-use parser accepts future family names without a family whitelist
   ---
-  duration_ms: 2.238681
+  duration_ms: 2.762123
   type: 'test'
   ...
 # Subtest: v1.7 recommendation remains diagnostic and is never promoted to current-use evidence
 ok 439 - v1.7 recommendation remains diagnostic and is never promoted to current-use evidence
   ---
-  duration_ms: 1.049402
+  duration_ms: 1.187903
   type: 'test'
   ...
 # Subtest: v1.7 same numeric model version with different family labels is not ambiguous
 ok 440 - v1.7 same numeric model version with different family labels is not ambiguous
   ---
-  duration_ms: 0.84642
+  duration_ms: 0.998726
   type: 'test'
   ...
 # Subtest: v1.7 conflicting numeric versions remain ambiguous
 ok 441 - v1.7 conflicting numeric versions remain ambiguous
   ---
-  duration_ms: 0.705224
+  duration_ms: 0.763287
   type: 'test'
   ...
 # Subtest: v1.7 composer fallback recognizes the visible Djupgående chip without a model label
 ok 442 - v1.7 composer fallback recognizes the visible Djupgående chip without a model label
   ---
-  duration_ms: 1.408634
+  duration_ms: 1.443211
   type: 'test'
   ...
 # Subtest: v1.7.1 pending dispatch materialization is a first-class autonomous turn identity
 ok 443 - v1.7.1 pending dispatch materialization is a first-class autonomous turn identity
   ---
-  duration_ms: 1.90288
+  duration_ms: 2.305645
   type: 'test'
   ...
 # Subtest: v1.7.1 acknowledged v1.7.0 dispatch can recover its dynamic ordinal from baselineUserCount
 ok 444 - v1.7.1 acknowledged v1.7.0 dispatch can recover its dynamic ordinal from baselineUserCount
   ---
-  duration_ms: 0.395668
+  duration_ms: 0.326319
   type: 'test'
   ...
 # Subtest: v1.7.1 exact materialized turn identity wins over a different rendered-text hash
 ok 445 - v1.7.1 exact materialized turn identity wins over a different rendered-text hash
   ---
-  duration_ms: 0.523403
+  duration_ms: 0.518178
   type: 'test'
   ...
 # Subtest: v1.7.1 exact materialized id mismatch is rejected even if a legacy text hash happens to match
 ok 446 - v1.7.1 exact materialized id mismatch is rejected even if a legacy text hash happens to match
   ---
-  duration_ms: 0.440254
+  duration_ms: 0.219274
   type: 'test'
   ...
 # Subtest: v1.7.1 acknowledged dispatch uses ordinal causality instead of requiring rendered-text identity
 ok 447 - v1.7.1 acknowledged dispatch uses ordinal causality instead of requiring rendered-text identity
   ---
-  duration_ms: 0.40461
+  duration_ms: 0.353672
   type: 'test'
   ...
 # Subtest: v1.7.1 unknown dispatch effect cannot use baseline ordinal as proof
 ok 448 - v1.7.1 unknown dispatch effect cannot use baseline ordinal as proof
   ---
-  duration_ms: 0.123259
+  duration_ms: 0.142404
   type: 'test'
   ...
 # Subtest: v1.7.1 send fence recognizes a materialized browser turn without comparing prompt text
 ok 449 - v1.7.1 send fence recognizes a materialized browser turn without comparing prompt text
   ---
-  duration_ms: 0.246555
+  duration_ms: 0.255693
   type: 'test'
   ...
 # Subtest: v1.7.1 restart recovery accepts the exact conversation and materialized turn despite text rendering differences
 ok 450 - v1.7.1 restart recovery accepts the exact conversation and materialized turn despite text rendering differences
   ---
-  duration_ms: 0.483005
+  duration_ms: 0.634448
   type: 'test'
   ...
 # Subtest: v1.7.1 restart recovery can resolve an acknowledged pre-1.7.1 dispatch by persisted ordinal
 ok 451 - v1.7.1 restart recovery can resolve an acknowledged pre-1.7.1 dispatch by persisted ordinal
   ---
-  duration_ms: 0.495384
+  duration_ms: 0.411149
   type: 'test'
   ...
 # Subtest: v1.7.1 dispatch reconciliation is identity-generic across runtime-generated turn ids
 ok 452 - v1.7.1 dispatch reconciliation is identity-generic across runtime-generated turn ids
   ---
-  duration_ms: 1.19557
+  duration_ms: 1.469494
   type: 'test'
   ...
 # Subtest: v1.7.1 a live exact conversation clears a stale missing-tab recovery row
 ok 453 - v1.7.1 a live exact conversation clears a stale missing-tab recovery row
   ---
-  duration_ms: 0.481017
+  duration_ms: 0.579267
   type: 'test'
   ...
 # Subtest: v1.7.1 ambiguous conversation recovery is not hidden by one live observation
 ok 454 - v1.7.1 ambiguous conversation recovery is not hidden by one live observation
   ---
-  duration_ms: 1.90656
+  duration_ms: 1.00913
   type: 'test'
   ...
 # Subtest: v1.7.1 unresolved prior-turn recovery clears only when current live turn proof resolves
 ok 455 - v1.7.1 unresolved prior-turn recovery clears only when current live turn proof resolves
   ---
-  duration_ms: 0.17984
+  duration_ms: 0.210265
   type: 'test'
   ...
 # Subtest: v1.7.1 BACKGROUND_SLEEP remains a worker-yield action for queue-managed missions
 ok 456 - v1.7.1 BACKGROUND_SLEEP remains a worker-yield action for queue-managed missions
   ---
-  duration_ms: 0.151485
+  duration_ms: 0.148646
   type: 'test'
   ...
 # Subtest: v1.7.2 SENDING lifecycle ownership never inherits the prior turn when a current pending prompt exists
 ok 457 - v1.7.2 SENDING lifecycle ownership never inherits the prior turn when a current pending prompt exists
   ---
-  duration_ms: 4.170406
+  duration_ms: 4.597135
   type: 'test'
   ...
 # Subtest: v1.7.2 a pending prompt without dispatch evidence does not reuse historical lastPrompt identity
 ok 458 - v1.7.2 a pending prompt without dispatch evidence does not reuse historical lastPrompt identity
   ---
-  duration_ms: 0.287588
+  duration_ms: 0.273482
   type: 'test'
   ...
 # Subtest: v1.7.2 multi-turn dispatch reconciliation binds the current materialized browser turn, never N-1
 ok 459 - v1.7.2 multi-turn dispatch reconciliation binds the current materialized browser turn, never N-1
   ---
-  duration_ms: 1.917914
+  duration_ms: 2.033646
   type: 'test'
   ...
 # Subtest: v1.7.2 a canonical full A2A response is simultaneously full-schema valid and control-valid
 ok 460 - v1.7.2 a canonical full A2A response is simultaneously full-schema valid and control-valid
   ---
-  duration_ms: 1.799327
+  duration_ms: 1.896241
   type: 'test'
   ...
 # Subtest: v1.7.2 Hjalmar keeps a bounded preview while declaring whether target continuation is complete
 ok 461 - v1.7.2 Hjalmar keeps a bounded preview while declaring whether target continuation is complete
   ---
-  duration_ms: 0.752931
+  duration_ms: 0.638158
   type: 'test'
   ...
 # Subtest: v1.7.2 continuation admission restores a complete target handoff when advisory nextPrompt is a strict prefix
 ok 462 - v1.7.2 continuation admission restores a complete target handoff when advisory nextPrompt is a strict prefix
   ---
-  duration_ms: 0.505343
+  duration_ms: 0.455261
   type: 'test'
   ...
 # Subtest: v1.7.2 a fresh allowed model proof clears only the stale hold produced by the prior model proof
 ok 463 - v1.7.2 a fresh allowed model proof clears only the stale hold produced by the prior model proof
   ---
-  duration_ms: 0.334568
+  duration_ms: 0.356351
   type: 'test'
   ...
 # Subtest: v1.7.2 fleet detail expansion follows stable process identity across refresh and row reorder
 ok 464 - v1.7.2 fleet detail expansion follows stable process identity across refresh and row reorder
   ---
-  duration_ms: 0.251167
+  duration_ms: 0.257612
   type: 'test'
   ...
 # Subtest: v1.7.3 Swedish 'Nåla fast' is not English Fast reasoning
 ok 465 - v1.7.3 Swedish 'Nåla fast' is not English Fast reasoning
   ---
-  duration_ms: 7.252992
+  duration_ms: 11.808751
   type: 'test'
   ...
 # Subtest: v1.7.3 diagnostic control set resolves the real Djupgående effort without ambiguity
 ok 466 - v1.7.3 diagnostic control set resolves the real Djupgående effort without ambiguity
   ---
-  duration_ms: 3.319267
+  duration_ms: 3.596672
   type: 'test'
   ...
 # Subtest: v1.7.3 model observer no longer has a global substring selector for Swedish Djup
 ok 467 - v1.7.3 model observer no longer has a global substring selector for Swedish Djup
   ---
-  duration_ms: 0.255311
+  duration_ms: 0.324766
   type: 'test'
   ...
 # Subtest: v1.7.3 Finnish model notices and reasoning labels are recognized
 ok 468 - v1.7.3 Finnish model notices and reasoning labels are recognized
   ---
-  duration_ms: 2.447604
+  duration_ms: 2.83063
   type: 'test'
   ...
 # Subtest: v1.7.3 A2A internal control language is English while mixed en/sv/fi evidence is explicit
 ok 469 - v1.7.3 A2A internal control language is English while mixed en/sv/fi evidence is explicit
   ---
-  duration_ms: 7.46229
+  duration_ms: 8.975489
   type: 'test'
   ...
 # Subtest: v1.7.3 Nano and Mental Hjalmar receive the mixed-language boundary in English
 ok 470 - v1.7.3 Nano and Mental Hjalmar receive the mixed-language boundary in English
   ---
-  duration_ms: 0.726604
+  duration_ms: 1.144457
   type: 'test'
   ...
 # Subtest: v1.7.4 same saved GFW can occupy multiple independent queue slots
 ok 471 - v1.7.4 same saved GFW can occupy multiple independent queue slots
   ---
-  duration_ms: 18.459982
+  duration_ms: 22.422372
   type: 'test'
   ...
 # Subtest: v1.7.4 inner queue is explicit-order cyclic even when slot priorities differ
 ok 472 - v1.7.4 inner queue is explicit-order cyclic even when slot priorities differ
   ---
-  duration_ms: 0.853527
+  duration_ms: 0.939367
   type: 'test'
   ...
 # Subtest: v1.7.4 unfinished per-slot quantum progress survives a queue reactivation context
 ok 473 - v1.7.4 unfinished per-slot quantum progress survives a queue reactivation context
   ---
-  duration_ms: 13.968156
+  duration_ms: 15.964693
   type: 'test'
   ...
 # Subtest: v1.7.4 BLOCKED applies to every duplicate slot of one logical saved GFW
 ok 474 - v1.7.4 BLOCKED applies to every duplicate slot of one logical saved GFW
   ---
-  duration_ms: 0.748419
+  duration_ms: 0.880028
   type: 'test'
   ...
 # Subtest: v1.7.4 queue sets preserve duplicate saved GFW slots and their independent scheduling parameters
 ok 475 - v1.7.4 queue sets preserve duplicate saved GFW slots and their independent scheduling parameters
   ---
-  duration_ms: 0.715966
+  duration_ms: 0.846516
   type: 'test'
   ...
 # Subtest: v1.7.4 PAUSE_PROCESS is worker-nonblocking in queue mode and ordinary outside queue mode
 ok 476 - v1.7.4 PAUSE_PROCESS is worker-nonblocking in queue mode and ordinary outside queue mode
   ---
-  duration_ms: 0.225613
+  duration_ms: 0.209236
   type: 'test'
   ...
 # Subtest: v1.7.4 background runtime carries ordered-loop, quantum-preservation and logical-duplicate terminal invariants
 ok 477 - v1.7.4 background runtime carries ordered-loop, quantum-preservation and logical-duplicate terminal invariants
   ---
-  duration_ms: 2.568372
+  duration_ms: 3.394535
   type: 'test'
   ...
 # Subtest: v1.7.4 A2A advertises ordered cyclic slots, duplicate logical continuity and queue-local pause semantics
 ok 478 - v1.7.4 A2A advertises ordered cyclic slots, duplicate logical continuity and queue-local pause semantics
   ---
-  duration_ms: 0.508615
+  duration_ms: 0.494888
   type: 'test'
   ...
 # Subtest: v1.7.4 queue prompt exposes quantum planning and approximate timing to EIC
 ok 479 - v1.7.4 queue prompt exposes quantum planning and approximate timing to EIC
   ---
-  duration_ms: 3.812626
+  duration_ms: 4.347808
   type: 'test'
   ...
 # Subtest: v1.7.4 activation telemetry measures a queue-slot loop roundtrip
 ok 480 - v1.7.4 activation telemetry measures a queue-slot loop roundtrip
   ---
-  duration_ms: 0.517972
+  duration_ms: 0.512745
   type: 'test'
   ...
 # Subtest: v1.7.4 CONTINUE plus BACKGROUND_SLEEP on final quantum parks instead of terminalizing
 ok 481 - v1.7.4 CONTINUE plus BACKGROUND_SLEEP on final quantum parks instead of terminalizing
   ---
-  duration_ms: 0.614578
+  duration_ms: 0.598268
   type: 'test'
   ...
 # Subtest: v1.7.4 EIC can request one full Greenfield process status capsule
 ok 482 - v1.7.4 EIC can request one full Greenfield process status capsule
   ---
-  duration_ms: 2.175593
+  duration_ms: 2.392706
   type: 'test'
   ...
 # Subtest: v1.7.4 A2A can carry one-shot processStatus alongside standard prompt information
 ok 483 - v1.7.4 A2A can carry one-shot processStatus alongside standard prompt information
   ---
-  duration_ms: 0.490879
+  duration_ms: 0.434562
   type: 'test'
   ...
 # Subtest: v1.7.5 durable checkpoint steady state keeps primary plus one verified slot
 ok 484 - v1.7.5 durable checkpoint steady state keeps primary plus one verified slot
   ---
-  duration_ms: 15.528295
+  duration_ms: 20.060265
   type: 'test'
   ...
 # Subtest: v1.7.5 checkpoint compactor removes an older duplicate slot without changing the record
 ok 485 - v1.7.5 checkpoint compactor removes an older duplicate slot without changing the record
   ---
-  duration_ms: 8.865828
+  duration_ms: 3.212719
   type: 'test'
   ...
 # Subtest: v1.7.5 high-water retention deletes oldest unbound workers first and preserves live workers
 ok 486 - v1.7.5 high-water retention deletes oldest unbound workers first and preserves live workers
   ---
-  duration_ms: 13.198219
+  duration_ms: 17.332378
   type: 'test'
   ...
 # Subtest: v1.7.5 retention is a no-op below the high-water trigger
 ok 487 - v1.7.5 retention is a no-op below the high-water trigger
   ---
-  duration_ms: 2.516353
+  duration_ms: 2.724148
   type: 'test'
   ...
 # Subtest: v1.7.6 fresh current_focus: reconcile is mandatory but write is conditional
 ok 488 - v1.7.6 fresh current_focus: reconcile is mandatory but write is conditional
   ---
-  duration_ms: 8.837128
+  duration_ms: 7.058279
   type: 'test'
   ...
 # Subtest: v1.7.6 stale current_focus: newer exact owner evidence governs
 ok 489 - v1.7.6 stale current_focus: newer exact owner evidence governs
   ---
-  duration_ms: 0.678373
+  duration_ms: 0.542066
   type: 'test'
   ...
 # Subtest: v1.7.6 material steering delta: update requires owner readback
 ok 490 - v1.7.6 material steering delta: update requires owner readback
   ---
-  duration_ms: 0.471296
+  duration_ms: 0.239609
   type: 'test'
   ...
 # Subtest: v1.7.6 no material delta: no focus write and no repeated probe loop
 ok 491 - v1.7.6 no material delta: no focus write and no repeated probe loop
   ---
-  duration_ms: 0.479826
+  duration_ms: 0.203593
   type: 'test'
   ...
 # Subtest: v1.7.6 current_focus write unavailable: metadata failure is scoped
 ok 492 - v1.7.6 current_focus write unavailable: metadata failure is scoped
   ---
-  duration_ms: 0.763024
+  duration_ms: 0.509042
   type: 'test'
   ...
 # Subtest: v1.7.6 completed effect plus stale pointer: effect replay remains forbidden
 ok 493 - v1.7.6 completed effect plus stale pointer: effect replay remains forbidden
   ---
-  duration_ms: 0.507404
+  duration_ms: 0.24
   type: 'test'
   ...
 # Subtest: v1.7.6 before material effect: exact effect owner and target revalidation is explicit
 ok 494 - v1.7.6 before material effect: exact effect owner and target revalidation is explicit
   ---
-  duration_ms: 0.556093
+  duration_ms: 0.267109
   type: 'test'
   ...
 # Subtest: v1.7.6 handoff: material mission state persists and focus changes only on material delta
 ok 495 - v1.7.6 handoff: material mission state persists and focus changes only on material delta
   ---
-  duration_ms: 0.422115
+  duration_ms: 0.312763
   type: 'test'
   ...
 # Subtest: v1.7.6 contradiction: removing exact-owner precedence invalidates the envelope
 ok 496 - v1.7.6 contradiction: removing exact-owner precedence invalidates the envelope
   ---
-  duration_ms: 1.592071
+  duration_ms: 1.074746
   type: 'test'
   ...
 # Subtest: v1.7.6 regression: every composed A2A prompt carries the owner-state rule
 ok 497 - v1.7.6 regression: every composed A2A prompt carries the owner-state rule
   ---
-  duration_ms: 3.68314
+  duration_ms: 2.984519
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: live failure case DONE+STOP_PROCESS retires the logical GFW although Hjalmar says CONTINUE
 ok 498 - v1.7.7 E2E: live failure case DONE+STOP_PROCESS retires the logical GFW although Hjalmar says CONTINUE
   ---
-  duration_ms: 489.798869
+  duration_ms: 554.110948
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: structured COMPLETE_MISSION with the exact target retires only its logical mission
 ok 499 - v1.7.7 E2E: structured COMPLETE_MISSION with the exact target retires only its logical mission
   ---
-  duration_ms: 319.702741
+  duration_ms: 359.457548
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: DONE with a mismatching runtimeControl target fails closed to BLOCKED and retires nothing
 ok 500 - v1.7.7 E2E: DONE with a mismatching runtimeControl target fails closed to BLOCKED and retires nothing
   ---
-  duration_ms: 413.483171
+  duration_ms: 481.620987
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: SET_PRIORITY and SET_QUANTUM mutate only the target slot and the next prompt carries receipts
 ok 501 - v1.7.7 E2E: SET_PRIORITY and SET_QUANTUM mutate only the target slot and the next prompt carries receipts
   ---
-  duration_ms: 364.385185
+  duration_ms: 446.17664
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: an operator edit after the prompt wins over the AI priority request
 ok 502 - v1.7.7 E2E: an operator edit after the prompt wins over the AI priority request
   ---
-  duration_ms: 407.993129
+  duration_ms: 405.100506
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: a normal v1.7.6 CONTINUE response is a runtime-control no-op and the follow-up prompt is COMPACT
 ok 503 - v1.7.7 E2E: a normal v1.7.6 CONTINUE response is a runtime-control no-op and the follow-up prompt is COMPACT
   ---
-  duration_ms: 613.340846
+  duration_ms: 694.701184
   type: 'test'
   ...
 # Subtest: v1.7.8 E2E: a reload of the same conversation before dispatch keeps the COMPACT follow-up
 ok 504 - v1.7.8 E2E: a reload of the same conversation before dispatch keeps the COMPACT follow-up
   ---
-  duration_ms: 595.40501
+  duration_ms: 664.569601
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: a conversation change before dispatch upgrades a COMPACT follow-up to the FULL prompt
 ok 505 - v1.7.7 E2E: a conversation change before dispatch upgrades a COMPACT follow-up to the FULL prompt
   ---
-  duration_ms: 668.286439
+  duration_ms: 802.676286
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: a pending operator instruction outranks an AI terminal control and the receipt says so
 ok 506 - v1.7.7 E2E: a pending operator instruction outranks an AI terminal control and the receipt says so
   ---
-  duration_ms: 335.114621
+  duration_ms: 350.250906
   type: 'test'
   ...
 # Subtest: v1.7.7 E2E: a DONE process whose queue retirement did not persist is self-healed before any queue selection
 ok 507 - v1.7.7 E2E: a DONE process whose queue retirement did not persist is self-healed before any queue selection
   ---
-  duration_ms: 338.702492
+  duration_ms: 391.948721
   type: 'test'
   ...
 # Subtest: v1.7.7 valid COMPLETE_MISSION for the current GFW is accepted and overrides a CONTINUE controller verdict
 ok 508 - v1.7.7 valid COMPLETE_MISSION for the current GFW is accepted and overrides a CONTINUE controller verdict
   ---
-  duration_ms: 3.951549
+  duration_ms: 3.730374
   type: 'test'
   ...
 # Subtest: v1.7.7 completion retires every duplicate slot of the logical mission and nothing else
 ok 509 - v1.7.7 completion retires every duplicate slot of the logical mission and nothing else
   ---
-  duration_ms: 1.122376
+  duration_ms: 0.953922
   type: 'test'
   ...
 # Subtest: v1.7.7 completion is idempotent at queue and control level
 ok 510 - v1.7.7 completion is idempotent at queue and control level
   ---
-  duration_ms: 0.543336
+  duration_ms: 0.279805
   type: 'test'
   ...
 # Subtest: v1.7.7 stale or wrong run/turn/queue/item/mission targets are rejected without effect
 ok 511 - v1.7.7 stale or wrong run/turn/queue/item/mission targets are rejected without effect
   ---
-  duration_ms: 2.393611
+  duration_ms: 1.927017
   type: 'test'
   ...
 # Subtest: v1.7.7 valid SET_QUANTUM targets only the current slot and applies from the next quantum
 ok 512 - v1.7.7 valid SET_QUANTUM targets only the current slot and applies from the next quantum
   ---
-  duration_ms: 0.688113
+  duration_ms: 0.710063
   type: 'test'
   ...
 # Subtest: v1.7.7 quantum outside 1..15 or non-integer is rejected, never clamped
 ok 513 - v1.7.7 quantum outside 1..15 or non-integer is rejected, never clamped
   ---
-  duration_ms: 0.758337
+  duration_ms: 0.655599
   type: 'test'
   ...
 # Subtest: v1.7.7 valid SET_PRIORITY lowers and later restores up to the operator ceiling
 ok 514 - v1.7.7 valid SET_PRIORITY lowers and later restores up to the operator ceiling
   ---
-  duration_ms: 0.342295
+  duration_ms: 0.352354
   type: 'test'
   ...
 # Subtest: v1.7.7 priorities outside the whitelist or above the operator ceiling are rejected
 ok 515 - v1.7.7 priorities outside the whitelist or above the operator ceiling are rejected
   ---
-  duration_ms: 0.335502
+  duration_ms: 0.225025
   type: 'test'
   ...
 # Subtest: v1.7.7 unknown runtime-control operations are rejected without effect
 ok 516 - v1.7.7 unknown runtime-control operations are rejected without effect
   ---
-  duration_ms: 0.429082
+  duration_ms: 0.468126
   type: 'test'
   ...
 # Subtest: v1.7.7 malformed or hostile control yields INVALID receipts and no mutation
 ok 517 - v1.7.7 malformed or hostile control yields INVALID receipts and no mutation
   ---
-  duration_ms: 2.750165
+  duration_ms: 2.668666
   type: 'test'
   ...
 # Subtest: v1.7.7 an operator edit after the prompt wins over a stale AI request; operator path stamps precedence
 ok 518 - v1.7.7 an operator edit after the prompt wins over a stale AI request; operator path stamps precedence
   ---
-  duration_ms: 29.03598
+  duration_ms: 22.827936
   type: 'test'
   ...
 # Subtest: v1.7.7 a normal v1.7.6 response without runtimeControl keeps working and is a control no-op
 ok 519 - v1.7.7 a normal v1.7.6 response without runtimeControl keeps working and is a control no-op
   ---
-  duration_ms: 0.540635
+  duration_ms: 0.533681
   type: 'test'
   ...
 # Subtest: v1.7.7 legacy status=DONE and sessionAction=STOP_PROCESS normalize to the same terminal handler
 ok 520 - v1.7.7 legacy status=DONE and sessionAction=STOP_PROCESS normalize to the same terminal handler
   ---
-  duration_ms: 0.275638
+  duration_ms: 0.345438
   type: 'test'
   ...
 # Subtest: v1.7.7 Greenfield prompt publishes runtime-control operations, exact schema, target and constraints
 ok 521 - v1.7.7 Greenfield prompt publishes runtime-control operations, exact schema, target and constraints
   ---
-  duration_ms: 19.550936
+  duration_ms: 18.405629
   type: 'test'
   ...
 # Subtest: v1.7.7 prompt states that Greenfield validates every request and operator control has precedence
 ok 522 - v1.7.7 prompt states that Greenfield validates every request and operator control has precedence
   ---
-  duration_ms: 0.28022
+  duration_ms: 0.296734
   type: 'test'
   ...
 # Subtest: v1.7.7 replay of an applied effect is ALREADY_APPLIED; duplicate ops and terminal-less COMPLETE are invalid
 ok 523 - v1.7.7 replay of an applied effect is ALREADY_APPLIED; duplicate ops and terminal-less COMPLETE are invalid
   ---
-  duration_ms: 0.541934
+  duration_ms: 0.610896
   type: 'test'
   ...
 # Subtest: v1.7.7 terminal supersedes slot controls; inactive, absent or non-queue slots are not mutated
 ok 524 - v1.7.7 terminal supersedes slot controls; inactive, absent or non-queue slots are not mutated
   ---
-  duration_ms: 0.208304
+  duration_ms: 0.232126
   type: 'test'
   ...
 # Subtest: v1.7.7 receipts never claim an effect whose queue write failed and are carried in the next prompt
 ok 525 - v1.7.7 receipts never claim an effect whose queue write failed and are carried in the next prompt
   ---
-  duration_ms: 0.427096
+  duration_ms: 0.501232
   type: 'test'
   ...
 # Subtest: v1.7.7 legacy queue items gain an operator ceiling equal to their priority
 ok 526 - v1.7.7 legacy queue items gain an operator ceiling equal to their priority
   ---
-  duration_ms: 0.291895
+  duration_ms: 0.212593
   type: 'test'
   ...
 # Subtest: v1.7.7 prompt profile: session-boundary prompts are FULL, same-conversation follow-ups COMPACT, every 10th FULL
 ok 527 - v1.7.7 prompt profile: session-boundary prompts are FULL, same-conversation follow-ups COMPACT, every 10th FULL
   ---
-  duration_ms: 0.901303
+  duration_ms: 0.923408
   type: 'test'
   ...
 # Subtest: v1.7.8 prompt profile: any session or conversation discontinuity forces FULL; a same-conversation reload does not
 ok 528 - v1.7.8 prompt profile: any session or conversation discontinuity forces FULL; a same-conversation reload does not
   ---
-  duration_ms: 0.427011
+  duration_ms: 0.476561
   type: 'test'
   ...
 # Subtest: v1.7.7 COMPACT envelope keeps every per-turn and safety invariant and validates
 ok 529 - v1.7.7 COMPACT envelope keeps every per-turn and safety invariant and validates
   ---
-  duration_ms: 1.849229
+  duration_ms: 2.059988
   type: 'test'
   ...
 # Subtest: v1.7.7 MISSION_RESTORE is an admitted A2A message type (queue restore path)
 ok 530 - v1.7.7 MISSION_RESTORE is an admitted A2A message type (queue restore path)
   ---
-  duration_ms: 0.243884
+  duration_ms: 0.260991
   type: 'test'
   ...
 # Subtest: v1.7.7 background wires one control point, terminal verdicts, self-heal and dispatch-time FULL upgrade
 ok 531 - v1.7.7 background wires one control point, terminal verdicts, self-heal and dispatch-time FULL upgrade
   ---
-  duration_ms: 1.475062
+  duration_ms: 1.344078
   type: 'test'
   ...
 # Subtest: v1.7.7 receipts identify the mutated slot and an uncommitted terminal is reported as rejected
 ok 532 - v1.7.7 receipts identify the mutated slot and an uncommitted terminal is reported as rejected
   ---
-  duration_ms: 0.329806
+  duration_ms: 0.385701
   type: 'test'
   ...
 # Subtest: v1.7.7 an operator priority edit is never blocked by an AI-changed quantum on the active slot
 ok 533 - v1.7.7 an operator priority edit is never blocked by an AI-changed quantum on the active slot
   ---
-  duration_ms: 35.788665
+  duration_ms: 28.492564
   type: 'test'
   ...
 # Subtest: v1.7.8 live regression: Greenfield's own 30-minute stale-ladder F5 keeps turn 2 COMPACT (real capture path)
 ok 534 - v1.7.8 live regression: Greenfield's own 30-minute stale-ladder F5 keeps turn 2 COMPACT (real capture path)
   ---
-  duration_ms: 1069.841506
+  duration_ms: 1176.015213
   type: 'test'
   ...
 # Subtest: v1.7.8 twelve real turns in one conversation: FULL exactly at 1 and 11 despite a Greenfield F5 and a manual reload
 ok 535 - v1.7.8 twelve real turns in one conversation: FULL exactly at 1 and 11 despite a Greenfield F5 and a manual reload
   ---
-  duration_ms: 4277.771174
+  duration_ms: 4849.722796
   type: 'test'
   ...
 # Subtest: v1.7.9 E2E: 120 minutes without a completed response rotates the queue to the next GFW
 ok 536 - v1.7.9 E2E: 120 minutes without a completed response rotates the queue to the next GFW
   ---
-  duration_ms: 929.099737
+  duration_ms: 1085.552167
   type: 'test'
   ...
 # Subtest: v1.7.9 E2E: with no other runnable slot the stalled GFW rotates into a fresh chat (fallback)
 ok 537 - v1.7.9 E2E: with no other runnable slot the stalled GFW rotates into a fresh chat (fallback)
   ---
-  duration_ms: 637.728439
+  duration_ms: 655.166601
   type: 'test'
   ...
 # Subtest: v1.7.9 FULL prompt tells a queued EIC what happens after 120 stalled minutes
 ok 538 - v1.7.9 FULL prompt tells a queued EIC what happens after 120 stalled minutes
   ---
-  duration_ms: 0.922951
+  duration_ms: 1.173837
   type: 'test'
   ...
 # Subtest: v1.7.9 stale-ladder schedule matches the ladder's own thresholds
 ok 539 - v1.7.9 stale-ladder schedule matches the ladder's own thresholds
   ---
-  duration_ms: 0.317424
+  duration_ms: 0.46027
   type: 'test'
   ...
 # Subtest: v1.7.9 GFW identity is taken from the Gf tag
 ok 540 - v1.7.9 GFW identity is taken from the Gf tag
   ---
-  duration_ms: 0.096602
+  duration_ms: 0.123397
   type: 'test'
   ...
 # Subtest: v1.7.9 overview: GFW, slot, priority, interaction/quantum, TTL to queue rotation and next slot
 ok 541 - v1.7.9 overview: GFW, slot, priority, interaction/quantum, TTL to queue rotation and next slot
   ---
-  duration_ms: 0.493836
+  duration_ms: 0.580323
   type: 'test'
   ...
 # Subtest: v1.7.9 overview follows the stale stage, a pending quantum, holds and the no-other-slot fallback
 ok 542 - v1.7.9 overview follows the stale stage, a pending quantum, holds and the no-other-slot fallback
   ---
-  duration_ms: 0.683759
+  duration_ms: 0.83078
   type: 'test'
   ...
 # Subtest: v1.7.9 content overlay renders the overview lines and counts the TTL down locally
 ok 543 - v1.7.9 content overlay renders the overview lines and counts the TTL down locally
   ---
-  duration_ms: 3.543946
+  duration_ms: 4.259228
   type: 'test'
   ...
 # Subtest: v1.8.0 contract is self-contained: EIC baseline, owner truth, every surface defined with is/usedFor/isNot
 ok 544 - v1.8.0 contract is self-contained: EIC baseline, owner truth, every surface defined with is/usedFor/isNot
   ---
-  duration_ms: 2.730039
+  duration_ms: 2.515177
   type: 'test'
   ...
 # Subtest: v1.8.0 contract spells out AIK, Self-learn, Kaizen, Operator Learning and routing rules literally
 ok 545 - v1.8.0 contract spells out AIK, Self-learn, Kaizen, Operator Learning and routing rules literally
   ---
-  duration_ms: 0.408681
+  duration_ms: 0.579843
   type: 'test'
   ...
 # Subtest: v1.8.0 FULL prompts carry the contract and result schema; every prompt carries the dynamic capsule
 ok 546 - v1.8.0 FULL prompts carry the contract and result schema; every prompt carries the dynamic capsule
   ---
-  duration_ms: 21.203869
+  duration_ms: 26.73535
   type: 'test'
   ...
 # Subtest: v1.8.0 the final interaction of a real queue quantum makes closure REQUIRED in the composed prompt
 ok 547 - v1.8.0 the final interaction of a real queue quantum makes closure REQUIRED in the composed prompt
   ---
-  duration_ms: 1.358663
+  duration_ms: 1.584695
   type: 'test'
   ...
 # Subtest: v1.8.0 project scope comes from the mission header
 ok 548 - v1.8.0 project scope comes from the mission header
   ---
-  duration_ms: 0.287802
+  duration_ms: 0.338949
   type: 'test'
   ...
 # Subtest: v1.8.0 session boundaries and new quanta are START_RESUME keypoints with REQUIRED checks
 ok 549 - v1.8.0 session boundaries and new quanta are START_RESUME keypoints with REQUIRED checks
   ---
-  duration_ms: 0.588373
+  duration_ms: 0.488512
   type: 'test'
   ...
 # Subtest: v1.8.0 failures, unknown effects, recurring blockers, operator replans and quantum end are detected by Greenfield
 ok 550 - v1.8.0 failures, unknown effects, recurring blockers, operator replans and quantum end are detected by Greenfield
   ---
-  duration_ms: 0.724341
+  duration_ms: 0.518745
   type: 'test'
   ...
 # Subtest: v1.8.0 an executed check in the same work block is reusable; an unreported REQUIRED check is carried over
 ok 551 - v1.8.0 an executed check in the same work block is reusable; an unreported REQUIRED check is carried over
   ---
-  duration_ms: 0.699941
+  duration_ms: 0.664445
   type: 'test'
   ...
 # Subtest: v1.8.0 learningControl results are normalized into a closed shape and never break response parsing
 ok 552 - v1.8.0 learningControl results are normalized into a closed shape and never break response parsing
   ---
-  duration_ms: 10.246312
+  duration_ms: 4.780622
   type: 'test'
   ...
 # Subtest: v1.8.0 E2E: the posted first prompt requires discovery; a reported result makes it reusable in the COMPACT follow-up
 ok 553 - v1.8.0 E2E: the posted first prompt requires discovery; a reported result makes it reusable in the COMPACT follow-up
   ---
-  duration_ms: 537.623075
+  duration_ms: 681.707886
   type: 'test'
   ...
 # Subtest: v1.8.0 E2E: a response that silently skipped the required checks gets them carried over as REQUIRED
 ok 554 - v1.8.0 E2E: a response that silently skipped the required checks gets them carried over as REQUIRED
   ---
-  duration_ms: 456.187145
+  duration_ms: 502.994147
   type: 'test'
   ...
 # Subtest: v1.8.1 run windows: same-day, across midnight, 24:00 and chained windows
 ok 555 - v1.8.1 run windows: same-day, across midnight, 24:00 and chained windows
   ---
-  duration_ms: 1.927532
+  duration_ms: 2.211177
   type: 'test'
   ...
 # Subtest: v1.8.1 pauseUntil blocks until its time and composes with windows
 ok 556 - v1.8.1 pauseUntil blocks until its time and composes with windows
   ---
-  duration_ms: 0.286759
+  duration_ms: 0.345837
   type: 'test'
   ...
 # Subtest: v1.8.1 schedule edits are parsed strictly; absent fields keep their value
 ok 557 - v1.8.1 schedule edits are parsed strictly; absent fields keep their value
   ---
-  duration_ms: 2.199482
+  duration_ms: 2.304351
   type: 'test'
   ...
 # Subtest: v1.8.1 a slot outside its schedule is not runnable and is skipped in explicit order
 ok 558 - v1.8.1 a slot outside its schedule is not runnable and is skipped in explicit order
   ---
-  duration_ms: 1.855397
+  duration_ms: 2.33412
   type: 'test'
   ...
 # Subtest: v1.8.1 operator schedule edit: null clears, other fields and the priority ceiling are untouched
 ok 559 - v1.8.1 operator schedule edit: null clears, other fields and the priority ceiling are untouched
   ---
-  duration_ms: 24.069411
+  duration_ms: 28.366455
   type: 'test'
   ...
 # Subtest: v1.8.1 queue sets keep run windows but never a one-shot pause
 ok 560 - v1.8.1 queue sets keep run windows but never a one-shot pause
   ---
-  duration_ms: 2.265009
+  duration_ms: 2.076248
   type: 'test'
   ...
 # Subtest: v1.8.1 SET_SCHEDULE is validated, bound to the slot, idempotent and loses to the operator
 ok 561 - v1.8.1 SET_SCHEDULE is validated, bound to the slot, idempotent and loses to the operator
   ---
-  duration_ms: 3.293157
+  duration_ms: 2.493711
   type: 'test'
   ...
 # Subtest: v1.8.1 FULL prompt instructs and mandates the scheduler; COMPACT keeps the live schedule state
 ok 562 - v1.8.1 FULL prompt instructs and mandates the scheduler; COMPACT keeps the live schedule state
   ---
-  duration_ms: 19.848677
+  duration_ms: 22.327608
   type: 'test'
   ...
 # Subtest: v1.8.1 a blocked schedule parks the slot after the response; nothing else changes the policy
 ok 563 - v1.8.1 a blocked schedule parks the slot after the response; nothing else changes the policy
   ---
-  duration_ms: 0.472917
+  duration_ms: 0.447092
   type: 'test'
   ...
 # Subtest: v1.8.1 E2E: the window closes during a turn; the turn finishes, then the slot parks and the next GFW starts
 ok 564 - v1.8.1 E2E: the window closes during a turn; the turn finishes, then the slot parks and the next GFW starts
   ---
-  duration_ms: 586.943616
+  duration_ms: 687.435964
   type: 'test'
   ...
 # Subtest: v1.8.1 E2E: with no other runnable slot the worker idles in QUEUE_WAIT and wakes when the slot opens
 ok 565 - v1.8.1 E2E: with no other runnable slot the worker idles in QUEUE_WAIT and wakes when the slot opens
   ---
-  duration_ms: 712.515324
+  duration_ms: 828.965915
   type: 'test'
   ...
 # Subtest: v1.8.1 E2E: an AI SET_SCHEDULE pause is applied, receipted, and parks the slot after this response
 ok 566 - v1.8.1 E2E: an AI SET_SCHEDULE pause is applied, receipted, and parks the slot after this response
   ---
-  duration_ms: 438.7598
+  duration_ms: 502.20792
   type: 'test'
   ...
 # Subtest: v1.8.1 E2E dispatch gate: a prompt that was never dispatched is not posted outside the schedule
 ok 567 - v1.8.1 E2E dispatch gate: a prompt that was never dispatched is not posted outside the schedule
   ---
-  duration_ms: 634.453326
+  duration_ms: 562.902494
   type: 'test'
   ...
 # Subtest: v1.8.1 E2E: re-saving the selected queue set overwrites it from the active queue and keeps its identity
 ok 568 - v1.8.1 E2E: re-saving the selected queue set overwrites it from the active queue and keeps its identity
   ---
-  duration_ms: 141.88899
+  duration_ms: 115.450474
   type: 'test'
   ...
 # Subtest: v1.8.1 side panel wires 'Uppdatera valt' and the per-slot schedule editor to the verified mutations
 ok 569 - v1.8.1 side panel wires 'Uppdatera valt' and the per-slot schedule editor to the verified mutations
   ---
-  duration_ms: 2.509041
+  duration_ms: 2.147375
+  type: 'test'
+  ...
+# Subtest: v1.8.10 repro: v1.8.9's page view after a real send holds DISPATCH_EFFECT_UNRESOLVED with no resend
+ok 570 - v1.8.10 repro: v1.8.9's page view after a real send holds DISPATCH_EFFECT_UNRESOLVED with no resend
+  ---
+  duration_ms: 760.60614
+  type: 'test'
+  ...
+# Subtest: v1.8.10: the stuck process resolves itself once content sees the app-shell user message (ordinal 0 + id), no resend
+ok 571 - v1.8.10: the stuck process resolves itself once content sees the app-shell user message (ordinal 0 + id), no resend
+  ---
+  duration_ms: 413.023562
+  type: 'test'
+  ...
+# Subtest: v1.8.10 reconciliation: the diagnostics' dispatch record, v1.8.9 view vs v1.8.10 view of the same page
+ok 572 - v1.8.10 reconciliation: the diagnostics' dispatch record, v1.8.9 view vs v1.8.10 view of the same page
+  ---
+  duration_ms: 0.498276
+  type: 'test'
+  ...
+# Subtest: v1.8.10 content reads ChatGPT's app-shell thread (build read 2026-09-26)
+ok 573 - v1.8.10 content reads ChatGPT's app-shell thread (build read 2026-09-26)
+  ---
+  duration_ms: 0.746432
   type: 'test'
   ...
 # Subtest: v1.8.2 every short capture from the live export is recognised as an unfinished JSON object
-ok 570 - v1.8.2 every short capture from the live export is recognised as an unfinished JSON object
+ok 574 - v1.8.2 every short capture from the live export is recognised as an unfinished JSON object
   ---
-  duration_ms: 1.240287
+  duration_ms: 1.395657
   type: 'test'
   ...
 # Subtest: v1.8.2 finished answers pass: closed JSON, code-block label, trailing prose, plain prose
-ok 571 - v1.8.2 finished answers pass: closed JSON, code-block label, trailing prose, plain prose
+ok 575 - v1.8.2 finished answers pass: closed JSON, code-block label, trailing prose, plain prose
   ---
-  duration_ms: 1.452857
+  duration_ms: 1.651572
   type: 'test'
   ...
 # Subtest: v1.8.2 the trace keeps ids, lengths and reasons only, and never response text
-ok 572 - v1.8.2 the trace keeps ids, lengths and reasons only, and never response text
+ok 576 - v1.8.2 the trace keeps ids, lengths and reasons only, and never response text
   ---
-  duration_ms: 0.458327
+  duration_ms: 0.450223
   type: 'test'
   ...
 # Subtest: v1.8.2 an unchanged reason is refreshed at most once per minute; streaming hashes do not add entries
-ok 573 - v1.8.2 an unchanged reason is refreshed at most once per minute; streaming hashes do not add entries
+ok 577 - v1.8.2 an unchanged reason is refreshed at most once per minute; streaming hashes do not add entries
   ---
-  duration_ms: 1.948824
+  duration_ms: 2.05314
   type: 'test'
   ...
 # Subtest: v1.8.2 E2E: a stalled JSON prefix with no generation signal is never captured; the finished answer is
-ok 574 - v1.8.2 E2E: a stalled JSON prefix with no generation signal is never captured; the finished answer is
+ok 578 - v1.8.2 E2E: a stalled JSON prefix with no generation signal is never captured; the finished answer is
   ---
-  duration_ms: 942.948776
+  duration_ms: 957.315134
   type: 'test'
   ...
 # Subtest: v1.8.2 E2E: an unchanged held reason is not written to storage on every tick
-ok 575 - v1.8.2 E2E: an unchanged held reason is not written to storage on every tick
+ok 579 - v1.8.2 E2E: an unchanged held reason is not written to storage on every tick
   ---
-  duration_ms: 527.556643
+  duration_ms: 427.588303
   type: 'test'
   ...
 # Subtest: v1.8.2 E2E: the trace survives the 120-minute queue rotation and is indexed in the diagnostics export
-ok 576 - v1.8.2 E2E: the trace survives the 120-minute queue rotation and is indexed in the diagnostics export
+ok 580 - v1.8.2 E2E: the trace survives the 120-minute queue rotation and is indexed in the diagnostics export
   ---
-  duration_ms: 1090.936332
+  duration_ms: 904.534208
   type: 'test'
   ...
 # Subtest: v1.8.3 bridge errors map to tab conditions; page conditions only when they block progress
-ok 577 - v1.8.3 bridge errors map to tab conditions; page conditions only when they block progress
+ok 581 - v1.8.3 bridge errors map to tab conditions; page conditions only when they block progress
   ---
-  duration_ms: 1.303155
+  duration_ms: 1.183355
   type: 'test'
   ...
 # Subtest: v1.8.3 recovery ladder: reload, hard reload, same URL, new tab, give up - spaced and budgeted
-ok 578 - v1.8.3 recovery ladder: reload, hard reload, same URL, new tab, give up - spaced and budgeted
+ok 582 - v1.8.3 recovery ladder: reload, hard reload, same URL, new tab, give up - spaced and budgeted
   ---
-  duration_ms: 3.034865
+  duration_ms: 1.965942
   type: 'test'
   ...
 # Subtest: v1.8.3 Daybreak: rotate first, then pause 2 h / 6 h / 24 h; the chain resets after 24 h; never BLOCKED
-ok 579 - v1.8.3 Daybreak: rotate first, then pause 2 h / 6 h / 24 h; the chain resets after 24 h; never BLOCKED
+ok 583 - v1.8.3 Daybreak: rotate first, then pause 2 h / 6 h / 24 h; the chain resets after 24 h; never BLOCKED
   ---
-  duration_ms: 1.343581
+  duration_ms: 0.745236
   type: 'test'
   ...
 # Subtest: v1.8.3 learning control treats a provider block as post-failure and a repeat as a recurring family
-ok 580 - v1.8.3 learning control treats a provider block as post-failure and a repeat as a recurring family
+ok 584 - v1.8.3 learning control treats a provider block as post-failure and a repeat as a recurring family
   ---
-  duration_ms: 1.70209
+  duration_ms: 1.121759
   type: 'test'
   ...
 # Subtest: v1.8.3 E2E: a hung page no longer freezes the tick; the recovery ladder acts on the tab
-ok 581 - v1.8.3 E2E: a hung page no longer freezes the tick; the recovery ladder acts on the tab
+ok 585 - v1.8.3 E2E: a hung page no longer freezes the tick; the recovery ladder acts on the tab
   ---
-  duration_ms: 804.530766
+  duration_ms: 617.735211
   type: 'test'
   ...
 # Subtest: v1.8.3 E2E: a missing composer in SENDING is reloaded after the grace period; never during a dispatch
-ok 582 - v1.8.3 E2E: a missing composer in SENDING is reloaded after the grace period; never during a dispatch
+ok 586 - v1.8.3 E2E: a missing composer in SENDING is reloaded after the grace period; never during a dispatch
   ---
-  duration_ms: 534.907738
+  duration_ms: 407.403356
   type: 'test'
   ...
 # Subtest: v1.8.3 E2E: a Daybreak notice after Greenfield's turn rotates the same GFW into a fresh chat
-ok 583 - v1.8.3 E2E: a Daybreak notice after Greenfield's turn rotates the same GFW into a fresh chat
+ok 587 - v1.8.3 E2E: a Daybreak notice after Greenfield's turn rotates the same GFW into a fresh chat
   ---
-  duration_ms: 513.993698
+  duration_ms: 392.033588
   type: 'test'
   ...
 # Subtest: v1.8.3 E2E: a repeated Daybreak block pauses the queue slot for 2 h (never BLOCKED) and the queue advances
-ok 584 - v1.8.3 E2E: a repeated Daybreak block pauses the queue slot for 2 h (never BLOCKED) and the queue advances
+ok 588 - v1.8.3 E2E: a repeated Daybreak block pauses the queue slot for 2 h (never BLOCKED) and the queue advances
   ---
-  duration_ms: 683.824945
+  duration_ms: 542.706372
   type: 'test'
   ...
 # Subtest: v1.8.3 E2E: a tick stalled beyond 3 minutes is rescued by reloading the tab
-ok 585 - v1.8.3 E2E: a tick stalled beyond 3 minutes is rescued by reloading the tab
+ok 589 - v1.8.3 E2E: a tick stalled beyond 3 minutes is rescued by reloading the tab
   ---
-  duration_ms: 267.756761
+  duration_ms: 310.068211
   type: 'test'
   ...
 # Subtest: v1.8.3 E2E: the REPLACE_TAB step opens the same conversation in a new tab and the process re-binds to it
-ok 586 - v1.8.3 E2E: the REPLACE_TAB step opens the same conversation in a new tab and the process re-binds to it
+ok 590 - v1.8.3 E2E: the REPLACE_TAB step opens the same conversation in a new tab and the process re-binds to it
   ---
-  duration_ms: 686.659131
+  duration_ms: 732.087149
   type: 'test'
   ...
 # Subtest: v1.8.4 every HTML pattern attribute compiles in unicodeSets (v) mode as Chrome compiles it
-ok 587 - v1.8.4 every HTML pattern attribute compiles in unicodeSets (v) mode as Chrome compiles it
+ok 591 - v1.8.4 every HTML pattern attribute compiles in unicodeSets (v) mode as Chrome compiles it
   ---
-  duration_ms: 2.673081
+  duration_ms: 2.622943
   type: 'test'
   ...
 # Subtest: v1.8.4 the pre-1.8.4 requiredModel pattern is the one Chrome rejected
-ok 588 - v1.8.4 the pre-1.8.4 requiredModel pattern is the one Chrome rejected
+ok 592 - v1.8.4 the pre-1.8.4 requiredModel pattern is the one Chrome rejected
   ---
-  duration_ms: 0.393675
+  duration_ms: 0.4262
   type: 'test'
   ...
 # Subtest: v1.8.4 requiredModel pattern accepts exactly what the safety policy accepts syntactically
-ok 589 - v1.8.4 requiredModel pattern accepts exactly what the safety policy accepts syntactically
+ok 593 - v1.8.4 requiredModel pattern accepts exactly what the safety policy accepts syntactically
   ---
-  duration_ms: 3.598637
+  duration_ms: 3.972686
   type: 'test'
   ...
 # Subtest: v1.8.5 identity is the first-line GFW key only
-ok 590 - v1.8.5 identity is the first-line GFW key only
+ok 594 - v1.8.5 identity is the first-line GFW key only
   ---
-  duration_ms: 2.325041
+  duration_ms: 2.051619
   type: 'test'
   ...
 # Subtest: v1.8.5 Markdown import: \#\#\# KEY sections, first text block only, errors block the import
-ok 591 - v1.8.5 Markdown import: \#\#\# KEY sections, first text block only, errors block the import
+ok 595 - v1.8.5 Markdown import: \#\#\# KEY sections, first text block only, errors block the import
   ---
-  duration_ms: 2.678672
+  duration_ms: 2.349117
   type: 'test'
   ...
 # Subtest: v1.8.5 export is lossless and importable
-ok 592 - v1.8.5 export is lossless and importable
+ok 596 - v1.8.5 export is lossless and importable
   ---
-  duration_ms: 0.74412
+  duration_ms: 0.674043
   type: 'test'
   ...
 # Subtest: v1.8.5 import plan matches by key, merges duplicates and refuses to exceed the limit
-ok 593 - v1.8.5 import plan matches by key, merges duplicates and refuses to exceed the limit
+ok 597 - v1.8.5 import plan matches by key, merges duplicates and refuses to exceed the limit
   ---
-  duration_ms: 0.811066
+  duration_ms: 0.847609
   type: 'test'
   ...
 # Subtest: v1.8.5 saving the same GF key updates the saved mission in place (same id)
-ok 594 - v1.8.5 saving the same GF key updates the saved mission in place (same id)
+ok 598 - v1.8.5 saving the same GF key updates the saved mission in place (same id)
   ---
-  duration_ms: 12.697672
+  duration_ms: 10.985647
   type: 'test'
   ...
 # Subtest: v1.8.5 the limit refuses a new mission and never drops an existing one
-ok 595 - v1.8.5 the limit refuses a new mission and never drops an existing one
+ok 599 - v1.8.5 the limit refuses a new mission and never drops an existing one
   ---
-  duration_ms: 6.078267
+  duration_ms: 3.782378
   type: 'test'
   ...
 # Subtest: v1.8.5 bulk import writes, merges duplicates, reads back and is idempotent
-ok 596 - v1.8.5 bulk import writes, merges duplicates, reads back and is idempotent
+ok 600 - v1.8.5 bulk import writes, merges duplicates, reads back and is idempotent
   ---
-  duration_ms: 8.971223
+  duration_ms: 6.34788
   type: 'test'
   ...
 # Subtest: v1.8.5 references resolve by id, follow merges, re-link stale ids by key, never touch slots without id
-ok 597 - v1.8.5 references resolve by id, follow merges, re-link stale ids by key, never touch slots without id
+ok 601 - v1.8.5 references resolve by id, follow merges, re-link stale ids by key, never touch slots without id
   ---
-  duration_ms: 0.677345
+  duration_ms: 0.52284
   type: 'test'
   ...
 # Subtest: v1.8.5 stored queue sets are rewritten to the current text with readback
-ok 598 - v1.8.5 stored queue sets are rewritten to the current text with readback
+ok 602 - v1.8.5 stored queue sets are rewritten to the current text with readback
   ---
-  duration_ms: 15.104523
+  duration_ms: 14.316532
   type: 'test'
   ...
 # Subtest: v1.8.5 deleting a saved mission keeps queue copies (no silent loss)
-ok 599 - v1.8.5 deleting a saved mission keeps queue copies (no silent loss)
+ok 603 - v1.8.5 deleting a saved mission keeps queue copies (no silent loss)
   ---
-  duration_ms: 2.186136
+  duration_ms: 1.368459
   type: 'test'
   ...
 # Subtest: v1.8.5 background resolves saved-mission text at add, set save/load and activation
-ok 600 - v1.8.5 background resolves saved-mission text at add, set save/load and activation
+ok 604 - v1.8.5 background resolves saved-mission text at add, set save/load and activation
   ---
-  duration_ms: 6.317673
+  duration_ms: 2.921895
   type: 'test'
   ...
 # Subtest: v1.8.5 panel exposes edit, save change, save as new, confirmed delete, import preview and export
-ok 601 - v1.8.5 panel exposes edit, save change, save as new, confirmed delete, import preview and export
+ok 605 - v1.8.5 panel exposes edit, save change, save as new, confirmed delete, import preview and export
   ---
-  duration_ms: 1.343335
+  duration_ms: 1.089732
   type: 'test'
   ...
 # Subtest: v1.8.5 content script treats the processing notice as status for assistant turns only
-ok 602 - v1.8.5 content script treats the processing notice as status for assistant turns only
+ok 606 - v1.8.5 content script treats the processing notice as status for assistant turns only
   ---
-  duration_ms: 1.103461
+  duration_ms: 0.948051
   type: 'test'
   ...
 # Subtest: v1.8.5 cleanup rows flag older duplicates (with their newer keeper) and missions without key; nothing preselected
-ok 603 - v1.8.5 cleanup rows flag older duplicates (with their newer keeper) and missions without key; nothing preselected
+ok 607 - v1.8.5 cleanup rows flag older duplicates (with their newer keeper) and missions without key; nothing preselected
   ---
-  duration_ms: 1.581559
+  duration_ms: 1.201113
   type: 'test'
   ...
 # Subtest: v1.8.6 E2E: THINKING_MODE_UNVERIFIED in WAITING still runs F5 30, Ctrl-F5 60/90 and the 120 min rotation
-ok 604 - v1.8.6 E2E: THINKING_MODE_UNVERIFIED in WAITING still runs F5 30, Ctrl-F5 60/90 and the 120 min rotation
+ok 608 - v1.8.6 E2E: THINKING_MODE_UNVERIFIED in WAITING still runs F5 30, Ctrl-F5 60/90 and the 120 min rotation
   ---
-  duration_ms: 1123.959329
+  duration_ms: 867.80024
   type: 'test'
   ...
 # Subtest: v1.8.6 E2E: a held queue slot switches to the next GFW when its TTL runs out (GF-052 -> GF-051)
-ok 605 - v1.8.6 E2E: a held queue slot switches to the next GFW when its TTL runs out (GF-052 -> GF-051)
+ok 609 - v1.8.6 E2E: a held queue slot switches to the next GFW when its TTL runs out (GF-052 -> GF-051)
   ---
-  duration_ms: 814.995686
+  duration_ms: 828.821586
   type: 'test'
   ...
 # Subtest: v1.8.6 a quality incident (definite in-flight downgrade) still holds without the ladder
-ok 606 - v1.8.6 a quality incident (definite in-flight downgrade) still holds without the ladder
+ok 610 - v1.8.6 a quality incident (definite in-flight downgrade) still holds without the ladder
   ---
-  duration_ms: 1.642263
+  duration_ms: 2.185183
   type: 'test'
   ...
 # Subtest: v1.8.6 effort ranks: Extra hög = heavy, Hög = extended, Direkt is no reasoning level
-ok 607 - v1.8.6 effort ranks: Extra hög = heavy, Hög = extended, Direkt is no reasoning level
+ok 611 - v1.8.6 effort ranks: Extra hög = heavy, Hög = extended, Direkt is no reasoning level
   ---
-  duration_ms: 0.191853
+  duration_ms: 0.256134
   type: 'test'
   ...
 # Subtest: v1.8.6 policy: the picker level proves thinking mode; Direkt stays held without a sticky quarantine
-ok 608 - v1.8.6 policy: the picker level proves thinking mode; Direkt stays held without a sticky quarantine
+ok 612 - v1.8.6 policy: the picker level proves thinking mode; Direkt stays held without a sticky quarantine
   ---
-  duration_ms: 0.356544
+  duration_ms: 0.35185
   type: 'test'
   ...
 # Subtest: v1.8.6 model observation reads the picker's level when no composer chip exists
-ok 609 - v1.8.6 model observation reads the picker's level when no composer chip exists
+ok 613 - v1.8.6 model observation reads the picker's level when no composer chip exists
   ---
-  duration_ms: 0.224486
+  duration_ms: 0.217443
   type: 'test'
   ...
 # Subtest: v1.8.7 repro: a slugless conversation URL is the same EIC GPT and keeps the named root
-ok 610 - v1.8.7 repro: a slugless conversation URL is the same EIC GPT and keeps the named root
+ok 614 - v1.8.7 repro: a slugless conversation URL is the same EIC GPT and keeps the named root
   ---
-  duration_ms: 2.793651
+  duration_ms: 1.662268
   type: 'test'
   ...
 # Subtest: v1.8.7 repro: the model gate accepts the EIC conversation at its slugless URL
-ok 611 - v1.8.7 repro: the model gate accepts the EIC conversation at its slugless URL
+ok 615 - v1.8.7 repro: the model gate accepts the EIC conversation at its slugless URL
   ---
-  duration_ms: 10.332452
+  duration_ms: 7.51819
   type: 'test'
   ...
 # Subtest: v1.8.7 repro: the model gate accepts EIC shown at '/' by its composer pill and header
-ok 612 - v1.8.7 repro: the model gate accepts EIC shown at '/' by its composer pill and header
+ok 616 - v1.8.7 repro: the model gate accepts EIC shown at '/' by its composer pill and header
   ---
-  duration_ms: 4.196045
+  duration_ms: 3.765491
   type: 'test'
   ...
 # Subtest: v1.8.7 repro: a rotation root derived from a slugless URL keeps the named EIC root
-ok 613 - v1.8.7 repro: a rotation root derived from a slugless URL keeps the named EIC root
+ok 617 - v1.8.7 repro: a rotation root derived from a slugless URL keeps the named EIC root
   ---
-  duration_ms: 0.436857
+  duration_ms: 0.286614
   type: 'test'
   ...
 # Subtest: v1.8.7 repro: a slugless URL never erases the remembered named EIC root
-ok 614 - v1.8.7 repro: a slugless URL never erases the remembered named EIC root
+ok 618 - v1.8.7 repro: a slugless URL never erases the remembered named EIC root
   ---
-  duration_ms: 1.802687
+  duration_ms: 0.930187
   type: 'test'
   ...
 # Subtest: v1.8.7 the '/' proof is the GPT name and fails closed on anything else
-ok 615 - v1.8.7 the '/' proof is the GPT name and fails closed on anything else
+ok 619 - v1.8.7 the '/' proof is the GPT name and fails closed on anything else
   ---
-  duration_ms: 1.117408
+  duration_ms: 0.644343
   type: 'test'
   ...
 # Subtest: v1.8.7 the processing gate for 'Pro' is unchanged: THINKING_MODE_UNVERIFIED, never a quarantine code
-ok 616 - v1.8.7 the processing gate for 'Pro' is unchanged: THINKING_MODE_UNVERIFIED, never a quarantine code
+ok 620 - v1.8.7 the processing gate for 'Pro' is unchanged: THINKING_MODE_UNVERIFIED, never a quarantine code
   ---
-  duration_ms: 0.803252
+  duration_ms: 0.436531
   type: 'test'
   ...
 # Subtest: v1.8.7 repro E2E: queue start from ChatGPT home navigates to the EIC GPT, not to standard chat
-ok 617 - v1.8.7 repro E2E: queue start from ChatGPT home navigates to the EIC GPT, not to standard chat
+ok 621 - v1.8.7 repro E2E: queue start from ChatGPT home navigates to the EIC GPT, not to standard chat
   ---
-  duration_ms: 853.276025
+  duration_ms: 803.547622
   type: 'test'
   ...
 # Subtest: v1.8.7 repro E2E: a rotation that lands in standard chat is steered to EIC before anything is sent
-ok 618 - v1.8.7 repro E2E: a rotation that lands in standard chat is steered to EIC before anything is sent
+ok 622 - v1.8.7 repro E2E: a rotation that lands in standard chat is steered to EIC before anything is sent
   ---
-  duration_ms: 574.131609
+  duration_ms: 687.658246
   type: 'test'
   ...
 # Subtest: v1.8.7 E2E: EIC never selectable -> BLOCKED SESSION_ROTATION_EIC_NOT_SELECTED, nothing sent
-ok 619 - v1.8.7 E2E: EIC never selectable -> BLOCKED SESSION_ROTATION_EIC_NOT_SELECTED, nothing sent
+ok 623 - v1.8.7 E2E: EIC never selectable -> BLOCKED SESSION_ROTATION_EIC_NOT_SELECTED, nothing sent
   ---
-  duration_ms: 680.276034
+  duration_ms: 821.938464
   type: 'test'
   ...
 # Subtest: v1.8.7 E2E: without any known EIC address the queue refuses to start (no standard chat)
-ok 620 - v1.8.7 E2E: without any known EIC address the queue refuses to start (no standard chat)
+ok 624 - v1.8.7 E2E: without any known EIC address the queue refuses to start (no standard chat)
   ---
-  duration_ms: 89.460358
+  duration_ms: 87.640501
   type: 'test'
   ...
 # Subtest: v1.8.7 E2E surface guard: accepts EIC shown at '/', stays out of a rotation, still recovers standard chat
-ok 621 - v1.8.7 E2E surface guard: accepts EIC shown at '/', stays out of a rotation, still recovers standard chat
+ok 625 - v1.8.7 E2E surface guard: accepts EIC shown at '/', stays out of a rotation, still recovers standard chat
   ---
-  duration_ms: 113.413118
+  duration_ms: 115.407056
   type: 'test'
   ...
 # Subtest: v1.8.7 content selects only a pinned GPT and reads the processing notice's new wording
-ok 622 - v1.8.7 content selects only a pinned GPT and reads the processing notice's new wording
+ok 626 - v1.8.7 content selects only a pinned GPT and reads the processing notice's new wording
   ---
-  duration_ms: 0.852699
+  duration_ms: 0.735621
   type: 'test'
   ...
 # Subtest: v1.8.8 boundary: a busy composer or an unbacked generating boolean is not positive generation evidence
-ok 623 - v1.8.8 boundary: a busy composer or an unbacked generating boolean is not positive generation evidence
+ok 627 - v1.8.8 boundary: a busy composer or an unbacked generating boolean is not positive generation evidence
   ---
-  duration_ms: 1.227375
+  duration_ms: 1.164788
   type: 'test'
   ...
 # Subtest: v1.8.8 boundary: completion clears generation deferral, stage and requested-at state
-ok 624 - v1.8.8 boundary: completion clears generation deferral, stage and requested-at state
+ok 628 - v1.8.8 boundary: completion clears generation deferral, stage and requested-at state
   ---
-  duration_ms: 0.914965
+  duration_ms: 0.741764
   type: 'test'
   ...
 # Subtest: v1.8.8 boundary: a planned fresh-session rotation does not restore the old conversation
-ok 625 - v1.8.8 boundary: a planned fresh-session rotation does not restore the old conversation
+ok 629 - v1.8.8 boundary: a planned fresh-session rotation does not restore the old conversation
   ---
-  duration_ms: 1.051526
+  duration_ms: 0.946626
   type: 'test'
   ...
 # Subtest: v1.8.8 boundary: recovery cannot borrow a conversation from another GPT or origin
-ok 626 - v1.8.8 boundary: recovery cannot borrow a conversation from another GPT or origin
+ok 630 - v1.8.8 boundary: recovery cannot borrow a conversation from another GPT or origin
   ---
-  duration_ms: 0.336561
+  duration_ms: 0.327211
   type: 'test'
   ...
 # Subtest: v1.8.8 boundary: missing-thread detection waits for an empty, fully loaded page, never interrupts proven generation
-ok 627 - v1.8.8 boundary: missing-thread detection waits for an empty, fully loaded page, never interrupts proven generation
+ok 631 - v1.8.8 boundary: missing-thread detection waits for an empty, fully loaded page, never interrupts proven generation
   ---
-  duration_ms: 0.493001
+  duration_ms: 0.452398
   type: 'test'
   ...
 # Subtest: v1.8.8 boundary: an EIC-proven generic conversation URL is retained; an unproven name is not
-ok 628 - v1.8.8 boundary: an EIC-proven generic conversation URL is retained; an unproven name is not
+ok 632 - v1.8.8 boundary: an EIC-proven generic conversation URL is retained; an unproven name is not
   ---
-  duration_ms: 415.925906
+  duration_ms: 501.674014
   type: 'test'
   ...
 # Subtest: v1.8.8 boundary: in-flight quality quarantine still stops recovery even past the generation limit
-ok 629 - v1.8.8 boundary: in-flight quality quarantine still stops recovery even past the generation limit
+ok 633 - v1.8.8 boundary: in-flight quality quarantine still stops recovery even past the generation limit
   ---
-  duration_ms: 368.885526
+  duration_ms: 409.374223
   type: 'test'
   ...
 # Subtest: v1.8.8 boundary: a response that completes during the generation grace is captured without reload or resend
-ok 630 - v1.8.8 boundary: a response that completes during the generation grace is captured without reload or resend
+ok 634 - v1.8.8 boundary: a response that completes during the generation grace is captured without reload or resend
   ---
-  duration_ms: 553.536289
+  duration_ms: 645.573456
   type: 'test'
   ...
 # Subtest: v1.8.8 regression: observed generation defers every stale-ladder action before the bounded limit
-ok 631 - v1.8.8 regression: observed generation defers every stale-ladder action before the bounded limit
+ok 635 - v1.8.8 regression: observed generation defers every stale-ladder action before the bounded limit
   ---
-  duration_ms: 1.554156
+  duration_ms: 1.527307
   type: 'test'
   ...
 # Subtest: v1.8.8 generation hold is bounded and never weakens unacknowledged/completed-response gates
-ok 632 - v1.8.8 generation hold is bounded and never weakens unacknowledged/completed-response gates
+ok 636 - v1.8.8 generation hold is bounded and never weakens unacknowledged/completed-response gates
   ---
-  duration_ms: 0.359193
+  duration_ms: 0.310644
   type: 'test'
   ...
 # Subtest: v1.8.8 regression: overdue recovery steps have a real settle interval, not one destructive action per tick
-ok 633 - v1.8.8 regression: overdue recovery steps have a real settle interval, not one destructive action per tick
+ok 637 - v1.8.8 regression: overdue recovery steps have a real settle interval, not one destructive action per tick
   ---
-  duration_ms: 0.182387
+  duration_ms: 0.165108
   type: 'test'
   ...
 # Subtest: v1.8.8 countdown uses the same late-stage timing as the recovery evaluator
-ok 634 - v1.8.8 countdown uses the same late-stage timing as the recovery evaluator
+ok 638 - v1.8.8 countdown uses the same late-stage timing as the recovery evaluator
   ---
-  duration_ms: 0.186425
+  duration_ms: 0.187616
   type: 'test'
   ...
 # Subtest: v1.8.8 E2E: a long generated response is not reloaded or resent at 31/121 minutes
-ok 635 - v1.8.8 E2E: a long generated response is not reloaded or resent at 31/121 minutes
+ok 639 - v1.8.8 E2E: a long generated response is not reloaded or resent at 31/121 minutes
   ---
-  duration_ms: 582.903084
+  duration_ms: 587.869959
   type: 'test'
   ...
 # Subtest: v1.8.8 E2E: model-evidence hold preserves bounded generation wait but cannot deadlock recovery
-ok 636 - v1.8.8 E2E: model-evidence hold preserves bounded generation wait but cannot deadlock recovery
+ok 640 - v1.8.8 E2E: model-evidence hold preserves bounded generation wait but cannot deadlock recovery
   ---
-  duration_ms: 742.238987
+  duration_ms: 943.074172
   type: 'test'
   ...
 # Subtest: v1.8.8 E2E: generation ending without a response resumes the ordinary bounded ladder
-ok 637 - v1.8.8 E2E: generation ending without a response resumes the ordinary bounded ladder
+ok 641 - v1.8.8 E2E: generation ending without a response resumes the ordinary bounded ladder
   ---
-  duration_ms: 385.543082
+  duration_ms: 490.764821
   type: 'test'
   ...
 # Subtest: v1.8.8 regression: current or remembered EIC identity wins over an unrelated active GPT URL
-ok 638 - v1.8.8 regression: current or remembered EIC identity wins over an unrelated active GPT URL
+ok 642 - v1.8.8 regression: current or remembered EIC identity wins over an unrelated active GPT URL
   ---
-  duration_ms: 0.398802
+  duration_ms: 0.403415
   type: 'test'
   ...
 # Subtest: v1.8.8 E2E: a queue started from a different GPT navigates to remembered EIC
-ok 639 - v1.8.8 E2E: a queue started from a different GPT navigates to remembered EIC
+ok 643 - v1.8.8 E2E: a queue started from a different GPT navigates to remembered EIC
   ---
-  duration_ms: 158.885395
+  duration_ms: 172.491336
   type: 'test'
   ...
 # Subtest: v1.8.8 regression: an in-flight EIC root redirect must not erase the last conversation address
-ok 640 - v1.8.8 regression: an in-flight EIC root redirect must not erase the last conversation address
+ok 644 - v1.8.8 regression: an in-flight EIC root redirect must not erase the last conversation address
   ---
-  duration_ms: 271.761933
+  duration_ms: 312.443176
   type: 'test'
   ...
 # Subtest: v1.8.8 E2E: tab recovery restores the known unanswered conversation, not its redirected landing root
-ok 641 - v1.8.8 E2E: tab recovery restores the known unanswered conversation, not its redirected landing root
+ok 645 - v1.8.8 E2E: tab recovery restores the known unanswered conversation, not its redirected landing root
   ---
-  duration_ms: 223.029695
+  duration_ms: 318.229658
   type: 'test'
   ...
 # Subtest: v1.8.8 E2E: a healthy empty landing page cannot clear a missing in-flight thread incident
-ok 642 - v1.8.8 E2E: a healthy empty landing page cannot clear a missing in-flight thread incident
+ok 646 - v1.8.8 E2E: a healthy empty landing page cannot clear a missing in-flight thread incident
   ---
-  duration_ms: 348.945876
+  duration_ms: 416.151115
   type: 'test'
   ...
 # Subtest: v1.8.9 repro E2E: fresh install, EIC selected at chatgpt.com/ -> the queue starts, finds EIC's id and sends one prompt in EIC
-ok 643 - v1.8.9 repro E2E: fresh install, EIC selected at chatgpt.com/ -> the queue starts, finds EIC's id and sends one prompt in EIC
+ok 647 - v1.8.9 repro E2E: fresh install, EIC selected at chatgpt.com/ -> the queue starts, finds EIC's id and sends one prompt in EIC
   ---
-  duration_ms: 762.307695
+  duration_ms: 918.751517
   type: 'test'
   ...
 # Subtest: v1.8.9 repro: the picker's 'Pro' is the highest thinking level (operator decision 2026-09-26)
-ok 644 - v1.8.9 repro: the picker's 'Pro' is the highest thinking level (operator decision 2026-09-26)
+ok 648 - v1.8.9 repro: the picker's 'Pro' is the highest thinking level (operator decision 2026-09-26)
   ---
-  duration_ms: 0.507327
+  duration_ms: 0.625857
   type: 'test'
   ...
 # Subtest: v1.8.9 repro: the side panel keeps a queue-start error visible instead of re-rendering it away
-ok 645 - v1.8.9 repro: the side panel keeps a queue-start error visible instead of re-rendering it away
+ok 649 - v1.8.9 repro: the side panel keeps a queue-start error visible instead of re-rendering it away
   ---
-  duration_ms: 0.845699
+  duration_ms: 0.967049
   type: 'test'
   ...
 # Subtest: v1.8.9 no EIC shown at chatgpt.com/ and nothing remembered -> EIC_GPT_ROOT_UNKNOWN, no navigation
-ok 646 - v1.8.9 no EIC shown at chatgpt.com/ and nothing remembered -> EIC_GPT_ROOT_UNKNOWN, no navigation
+ok 650 - v1.8.9 no EIC shown at chatgpt.com/ and nothing remembered -> EIC_GPT_ROOT_UNKNOWN, no navigation
   ---
-  duration_ms: 70.443751
+  duration_ms: 83.330513
   type: 'test'
   ...
 # Subtest: v1.8.9 EIC selected but no GPT conversation in the sidebar -> EIC_GPT_ROOT_UNKNOWN, no navigation
-ok 647 - v1.8.9 EIC selected but no GPT conversation in the sidebar -> EIC_GPT_ROOT_UNKNOWN, no navigation
+ok 651 - v1.8.9 EIC selected but no GPT conversation in the sidebar -> EIC_GPT_ROOT_UNKNOWN, no navigation
   ---
-  duration_ms: 67.343994
+  duration_ms: 80.688669
   type: 'test'
   ...
 # Subtest: v1.8.9 no candidate shows EIC -> BLOCKED EIC_GPT_ROOT_UNKNOWN, queue stopped (no slot churn), nothing sent
-ok 648 - v1.8.9 no candidate shows EIC -> BLOCKED EIC_GPT_ROOT_UNKNOWN, queue stopped (no slot churn), nothing sent
+ok 652 - v1.8.9 no candidate shows EIC -> BLOCKED EIC_GPT_ROOT_UNKNOWN, queue stopped (no slot churn), nothing sent
   ---
-  duration_ms: 299.459852
+  duration_ms: 329.394336
   type: 'test'
   ...
 # Subtest: v1.8.9 the surface guard never binds or remembers a GPT while discovery visits candidates
-ok 649 - v1.8.9 the surface guard never binds or remembers a GPT while discovery visits candidates
+ok 653 - v1.8.9 the surface guard never binds or remembers a GPT while discovery visits candidates
   ---
-  duration_ms: 175.723003
+  duration_ms: 181.088149
   type: 'test'
   ...
 # Subtest: v1.8.9 a candidate that never shows its GPT name is skipped after its time limit
-ok 650 - v1.8.9 a candidate that never shows its GPT name is skipped after its time limit
+ok 654 - v1.8.9 a candidate that never shows its GPT name is skipped after its time limit
   ---
-  duration_ms: 638.071582
+  duration_ms: 771.988622
   type: 'test'
   ...
 # Subtest: v1.8.9 'Pro' ranking is whole-word only; other thinking-level rules unchanged
-ok 651 - v1.8.9 'Pro' ranking is whole-word only; other thinking-level rules unchanged
+ok 655 - v1.8.9 'Pro' ranking is whole-word only; other thinking-level rules unchanged
   ---
-  duration_ms: 0.541266
+  duration_ms: 0.680516
   type: 'test'
   ...
 # Subtest: v1.8.9 content lists sidebar GPT conversations for EIC discovery (ids and hrefs only)
-ok 652 - v1.8.9 content lists sidebar GPT conversations for EIC discovery (ids and hrefs only)
+ok 656 - v1.8.9 content lists sidebar GPT conversations for EIC discovery (ids and hrefs only)
   ---
-  duration_ms: 0.781686
+  duration_ms: 1.564189
   type: 'test'
   ...
-1..652
-# tests 652
+1..656
+# tests 656
 # suites 0
-# pass 652
+# pass 656
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 14853.38357
+# duration_ms 16339.206321

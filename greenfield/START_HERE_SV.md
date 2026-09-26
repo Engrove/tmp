@@ -1,6 +1,8 @@
-# Greenfield 1.8.9 – börja här
+# Greenfield 1.8.10 – börja här
 
-Greenfield 1.8.9 startar arbetskön även när ingen EIC-adress finns sparad, till exempel efter en ny installation. Välj EIC under **Fästa** på ChatGPT:s startsida och tryck **Starta arbetskö**. Greenfield hittar EIC:s adress via sidofältets **Senaste**, sparar den och startar i en ny EIC-chatt. Startfel visas direkt under köknapparna. ”Pro” i modellväljaren godkänns som högsta tänknivå. Se [UPPDATERA_TILL_1_8_9.md](UPPDATERA_TILL_1_8_9.md).
+Greenfield 1.8.10 känner igen meddelandena i ChatGPT:s nya gränssnitt. Den ser alltså att en skickad prompt har kommit fram och läser svaret, i stället för att stanna i SENDING med ”Oklart om prompten skickades – inget omskick”. Se [UPPDATERA_TILL_1_8_10.md](UPPDATERA_TILL_1_8_10.md).
+
+Sedan 1.8.9 startar Greenfield arbetskön även när ingen EIC-adress finns sparad, till exempel efter en ny installation. Välj EIC under **Fästa** på ChatGPT:s startsida och tryck **Starta arbetskö**. Greenfield hittar EIC:s adress via sidofältets **Senaste**, sparar den och startar i en ny EIC-chatt. Startfel visas direkt under köknapparna. ”Pro” i modellväljaren godkänns som högsta tänknivå. Se [UPPDATERA_TILL_1_8_9.md](UPPDATERA_TILL_1_8_9.md).
 
 Version 1.8.8 rättar fyra kvarvarande felgrupper: verifierad generering får en tidsbegränsad respit från återhämtning, sena återhämtningssteg separeras med minst 60 sekunder, en annan aktiv GPT får inte byta köns bundna mål, och en omdirigering till GPT-roten raderar inte en pågående konversations återställningsadress. Respiten är högst fyra timmar från promptens utskick och kräver positiv stopp-/strömningssignal. Modellkrav, kvalitetskarantän och runtimeControl-kontrakt är oförändrade. Se [UPPDATERA_TILL_1_8_8.md](UPPDATERA_TILL_1_8_8.md) och [funktionell patchanalys](docs/RISKANALYS_FUNKTION_V1_8_8.md). **Live Chrome är inte verifierat i denna leverans.**
 
@@ -107,10 +109,10 @@ Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s auton
 
 1. Pausa nya Greenfield-utskick.
 2. Säkerhetskopiera den uppackade tilläggsmappen.
-3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.8.9.zip`.
+3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.8.10.zip`.
 4. Kopiera innehållet över samma mapp som Chrome redan använder så extension-ID/lokal state bevaras.
 5. I `chrome://extensions`, välj **Läs in igen**.
-6. Verifiera att panelen visar `v1.8.9`. Följ sedan [UPPDATERA_TILL_1_8_9.md](UPPDATERA_TILL_1_8_9.md). Kommer du från 1.8.7, följ även [UPPDATERA_TILL_1_8_8.md](UPPDATERA_TILL_1_8_8.md).
+6. Verifiera att panelen visar `v1.8.10`. Följ sedan [UPPDATERA_TILL_1_8_10.md](UPPDATERA_TILL_1_8_10.md). Kommer du från 1.8.8, följ även [UPPDATERA_TILL_1_8_9.md](UPPDATERA_TILL_1_8_9.md), och från 1.8.7 även [UPPDATERA_TILL_1_8_8.md](UPPDATERA_TILL_1_8_8.md).
 7. Återgå till den exakta EIC-konversation som hör till workern.
 8. Kör **Kontrollera modell igen** och exportera diagnostik om safety-hold kvarstår.
 9. Låt Greenfield reconcilea befintlig process-state; gör inget manuellt omskick av en dispatch med okänd effekt.

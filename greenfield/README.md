@@ -1,6 +1,8 @@
-# EIC Autonom Agent Greenfield 1.8.9
+# EIC Autonom Agent Greenfield 1.8.10
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.8.10 rättar att Greenfield inte förstod att en prompt faktiskt hade skickats. ChatGPT:s nya gränssnitt märker inte längre meddelandena med de attribut Greenfield letade efter (data-message-author-role m.fl.). Greenfield såg därför 0 turer och höll processen i SENDING med spärren DISPATCH_EFFECT_UNRESOLVED, trots att prompten var skickad och besvarad. Meddelandena känns nu igen enligt ChatGPT:s egen kod: användarblocket group/user-message och svarsblocket med rubriken ”ChatGPT sa:”. Knappen ”Stoppa” räknas som pågående svar. Daybreak-ord i ett meddelande tolkas inte längre som ChatGPT:s spärrnotis. Se [UPPDATERA_TILL_1_8_10.md](UPPDATERA_TILL_1_8_10.md).
 
 Version 1.8.9 rättar att arbetskön stoppades direkt vid start. Med tom lagring och EIC vald på ChatGPT:s nya startsida (utan GPT-id i adressen) avbröts köstarten med EIC_GPT_ROOT_UNKNOWN. Panelen skrev dessutom över orsaken direkt. Nu hittar köstarten EIC:s adress själv via sidofältets Senaste-konversationer: id i adressen plus namnet EIC på sidan. Startfel syns under köknapparna, och modellväljarens ”Pro” godkänns som högsta tänknivå (operatörsbeslut).
 
@@ -27,6 +29,18 @@ Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfiel
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.8.10
+
+- **Meddelanden i ChatGPT:s nya gränssnitt känns igen:**
+  - Användarmeddelandet är `div.group/user-message`. Id:t i `data-chatgpt-search-message-ids` kommer när ChatGPT har sparat meddelandet.
+  - Svaret är `div[data-chatgpt-search-message-ids]` med rubriken `h4[data-conversation-role=assistant]`.
+  - Rubriken och tidsstämpeln tas bort ur fångad text.
+  - Underlaget är ChatGPT:s produktionskod, build 4da31bb4, läst 2026-09-26.
+- **Kvittot på skickad prompt väntar på meddelandets id** (inom samma 15 s). Utan id kvitteras sändningen ändå men utan kvitto, och turen löses sedan via ordningstal.
+- **”Stoppa”/”Stop”** i `form[data-chatgpt-composer]` räknas som pågående generering.
+- **Daybreak:** text inuti meddelanden utesluts från notisdetektorn. Turraden gör det inte, eftersom den riktiga notisen ligger där bredvid användarmeddelandet.
+- Background är oförändrad. En process som hänger i `DISPATCH_EFFECT_UNRESOLVED` går till WAITING vid nästa omprövning utan omskick.
 
 ## Nytt i 1.8.9
 
@@ -190,4 +204,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.9.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.10.

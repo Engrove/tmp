@@ -1,0 +1,259 @@
+{
+  "tool": "tools/verify-new-shell-dispatch.mjs",
+  "contentRoot": "GF_CONTENT_ROOT (another build)",
+  "fast": {
+    "promptHash": "c27efee2238ed5791c6cf1d1f48fec936d7113c37217de32403b59c5b44c645b",
+    "elapsedMs": 15149,
+    "result": {
+      "ok": true,
+      "effectPossible": true,
+      "acknowledged": false,
+      "acknowledgementEvidence": "",
+      "code": "",
+      "materializedReceipt": null
+    },
+    "before": {
+      "url": "https://chatgpt.com/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9-eic",
+      "userCount": 0,
+      "assistantCount": 0,
+      "lastUserId": "",
+      "lastAssistantId": "",
+      "lastAssistantOwnerKind": "NONE",
+      "generating": false,
+      "stopVisible": false,
+      "turnCount": 0,
+      "providerNotice": null,
+      "autonomousTurn": {
+        "resolvedUserTurnId": "",
+        "resolvedBy": "NONE",
+        "assistantFound": false,
+        "assistantId": "",
+        "assistantText": "",
+        "assistantGenerating": false
+      }
+    },
+    "streaming": {
+      "url": "https://chatgpt.com/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9-eic/c/00000000-0000-4000-8000-00000000c0de",
+      "userCount": 0,
+      "assistantCount": 0,
+      "lastUserId": "",
+      "lastAssistantId": "",
+      "lastAssistantOwnerKind": "NONE",
+      "generating": false,
+      "stopVisible": false,
+      "turnCount": 0,
+      "providerNotice": null,
+      "autonomousTurn": {
+        "resolvedUserTurnId": "",
+        "resolvedBy": "NONE",
+        "assistantFound": false,
+        "assistantId": "",
+        "assistantText": "",
+        "assistantGenerating": false
+      }
+    },
+    "done": {
+      "url": "https://chatgpt.com/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9-eic/c/00000000-0000-4000-8000-00000000c0de",
+      "userCount": 0,
+      "assistantCount": 0,
+      "lastUserId": "",
+      "lastAssistantId": "",
+      "lastAssistantOwnerKind": "NONE",
+      "generating": false,
+      "stopVisible": false,
+      "turnCount": 0,
+      "providerNotice": null,
+      "autonomousTurn": {
+        "resolvedUserTurnId": "",
+        "resolvedBy": "NONE",
+        "assistantFound": false,
+        "assistantId": "",
+        "assistantText": "",
+        "assistantGenerating": false
+      }
+    },
+    "byId": null,
+    "doneLastUserHash": "",
+    "materializationMessages": []
+  },
+  "slowId": {
+    "promptHash": "c27efee2238ed5791c6cf1d1f48fec936d7113c37217de32403b59c5b44c645b",
+    "elapsedMs": 15147,
+    "result": {
+      "ok": true,
+      "effectPossible": true,
+      "acknowledged": false,
+      "acknowledgementEvidence": "",
+      "code": "",
+      "materializedReceipt": null
+    },
+    "before": {
+      "url": "https://chatgpt.com/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9-eic",
+      "userCount": 0,
+      "assistantCount": 0,
+      "lastUserId": "",
+      "lastAssistantId": "",
+      "lastAssistantOwnerKind": "NONE",
+      "generating": false,
+      "stopVisible": false,
+      "turnCount": 0,
+      "providerNotice": null,
+      "autonomousTurn": {
+        "resolvedUserTurnId": "",
+        "resolvedBy": "NONE",
+        "assistantFound": false,
+        "assistantId": "",
+        "assistantText": "",
+        "assistantGenerating": false
+      }
+    },
+    "streaming": {
+      "url": "https://chatgpt.com/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9-eic/c/00000000-0000-4000-8000-00000000c0de",
+      "userCount": 0,
+      "assistantCount": 0,
+      "lastUserId": "",
+      "lastAssistantId": "",
+      "lastAssistantOwnerKind": "NONE",
+      "generating": false,
+      "stopVisible": false,
+      "turnCount": 0,
+      "providerNotice": null,
+      "autonomousTurn": {
+        "resolvedUserTurnId": "",
+        "resolvedBy": "NONE",
+        "assistantFound": false,
+        "assistantId": "",
+        "assistantText": "",
+        "assistantGenerating": false
+      }
+    },
+    "done": {
+      "url": "https://chatgpt.com/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9-eic/c/00000000-0000-4000-8000-00000000c0de",
+      "userCount": 0,
+      "assistantCount": 0,
+      "lastUserId": "",
+      "lastAssistantId": "",
+      "lastAssistantOwnerKind": "NONE",
+      "generating": false,
+      "stopVisible": false,
+      "turnCount": 0,
+      "providerNotice": null,
+      "autonomousTurn": {
+        "resolvedUserTurnId": "",
+        "resolvedBy": "NONE",
+        "assistantFound": false,
+        "assistantId": "",
+        "assistantText": "",
+        "assistantGenerating": false
+      }
+    },
+    "byId": null,
+    "doneLastUserHash": "",
+    "materializationMessages": []
+  },
+  "mention": {
+    "url": "https://chatgpt.com/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9-eic/c/00000000-0000-4000-8000-00000000c0de",
+    "userCount": 0,
+    "assistantCount": 0,
+    "lastUserId": "",
+    "lastAssistantId": "",
+    "lastAssistantOwnerKind": "NONE",
+    "generating": false,
+    "stopVisible": false,
+    "turnCount": 0,
+    "providerNotice": "CONTENT_BLOCKED_DAYBREAK",
+    "autonomousTurn": {
+      "resolvedUserTurnId": "",
+      "resolvedBy": "NONE",
+      "assistantFound": false,
+      "assistantId": "",
+      "assistantText": "",
+      "assistantGenerating": false
+    }
+  },
+  "blocked": {
+    "url": "https://chatgpt.com/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9-eic/c/00000000-0000-4000-8000-00000000c0de",
+    "userCount": 0,
+    "assistantCount": 0,
+    "lastUserId": "",
+    "lastAssistantId": "",
+    "lastAssistantOwnerKind": "NONE",
+    "generating": false,
+    "stopVisible": false,
+    "turnCount": 0,
+    "providerNotice": "CONTENT_BLOCKED_DAYBREAK",
+    "autonomousTurn": {
+      "resolvedUserTurnId": "",
+      "resolvedBy": "NONE",
+      "assistantFound": false,
+      "assistantId": "",
+      "assistantText": "",
+      "assistantGenerating": false
+    },
+    "notice": {
+      "kind": "CONTENT_BLOCKED_DAYBREAK",
+      "outsideMessageTurns": true,
+      "headlineMatched": true,
+      "cyberWordMatched": true,
+      "afterExpectedUserTurn": null,
+      "sample": "Du sa: Kör nästa paket. Det här innehållet kan inte visas Vi är särskilt försiktiga med förfrågningar som rör cybersäkerhet. Om du arbetar med säkerhet kan du kvalificera dig för Daybreak. Pro ↑",
+      "noticeKey": "/g/g-0a1b2c3d4e5f60718293a4b5c6d7e8f9-eic/c/00000000-0000-4000-8000-00000000c0de|"
+    }
+  },
+  "checks": [
+    {
+      "name": "send: acknowledged by the user turn appearing (v1.8.9: no evidence, EFFECT_POSSIBLE)",
+      "pass": false
+    },
+    {
+      "name": "send: materialization receipt carries ChatGPT's user message id and ordinal 0",
+      "pass": false
+    },
+    {
+      "name": "send: the receipt was reported to the background",
+      "pass": false
+    },
+    {
+      "name": "send: the user text hash equals the prompt hash",
+      "pass": false
+    },
+    {
+      "name": "late message id: acknowledged, receipt waits for the id (optimistic message has none)",
+      "pass": false
+    },
+    {
+      "name": "streaming: 'Stoppa' in the composer form counts as generating",
+      "pass": false
+    },
+    {
+      "name": "answer: one user and one assistant message, turn resolved by ordinal",
+      "pass": false
+    },
+    {
+      "name": "answer: resolved by the receipt's user id",
+      "pass": false
+    },
+    {
+      "name": "answer: assistant text is the JSON only (no 'ChatGPT sa:', no time stamp, no processing notice)",
+      "pass": false
+    },
+    {
+      "name": "answer: not generating after 'Skicka' returns",
+      "pass": true
+    },
+    {
+      "name": "page health counts the new-shell messages",
+      "pass": false
+    },
+    {
+      "name": "Daybreak words inside new-shell messages are not a provider notice",
+      "pass": false
+    },
+    {
+      "name": "the cyber notice beside the user message in the turn row is still detected, after the user turn",
+      "pass": false
+    }
+  ],
+  "passed": 1,
+  "total": 13
+}

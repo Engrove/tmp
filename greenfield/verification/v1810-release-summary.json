@@ -1,9 +1,8 @@
 {
-  "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.8.10",
-  "releaseChannel": "1.8.10",
+  "schema": "eic.greenfield.v1810-release-summary.v1",
+  "version": "1.8.10",
   "generatedAt": "2026-09-26T12:49:00.345328+00:00",
-  "sourceBaseline": {
+  "source": {
     "file": "EIC_Autonom_Agent_Greenfield_v1.8.9.zip",
     "version": "1.8.9",
     "origin": "this repository, commit 05160dc",
@@ -39,6 +38,17 @@
     "fix": "content.js only. canonicalEntries also reads app-shell messages (div.group/user-message = user; div[data-chatgpt-search-message-ids] with its own h4[data-conversation-role=assistant] = assistant; id = first token of data-chatgpt-search-message-ids; ownerKind SHELL_MESSAGE); messageText drops [data-conversation-role] headings and [data-assistant-message-sent-time]; getStopButton accepts 'Stoppa'/'Stop' inside form[data-chatgpt-composer]; waitForMaterialization keeps reading within the same 15 s until the new user turn can be receipted (id + ordinal), otherwise acknowledges with the first evidence and no receipt; the Daybreak notice detector excludes app-shell message elements but not the turn row. background.js unchanged: a process already held in DISPATCH_EFFECT_UNRESOLVED advances to WAITING without a resend once the new bridge reports the user turn (bridge re-injected after the extension reload).",
     "additionalDefectFound": "v1.8.9 on the app shell: a user or assistant message mentioning Daybreak with a cybersecurity word was detected as ChatGPT's content-block notice (message text was not excluded). Fixed by the same selector change; the real notice beside the user message is still detected (checked).",
     "newPermissions": "none"
+  },
+  "gates": {
+    "SEND_ACKNOWLEDGED_ON_APP_SHELL_PASS": true,
+    "RECEIPT_CARRIES_MESSAGE_ID_PASS": true,
+    "STUCK_PROCESS_ADVANCES_WITHOUT_RESEND_PASS": true,
+    "ANSWER_TEXT_CLEAN_PASS": true,
+    "STOPPA_IS_GENERATING_PASS": true,
+    "DAYBREAK_NOTICE_TRUE_POSITIVE_PASS": true,
+    "DAYBREAK_MESSAGE_TEXT_NOT_NOTICE_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
   },
   "verification": {
     "environment": {
