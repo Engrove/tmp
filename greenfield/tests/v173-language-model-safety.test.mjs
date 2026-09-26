@@ -54,7 +54,8 @@ test("v1.7.3 diagnostic control set resolves the real Djupgående effort without
 test("v1.7.3 model observer no longer has a global substring selector for Swedish Djup", () => {
   assert.doesNotMatch(adapterSource, /button\[aria-label\*=['"]Djup['"] i\]/);
   assert.match(adapterSource, /COMPOSER_SELECTED_CONTROL/);
-  assert.match(adapterSource, /adapterVersion:4/);
+  // v1.8.6 bumped the adapter to 5 (model-picker effort evidence).
+  assert.match(adapterSource, /adapterVersion:5/);
 });
 
 test("v1.7.3 Finnish model notices and reasoning labels are recognized", () => {

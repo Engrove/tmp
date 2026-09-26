@@ -131,8 +131,15 @@
       const t = label(button);
       if ((S.effort?.(t) ?? -1) >= 0 || S.reasoningSignal?.(t)) composerEffortElements.push(button);
     }
+    // v1.8.6: ChatGPT's newer composer has no effort chip; the model picker
+    // ("Välj ChatGPT-modell") shows the selected thinking level as its text,
+    // e.g. "Extra hög" or "Direkt". A picker whose text ranks as an effort is
+    // the selected-effort control when neither source above exists.
+    const switcherEffortElements = modelElements.filter(el => (S.effort?.(label(el)) ?? -1) >= 0);
     const effortElements = [...new Set(
-      composerEffortElements.length ? composerEffortElements : structuralEffortElements
+      composerEffortElements.length ? composerEffortElements
+        : structuralEffortElements.length ? structuralEffortElements
+          : switcherEffortElements
     )];
     const effortLabels = [...new Set(effortElements.map(label).filter(Boolean))];
     const resolvedEffort = resolveEffortLabels(effortLabels, S);
@@ -140,7 +147,9 @@
       ? "COMPOSER_SELECTED_CONTROL"
       : structuralEffortElements.length
         ? "STRUCTURAL_REASONING_CONTROL"
-        : "NONE";
+        : switcherEffortElements.length
+          ? "MODEL_SWITCHER_SELECTED_EFFORT"
+          : "NONE";
 
     const selectedModes = controls(["[role='tab'][aria-selected='true']", "button[aria-pressed='true']", "[data-testid='chat-mode-selector'] [data-state='active']"]);
     const modeLabels = selectedModes.map(e => (e.innerText || e.textContent || "").trim().toLowerCase());
@@ -172,7 +181,7 @@
       ambiguityKind:resolvedModel.ambiguous ? "model" : resolvedEffort.ambiguous ? "effort" : "",
       mode, quota,
       blockingUi:notices.some(e=>e.matches("[role='dialog'],[role='alertdialog'],[aria-modal='true']") && !S.quotaSignal(e.innerText || e.textContent || "")),
-      adapterVersion:4,
+      adapterVersion:5,
       effortEvidenceSource,
       controlsSeen:{
         model:controlLabels,

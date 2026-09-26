@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: v1.8.6 E2E: THINKING_MODE_UNVERIFIED in WAITING still runs F5 30, Ctrl-F5 60/90 and the 120 min rotation
+ok 1 - v1.8.6 E2E: THINKING_MODE_UNVERIFIED in WAITING still runs F5 30, Ctrl-F5 60/90 and the 120 min rotation
+  ---
+  duration_ms: 746.909952
+  type: 'test'
+  ...
+# Subtest: v1.8.6 E2E: a held queue slot switches to the next GFW when its TTL runs out (GF-052 -> GF-051)
+ok 2 - v1.8.6 E2E: a held queue slot switches to the next GFW when its TTL runs out (GF-052 -> GF-051)
+  ---
+  duration_ms: 665.760852
+  type: 'test'
+  ...
+# Subtest: v1.8.6 a quality incident (definite in-flight downgrade) still holds without the ladder
+ok 3 - v1.8.6 a quality incident (definite in-flight downgrade) still holds without the ladder
+  ---
+  duration_ms: 2.100646
+  type: 'test'
+  ...
+# Subtest: v1.8.6 effort ranks: Extra hög = heavy, Hög = extended, Direkt is no reasoning level
+ok 4 - v1.8.6 effort ranks: Extra hög = heavy, Hög = extended, Direkt is no reasoning level
+  ---
+  duration_ms: 0.19867
+  type: 'test'
+  ...
+# Subtest: v1.8.6 policy: the picker level proves thinking mode; Direkt stays held without a sticky quarantine
+ok 5 - v1.8.6 policy: the picker level proves thinking mode; Direkt stays held without a sticky quarantine
+  ---
+  duration_ms: 0.335801
+  type: 'test'
+  ...
+# Subtest: v1.8.6 model observation reads the picker's level when no composer chip exists
+ok 6 - v1.8.6 model observation reads the picker's level when no composer chip exists
+  ---
+  duration_ms: 0.216581
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1507.777102

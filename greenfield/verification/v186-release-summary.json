@@ -1,0 +1,79 @@
+{
+  "schema": "eic.greenfield.v186-release-summary.v1",
+  "version": "1.8.6",
+  "generatedAt": "2026-09-26T07:33:03.967503+00:00",
+  "source": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.8.5.zip",
+    "version": "1.8.5",
+    "sha256": "ad5aff9eb1f05a53b986230aff7c6acc74c1e575238c877dba87c580528eb9ab",
+    "sizeBytes": 941489,
+    "embeddedIntegrity": {
+      "records": 304,
+      "mismatches": 0,
+      "rootDigest": "ae3b8f638430c801a862d5942e80d134cb4b1c2cd96a483b7888cfe93a1788ce"
+    }
+  },
+  "change": {
+    "purpose": "Operator report 2026-09-26 with diagnostics export (v1.8.5): the queue hangs after the TTL has run out; overlay 'TTL 0:00 -> köbyte till GF-051 · nästa Ctrl-F5 om 0:00 · Spärr: THINKING_MODE_UNVERIFIED'.",
+    "rootCause": "tickWaiting returned through holdForSafety whenever the current model proof was not allowed, before maybeEscalateWaitingRefresh: after F5 30 the ladder (Ctrl-F5 60/90, 120 min queue switch/rotation) never ran. Export: GF-052 held 11 h 19 min (665 consecutive SAFETY_HOLD observations), GF-044 held 16 h (962), both WAITING and holding both capacity slots, so GF-046 waited in SENDING since 18:29. The hold began seconds after each F5 30: reloaded pages render ChatGPT's newer composer, where the thinking level is the model picker's text ('Extra hög Välj ChatGPT-modell', 'Direkt Välj ChatGPT-modell') and the former 'Djupgående' chip is gone; adapter v4 found no reasoning control (THINKING_MODE_UNVERIFIED). GF-052's conversation rendered no turns from ~19:03 (THREAD_MISSING) and the reload at 20:03:29 ended on the GPT root, so no answer could appear there.",
+    "fix": "background.js tickWaiting: a model-proof hold runs maybeEscalateWaitingRefresh before holdForSafety (nothing is posted; SENDING remains gated; IN_FLIGHT_QUALITY_QUARANTINE unchanged). lib/safety-policy.js effort(): 'extra hög|extra high|extra-high|xhigh' rank 3, 'hög|high' rank 2 (after rank 3). lib/model-observation.js (adapter 5): a model-switcher control whose text ranks as an effort is the selected-effort control when no composer chip or structural reasoning control exists (MODEL_SWITCHER_SELECTED_EFFORT); a picker inside the composer is already found by the composer scan. 'Direkt' stays THINKING_MODE_UNVERIFIED (not MODEL_DEGRADED, so no sticky in-flight quarantine).",
+    "newPermissions": "none",
+    "runtimeChange": "stale-session ladder continues under a model-proof hold; new picker levels accepted as effort evidence"
+  },
+  "gates": {
+    "HOLD_DOES_NOT_STOP_LADDER_PASS": true,
+    "HELD_QUEUE_SLOT_SWITCHES_PASS": true,
+    "QUALITY_QUARANTINE_UNCHANGED_PASS": true,
+    "PICKER_EFFORT_EVIDENCE_PASS": true,
+    "DIREKT_STAYS_HELD_NOT_QUARANTINED_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
+  },
+  "executed": {
+    "baselineNpmTestOnV185": {
+      "tests": 603,
+      "pass": 603,
+      "fail": 0
+    },
+    "reproductionBeforeFix": "tests/v186-hold-ladder-model-picker.test.mjs on v1.8.5 code: 0/6; ladder test fails at 31 min with no F5 under THINKING_MODE_UNVERIFIED",
+    "dedicated": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "output": "verification/v186-hold-ladder-model-picker.tap",
+      "e2e": "real background.js ticks (harness): F5 at 31 min, Ctrl-F5 at 61/91, ROTATING STALE_SESSION_120M_EXHAUSTED at 121; queue slot GF-052 parked and GF-051 activated; one prompt posted in total"
+    },
+    "realDomModelPicker": {
+      "tool": "tools/verify-model-picker.mjs (Chromium; lib/safety-policy.js + lib/model-observation.js)",
+      "checks": 10,
+      "pass": 10,
+      "fail": 0,
+      "output": "verification/v186-model-picker-check.json",
+      "negativeControlOnV185": "same tool on v1.8.5 adapter/policy: 6/10 (the four new-picker cases fail; Direkt, no controls and the former chip unchanged)"
+    },
+    "diagnosticsReplay": "exported evidence through the v1.8.6 policy: GF-044 'Extra hög' THINKING_MODE_UNVERIFIED -> UI_MODEL_COMPATIBLE; GF-052 'Direkt' stays THINKING_MODE_UNVERIFIED; GF-046 'Djupgående' UI_MODEL_COMPATIBLE unchanged (export not packaged: contains mission data)",
+    "regressionBrowserTools": {
+      "verify-processing-notice": "24/24",
+      "verify-saved-mission-admin": "20/20",
+      "verify-content-health": "9/9"
+    },
+    "fullNpmTest": {
+      "tests": 609,
+      "pass": 609,
+      "fail": 0,
+      "output": "verification/release-tests.tap"
+    },
+    "syntax": {
+      "files": 144,
+      "pass": 144,
+      "fail": 0,
+      "output": "verification/v186-syntax-check.txt"
+    }
+  },
+  "boundaries": {
+    "liveChromeExtensionAcceptance": "not executed",
+    "pickerLabels": "only 'Extra hög' and 'Direkt' were observed in the export; 'Hög' = Extended is a semantic mapping; other picker levels stay unranked (fail closed)",
+    "freshChatsInDirekt": "if ChatGPT opens new chats in 'Direkt', every queue switch waits in SENDING (THINKING_MODE_UNVERIFIED, capacity released) until a thinking level is selected; Greenfield does not change the picker",
+    "threadLostCause": "why ChatGPT rendered GF-052's conversation without turns and then redirected to the GPT root is not in the export"
+  }
+}

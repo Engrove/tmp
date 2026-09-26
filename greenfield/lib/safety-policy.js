@@ -84,8 +84,11 @@
     // Rank exact semantic words/phrases only after known non-effort UI action
     // phrases have been removed.
     if (containsSemanticTerm(s, "light|standard|low|medium|snabb|lätt|nopea|kevyt|vakio|normaali|instant|quick|fast|normal")) return 0;
-    if (containsSemanticTerm(s, "heavy|max|maximum|maximal|tung|raskas|djupgående|djup|deep|deeper|deepest|intensive|intensiv|syvä|syvällinen")) return 3;
-    if (containsSemanticTerm(s, "extended|utökad|utökat|förlängd|laajennettu|pidennetty|longer|fördjupad")) return 2;
+    // v1.8.6: ChatGPT's model picker shows the thinking level as text
+    // ("Extra hög" observed 2026-09-26). Extra high = the top level (Heavy);
+    // High = Extended. Checked in this order so "extra hög" never ranks as "hög".
+    if (containsSemanticTerm(s, "heavy|max|maximum|maximal|tung|raskas|djupgående|djup|deep|deeper|deepest|intensive|intensiv|syvä|syvällinen|extra hög|extra high|extra-high|xhigh")) return 3;
+    if (containsSemanticTerm(s, "extended|utökad|utökat|förlängd|laajennettu|pidennetty|longer|fördjupad|hög|high")) return 2;
     return -1;
   }
 

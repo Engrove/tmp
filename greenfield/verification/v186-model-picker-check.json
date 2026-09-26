@@ -1,0 +1,169 @@
+{
+  "tool": "tools/verify-model-picker.mjs",
+  "rows": {
+    "pickerExtraHogInComposer": {
+      "expect": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE",
+        "source": "COMPOSER_SELECTED_CONTROL"
+      },
+      "allowed": true,
+      "code": "UI_MODEL_COMPATIBLE",
+      "source": "COMPOSER_SELECTED_CONTROL",
+      "effortLabel": "Extra hög Välj ChatGPT-modell",
+      "modelLabel": "Extra hög Välj ChatGPT-modell",
+      "adapterVersion": 5,
+      "heavyFloorAllowed": true,
+      "heavyFloorCode": "UI_MODEL_COMPATIBLE"
+    },
+    "pickerHogInComposer": {
+      "expect": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE",
+        "source": "COMPOSER_SELECTED_CONTROL"
+      },
+      "allowed": true,
+      "code": "UI_MODEL_COMPATIBLE",
+      "source": "COMPOSER_SELECTED_CONTROL",
+      "effortLabel": "Hög Välj ChatGPT-modell",
+      "modelLabel": "Hög Välj ChatGPT-modell",
+      "adapterVersion": 5,
+      "heavyFloorAllowed": false,
+      "heavyFloorCode": "THINKING_EFFORT_TOO_LOW"
+    },
+    "pickerDirektInComposer": {
+      "expect": {
+        "allowed": false,
+        "code": "THINKING_MODE_UNVERIFIED",
+        "source": "NONE"
+      },
+      "allowed": false,
+      "code": "THINKING_MODE_UNVERIFIED",
+      "source": "NONE",
+      "effortLabel": "",
+      "modelLabel": "Direkt Välj ChatGPT-modell",
+      "adapterVersion": 5,
+      "heavyFloorAllowed": false,
+      "heavyFloorCode": "THINKING_MODE_UNVERIFIED"
+    },
+    "pickerExtraHogInHeader": {
+      "expect": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE",
+        "source": "MODEL_SWITCHER_SELECTED_EFFORT"
+      },
+      "allowed": true,
+      "code": "UI_MODEL_COMPATIBLE",
+      "source": "MODEL_SWITCHER_SELECTED_EFFORT",
+      "effortLabel": "Extra hög Välj ChatGPT-modell",
+      "modelLabel": "Extra hög Välj ChatGPT-modell",
+      "adapterVersion": 5,
+      "heavyFloorAllowed": true,
+      "heavyFloorCode": "UI_MODEL_COMPATIBLE"
+    },
+    "pickerDirektInHeader": {
+      "expect": {
+        "allowed": false,
+        "code": "THINKING_MODE_UNVERIFIED",
+        "source": "NONE"
+      },
+      "allowed": false,
+      "code": "THINKING_MODE_UNVERIFIED",
+      "source": "NONE",
+      "effortLabel": "",
+      "modelLabel": "Direkt Välj ChatGPT-modell",
+      "adapterVersion": 5,
+      "heavyFloorAllowed": false,
+      "heavyFloorCode": "THINKING_MODE_UNVERIFIED"
+    },
+    "formerChipDjupgaende": {
+      "expect": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE",
+        "source": "COMPOSER_SELECTED_CONTROL"
+      },
+      "allowed": true,
+      "code": "UI_MODEL_COMPATIBLE",
+      "source": "COMPOSER_SELECTED_CONTROL",
+      "effortLabel": "Djupgående Djupgående, klicka för att ta bort",
+      "modelLabel": "",
+      "adapterVersion": 5,
+      "heavyFloorAllowed": true,
+      "heavyFloorCode": "UI_MODEL_COMPATIBLE"
+    },
+    "formerChipPlusPickerSameRank": {
+      "expect": {
+        "allowed": true,
+        "code": "UI_MODEL_COMPATIBLE",
+        "source": "COMPOSER_SELECTED_CONTROL"
+      },
+      "allowed": true,
+      "code": "UI_MODEL_COMPATIBLE",
+      "source": "COMPOSER_SELECTED_CONTROL",
+      "effortLabel": "Extra hög Välj ChatGPT-modell",
+      "modelLabel": "Extra hög Välj ChatGPT-modell",
+      "adapterVersion": 5,
+      "heavyFloorAllowed": true,
+      "heavyFloorCode": "UI_MODEL_COMPATIBLE"
+    },
+    "noControls": {
+      "expect": {
+        "allowed": false,
+        "code": "THINKING_MODE_UNVERIFIED",
+        "source": "NONE"
+      },
+      "allowed": false,
+      "code": "THINKING_MODE_UNVERIFIED",
+      "source": "NONE",
+      "effortLabel": "",
+      "modelLabel": "",
+      "adapterVersion": 5,
+      "heavyFloorAllowed": false,
+      "heavyFloorCode": "THINKING_MODE_UNVERIFIED"
+    }
+  },
+  "checks": [
+    {
+      "name": "pickerExtraHogInComposer: allowed via COMPOSER_SELECTED_CONTROL",
+      "pass": true
+    },
+    {
+      "name": "pickerHogInComposer: allowed via COMPOSER_SELECTED_CONTROL",
+      "pass": true
+    },
+    {
+      "name": "pickerDirektInComposer: THINKING_MODE_UNVERIFIED via NONE",
+      "pass": true
+    },
+    {
+      "name": "pickerExtraHogInHeader: allowed via MODEL_SWITCHER_SELECTED_EFFORT",
+      "pass": true
+    },
+    {
+      "name": "pickerDirektInHeader: THINKING_MODE_UNVERIFIED via NONE",
+      "pass": true
+    },
+    {
+      "name": "formerChipDjupgaende: allowed via COMPOSER_SELECTED_CONTROL",
+      "pass": true
+    },
+    {
+      "name": "formerChipPlusPickerSameRank: allowed via COMPOSER_SELECTED_CONTROL",
+      "pass": true
+    },
+    {
+      "name": "noControls: THINKING_MODE_UNVERIFIED via NONE",
+      "pass": true
+    },
+    {
+      "name": "Heavy floor: Extra hög allowed, Hög refused (THINKING_EFFORT_TOO_LOW)",
+      "pass": true
+    },
+    {
+      "name": "user message text 'Hög … Extra hög' never counts as a control",
+      "pass": true
+    }
+  ],
+  "passed": 10,
+  "total": 10
+}

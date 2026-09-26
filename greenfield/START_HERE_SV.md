@@ -1,4 +1,6 @@
-# Greenfield 1.8.5 – börja här
+# Greenfield 1.8.6 – börja här
+
+Greenfield 1.8.6 rättar att kön kunde hänga efter att TTL gått ut, när ChatGPT:s modellval inte kunde verifieras. Tidsstegen (Ctrl-F5 60/90, köbyte vid 120 min) fortsätter nu under spärren, och ingen prompt skickas utan giltigt modellbevis. Tänknivån i ChatGPT:s nya modellväljare (”Extra hög”, ”Hög”) godkänns. Står väljaren på ”Direkt” väntar Greenfield tills du väljer en tänknivå. Se [UPPDATERA_TILL_1_8_6.md](UPPDATERA_TILL_1_8_6.md).
 
 Greenfield 1.8.5 samlar administrationen av sparade uppdrag under **Uppdragskö → Sparade uppdrag**: redigera, spara ändring med samma id, spara som nytt, ta bort med bekräftelse, importera många texter med förhandsgranskning, exportera och städa. GF-ID:t på första raden är uppdragets identitet. Köplatser och kö-set hämtar alltid den aktuella texten. Taket är 64 och inget raderas automatiskt. ChatGPT:s notis ”Våra system bearbetar den här förfrågan …” fångas aldrig som svar.
 
@@ -95,14 +97,14 @@ Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s auton
 - Bounded finska termer för modell-/reasoning-UI stöds.
 - Diagnostiken anger `effortEvidenceSource` så att en operator kan se om beviset kom från `COMPOSER_SELECTED_CONTROL` eller en svagare strukturell fallback.
 
-## Installation över 1.8.4
+## Installation över 1.8.5
 
 1. Pausa nya Greenfield-utskick.
 2. Säkerhetskopiera den uppackade tilläggsmappen.
-3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.8.5.zip`.
+3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.8.6.zip`.
 4. Kopiera innehållet över samma mapp som Chrome redan använder så extension-ID/lokal state bevaras.
 5. I `chrome://extensions`, välj **Läs in igen**.
-6. Verifiera att panelen visar `v1.8.5`. Följ sedan [UPPDATERA_TILL_1_8_5.md](UPPDATERA_TILL_1_8_5.md) för import och städning av sparade uppdrag.
+6. Verifiera att panelen visar `v1.8.6`. Följ sedan [UPPDATERA_TILL_1_8_6.md](UPPDATERA_TILL_1_8_6.md). Kommer du från 1.8.4, följ även [UPPDATERA_TILL_1_8_5.md](UPPDATERA_TILL_1_8_5.md).
 7. Återgå till den exakta EIC-konversation som hör till workern.
 8. Kör **Kontrollera modell igen** och exportera diagnostik om safety-hold kvarstår.
 9. Låt Greenfield reconcilea befintlig process-state; gör inget manuellt omskick av en dispatch med okänd effekt.
@@ -126,7 +128,7 @@ Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s auton
 - Ändra prioritet i panelen medan AI:n arbetar och verifiera att ett äldre AI-svar får `OPERATOR_PRECEDENCE`.
 - Låt en tur passera 30 min (Greenfields egen F5) eller tryck F5 mellan två turer. Verifiera att nästa prompt ändå har `promptProfile.profile = COMPACT` i samma konversation.
 - Byt till en annan chatt eller låt Greenfield rotera, och verifiera att nästa prompt har `promptProfile.profile = FULL`.
-- Spara gärna den aktiva kön som ett kö-set innan extension-reload. Om du kopierar 1.8.5 över samma unpacked Chrome-mapp bevaras normalt samma extension-ID/lokal state; ett helt nytt unpacked extension-ID ska inte antas ärva aktiv runtime-kö.
+- Spara gärna den aktiva kön som ett kö-set innan extension-reload. Om du kopierar 1.8.6 över samma unpacked Chrome-mapp bevaras normalt samma extension-ID/lokal state; ett helt nytt unpacked extension-ID ska inte antas ärva aktiv runtime-kö.
 - Starta minst två olika GFW-slots med olika prioritet och verifiera att **listordningen**, inte prioriteten, avgör nästa slot.
 - Sätt en slot till kvant 2 och verifiera `0/2 → 1/2 → byte`, därefter att samma slot vid nästa fulla varv börjar på `0/2`.
 - Avbryt en större kvant tidigt via en kökontroll och verifiera att dess ofärdiga kvant fortsätter från tidigare tal när slotten kommer tillbaka.

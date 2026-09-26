@@ -5124,6 +5124,12 @@ async function tickWaiting(process) {
   if (!process.safety?.proof?.allowed) {
     const holdCode = process.safety?.proof?.code || "MODEL_EVIDENCE_MISSING";
     process = await recordResponseObservation(process, `SAFETY_HOLD:${holdCode}`, page);
+    // v1.8.6: a model-evidence hold blocks capture, not the stale-session
+    // ladder. F5 30, Ctrl-F5 60/90 and the 120 min queue switch/rotation post
+    // nothing, and every later send is gated again (diagnostics 2026-09-26:
+    // two held processes kept TTL at 0:00 for 11-16 h and both capacity slots).
+    const refreshEscalation = await maybeEscalateWaitingRefresh(process, page, { reason: `SAFETY_HOLD:${holdCode}` });
+    if (refreshEscalation.handled) return refreshEscalation.process;
     return holdForSafety(process,process.safety?.proof || {code:"MODEL_EVIDENCE_MISSING"});
   }
 

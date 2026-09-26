@@ -36,7 +36,7 @@ test("one managed target is bound by window and tab identity and gets overlay", 
 });
 
 test("manifest has no rollout/mode options and includes continuity infrastructure", () => {
-  assert.equal(manifest.version, "1.8.5");
+  assert.equal(manifest.version, "1.8.6");
   assert.ok(manifest.permissions.includes("offscreen"));
   assert.ok(manifest.permissions.includes("alarms"));
   assert.ok(manifest.permissions.includes("storage"));
@@ -177,14 +177,14 @@ test("v1.2.3 background resolves dedicated Greenfield control before terminal ph
   assert.match(background, /greenfieldControl\.action/);
 });
 
-test("v1.8.5 identity is consistent across runtime surfaces", () => {
+test("v1.8.6 identity is consistent across runtime surfaces", () => {
   const contracts = fs.readFileSync(new URL("../lib/contracts.mjs", import.meta.url), "utf8");
   const panelHtml = fs.readFileSync(new URL("../sidepanel.html", import.meta.url), "utf8");
-  assert.match(contracts, /APP_VERSION = "1\.8\.5"/);
-  assert.match(content, /const CONTENT_VERSION = "1\.8\.5"/);
+  assert.match(contracts, /APP_VERSION = "1\.8\.6"/);
+  assert.match(content, /const CONTENT_VERSION = "1\.8\.6"/);
   assert.match(content, /EIC Greenfield v\$\{CONTENT_VERSION\}/);
-  assert.match(sidepanel, /appVersion: "1\.8\.5"/);
-  assert.match(panelHtml, /Greenfield <span>v1\.8\.5<\/span>/);
+  assert.match(sidepanel, /appVersion: "1\.8\.6"/);
+  assert.match(panelHtml, /Greenfield <span>v1\.8\.6<\/span>/);
 });
 
 

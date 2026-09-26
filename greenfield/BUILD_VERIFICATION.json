@@ -1,36 +1,36 @@
 {
   "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.8.5",
-  "releaseChannel": "1.8.5",
-  "generatedAt": "2026-09-25T10:47:54.936812+00:00",
+  "appVersion": "1.8.6",
+  "releaseChannel": "1.8.6",
+  "generatedAt": "2026-09-26T07:33:03.967503+00:00",
   "sourceBaseline": {
-    "source": "Greenfield v1.8.4 release package (this delivery chain)",
-    "file": "EIC_Autonom_Agent_Greenfield_v1.8.4.zip",
-    "version": "1.8.4",
-    "sha256": "12a621f2cd896b7aecb6642082a7dddd0be67bd5eadb64c2e7f2a60a8d2a43d9",
-    "sizeBytes": 902784,
+    "source": "Greenfield v1.8.5 release package (this delivery chain)",
+    "file": "EIC_Autonom_Agent_Greenfield_v1.8.5.zip",
+    "version": "1.8.5",
+    "sha256": "ad5aff9eb1f05a53b986230aff7c6acc74c1e575238c877dba87c580528eb9ab",
+    "sizeBytes": 941489,
     "embeddedIntegrity": {
-      "records": 294,
+      "records": 304,
       "mismatches": 0,
-      "rootDigest": "4e53bc0bbdff21ce380814391a1d36f2573fb5b5d0cfe8939f014c3734cc76f5"
+      "rootDigest": "ae3b8f638430c801a862d5942e80d134cb4b1c2cd96a483b7888cfe93a1788ce"
     }
   },
   "change": {
-    "purpose": "Operator requests 2026-09-25: (1) a better way to save and update saved missions ('SPARADE UPPDRAG' could not be administered; queue sets kept stale mission texts); 21 normalized GFW bootstrap texts to import; (2) the 24-mission limit (GF-054 not saved); (3) fix the hypothetical case where ChatGPT's 'Våra system bearbetar den här förfrågan …' notice could be captured as assistant text.",
-    "rootCause": "saveMissionPreset matched only identical text, so an edited text became a new record with a new id; queue slots and queue sets copied the text at add/save and never resolved savedMissionId; a parked slot resumed with its process snapshot's text; the bookmark vault kept the 24 newest by updatedAt and silently removed the rest (panel save: the oldest mission disappeared; a record written with an older updatedAt was removed in the same write and failed with SAVED_MISSION_VAULT_COMMIT_READBACK_MISMATCH - both reproduced against the v1.8.4 vault code); save errors were written to the shared status line, which every render overwrites.",
-    "fix": "lib/saved-mission-catalog.mjs: identity = first-line GFW key; Markdown (### GF-xxx) / JSON import parser with all-or-nothing errors; import plan (create/update/unchanged, duplicate merge, limit); reference resolution (id, merged id, stale id re-linked by key to exactly one record; slots without savedMissionId never touched); export; cleanup rows. operator-settings: saveSavedMission AUTO/UPDATE/CREATE (same key updates in place, key conflicts refused), applySavedMissionImport with durable readback, limit 64. Vault: capacity refusal before any write, pruning removed. Queue sets: reconcileMissionQueueSetsWithSavedMissions rewrites stored sets (store + vault, readback). Background: current text at ADD, set SAVE/UPDATE/APPLY and slot activation (parked included; bootstrap text only; SAVED_MISSION_BOOTSTRAP_REFRESHED audited); EIC_GF_SAVED_MISSIONS_CHANGED reconciles sets and this window's queue. Panel: admin card (edit, save change, save as new, confirmed delete, import preview/apply, export, cleanup), N/64 counter with full state, own save status line. content.js: the processing notice is status for assistant turns (structural removal + line filter).",
+    "purpose": "Operator report 2026-09-26 with diagnostics export (v1.8.5): the queue hangs after the TTL has run out; overlay 'TTL 0:00 -> köbyte till GF-051 · nästa Ctrl-F5 om 0:00 · Spärr: THINKING_MODE_UNVERIFIED'.",
+    "rootCause": "tickWaiting returned through holdForSafety whenever the current model proof was not allowed, before maybeEscalateWaitingRefresh: after F5 30 the ladder (Ctrl-F5 60/90, 120 min queue switch/rotation) never ran. Export: GF-052 held 11 h 19 min (665 consecutive SAFETY_HOLD observations), GF-044 held 16 h (962), both WAITING and holding both capacity slots, so GF-046 waited in SENDING since 18:29. The hold began seconds after each F5 30: reloaded pages render ChatGPT's newer composer, where the thinking level is the model picker's text ('Extra hög Välj ChatGPT-modell', 'Direkt Välj ChatGPT-modell') and the former 'Djupgående' chip is gone; adapter v4 found no reasoning control (THINKING_MODE_UNVERIFIED). GF-052's conversation rendered no turns from ~19:03 (THREAD_MISSING) and the reload at 20:03:29 ended on the GPT root, so no answer could appear there.",
+    "fix": "background.js tickWaiting: a model-proof hold runs maybeEscalateWaitingRefresh before holdForSafety (nothing is posted; SENDING remains gated; IN_FLIGHT_QUALITY_QUARANTINE unchanged). lib/safety-policy.js effort(): 'extra hög|extra high|extra-high|xhigh' rank 3, 'hög|high' rank 2 (after rank 3). lib/model-observation.js (adapter 5): a model-switcher control whose text ranks as an effort is the selected-effort control when no composer chip or structural reasoning control exists (MODEL_SWITCHER_SELECTED_EFFORT); a picker inside the composer is already found by the composer scan. 'Direkt' stays THINKING_MODE_UNVERIFIED (not MODEL_DEGRADED, so no sticky in-flight quarantine).",
     "newPermissions": "none",
-    "runtimeChange": "saved-mission identity/limit/propagation; activation uses the saved mission's current text; content capture ignores the processing notice"
+    "runtimeChange": "stale-session ladder continues under a model-proof hold; new picker levels accepted as effort evidence"
   },
   "verification": {
-    "baselineTestCommand": "npm test (on v1.8.4)",
-    "baselineTests": 589,
-    "baselinePass": 589,
+    "baselineTestCommand": "npm test (on v1.8.5)",
+    "baselineTests": 603,
+    "baselinePass": 603,
     "baselineFail": 0,
-    "dedicatedCommand": "node --test tests/v185-saved-missions.test.mjs",
-    "dedicatedOutput": "verification/v185-saved-missions.tap",
-    "dedicatedTests": 14,
-    "dedicatedPass": 14,
+    "dedicatedCommand": "node --test tests/v186-hold-ladder-model-picker.test.mjs",
+    "dedicatedOutput": "verification/v186-hold-ladder-model-picker.tap",
+    "dedicatedTests": 6,
+    "dedicatedPass": 6,
     "dedicatedFail": 0,
     "realBrowserCommand": "NODE_PATH=\"$(npm root -g)\" node tools/verify-saved-mission-admin.mjs",
     "realBrowserOutput": "verification/v185-saved-mission-admin-check.json",
@@ -41,14 +41,14 @@
     "realDomOutput1_8_3": "verification/v183-content-dom-check.json",
     "testCommand": "npm test",
     "testOutput": "verification/release-tests.tap",
-    "tests": 603,
-    "pass": 603,
+    "tests": 609,
+    "pass": 609,
     "fail": 0,
     "skipped": 0,
     "syntaxCommand": "node --check <each .js/.mjs/.cjs>",
-    "syntaxOutput": "verification/v185-syntax-check.txt",
-    "syntaxFiles": 142,
-    "syntaxPass": 142,
+    "syntaxOutput": "verification/v186-syntax-check.txt",
+    "syntaxFiles": 144,
+    "syntaxPass": 144,
     "syntaxFail": 0,
     "nodeVersion": "v22.22.2",
     "errors": [],
@@ -57,9 +57,37 @@
     "realDomChecks1_8_5": 24,
     "realDomPass1_8_5": 24,
     "realBrowserCommand1_8_4": "NODE_PATH=\"$(npm root -g)\" node tools/verify-sidepanel-patterns.mjs",
-    "realBrowserOutput1_8_4": "verification/v184-sidepanel-pattern-check.json"
+    "realBrowserOutput1_8_4": "verification/v184-sidepanel-pattern-check.json",
+    "realDomCommand1_8_6": "NODE_PATH=\"$(npm root -g)\" node tools/verify-model-picker.mjs",
+    "realDomOutput1_8_6": "verification/v186-model-picker-check.json",
+    "realDomChecks1_8_6": 10,
+    "realDomPass1_8_6": 10
   },
   "regressionMatrix": [
+    {
+      "case": "WAITING, model proof not allowed (THINKING_MODE_UNVERIFIED), no answer",
+      "expected": "F5 at 30, Ctrl-F5 at 60/90, rotation at 120 min; hold kept; no prompt posted"
+    },
+    {
+      "case": "held WAITING queue slot at 120 min",
+      "expected": "slot parked with continuation, next GFW activated, capacity released"
+    },
+    {
+      "case": "in-flight definite downgrade (IN_FLIGHT_QUALITY_QUARANTINE)",
+      "expected": "held without ladder (unchanged)"
+    },
+    {
+      "case": "new composer: picker text 'Extra hög' / 'Hög' (in composer or header)",
+      "expected": "effort evidence; allowed at the Extended floor; Heavy floor accepts only 'Extra hög'"
+    },
+    {
+      "case": "picker text 'Direkt'",
+      "expected": "THINKING_MODE_UNVERIFIED (not a degraded/quarantine code)"
+    },
+    {
+      "case": "former 'Djupgående' chip, alone or with the picker",
+      "expected": "allowed as before"
+    },
     {
       "case": "save a text whose first-line GF key exists",
       "expected": "same record updated in place (same id, createdAt kept); vault readback"
@@ -345,6 +373,8 @@
     "realBrowser1_8_4": "not executed (the Chromium check loads the real sidepanel.html markup without extension APIs)",
     "liveEvidence1_8_5": "operator request and 21 normalized GFW texts 2026-09-25; operator page HTML (sanitized copy used only outside the package)",
     "realBrowser1_8_5": "panel: real panel code in Chromium with in-memory chrome APIs and a stub background; notice: synthetic markup with the operator page's structure",
-    "openBoundaries1_8_5": "queue-set and slot reconciliation verified by unit tests on the library functions and static checks on background.js wiring; not executed through a live service worker; English wording assumed ('Our systems are processing/working on this/your request'); no captured sample; missions already pruned by the v1.8.4 vault cannot be restored from the vault; queue sets keep their text copies"
+    "openBoundaries1_8_5": "queue-set and slot reconciliation verified by unit tests on the library functions and static checks on background.js wiring; not executed through a live service worker; English wording assumed ('Our systems are processing/working on this/your request'); no captured sample; missions already pruned by the v1.8.4 vault cannot be restored from the vault; queue sets keep their text copies",
+    "liveEvidence1_8_6": "operator screenshots and diagnostics export 2026-09-26 (v1.8.5); not included in the package",
+    "openBoundaries1_8_6": "only 'Extra hög' and 'Direkt' were observed in the export; 'Hög' = Extended is a semantic mapping; other picker levels stay unranked (fail closed); if ChatGPT opens new chats in 'Direkt', every queue switch waits in SENDING (THINKING_MODE_UNVERIFIED, capacity released) until a thinking level is selected; Greenfield does not change the picker; why ChatGPT rendered GF-052's conversation without turns and then redirected to the GPT root is not in the export"
   }
 }
