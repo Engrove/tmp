@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: v1.8.11: the prompt's A2A messageId is its marker
+ok 1 - v1.8.11: the prompt's A2A messageId is its marker
+  ---
+  duration_ms: 1.305541
+  type: 'test'
+  ...
+# Subtest: v1.8.11 repro: v1.8.10's view of the virtualized thread holds DISPATCH_EFFECT_UNRESOLVED with no resend
+ok 2 - v1.8.11 repro: v1.8.10's view of the virtualized thread holds DISPATCH_EFFECT_UNRESOLVED with no resend
+  ---
+  duration_ms: 795.324253
+  type: 'test'
+  ...
+# Subtest: v1.8.11: the stuck process resolves by the prompt marker once the new bridge is in, then captures the answer
+ok 3 - v1.8.11: the stuck process resolves by the prompt marker once the new bridge is in, then captures the answer
+  ---
+  duration_ms: 718.908905
+  type: 'test'
+  ...
+# Subtest: v1.8.11: a fresh send is receipted by the prompt marker although the user count stays at 5
+ok 4 - v1.8.11: a fresh send is receipted by the prompt marker although the user count stays at 5
+  ---
+  duration_ms: 371.743738
+  type: 'test'
+  ...
+# Subtest: v1.8.11: the receipt handler checks the marker and refuses the previous turn
+ok 5 - v1.8.11: the receipt handler checks the marker and refuses the previous turn
+  ---
+  duration_ms: 437.03616
+  type: 'test'
+  ...
+# Subtest: v1.8.11 reconciliation and fence: the marker proves the turn; another marker or none does not
+ok 6 - v1.8.11 reconciliation and fence: the marker proves the turn; another marker or none does not
+  ---
+  duration_ms: 3.04303
+  type: 'test'
+  ...
+# Subtest: v1.8.11: an answer without JSON is captured like any other (completion does not depend on the protocol)
+ok 7 - v1.8.11: an answer without JSON is captured like any other (completion does not depend on the protocol)
+  ---
+  duration_ms: 757.381903
+  type: 'test'
+  ...
+# Subtest: v1.8.11 content resolves the prompt's user turn by its marker in ChatGPT's virtualized thread
+ok 8 - v1.8.11 content resolves the prompt's user turn by its marker in ChatGPT's virtualized thread
+  ---
+  duration_ms: 2.74625
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3241.759147

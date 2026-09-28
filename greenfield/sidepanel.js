@@ -1,4 +1,4 @@
-import { fleetHealth, reasonLabel, workerReason } from "./lib/operations-view.mjs";
+import { fleetHealth, reasonLabel, workerActionAvailability, workerActionConfirmText, workerActionMessage, workerReason } from "./lib/operations-view.mjs";
 import { auditAsNdjson } from "./lib/audit-store.mjs";
 import { modelCreateOptions } from "./lib/model-config.mjs";
 import { PHASES, TERMINAL_PHASES, AUDIT_FIFO_LIMIT } from "./lib/contracts.mjs";
@@ -43,6 +43,9 @@ const state = {
   process: null,
   nextInstruction: null,
   busy: false,
+  // v1.8.11: per-worker "Läs svar" / "Gå till nästa uppgift i kön" results.
+  workerActionBusy: "",
+  workerActionNotices: {},
   instructionBusy: false,
   auditBusy: false,
   operatorSettings: {
@@ -918,6 +921,52 @@ function queuePriorityOptions(selected) {
     .join("");
 }
 
+// v1.8.11 operator actions on a worker card. The worker is addressed by its
+// own window/worker binding plus the process shown on the card.
+function workerActionsHtml(p, q, now) {
+  const can = workerActionAvailability(p, q);
+  const notice = state.workerActionNotices[p.processId || ""];
+  const fresh = notice && now - notice.atMs < 120_000 ? notice : null;
+  if (!can.readResponse && !can.nextQueueItem && !fresh) return "";
+  const data = `data-window-id="${escapeHtml(String(p.windowId ?? ""))}" data-worker-id="${escapeHtml(p.workerId || "")}" data-process-id="${escapeHtml(p.processId || "")}" data-phase="${escapeHtml(p.phase || "")}"`;
+  const busy = Boolean(state.workerActionBusy);
+  const read = can.readResponse
+    ? `<button type="button" class="secondary" data-worker-action="read-response" ${data}${busy ? " disabled" : ""}>Läs svar</button>`
+    : "";
+  const next = can.nextQueueItem
+    ? `<button type="button" class="secondary" data-worker-action="next-queue-item" ${data}${busy || !can.nextReady ? " disabled" : ""}${can.nextReady ? "" : ' title="Ingen annan uppgift i kön är redo"'}>Gå till nästa uppgift i kön</button>`
+    : "";
+  return `<div class="worker-actions">${read}${next}</div>${fresh ? `<p class="worker-action-result" data-ok="${fresh.ok}">${escapeHtml(fresh.text)}</p>` : ""}`;
+}
+
+async function runWorkerAction(button) {
+  const action = button.dataset.workerAction;
+  if (state.workerActionBusy || !["read-response", "next-queue-item"].includes(action)) return;
+  const processId = button.dataset.processId || "";
+  const question = workerActionConfirmText(action, { phase: button.dataset.phase || "" });
+  if (question && !globalThis.confirm(question)) return;
+  state.workerActionBusy = action;
+  renderFleetStatus();
+  let result;
+  try {
+    result = await chrome.runtime.sendMessage({
+      type: action === "read-response" ? "EIC_GF_OPERATOR_READ_RESPONSE" : "EIC_GF_OPERATOR_NEXT_QUEUE_ITEM",
+      windowId: Number(button.dataset.windowId),
+      workerId: button.dataset.workerId || "",
+      processId
+    });
+  } catch (error) {
+    result = { ok: false, error: error?.message || String(error) };
+  } finally {
+    state.workerActionBusy = "";
+  }
+  state.workerActionNotices[processId] = { ok: result?.ok === true, text: workerActionMessage(action, result || {}), atMs: Date.now() };
+  if (result?.process?.processId && result.process.processId !== processId) {
+    state.workerActionNotices[result.process.processId] = state.workerActionNotices[processId];
+  }
+  await snapshot();
+}
+
 function renderFleetStatus() {
   const fleet = state.fleetStatus || {};
   const workers = Array.isArray(fleet.workers) ? fleet.workers : [];
@@ -965,7 +1014,9 @@ function renderFleetStatus() {
     ),
     workers
   );
-  $("fleetWorkers").innerHTML=workers.length ? workers.map((row,index)=>{
+  // v1.8.11: the cards are rebuilt every second; a press on a card button
+  // must not lose its click to a rebuild between pointerdown and pointerup.
+  if (!state.fleetPointerDown) $("fleetWorkers").innerHTML=workers.length ? workers.map((row,index)=>{
     const p=row.process || {}, q=row.queue || {}, item=q.activeItem || {};
     const workerDetailsKey = fleetWorkerDetailsKey(row);
     const proof=p.safety?.proof || {}, hold=p.safety?.hold;
@@ -981,6 +1032,7 @@ function renderFleetStatus() {
       <div class="worker-times"><span>Aktivitet: ${escapeHtml(age(p.lastMaterialAt))}</span><span>Avläst: ${escapeHtml(age(p.safety?.lastObservationAtMs))}</span></div>
       ${retry>now ? `<div class="worker-next">Nästa kontroll tidigast ${escapeHtml(formatTime(retry))} · om ${escapeHtml(formatMissionCountdown(retry-now))}</div>` : ""}
       ${summary ? `<p class="worker-summary">${escapeHtml(short(summary,200))}</p>` : ""}
+      ${workerActionsHtml(p, q, now)}
       <details class="worker-details" data-worker-key="${escapeHtml(workerDetailsKey)}"${workerDetailsKey && previouslyOpenWorkerKeys.has(workerDetailsKey) ? " open" : ""}><summary>Uppdrag och identitet</summary><p>${escapeHtml(short(p.goal,1200))}</p><code>${escapeHtml(p.workerId || "")}<br>${escapeHtml(p.processId || "")}</code><p>${escapeHtml(reasonLabel(proof.code))} · ${escapeHtml(p.lastManagedUrl || "Konversationsadress saknas")}</p><p>Modellkontrollen bygger på synligt gränssnitt. Den intygar inte serverns interna modell.</p></details>
     </article>`;
   }).join("") : '<div class="fleet-empty">Inga pågående workers i denna profil.</div>';
@@ -2052,6 +2104,17 @@ $("start").addEventListener("click", start);
 $("stop").addEventListener("click", stop);
 $("resumePause").addEventListener("click", resumePauseNow);
 $("tick").addEventListener("click", forceTick);
+$("fleetWorkers").addEventListener("pointerdown", () => { state.fleetPointerDown = true; });
+for (const type of ["pointerup", "pointercancel"]) {
+  document.addEventListener(type, () => {
+    if (!state.fleetPointerDown) return;
+    setTimeout(() => { state.fleetPointerDown = false; }, 0);
+  });
+}
+$("fleetWorkers").addEventListener("click", (event) => {
+  const button = event.target.closest?.("button[data-worker-action]");
+  if (button && !button.disabled) void runWorkerAction(button);
+});
 $("queueInstruction").addEventListener("click", queueInstruction);
 $("clearInstruction").addEventListener("click", clearInstruction);
 $("exportAudit").addEventListener("click", exportAudit);
@@ -2257,7 +2320,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.8.10" }
+      payload: { appVersion: "1.8.11" }
     });
     await snapshot();
   } catch (error) {

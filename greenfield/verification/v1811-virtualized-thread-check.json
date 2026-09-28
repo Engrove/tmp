@@ -1,0 +1,241 @@
+{
+  "tool": "tools/verify-virtualized-thread-dispatch.mjs",
+  "contentRoot": ".",
+  "run": {
+    "promptHash": "346f1f15e2ad4a9b9800999fc1d745beb48c990e3e73fc40f47436fe1a725d33",
+    "marker": "a2a-00000000-0000-4000-8000-000000000166",
+    "result": {
+      "ok": true,
+      "effectPossible": true,
+      "acknowledged": true,
+      "acknowledgementEvidence": "GENERATION_STARTED",
+      "code": "",
+      "materializedReceipt": {
+        "userTurnId": "00000000-0000-4000-8000-000000000230",
+        "userTurnIndex": 5,
+        "userCount": 5,
+        "userTextHash": "50ad5668e17baeee7e67f12e89d0989e0fc8adadcfc864413280456af5293fce",
+        "resolvedBy": "PROMPT_MARKER",
+        "promptMarker": "a2a-00000000-0000-4000-8000-000000000166"
+      }
+    },
+    "before": {
+      "userCount": 5,
+      "assistantCount": 5,
+      "lastUserId": "00000000-0000-4000-8000-000000000229",
+      "lastAssistantId": "00000000-0000-4000-8000-000000000245",
+      "generating": false,
+      "lastUserHash": "8e86f3cb03b25ab7ed0bd55067724a049443891b3874114d8f25fd3c37c5108f",
+      "autonomousTurn": {
+        "expectedUserIndex": null,
+        "resolvedUserTurnId": "",
+        "resolvedBy": "NONE",
+        "expectedPromptMarker": "",
+        "promptMarkerMatches": null,
+        "assistantFound": false,
+        "assistantId": "",
+        "assistantText": "",
+        "assistantGenerating": false
+      }
+    },
+    "ordinalOnly": {
+      "userCount": 5,
+      "assistantCount": 5,
+      "lastUserId": "00000000-0000-4000-8000-000000000230",
+      "lastAssistantId": "00000000-0000-4000-8000-000000000246",
+      "generating": true,
+      "lastUserHash": "50ad5668e17baeee7e67f12e89d0989e0fc8adadcfc864413280456af5293fce",
+      "autonomousTurn": {
+        "expectedUserIndex": 5,
+        "resolvedUserTurnId": "",
+        "resolvedBy": "NONE",
+        "expectedPromptMarker": "",
+        "promptMarkerMatches": null,
+        "assistantFound": false,
+        "assistantId": "",
+        "assistantText": "",
+        "assistantGenerating": true
+      }
+    },
+    "withMarker": {
+      "userCount": 5,
+      "assistantCount": 5,
+      "lastUserId": "00000000-0000-4000-8000-000000000230",
+      "lastAssistantId": "00000000-0000-4000-8000-000000000246",
+      "generating": true,
+      "lastUserHash": "50ad5668e17baeee7e67f12e89d0989e0fc8adadcfc864413280456af5293fce",
+      "autonomousTurn": {
+        "expectedUserIndex": 5,
+        "resolvedUserTurnId": "00000000-0000-4000-8000-000000000230",
+        "resolvedBy": "PROMPT_MARKER",
+        "expectedPromptMarker": "a2a-00000000-0000-4000-8000-000000000166",
+        "promptMarkerMatches": 1,
+        "assistantFound": true,
+        "assistantId": "00000000-0000-4000-8000-000000000246",
+        "assistantText": "Status: CONTINUE",
+        "assistantGenerating": true
+      }
+    },
+    "done": {
+      "userCount": 5,
+      "assistantCount": 5,
+      "lastUserId": "00000000-0000-4000-8000-000000000230",
+      "lastAssistantId": "00000000-0000-4000-8000-000000000246",
+      "generating": false,
+      "lastUserHash": "50ad5668e17baeee7e67f12e89d0989e0fc8adadcfc864413280456af5293fce",
+      "autonomousTurn": {
+        "expectedUserIndex": 5,
+        "resolvedUserTurnId": "00000000-0000-4000-8000-000000000230",
+        "resolvedBy": "PROMPT_MARKER",
+        "expectedPromptMarker": "a2a-00000000-0000-4000-8000-000000000166",
+        "promptMarkerMatches": 1,
+        "assistantFound": true,
+        "assistantId": "00000000-0000-4000-8000-000000000246",
+        "assistantText": "{\"schema\":\"eic.a2a.response.v1\",\"status\":\"CONTINUE\",\"summary\":\"syntetiskt svar tur 6\"}Status: CONTINUE",
+        "assistantGenerating": false
+      }
+    },
+    "byId": {
+      "userCount": 5,
+      "assistantCount": 5,
+      "lastUserId": "00000000-0000-4000-8000-000000000230",
+      "lastAssistantId": "00000000-0000-4000-8000-000000000246",
+      "generating": false,
+      "lastUserHash": "50ad5668e17baeee7e67f12e89d0989e0fc8adadcfc864413280456af5293fce",
+      "autonomousTurn": {
+        "expectedUserIndex": null,
+        "resolvedUserTurnId": "00000000-0000-4000-8000-000000000230",
+        "resolvedBy": "USER_TURN_ID",
+        "expectedPromptMarker": "",
+        "promptMarkerMatches": null,
+        "assistantFound": true,
+        "assistantId": "00000000-0000-4000-8000-000000000246",
+        "assistantText": "{\"schema\":\"eic.a2a.response.v1\",\"status\":\"CONTINUE\",\"summary\":\"syntetiskt svar tur 6\"}Status: CONTINUE",
+        "assistantGenerating": false
+      }
+    },
+    "shiftedOrdinal": {
+      "userCount": 5,
+      "assistantCount": 5,
+      "lastUserId": "00000000-0000-4000-8000-000000000230",
+      "lastAssistantId": "00000000-0000-4000-8000-000000000246",
+      "generating": false,
+      "lastUserHash": "50ad5668e17baeee7e67f12e89d0989e0fc8adadcfc864413280456af5293fce",
+      "autonomousTurn": {
+        "expectedUserIndex": 3,
+        "resolvedUserTurnId": "00000000-0000-4000-8000-000000000230",
+        "resolvedBy": "PROMPT_MARKER",
+        "expectedPromptMarker": "a2a-00000000-0000-4000-8000-000000000166",
+        "promptMarkerMatches": 1,
+        "assistantFound": true,
+        "assistantId": "00000000-0000-4000-8000-000000000246",
+        "assistantText": "{\"schema\":\"eic.a2a.response.v1\",\"status\":\"CONTINUE\",\"summary\":\"syntetiskt svar tur 6\"}Status: CONTINUE",
+        "assistantGenerating": false
+      }
+    },
+    "absentMarker": {
+      "userCount": 5,
+      "assistantCount": 5,
+      "lastUserId": "00000000-0000-4000-8000-000000000230",
+      "lastAssistantId": "00000000-0000-4000-8000-000000000246",
+      "generating": false,
+      "lastUserHash": "50ad5668e17baeee7e67f12e89d0989e0fc8adadcfc864413280456af5293fce",
+      "autonomousTurn": {
+        "expectedUserIndex": 4,
+        "resolvedUserTurnId": "",
+        "resolvedBy": "NONE",
+        "expectedPromptMarker": "a2a-00000000-0000-4000-8000-000000057005",
+        "promptMarkerMatches": 0,
+        "assistantFound": false,
+        "assistantId": "",
+        "assistantText": "",
+        "assistantGenerating": false
+      }
+    },
+    "materializationMessages": [
+      {
+        "type": "EIC_GF_DISPATCH_MATERIALIZED",
+        "receipt": {
+          "userTurnId": "00000000-0000-4000-8000-000000000230",
+          "userTurnIndex": 5,
+          "userCount": 5,
+          "userTextHash": "50ad5668e17baeee7e67f12e89d0989e0fc8adadcfc864413280456af5293fce",
+          "resolvedBy": "PROMPT_MARKER",
+          "promptMarker": "a2a-00000000-0000-4000-8000-000000000166"
+        },
+        "evidence": "GENERATION_STARTED"
+      }
+    ]
+  },
+  "duplicate": {
+    "userCount": 4,
+    "assistantCount": 4,
+    "lastUserId": "00000000-0000-4000-8000-000000000231",
+    "lastAssistantId": "00000000-0000-4000-8000-000000000247",
+    "generating": false,
+    "lastUserHash": "50ad5668e17baeee7e67f12e89d0989e0fc8adadcfc864413280456af5293fce",
+    "autonomousTurn": {
+      "expectedUserIndex": 5,
+      "resolvedUserTurnId": "",
+      "resolvedBy": "NONE",
+      "expectedPromptMarker": "a2a-00000000-0000-4000-8000-000000000166",
+      "promptMarkerMatches": 2,
+      "assistantFound": false,
+      "assistantId": "",
+      "assistantText": "",
+      "assistantGenerating": false
+    }
+  },
+  "checks": [
+    {
+      "name": "fixture: the thread holds the newest 5 turns before the send",
+      "pass": true
+    },
+    {
+      "name": "fixture: after the send the DOM still holds 5 user messages (oldest turn unmounted), the newest is the prompt",
+      "pass": true
+    },
+    {
+      "name": "fixture: the collapsed user message never hashes to the prompt hash",
+      "pass": true
+    },
+    {
+      "name": "send: acknowledged with a materialization receipt for ChatGPT's new user message id",
+      "pass": true
+    },
+    {
+      "name": "send: the receipt is bound by the prompt's A2A messageId and reported to the background",
+      "pass": true
+    },
+    {
+      "name": "v1.8.10 view (ordinal = baselineUserCount 5, no marker): not resolvable in the virtualized thread",
+      "pass": true
+    },
+    {
+      "name": "re-check with the marker resolves the new user message by PROMPT_MARKER",
+      "pass": true
+    },
+    {
+      "name": "answer: the assistant reply after the marked user message is found and complete",
+      "pass": true
+    },
+    {
+      "name": "answer: resolved by the receipt's user id as well",
+      "pass": true
+    },
+    {
+      "name": "a marker wins over a shifted ordinal (index 3 would be turn 5 in the window)",
+      "pass": true
+    },
+    {
+      "name": "a marker that is not in the thread resolves nothing (no ordinal guess in the app shell)",
+      "pass": true
+    },
+    {
+      "name": "two user messages with the same marker resolve nothing",
+      "pass": true
+    }
+  ],
+  "passed": 12,
+  "total": 12
+}

@@ -3,6 +3,25 @@ function nonNegativeInteger(value) {
   return Number.isInteger(number) && number >= 0 ? number : null;
 }
 
+const PROMPT_MARKER_PATTERN = /^a2a-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// v1.8.11: every Greenfield prompt is an A2A envelope (JSON.stringify) whose
+// messageId is a fresh random id. ChatGPT keeps the user message text in the
+// DOM verbatim, also when it collapses a long message, so that id finds the
+// user turn that carries this prompt in a virtualized thread where counts and
+// ordinals do not hold.
+export function promptCausalMarker(text) {
+  const source = String(text || "");
+  if (!source) return "";
+  let id = "";
+  try {
+    id = String(JSON.parse(source)?.messageId || "");
+  } catch {
+    id = /"messageId"\s*:\s*"([^"]{1,200})"/.exec(source)?.[1] || "";
+  }
+  return PROMPT_MARKER_PATTERN.test(id) ? id : "";
+}
+
 function activePromptIdentity(process) {
   const pendingPrompt = process?.pendingPrompt || null;
   const lastPrompt = process?.lastPrompt || null;
@@ -38,6 +57,7 @@ function activePromptIdentity(process) {
       id: pendingId,
       index: dispatchIndex ?? baselineIndex,
       promptHash: String(pendingPrompt.hash || ""),
+      marker: String(dispatch?.promptMarker || "") || promptCausalMarker(pendingPrompt.text),
       dispatch
     };
   }
@@ -46,6 +66,7 @@ function activePromptIdentity(process) {
     id: String(lastPrompt?.dispatchedUserTurnId || ""),
     index: nonNegativeInteger(lastPrompt?.dispatchedUserTurnIndex),
     promptHash: String(lastPrompt?.hash || ""),
+    marker: promptCausalMarker(lastPrompt?.text),
     dispatch: null
   };
 }
@@ -53,6 +74,10 @@ function activePromptIdentity(process) {
 export function expectedAutonomousUserTurn(process) {
   const identity = activePromptIdentity(process);
   return { id: identity.id, index: identity.index };
+}
+
+export function expectedPromptMarker(process) {
+  return activePromptIdentity(process).marker;
 }
 
 export function autonomousUserTurnProof(process, page, { allowLegacyHash = true } = {}) {
@@ -90,6 +115,20 @@ export function autonomousUserTurnProof(process, page, { allowLegacyHash = true 
       code: resolvedUserTurnId
         ? "AUTONOMOUS_USER_TURN_ID_MISMATCH"
         : "AUTONOMOUS_USER_TURN_NOT_RESOLVED",
+      expected,
+      resolvedUserTurnId,
+      resolvedBy
+    };
+  }
+
+  // v1.8.11: the user message that carries this prompt's A2A messageId.
+  if (identity.marker &&
+      resolvedUserTurnId &&
+      resolvedBy === "PROMPT_MARKER" &&
+      String(auto.expectedPromptMarker || "") === identity.marker) {
+    return {
+      ok: true,
+      code: "AUTONOMOUS_USER_TURN_MARKER_MATCH",
       expected,
       resolvedUserTurnId,
       resolvedBy

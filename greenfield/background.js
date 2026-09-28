@@ -102,7 +102,9 @@ import { applyGreenfieldControlToDecision, resolveGreenfieldControl } from "./li
 import {
   autonomousResponseObservation,
   expectedAutonomousUserTurn,
-  externalAssistantInterleaveEvidence
+  expectedPromptMarker,
+  externalAssistantInterleaveEvidence,
+  promptCausalMarker
 } from "./lib/turn-causality.mjs";
 import {
   hasCurrentGenerationEvidence,
@@ -973,6 +975,15 @@ function publicSnapshot(process) {
           scope: "CHROME_PROFILE"
         }
       : null,
+    // v1.8.11: the panel offers "Läs svar" only for a prompt that was sent.
+    pendingDispatch: process.pendingPrompt?.dispatch
+      ? {
+          status: String(process.pendingPrompt.dispatch.status || ""),
+          effectPossible: process.pendingPrompt.dispatch.effectPossible === true,
+          acknowledged: process.pendingPrompt.dispatch.acknowledged === true,
+          materializedBy: String(process.pendingPrompt.dispatch.materializedBy || "")
+        }
+      : null,
     lastConsumedInstructionId: process.lastConsumedInstructionId || null,
     recovery: process.recovery,
     detached: process.detached,
@@ -1084,7 +1095,8 @@ async function directManagedPageState(process, source = "rate-limit-recovery") {
     type: "EIC_GF_GET_PAGE_STATE",
     source,
     expectedUserTurnId: expectedTurn.id,
-    expectedUserIndex: expectedTurn.index
+    expectedUserIndex: expectedTurn.index,
+    expectedPromptMarker: expectedPromptMarker(process)
   });
   if (!result?.ok) {
     const error = new Error(result?.error || "RATE_LIMIT_PAGE_STATE_UNAVAILABLE");
@@ -1864,11 +1876,13 @@ async function tabState(process, source = "tick") {
   }
   try {
     const expectedTurn = expectedAutonomousUserTurn(process);
+    const promptMarker = expectedPromptMarker(process);
     const result = await bridgeMessage(process.tabId, {
       type: "EIC_GF_GET_PAGE_STATE",
       source,
       expectedUserTurnId: expectedTurn.id,
-      expectedUserIndex: expectedTurn.index
+      expectedUserIndex: expectedTurn.index,
+      expectedPromptMarker: promptMarker
     });
     if (!result?.ok) {
       const error = new Error(result?.error || "PAGE_STATE_UNAVAILABLE");
@@ -1888,7 +1902,8 @@ async function tabState(process, source = "tick") {
         type: "EIC_GF_GET_PAGE_STATE",
         source: `${source}-after-bridge-refresh`,
         expectedUserTurnId: expectedTurn.id,
-        expectedUserIndex: expectedTurn.index
+        expectedUserIndex: expectedTurn.index,
+        expectedPromptMarker: promptMarker
       });
       if (!refreshed?.ok) {
         const error = new Error(refreshed?.error || "PAGE_STATE_UNAVAILABLE_AFTER_BRIDGE_REFRESH");
@@ -1999,6 +2014,7 @@ async function contentSend(process, pending, operationId) {
       type: "EIC_GF_SUBMIT_PROMPT",
       prompt: pending.text,
       promptHash: pending.hash,
+      promptMarker: pending.dispatch?.promptMarker || promptCausalMarker(pending.text),
       dispatchId: pending.dispatch?.operationId || operationId,
       safetyContext: { policy:(await readSafety()).policy, gptRoot:process.gptRoot }
     }, TAB_HEALTH.SUBMIT_TIMEOUT_MS);
@@ -4755,6 +4771,10 @@ async function tickSending(process) {
         baselineAssistantCount: Number(page.assistantCount || 0),
         dispatchedUserTurnId: resolvedUserTurnId,
         dispatchedUserTurnIndex: resolvedUserTurnIndex,
+        // v1.8.11: how the user turn was bound (PROMPT_MARKER, USER_COUNT or
+        // OPERATOR via "Läs svar"); kept after the pending prompt is cleared.
+        dispatchedUserTurnBoundBy: String(pending.dispatch?.materializedBy || turnProof.resolvedBy || ""),
+        operatorOverride: pending.dispatch?.operatorOverride || null,
         oneShotInstruction: pending.oneShotInstruction || null,
         a2a: pending.a2a || null,
         promptProfile: pending.promptProfile || null
@@ -5034,6 +5054,8 @@ async function tickSending(process) {
         baselineUserCount: Number(page.userCount || 0),
         baselineAssistantCount: Number(page.assistantCount || 0),
         baselineAssistantHash,
+        baselineLastUserId: page.lastUserId || "",
+        promptMarker: promptCausalMarker(pending.text),
         replayCount: 0
       };
   const freshSafetyPage = await tabState(process, "pre-dispatch-model-recheck");
@@ -7844,6 +7866,309 @@ async function startRun({ windowId, goal, auditSessionId = "", schedulerPriority
   return { ok: true, existing: false, process: publicSnapshot(process) };
 }
 
+// v1.8.11 operator "Läs svar": read the answer in the worker's own tab now
+// ("operator control wins"). Never resends. SENDING with a possibly effective
+// dispatch is reconciled at once (the 30 s DISPATCH_EFFECT_UNRESOLVED wait is
+// skipped); if the prompt's user turn still cannot be proven, the operator
+// binds ChatGPT's newest user turn after the previous Greenfield turn, with
+// provenance. WAITING is read at once. Other holds and phases are untouched.
+const OPERATOR_READ_RESPONSE_PHASES = new Set([PHASES.SENDING, PHASES.WAITING]);
+
+async function operatorReadResponse({ windowId, processId = "" }) {
+  await runtimeReady;
+  if (runtimeFault) return { ok: false, code: "RUNTIME_FAULT", error: runtimeFault };
+  const process = await loadProcessForWindow(windowId);
+  if (!process) return { ok: false, code: "READ_RESPONSE_NO_PROCESS" };
+  if (processId && process.processId !== processId) {
+    return { ok: false, code: "READ_RESPONSE_PROCESS_CHANGED", process: publicSnapshot(process) };
+  }
+  return queues.enqueue(process.processId, () => operatorReadResponseLocked(process.processId));
+}
+
+async function operatorReadResponseLocked(processId) {
+  let process = await findProcessById(processId);
+  if (!process) return { ok: false, code: "READ_RESPONSE_NO_PROCESS" };
+  if (!OPERATOR_READ_RESPONSE_PHASES.has(process.phase)) {
+    return { ok: false, code: "READ_RESPONSE_NOT_APPLICABLE", phase: process.phase, process: publicSnapshot(process) };
+  }
+  const hold = process.safety?.hold || null;
+  if (hold && hold.code !== "DISPATCH_EFFECT_UNRESOLVED") {
+    return { ok: false, code: "READ_RESPONSE_SAFETY_HOLD", holdCode: hold.code, phase: process.phase, process: publicSnapshot(process) };
+  }
+  if (process.phase === PHASES.SENDING && process.pendingPrompt?.dispatch?.effectPossible !== true) {
+    return { ok: false, code: "READ_RESPONSE_PROMPT_NOT_SENT", phase: process.phase, process: publicSnapshot(process) };
+  }
+  const before = {
+    phase: process.phase,
+    turn: Number(process.turn || 0),
+    responseHash: String(process.lastResponse?.hash || "")
+  };
+  await audit(process, "OPERATOR_READ_RESPONSE_REQUESTED", "operator", {
+    phase: process.phase,
+    holdCode: hold?.code || "",
+    dispatchId: process.pendingPrompt?.dispatch?.operationId || process.lastPrompt?.dispatchId || ""
+  }).catch(() => undefined);
+
+  let bound = null;
+  process = await operatorReadTick(process, "operator-read-response");
+  if (process?.phase === PHASES.SENDING && process.pendingPrompt?.dispatch?.effectPossible === true &&
+      !process.pendingPrompt.dispatch.materializedUserTurnId) {
+    bound = await bindNewestUserTurnForOperator(process);
+    if (!bound.ok) {
+      return { ok: false, code: bound.code, phase: process.phase, process: publicSnapshot(process) };
+    }
+    process = await operatorReadTick(bound.process, "operator-read-response-bound");
+  }
+  if (process?.phase === PHASES.WAITING && before.phase === PHASES.SENDING) {
+    process = await operatorReadTick(process, "operator-read-response-waiting");
+  }
+  const outcome = operatorReadOutcome(before, process);
+  await audit(process || { processId }, "OPERATOR_READ_RESPONSE_RESULT", "operator", {
+    outcome,
+    phase: process?.phase || "",
+    boundUserTurnId: bound?.userTurnId || ""
+  }).catch(() => undefined);
+  return {
+    ok: true,
+    outcome,
+    boundByOperator: Boolean(bound?.ok),
+    phase: process?.phase || "",
+    process: publicSnapshot(process)
+  };
+}
+
+// One immediate tick, skipping only the dispatch hold's 30 s re-check wait.
+async function operatorReadTick(process, reason) {
+  if (!process) return process;
+  if (process.safety?.hold?.code === "DISPATCH_EFFECT_UNRESOLVED" &&
+      Number(process.safety.hold.retryAtMs || 0) > Date.now()) {
+    process = { ...process, safety: { ...process.safety, hold: { ...process.safety.hold, retryAtMs: 0 } } };
+    await saveProcess(process);
+  }
+  return (await tickProcess(process.processId, reason)) || findProcessById(process.processId);
+}
+
+async function bindNewestUserTurnForOperator(process) {
+  let page;
+  try {
+    page = await tabState(process, "operator-read-response");
+  } catch (error) {
+    return { ok: false, code: error?.code || "READ_RESPONSE_PAGE_UNAVAILABLE" };
+  }
+  const dispatch = process.pendingPrompt.dispatch;
+  const newest = String(page.lastUserId || "");
+  const previous = String(process.lastPrompt?.dispatchedUserTurnId || "");
+  const baselineLast = String(dispatch.baselineLastUserId || "");
+  if (!newest) return { ok: false, code: "READ_RESPONSE_NO_USER_TURN" };
+  if (newest === previous || (baselineLast && newest === baselineLast)) {
+    return { ok: false, code: "READ_RESPONSE_NO_NEW_USER_TURN" };
+  }
+  const expectedConversation = conversationKey(process.lastManagedUrl || "");
+  if (expectedConversation && conversationKey(page.url || "") !== expectedConversation) {
+    return { ok: false, code: "READ_RESPONSE_CONVERSATION_MISMATCH" };
+  }
+  const baselineIndex = Number(dispatch.baselineUserCount);
+  const updated = {
+    ...process,
+    pendingPrompt: {
+      ...process.pendingPrompt,
+      dispatch: {
+        ...dispatch,
+        status: "ACKNOWLEDGED",
+        acknowledged: true,
+        acknowledgementEvidence: "OPERATOR_READ_RESPONSE",
+        materializedUserTurnId: newest,
+        materializedUserTurnIndex: Number.isInteger(baselineIndex) && baselineIndex >= 0 ? baselineIndex : null,
+        materializedBy: "OPERATOR",
+        operatorOverride: {
+          action: "READ_RESPONSE",
+          at: nowIso(),
+          userTurnId: newest,
+          previousUserTurnId: previous,
+          pageUserCount: Number(page.userCount || 0),
+          documentId: page.documentId || ""
+        }
+      }
+    },
+    safety: process.safety?.hold?.code === "DISPATCH_EFFECT_UNRESOLVED"
+      ? { ...process.safety, hold: { ...process.safety.hold, retryAtMs: 0 } }
+      : process.safety,
+    updatedAt: nowIso()
+  };
+  await saveProcess(updated);
+  await audit(updated, "OPERATOR_READ_RESPONSE_BOUND_USER_TURN", "operator", {
+    dispatchId: dispatch.operationId || "",
+    promptHash: process.pendingPrompt.hash || "",
+    userTurnId: newest,
+    previousUserTurnId: previous,
+    pageUserCount: Number(page.userCount || 0),
+    automaticResend: false
+  }, dispatch.operationId || undefined).catch(() => undefined);
+  return { ok: true, process: updated, userTurnId: newest };
+}
+
+function operatorReadOutcome(before, process) {
+  if (!process) return "PROCESS_GONE";
+  if (String(process.lastResponse?.hash || "") !== before.responseHash ||
+      Number(process.turn || 0) !== before.turn) return "RESPONSE_CAPTURED";
+  if (process.phase === PHASES.WAITING) {
+    const reason = String(process.responseObservationTrace?.at?.(-1)?.reason || "");
+    if (/STILL_GENERATING/.test(reason)) return "STILL_GENERATING";
+    if (/ASSISTANT_NOT_OBSERVED/.test(reason)) return "NO_ANSWER_YET";
+    return before.phase === PHASES.SENDING ? "PROMPT_FOUND_READING" : "READING";
+  }
+  if (process.phase === PHASES.SENDING) return "PROMPT_NOT_FOUND";
+  return "PHASE_CHANGED";
+}
+
+// v1.8.11 operator "Gå till nästa uppgift i kön": park the current slot with
+// a checkpoint (as the 120-minute stale rotation does; the unanswered turn is
+// not counted) and activate the next runnable slot in explicit order. The
+// parked mission later resumes in a fresh chat told what happened to its last
+// prompt (sourceResponseState). Nothing is resent or discarded; with no other
+// runnable slot nothing changes.
+const OPERATOR_NEXT_QUEUE_PHASES = new Set([PHASES.SENDING, PHASES.WAITING, PHASES.PAUSED]);
+
+async function operatorNextQueueItem({ windowId, processId = "" }) {
+  await runtimeReady;
+  if (runtimeFault) return { ok: false, code: "RUNTIME_FAULT", error: runtimeFault };
+  const process = await loadProcessForWindow(windowId);
+  if (!process) return { ok: false, code: "QUEUE_NEXT_NO_PROCESS" };
+  if (processId && process.processId !== processId) {
+    return { ok: false, code: "QUEUE_NEXT_PROCESS_CHANGED", process: publicSnapshot(process) };
+  }
+  if (process.phase === PHASES.QUEUE_WAIT) {
+    const woken = await wakeMissionQueue(windowId, "OPERATOR_NEXT_QUEUE_ITEM");
+    const activated = Boolean(woken && woken.processId !== process.processId);
+    return activated
+      ? { ok: true, outcome: "QUEUE_WOKEN", toItemId: woken.queueContext?.itemId || "", process: publicSnapshot(woken) }
+      : { ok: false, code: "QUEUE_NEXT_NONE_RUNNABLE", process: publicSnapshot(woken || process) };
+  }
+  return queues.enqueue(process.processId, () => operatorNextQueueItemLocked(process.processId));
+}
+
+async function operatorNextQueueItemLocked(processId) {
+  const process = await findProcessById(processId);
+  if (!process || TERMINAL_PHASES.has(process.phase)) {
+    return { ok: false, code: "QUEUE_NEXT_NOT_ACTIVE", phase: process?.phase || "", process: publicSnapshot(process) };
+  }
+  if (!process.queueContext?.itemId) {
+    return { ok: false, code: "QUEUE_NEXT_NOT_QUEUE_MANAGED", phase: process.phase, process: publicSnapshot(process) };
+  }
+  if (!OPERATOR_NEXT_QUEUE_PHASES.has(process.phase)) {
+    return { ok: false, code: "QUEUE_NEXT_BUSY", phase: process.phase, process: publicSnapshot(process) };
+  }
+  const { queue, settings } = await missionQueueForWindow(process.windowId);
+  const item = queueItemForProcess(queue, process);
+  if (!queue.enabled || !item) {
+    return { ok: false, code: "QUEUE_NEXT_ITEM_MISSING", phase: process.phase, process: publicSnapshot(process) };
+  }
+  const next = selectNextMissionItem(queue, { afterOrder: Number(item.order), excludeItemId: item.itemId });
+  if (!next) {
+    return { ok: false, code: "QUEUE_NEXT_NONE_RUNNABLE", phase: process.phase, process: publicSnapshot(process) };
+  }
+
+  const pending = process.pendingPrompt || null;
+  const dispatchEffectPossible = pending?.dispatch?.effectPossible === true;
+  if (pending?.promptPause?.reservationId && !dispatchEffectPossible) {
+    await releaseGlobalPromptLease({ reservationId: pending.promptPause.reservationId }).catch(() => undefined);
+  }
+  const sourceResponseState = sessionRotationSourceState(process);
+  // A pause the mission itself asked for still holds on its parked slot.
+  const pauseUntilMs = process.phase === PHASES.PAUSED && Number(process.missionPause?.resumeAtMs || 0) > Date.now()
+    ? Number(process.missionPause.resumeAtMs)
+    : 0;
+  const maxInteractions = normalizeMissionQuantumInteractions(process.queueContext?.maxInteractions);
+  const resumedQuantumProgress = Math.min(
+    Math.max(0, maxInteractions - 1),
+    Math.max(0, Number(process.queueContext?.interactionCount || 0))
+  );
+  const objective = String(
+    process.objectiveState?.objective ||
+    pending?.a2a?.objective ||
+    process.lastPrompt?.a2a?.objective ||
+    process.goal ||
+    ""
+  ).trim();
+  const resume = {
+    ...queueResumeRecordFromAnalysis({
+      current: process,
+      effectiveNextPrompt: objective,
+      previousDisposition: "OPERATOR_QUEUE_ADVANCE",
+      analysisEvidence: null,
+      sessionReason: "OPERATOR_NEXT_QUEUE_ITEM",
+      pauseUntilMs
+    }),
+    // A one-shot status request was consumed by the prompt now left behind.
+    processStatusRequest: "",
+    sourceResponseState
+  };
+  const parkedSnapshot = {
+    ...deepClone(process),
+    pendingPrompt: null,
+    queueContext: {
+      ...process.queueContext,
+      interactionCount: resumedQuantumProgress,
+      maxInteractions
+    },
+    objectiveState: {
+      ...(process.objectiveState || {}),
+      objective,
+      status: "PARKED_QUEUE",
+      updatedAt: nowIso()
+    },
+    // The dispatch hold belongs to the conversation left behind.
+    safety: process.safety?.hold?.code === "DISPATCH_EFFECT_UNRESOLVED"
+      ? { ...process.safety, hold: null }
+      : process.safety,
+    missionPause: null,
+    responseCandidate: null,
+    responseInterleave: null,
+    waitingRefresh: null,
+    lastError: null,
+    updatedAt: nowIso()
+  };
+  await audit(process, "OPERATOR_NEXT_QUEUE_ITEM_REQUESTED", "operator", {
+    phase: process.phase,
+    itemId: item.itemId,
+    nextItemId: next.itemId,
+    sourceResponseState,
+    dispatchEffectPossible,
+    unansweredPromptHash: dispatchEffectPossible ? pending?.hash || "" : process.phase === PHASES.WAITING ? process.lastPrompt?.hash || "" : "",
+    automaticResend: false
+  }).catch(() => undefined);
+  const activated = await parkSlotAndActivateNext({
+    current: process,
+    queue,
+    settings,
+    item,
+    parkedSnapshot,
+    resume,
+    outcome: "OPERATOR_QUEUE_ADVANCE",
+    summary: "The operator moved the queue on to the next task; this mission was parked with its checkpoint.",
+    resumedQuantumProgress,
+    pauseUntilMs,
+    parkDetail: {
+      operator: true,
+      phase: process.phase,
+      maxInteractions,
+      sourceResponseState,
+      dispatchEffectPossible
+    }
+  });
+  if (!activated) {
+    return { ok: false, code: "QUEUE_NEXT_NONE_RUNNABLE", phase: process.phase, process: publicSnapshot(process) };
+  }
+  return {
+    ok: true,
+    outcome: "QUEUE_ADVANCED",
+    fromItemId: item.itemId,
+    toItemId: activated.queueContext?.itemId || "",
+    sourceResponseState,
+    process: publicSnapshot(activated)
+  };
+}
+
 async function stopRun({ windowId, reason = "OPERATOR_STOP" }) {
   const process = await loadProcessForWindow(windowId);
   if (!process) return { ok: true, process: null };
@@ -8504,12 +8829,18 @@ async function recordDispatchMaterialization(message, sender) {
   const userTurnIndex = Number(receipt?.userTurnIndex);
   const receiptUserCount = Number(receipt?.userCount);
   const baselineUserCount = Number(dispatch?.baselineUserCount);
+  // v1.8.11: in ChatGPT's virtualized thread the user count stops growing, so
+  // a receipt bound by the prompt's own A2A messageId carries no count proof.
+  const markerReceipt = String(receipt?.resolvedBy || "") === "PROMPT_MARKER";
+  const expectedMarker = String(dispatch?.promptMarker || "") || promptCausalMarker(current?.pendingPrompt?.text);
 
   if (!current || current.phase !== PHASES.SENDING || current.tabId !== tab.id ||
       !dispatch || String(dispatch.operationId || "") !== String(message.dispatchId || "") ||
       String(current.pendingPrompt?.hash || "") !== String(message.promptHash || "") ||
       !userTurnId || !Number.isInteger(userTurnIndex) || userTurnIndex < 0 ||
-      !Number.isInteger(receiptUserCount) || receiptUserCount !== userTurnIndex + 1) {
+      (markerReceipt
+        ? !expectedMarker || String(receipt?.promptMarker || "") !== expectedMarker
+        : !Number.isInteger(receiptUserCount) || receiptUserCount !== userTurnIndex + 1)) {
     return { ok:false, code:"DISPATCH_MATERIALIZATION_TARGET_MISMATCH" };
   }
 
@@ -8518,10 +8849,19 @@ async function recordDispatchMaterialization(message, sender) {
     return { ok:false, code:"DISPATCH_MATERIALIZATION_DOCUMENT_MISMATCH" };
   }
 
-  if (Number.isInteger(baselineUserCount) && baselineUserCount >= 0 &&
+  if (markerReceipt &&
+      (userTurnId === String(dispatch.baselineLastUserId || "") ||
+       userTurnId === String(current.lastPrompt?.dispatchedUserTurnId || ""))) {
+    return { ok:false, code:"DISPATCH_MATERIALIZATION_PRIOR_TURN" };
+  }
+
+  if (!markerReceipt && Number.isInteger(baselineUserCount) && baselineUserCount >= 0 &&
       userTurnIndex !== baselineUserCount) {
     return { ok:false, code:"DISPATCH_MATERIALIZATION_ORDINAL_MISMATCH" };
   }
+  const materializedIndex = markerReceipt && Number.isInteger(baselineUserCount) && baselineUserCount >= 0
+    ? baselineUserCount
+    : userTurnIndex;
 
   if (dispatch.materializedUserTurnId &&
       dispatch.materializedUserTurnId !== userTurnId) {
@@ -8537,9 +8877,10 @@ async function recordDispatchMaterialization(message, sender) {
         status: "ACKNOWLEDGED",
         effectPossible: true,
         acknowledged: true,
-        acknowledgementEvidence: String(message.evidence || "USER_TURN_MATERIALIZED"),
+        acknowledgementEvidence: markerReceipt ? "PROMPT_MARKER" : String(message.evidence || "USER_TURN_MATERIALIZED"),
         materializedUserTurnId: userTurnId,
-        materializedUserTurnIndex: userTurnIndex,
+        materializedUserTurnIndex: materializedIndex,
+        materializedBy: markerReceipt ? "PROMPT_MARKER" : "USER_COUNT",
         materializationReceiptAt: nowIso()
       }
     },
@@ -8551,13 +8892,15 @@ async function recordDispatchMaterialization(message, sender) {
     promptHash: current.pendingPrompt.hash,
     documentId: message.documentId || "",
     userTurnId,
-    userTurnIndex,
+    userTurnIndex: materializedIndex,
     userCount: receiptUserCount,
     userTextHash: String(receipt?.userTextHash || ""),
+    resolvedBy: markerReceipt ? "PROMPT_MARKER" : "USER_COUNT",
+    promptMarker: markerReceipt ? expectedMarker : "",
     evidence: String(message.evidence || "")
   }, dispatch.operationId).catch(() => undefined);
   scheduleFast(updated.processId, 50);
-  return { ok:true, userTurnId, userTurnIndex };
+  return { ok:true, userTurnId, userTurnIndex: materializedIndex };
 }
 
 async function authorizeDispatch(message,sender) {
@@ -9111,6 +9454,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }, chrome.storage.local, { restoreSavedMissions: false, bookmarks: null });
         return { ok: true, operatorSettings: settings };
       }));
+    case "EIC_GF_OPERATOR_READ_RESPONSE":
+      return respond(withVerifiedWorkerMessage(message, sender, (bound) => operatorReadResponse({
+        windowId: bound.windowId,
+        processId: String(bound.processId || "")
+      })));
+    case "EIC_GF_OPERATOR_NEXT_QUEUE_ITEM":
+      return respond(withVerifiedWorkerMessage(message, sender, (bound) => operatorNextQueueItem({
+        windowId: bound.windowId,
+        processId: String(bound.processId || "")
+      })));
     case "EIC_GF_FORCE_TICK":
       return respond(withVerifiedWorkerMessage(message, sender, async (bound) => {
         const process = await loadProcessForWindow(bound.windowId);

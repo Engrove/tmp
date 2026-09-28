@@ -1,3 +1,19 @@
+import { promptCausalMarker } from "./turn-causality.mjs";
+
+// v1.8.11: ChatGPT collapses a long user message (its DOM text then never
+// hashes to the prompt), so the prompt's own A2A messageId found in one user
+// message is the page-side proof that this prompt materialized.
+function promptMarkerMaterialized(pending, page) {
+  const marker = String(pending?.dispatch?.promptMarker || "") || promptCausalMarker(pending?.text);
+  const auto = page?.autonomousTurn || {};
+  return Boolean(
+    marker &&
+    auto.resolvedBy === "PROMPT_MARKER" &&
+    String(auto.expectedPromptMarker || "") === marker &&
+    String(auto.resolvedUserTurnId || "")
+  );
+}
+
 export function sendFenceDecision(pending, page = {}) {
   if (!pending?.text || !pending?.hash) return { action: "INVALID", evidence: "PENDING_PROMPT_MISSING" };
 
@@ -17,6 +33,10 @@ export function sendFenceDecision(pending, page = {}) {
   if (page.lastUserHash === pending.hash) return {
     action: dispatch ? "WAIT_NO_RESEND" : "ALREADY_MATERIALIZED",
     evidence: "PAGE_LAST_USER_HASH", acknowledged: true
+  };
+  if (promptMarkerMaterialized(pending, page)) return {
+    action: dispatch ? "WAIT_NO_RESEND" : "ALREADY_MATERIALIZED",
+    evidence: "PAGE_PROMPT_MARKER", acknowledged: true
   };
   const pageEvidence = () => {
     if (page.lastUserHash && page.lastUserHash === pending.hash) return "PAGE_LAST_USER_HASH";

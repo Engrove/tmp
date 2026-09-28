@@ -1,9 +1,8 @@
 {
-  "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.8.11",
-  "releaseChannel": "1.8.11",
+  "schema": "eic.greenfield.v1811-release-summary.v1",
+  "version": "1.8.11",
   "generatedAt": "2026-09-28T15:32:42.627927+00:00",
-  "sourceBaseline": {
+  "source": {
     "file": "EIC_Autonom_Agent_Greenfield_v1.8.10.zip",
     "version": "1.8.10",
     "origin": "this repository, commit f7b15ea",
@@ -42,6 +41,20 @@
       "nextQueueItem": "EIC_GF_OPERATOR_NEXT_QUEUE_ITEM ('Gå till nästa uppgift i kön'): from SENDING, WAITING or PAUSED the slot is parked with its checkpoint (as the 120-minute stale rotation: unanswered turn not counted, resume previousDisposition OPERATOR_QUEUE_ADVANCE, sourceResponseState from the process: PROMPT_EFFECT_UNKNOWN / PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE / ...), the dispatch hold stays with the abandoned conversation, a requested mission pause stays on the slot, and the next runnable slot starts in a fresh chat; QUEUE_WAIT wakes the queue; with no other runnable slot nothing changes. Never BLOCKED, nothing resent, the panel asks first and suggests 'Läs svar' for an unread answer."
     },
     "newPermissions": "none"
+  },
+  "gates": {
+    "SEND_RECEIPTED_IN_VIRTUALIZED_THREAD_PASS": true,
+    "STUCK_PROCESS_RESOLVES_AND_CAPTURES_WITHOUT_RESEND_PASS": true,
+    "MARKER_RECEIPT_GUARDS_PASS": true,
+    "NO_ORDINAL_GUESS_WITH_MARKER_PASS": true,
+    "DUPLICATE_MARKER_RESOLVES_NOTHING_PASS": true,
+    "PRE_SEND_MARKER_FENCE_PASS": true,
+    "NON_JSON_ANSWER_CAPTURED_PASS": true,
+    "READ_RESPONSE_NO_RESEND_PASS": true,
+    "NEXT_QUEUE_ITEM_CHECKPOINT_PASS": true,
+    "PANEL_ACTIONS_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
   },
   "verification": {
     "environment": {

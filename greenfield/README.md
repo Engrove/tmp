@@ -1,6 +1,8 @@
-# EIC Autonom Agent Greenfield 1.8.10
+# EIC Autonom Agent Greenfield 1.8.11
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.8.11 rättar att sessionen inte visste att svaret redan var levererat. ChatGPT:s tråd är virtualiserad: bara turerna nära fönstret ligger i sidan, och långa användarmeddelanden fälls ihop med ett extra ”…”. Efter ungefär fem turer växte därför inte antalet synliga användarmeddelanden, och Greenfield kunde inte koppla den skickade prompten till sin tur. Processen stod kvar i SENDING med ”Oklart om prompten skickades – inget omskick”, trots att ChatGPT hade svarat. Nu letar Greenfield upp prompten på dess eget A2A-`messageId` i tråden. Två nya knappar på workerkortet låter operatören driva på: **Läs svar** och **Gå till nästa uppgift i kön**. Se [UPPDATERA_TILL_1_8_11.md](UPPDATERA_TILL_1_8_11.md).
 
 Version 1.8.10 rättar att Greenfield inte förstod att en prompt faktiskt hade skickats. ChatGPT:s nya gränssnitt märker inte längre meddelandena med de attribut Greenfield letade efter (data-message-author-role m.fl.). Greenfield såg därför 0 turer och höll processen i SENDING med spärren DISPATCH_EFFECT_UNRESOLVED, trots att prompten var skickad och besvarad. Meddelandena känns nu igen enligt ChatGPT:s egen kod: användarblocket group/user-message och svarsblocket med rubriken ”ChatGPT sa:”. Knappen ”Stoppa” räknas som pågående svar. Daybreak-ord i ett meddelande tolkas inte längre som ChatGPT:s spärrnotis. Se [UPPDATERA_TILL_1_8_10.md](UPPDATERA_TILL_1_8_10.md).
 
@@ -29,6 +31,22 @@ Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfiel
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.8.11
+
+- **Skickad prompt hittas i lång tråd.**
+  - Underlag: ChatGPT:s produktionskod, manifest 4da31bb4 och 4ad86f39, läst 2026-09-28. Tråden renderar via en virtuell lista (`overscanCount` 2, `viewportHeightPx` 800, `estimatedHeightPx` 280). Långa användarmeddelanden fälls ihop (`collapsedLineCount` 20 och ett ”…”).
+  - Content letar upp det användarmeddelande vars text innehåller promptens A2A-`messageId` (`resolvedBy` `PROMPT_MARKER`). Kvittot bygger på det i stället för på antalet turer.
+  - Background skickar markören med i varje sidavläsning, också vid återställning efter omstart. Två träffar kopplar ingenting. I appskalet används inget ordningstal när en markör är given.
+- **Skydd mot dubbelsändning:** syns markören i tråden före utskick skickas prompten inte (`PAGE_PROMPT_MARKER`).
+- **Läs svar** på workerkortet (`EIC_GF_OPERATOR_READ_RESPONSE`):
+  - Läser svaret direkt.
+  - Kopplar vid behov ChatGPT:s senaste användartur efter föregående Greenfield-tur, med operatörens proveniens.
+  - Skickar aldrig om.
+- **Gå till nästa uppgift i kön** på workerkortet (`EIC_GF_OPERATOR_NEXT_QUEUE_ITEM`):
+  - Parkerar uppdraget med checkpoint och startar nästa körbara plats i en ny chatt.
+  - Det parkerade uppdraget får `previousDisposition` `OPERATOR_QUEUE_ADVANCE` och promptens utfall (`sourceResponseState`).
+- **Svar utan JSON** tas emot som alla andra svar; det är nu verifierat med test.
 
 ## Nytt i 1.8.10
 
@@ -204,4 +222,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.10.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.11.

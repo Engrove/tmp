@@ -1,7 +1,7 @@
 (() => {
   const BRIDGE = "__EIC_GF_CONTENT_V2__";
   const OVERLAY_ID = "eic-gf-linked-overlay";
-  const CONTENT_VERSION = "1.8.10";
+  const CONTENT_VERSION = "1.8.11";
   const previousBridge = globalThis[BRIDGE] || null;
   const DOCUMENT_ID = previousBridge?.documentId || crypto.randomUUID();
   const dispatchRecords = previousBridge?.dispatchRecords instanceof Map
@@ -543,9 +543,10 @@
     }
   }
 
-  function resolveAutonomousTurn(entries, expectedUserTurnId = "", expectedUserIndex = null) {
+  function resolveAutonomousTurn(entries, expectedUserTurnId = "", expectedUserIndex = null, expectedPromptMarker = "") {
     const expectedId = String(expectedUserTurnId || "");
     const indexValue = expectedUserIndex == null ? Number.NaN : Number(expectedUserIndex);
+    const marker = promptMarkerValue(expectedPromptMarker);
     const users = entries.filter((entry) => entry.role === "user");
 
     let userEntry = expectedId
@@ -553,7 +554,26 @@
       : null;
     let resolvedBy = userEntry ? "USER_TURN_ID" : "NONE";
 
-    if (!userEntry && Number.isInteger(indexValue) && indexValue >= 0 && indexValue < users.length) {
+    // v1.8.11: ChatGPT's thread is virtualized (only turns near the viewport
+    // are in the DOM, verified in its production JS 2026-09-28), so user
+    // counts and ordinals stop matching the conversation once the window is
+    // full. The user message whose text carries the prompt's own A2A
+    // messageId is the prompt's turn; two such messages resolve nothing.
+    let promptMarkerMatches = null;
+    if (!userEntry && marker) {
+      const marked = users.filter((entry) => messageText(entry).includes(marker));
+      promptMarkerMatches = marked.length;
+      if (marked.length === 1) {
+        userEntry = marked[0];
+        resolvedBy = "PROMPT_MARKER";
+      }
+    }
+
+    // An ordinal is only a guess in the virtualized app-shell thread; with a
+    // marker supplied it is not used there.
+    const virtualizedThread = users.some((entry) => entry.ownerKind === "SHELL_MESSAGE");
+    if (!userEntry && !(marker && virtualizedThread) &&
+        Number.isInteger(indexValue) && indexValue >= 0 && indexValue < users.length) {
       userEntry = users[indexValue] || null;
       resolvedBy = userEntry ? "USER_ORDINAL" : "NONE";
     }
@@ -562,6 +582,8 @@
       return {
         expectedUserTurnId: expectedId,
         expectedUserIndex: Number.isInteger(indexValue) ? indexValue : null,
+        expectedPromptMarker: marker,
+        promptMarkerMatches,
         resolvedUserTurnId: "",
         resolvedBy,
         assistantFound: false,
@@ -591,6 +613,8 @@
     return {
       expectedUserTurnId: expectedId,
       expectedUserIndex: Number.isInteger(indexValue) ? indexValue : null,
+      expectedPromptMarker: marker,
+      promptMarkerMatches,
       resolvedUserTurnId: userEntry.id || "",
       resolvedBy,
       userEntry,
@@ -598,6 +622,14 @@
       nextUserTurnId: nextUserEntry?.id || "",
       responseSlotClosed: Boolean(nextUserEntry && !assistantEntry)
     };
+  }
+
+  // v1.8.11: the background's marker is the prompt's A2A messageId (a random
+  // id); anything shorter or with spaces is not used as a marker. Kept inside
+  // the resolveAutonomousTurn..messageText source span that tests evaluate.
+  function promptMarkerValue(value) {
+    const marker = String(value || "");
+    return /^[A-Za-z0-9][A-Za-z0-9_.:-]{11,199}$/.test(marker) ? marker : "";
   }
 
   function messageText(entry) {
@@ -752,7 +784,7 @@
     };
   }
 
-  async function pageState({ expectedUserTurnId = "", expectedUserIndex = null } = {}) {
+  async function pageState({ expectedUserTurnId = "", expectedUserIndex = null, expectedPromptMarker = "" } = {}) {
     const entries = canonicalEntries();
     const users = entries.filter((entry) => entry.role === "user");
     const assistants = entries.filter((entry) => entry.role === "assistant");
@@ -763,7 +795,7 @@
     const { generating, signals } = generationSignals(lastAssistant);
     const rateLimitWarning = publicRateLimitWarning(await detectRateLimitWarning());
 
-    const autonomous = resolveAutonomousTurn(entries, expectedUserTurnId, expectedUserIndex);
+    const autonomous = resolveAutonomousTurn(entries, expectedUserTurnId, expectedUserIndex, expectedPromptMarker);
     const autonomousAssistant = autonomous.assistantEntry || null;
     const autonomousAssistantText = messageText(autonomousAssistant);
     const autonomousGeneration = generationSignals(autonomousAssistant);
@@ -802,6 +834,8 @@
       autonomousTurn: {
         expectedUserTurnId: autonomous.expectedUserTurnId || "",
         expectedUserIndex: Number.isInteger(autonomous.expectedUserIndex) ? autonomous.expectedUserIndex : null,
+        expectedPromptMarker: autonomous.expectedPromptMarker || "",
+        promptMarkerMatches: Number.isInteger(autonomous.promptMarkerMatches) ? autonomous.promptMarkerMatches : null,
         resolvedUserTurnId: autonomous.resolvedUserTurnId || "",
         userTextHash: autonomous.userEntry ? await sha256Hex(messageText(autonomous.userEntry)) : "",
         resolvedBy: autonomous.resolvedBy || "NONE",
@@ -857,6 +891,27 @@
     const userTurnId = String(state?.lastUserId || "");
     const beforeUserTurnId = String(before?.lastUserId || "");
 
+    // v1.8.11: with the prompt's marker the receipt is the one user message
+    // carrying it, whatever the count (the virtualized thread's user count
+    // stops growing; diagnostics 2026-09-28: stuck at 5 and at 4).
+    const auto = state?.autonomousTurn || {};
+    const marker = String(auto.expectedPromptMarker || "");
+    if (marker) {
+      const markedUserTurnId = auto.resolvedBy === "PROMPT_MARKER" ? String(auto.resolvedUserTurnId || "") : "";
+      if (!Number.isInteger(beforeCount) || beforeCount < 0 || !Number.isInteger(afterCount) ||
+          !markedUserTurnId || markedUserTurnId === beforeUserTurnId) {
+        return null;
+      }
+      return {
+        userTurnId: markedUserTurnId,
+        userTurnIndex: beforeCount,
+        userCount: afterCount,
+        userTextHash: String(auto.userTextHash || ""),
+        resolvedBy: "PROMPT_MARKER",
+        promptMarker: marker
+      };
+    }
+
     if (!Number.isInteger(beforeCount) || beforeCount < 0 ||
         !Number.isInteger(afterCount) || afterCount !== beforeCount + 1 ||
         !userTurnId || userTurnId === beforeUserTurnId) {
@@ -885,28 +940,29 @@
     return result?.ok === true ? receipt : null;
   }
 
-  async function waitForMaterialization(before, promptHash, timeoutMs = 15000, expectedComposerHash = "") {
+  async function waitForMaterialization(before, promptHash, timeoutMs = 15000, expectedComposerHash = "", promptMarker = "") {
     const started = Date.now();
     // v1.8.10: the app shell shows "Stoppa" and the optimistic user message
     // before ChatGPT gives that message an id. Keep reading (same budget)
     // until the materialized user turn can be receipted; the first evidence
     // is kept in case it never can.
     let firstEvidence = null;
+    const read = () => pageState({ expectedPromptMarker: promptMarker });
     while (Date.now() - started < timeoutMs) {
-      const state = await pageState();
+      const state = await read();
       const evidence = materializationEvidence(before, state, promptHash);
-      if (evidence) {
+      if (evidence || state.autonomousTurn?.resolvedBy === "PROMPT_MARKER") {
         if (materializedUserTurnReceipt(before, state)) {
           return {
             acknowledged: true,
-            evidence,
+            evidence: evidence || "PROMPT_MARKER",
             elapsedMs: Date.now() - started,
             state,
             rateLimitDetected: false,
             rateLimitNoEffectConfirmed: false
           };
         }
-        firstEvidence = firstEvidence || { evidence, elapsedMs: Date.now() - started };
+        if (evidence) firstEvidence = firstEvidence || { evidence, elapsedMs: Date.now() - started };
       } else if (state.rateLimitWarning?.active === true) {
         const noEffectConfirmed =
           Number(state.userCount || 0) === Number(before.userCount || 0) &&
@@ -932,7 +988,7 @@
         acknowledged: true,
         evidence: firstEvidence.evidence,
         elapsedMs: firstEvidence.elapsedMs,
-        state: await pageState(),
+        state: await read(),
         rateLimitDetected: false,
         rateLimitNoEffectConfirmed: false
       };
@@ -941,13 +997,13 @@
       acknowledged: false,
       evidence: "",
       elapsedMs: Date.now() - started,
-      state: await pageState(),
+      state: await read(),
       rateLimitDetected: false,
       rateLimitNoEffectConfirmed: false
     };
   }
 
-  async function submitPrompt(prompt, promptHash, dispatchId, safetyContext) {
+  async function submitPrompt(prompt, promptHash, dispatchId, safetyContext, promptMarker = "") {
     const id = String(dispatchId || "");
     if (!id) {
       return { ok: false, effectPossible: false, code: "DISPATCH_ID_REQUIRED", error: "Dispatch id missing.", documentId: DOCUMENT_ID };
@@ -1073,7 +1129,7 @@
         });
 
         const expectedComposerHash = await sha256Hex(normalizeText(prompt));
-        const ack = await waitForMaterialization(before, promptHash, 15000, expectedComposerHash);
+        const ack = await waitForMaterialization(before, promptHash, 15000, expectedComposerHash, promptMarkerValue(promptMarker));
         const materializedReceipt = await publishDispatchMaterialization(
           id,
           promptHash,
@@ -1300,7 +1356,8 @@
         ok: true,
         state: await pageState({
           expectedUserTurnId: message.expectedUserTurnId || "",
-          expectedUserIndex: Number.isInteger(message.expectedUserIndex) ? message.expectedUserIndex : null
+          expectedUserIndex: Number.isInteger(message.expectedUserIndex) ? message.expectedUserIndex : null,
+          expectedPromptMarker: message.expectedPromptMarker || ""
         })
       };
     }
@@ -1313,7 +1370,7 @@
       if (!prompt || !promptHash) {
         return { ok: false, effectPossible: false, code: "PROMPT_INVALID", error: "Prompt or hash missing." };
       }
-      return submitPrompt(prompt, promptHash, message.dispatchId, message.safetyContext);
+      return submitPrompt(prompt, promptHash, message.dispatchId, message.safetyContext, message.promptMarker || "");
     }
     if (message.type === "EIC_GF_OVERLAY_UPDATE") {
       return { ok: true, changed: updateOverlay(message.overlay || null) };

@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: v1.8.11 Läs svar: binds ChatGPT's newest user turn when the prompt cannot be proven, then reads the answer; no resend
+ok 1 - v1.8.11 Läs svar: binds ChatGPT's newest user turn when the prompt cannot be proven, then reads the answer; no resend
+  ---
+  duration_ms: 857.126142
+  type: 'test'
+  ...
+# Subtest: v1.8.11 Läs svar: with no new user turn after the send nothing is bound and nothing is sent
+ok 2 - v1.8.11 Läs svar: with no new user turn after the send nothing is bound and nothing is sent
+  ---
+  duration_ms: 446.826495
+  type: 'test'
+  ...
+# Subtest: v1.8.11 Läs svar: refuses an unsent prompt, another hold and a changed process
+ok 3 - v1.8.11 Läs svar: refuses an unsent prompt, another hold and a changed process
+  ---
+  duration_ms: 245.393313
+  type: 'test'
+  ...
+# Subtest: v1.8.11 Gå till nästa uppgift i kön: an unresolved send is parked with its checkpoint and the next slot starts
+ok 4 - v1.8.11 Gå till nästa uppgift i kön: an unresolved send is parked with its checkpoint and the next slot starts
+  ---
+  duration_ms: 500.630591
+  type: 'test'
+  ...
+# Subtest: v1.8.11 Gå till nästa uppgift i kön: an unanswered WAITING turn is parked as acknowledged-without-response
+ok 5 - v1.8.11 Gå till nästa uppgift i kön: an unanswered WAITING turn is parked as acknowledged-without-response
+  ---
+  duration_ms: 444.204785
+  type: 'test'
+  ...
+# Subtest: v1.8.11 Gå till nästa uppgift i kön: nothing changes without another runnable slot, outside a queue or mid-analysis
+ok 6 - v1.8.11 Gå till nästa uppgift i kön: nothing changes without another runnable slot, outside a queue or mid-analysis
+  ---
+  duration_ms: 517.623754
+  type: 'test'
+  ...
+# Subtest: v1.8.11 panel: the card offers the actions where they apply and says what happened
+ok 7 - v1.8.11 panel: the card offers the actions where they apply and says what happened
+  ---
+  duration_ms: 4.491178
+  type: 'test'
+  ...
+# Subtest: v1.8.11 Gå till nästa uppgift i kön: a pause the mission asked for still holds on its parked slot
+ok 8 - v1.8.11 Gå till nästa uppgift i kön: a pause the mission asked for still holds on its parked slot
+  ---
+  duration_ms: 239.135916
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3381.427604

@@ -4,7 +4,7 @@ import { loadMissionWorkQueue, saveMissionWorkQueue } from "./mission-work-queue
 import { sameGpt } from "./managed-eic-surface.mjs";
 import { TERMINAL_PHASES, PHASES } from "./contracts.mjs";
 import { CHECKPOINT_PREFIX, readCheckpoint } from "./durable-checkpoint.mjs";
-import { autonomousUserTurnProof, expectedAutonomousUserTurn } from "./turn-causality.mjs";
+import { autonomousUserTurnProof, expectedAutonomousUserTurn, expectedPromptMarker } from "./turn-causality.mjs";
 
 export function conversationKey(url) {
   try {
@@ -82,7 +82,8 @@ export async function reconcileRestart({ local, session, tabs, ensureBridge }) {
           const observed=await tabs.sendMessage(candidate.id,{
             type:"EIC_GF_GET_PAGE_STATE",
             expectedUserTurnId:expectedTurn.id,
-            expectedUserIndex:expectedTurn.index
+            expectedUserIndex:expectedTurn.index,
+            expectedPromptMarker:expectedPromptMarker(original)
           });
           const turnProof=observed?.ok ? autonomousUserTurnProof(original,observed.state) : {ok:false};
           if (observed?.ok && conversationKey(observed.state?.url)===conversationKey(candidate.url) && turnProof.ok) {
@@ -107,7 +108,8 @@ export async function reconcileRestart({ local, session, tabs, ensureBridge }) {
       const observed = legacyObservation ? {ok:true,state:legacyObservation} : await tabs.sendMessage(tab.id,{
         type:"EIC_GF_GET_PAGE_STATE",
         expectedUserTurnId:expectedTurn.id,
-        expectedUserIndex:expectedTurn.index
+        expectedUserIndex:expectedTurn.index,
+        expectedPromptMarker:expectedPromptMarker(original)
       });
       if (!observed?.ok) throw new Error("RECOVERY_PAGE_UNAVAILABLE");
       const proof = recoveryProof(original,observed.state,tab);

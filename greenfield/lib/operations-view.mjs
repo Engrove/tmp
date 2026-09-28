@@ -80,3 +80,74 @@ export function workerReason(process,now=Date.now()) {
   if (process.phase==="SENDING") return "Väntar på sändningskontroll eller kapacitet";
   return process.lastError?.message || process.phase || "Ingen aktiv process";
 }
+
+// v1.8.11 operator actions on a worker card: "Läs svar" and "Gå till nästa
+// uppgift i kön". Which phases offer them and what the result says.
+export function workerActionAvailability(process = {}, queue = null) {
+  const phase = String(process?.phase || "");
+  const readResponse = (phase === "SENDING" && process?.pendingDispatch?.effectPossible === true) || phase === "WAITING";
+  const queueManaged = Boolean(process?.queueContext?.itemId) && queue?.enabled !== false;
+  const nextQueueItem = (queueManaged && ["SENDING", "WAITING", "PAUSED"].includes(phase)) ||
+    (phase === "QUEUE_WAIT" && Boolean(queue?.enabled));
+  const nextReady = Number(queue?.readyCount || 0) > 0;
+  return { readResponse, nextQueueItem, nextReady };
+}
+
+const READ_OUTCOMES = Object.freeze({
+  RESPONSE_CAPTURED: "Svaret är inläst. Greenfield fortsätter.",
+  PROMPT_FOUND_READING: "Prompten hittades i konversationen. Svaret läses nu.",
+  READING: "Svaret läses nu.",
+  STILL_GENERATING: "ChatGPT skriver fortfarande. Svaret läses när det är klart.",
+  NO_ANSWER_YET: "Inget svar efter prompten ännu.",
+  PROMPT_NOT_FOUND: "Prompten kunde inte kopplas till en tur i konversationen.",
+  PHASE_CHANGED: "Läget ändrades medan svaret lästes.",
+  PROCESS_GONE: "Processen finns inte längre."
+});
+const ACTION_ERRORS = Object.freeze({
+  READ_RESPONSE_NO_NEW_USER_TURN: "ChatGPT visar ingen ny användartur efter föregående prompt – inget att läsa. Inget skickades om.",
+  READ_RESPONSE_NO_USER_TURN: "Ingen användartur syns i workerns flik.",
+  READ_RESPONSE_CONVERSATION_MISMATCH: "Fliken visar en annan konversation än workerns. Inget ändrades.",
+  READ_RESPONSE_PROMPT_NOT_SENT: "Prompten är inte skickad ännu – det finns inget svar att läsa.",
+  READ_RESPONSE_NOT_APPLICABLE: "Det finns inget svar att läsa i det här läget.",
+  READ_RESPONSE_PAGE_UNAVAILABLE: "Workerns flik svarar inte just nu.",
+  READ_RESPONSE_PROCESS_CHANGED: "Workern har bytt uppdrag. Försök igen.",
+  READ_RESPONSE_NO_PROCESS: "Workern har ingen process.",
+  QUEUE_NEXT_NONE_RUNNABLE: "Ingen annan uppgift i kön är redo att köras nu. Inget ändrades.",
+  QUEUE_NEXT_NOT_QUEUE_MANAGED: "Workern kör inte från uppdragskön.",
+  QUEUE_NEXT_ITEM_MISSING: "Uppdraget finns inte i kön (eller kön är avstängd).",
+  QUEUE_NEXT_NOT_ACTIVE: "Workern är inte aktiv.",
+  QUEUE_NEXT_NO_PROCESS: "Workern har ingen process.",
+  QUEUE_NEXT_PROCESS_CHANGED: "Workern har bytt uppdrag. Försök igen.",
+  RUNTIME_FAULT: "Greenfield är spärrat av ett körfel."
+});
+
+export function workerActionMessage(action, result = {}) {
+  if (result?.ok) {
+    if (action === "read-response") {
+      const text = READ_OUTCOMES[result.outcome] || String(result.outcome || "Klart.");
+      return result.boundByOperator
+        ? `Prompten kopplades till ChatGPT:s senaste användartur (ditt beslut). ${text}`
+        : text;
+    }
+    return result.outcome === "QUEUE_WOKEN"
+      ? "Nästa uppgift i kön startar."
+      : "Nästa uppgift startar i en ny chatt. Uppdraget parkerades med sin checkpoint.";
+  }
+  const code = String(result?.code || result?.error || "");
+  if (code === "READ_RESPONSE_SAFETY_HOLD") return `En annan spärr gäller: ${reasonLabel(result.holdCode)}. Läs svar ändrar den inte.`;
+  if (code === "QUEUE_NEXT_BUSY") return `Greenfield är mitt i ett steg (${result.phase || "okänt"}). Försök igen om en stund.`;
+  return ACTION_ERRORS[code] || code || "Åtgärden misslyckades.";
+}
+
+export function workerActionConfirmText(action, process = {}) {
+  const phase = String(process?.phase || "");
+  if (action === "read-response") {
+    return phase === "SENDING"
+      ? "Läs svar: Greenfield läser nu svaret i workerns flik. Hittas prompten inte automatiskt, kopplas ChatGPT:s senaste användartur efter föregående Greenfield-tur till prompten. Inget skickas om. Fortsätta?"
+      : "";
+  }
+  const unread = phase === "SENDING" || phase === "WAITING"
+    ? " Svaret på den senaste prompten har inte lästs; vill du ha med det, välj Läs svar först."
+    : "";
+  return `Gå till nästa uppgift i kön: nuvarande uppdrag parkeras med sin checkpoint och nästa uppgift startar i en ny chatt.${unread} Inget skickas om. Fortsätta?`;
+}
