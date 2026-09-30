@@ -151,3 +151,49 @@ export function workerActionConfirmText(action, process = {}) {
     : "";
   return `Gå till nästa uppgift i kön: nuvarande uppdrag parkeras med sin checkpoint och nästa uppgift startar i en ny chatt.${unread} Inget skickas om. Fortsätta?`;
 }
+
+// v1.8.12 reserved slot: what the card and the panel say and offer.
+export function reservedSlotView(reservation = {}, workerId = "") {
+  const reservedWorkerId = String(reservation?.workerId || "");
+  const here = Boolean(workerId) && reservedWorkerId === String(workerId);
+  const mode = String(reservation?.mode || "NONE");
+  let detail;
+  if (!reservedWorkerId) {
+    detail = "Med Max parallella 2 eller fler kan ett fönster få en egen plats som alltid är ledig för det. Övriga fönster delar på resten.";
+  } else if (!reservation.appliesNow) {
+    detail = "Reservationen gäller först när Max parallella är 2 eller fler.";
+  } else if (mode === "EXCLUSIVE") {
+    const shared = Number(reservation.sharedCapacity || 0);
+    detail = `1 plats är låst för ${here ? "detta fönster" : "det reserverade fönstret"}. Övriga fönster delar på ${shared} ${shared === 1 ? "plats" : "platser"}.`;
+  } else if (mode === "FIRST_IN_LINE") {
+    detail = "ChatGPT begränsar trafiken just nu (1 plats): det reserverade fönstret går först, men platsen är inte låst.";
+  } else if (mode === "SUSPENDED") {
+    detail = "ChatGPT-kvot: inga utskick just nu, inte heller från det reserverade fönstret.";
+  } else {
+    detail = "Reservationen väntar på nästa avläsning.";
+  }
+  if (reservedWorkerId && reservation.appliesNow && reservation.workerHasProcess === false) {
+    detail += " Det reserverade fönstret kör inget just nu; platsen står ändå låst.";
+  }
+  return {
+    reservedWorkerId,
+    here,
+    label: here ? "Detta fönster" : reservedWorkerId ? "Ett annat fönster" : "Ingen",
+    detail,
+    toggleText: here ? "Ta bort reservationen" : "Reservera en plats för detta fönster"
+  };
+}
+
+export function reservedSlotConfirmText(reserve, { movesFromOtherWindow = false } = {}) {
+  if (!reserve) return "";
+  return `Reservera en plats för det här fönstret: en av platserna låses för det, även när det inte kör, och övriga fönster delar på resten.${movesFromOtherWindow ? " Reservationen flyttas från ett annat fönster." : ""} Pågående svar avbryts inte. Fortsätta?`;
+}
+
+export function reservedSlotMessage(result = {}) {
+  if (!result?.ok) return ({ WORKER_ID_REQUIRED: "Fönstret saknar worker-id.", RESERVED_SLOT_READBACK_MISMATCH: "Reservationen kunde inte sparas." })[result?.code] ||
+    String(result?.error || result?.code || "Reservationen kunde inte ändras.");
+  if (!result.reservedWorkerId) return "Reservationen är borttagen. Alla fönster delar på platserna.";
+  return result.appliesNow
+    ? "Fönstret har nu en reserverad plats. Övriga fönster delar på resten."
+    : "Fönstret är reserverat. Det gäller när Max parallella är 2 eller fler.";
+}

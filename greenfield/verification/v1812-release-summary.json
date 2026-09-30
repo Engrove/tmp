@@ -1,9 +1,8 @@
 {
-  "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.8.12",
-  "releaseChannel": "1.8.12",
+  "schema": "eic.greenfield.v1812-release-summary.v1",
+  "version": "1.8.12",
   "generatedAt": "2026-09-30T04:46:59.679134+00:00",
-  "sourceBaseline": {
+  "source": {
     "file": "EIC_Autonom_Agent_Greenfield_v1.8.11.zip",
     "version": "1.8.11",
     "origin": "this repository, commit 8be1ed6",
@@ -20,6 +19,18 @@
     "implementation": "lib/global-capacity-scheduler.mjs: waiters and active turns carry workerId; laneSelection computes runnable waiters per lane; every entry point takes reservedWorkerId; snapshots report reservation {workerId, mode, reservedActive, reservedSlotFree, sharedCapacity, activeShared, sharedAvailableSlots}. lib/operator-settings.mjs: reservedWorkerId. background.js: schedulerCapacityContext derives the applied reservation (configured >= 2), all 10 scheduler call sites pass it and the process's workerId, EIC_GF_SET_RESERVED_SLOT (setReservedSlot, via withVerifiedWorkerMessage; one reservation at a time; wakes runnable waiters; audit SCHEDULER_RESERVED_SLOT_UPDATED), fleetStatus.reservation. Side panel: Drift -> Reserverad plats (this window), worker-card button Reservera plats / Släpp reserverad plats and badge, capacity line '1 plats reserverad'; texts in lib/operations-view.mjs.",
     "unchanged": "Global prompt pacing (policy minGapSeconds, post delay) and all safety gates apply to every window; turn ownership, exact-once dispatch and the per-window mission queues are unchanged.",
     "newPermissions": "none"
+  },
+  "gates": {
+    "RESERVED_SLOT_EXCLUSIVE_PASS": true,
+    "RESERVED_SLOT_NEVER_PREEMPTS_PASS": true,
+    "RESERVED_SLOT_IDLE_STAYS_LOCKED_PASS": true,
+    "SERIAL_RECOVERY_FIRST_IN_LINE_PASS": true,
+    "MAX_ONE_NO_RESERVATION_PASS": true,
+    "NO_RESERVATION_UNCHANGED_PASS": true,
+    "BACKGROUND_E2E_PASS": true,
+    "PANEL_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
   },
   "verification": {
     "environment": {

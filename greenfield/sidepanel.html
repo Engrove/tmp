@@ -11,8 +11,8 @@
     <header class="hero">
       <div>
         <div class="eyebrow">EIC AUTONOM AGENT</div>
-        <h1>Greenfield <span>v1.8.11</span></h1>
-        <div class="micro">1.8.11 · Skickad prompt hittas i lång tråd; Läs svar och Nästa uppgift i kön</div>
+        <h1>Greenfield <span>v1.8.12</span></h1>
+        <div class="micro">1.8.12 · Reserverad plats för ett prioriterat fönster</div>
       </div>
       <div id="continuityLamp" class="lamp" title="Continuity"></div>
     </header>
@@ -169,6 +169,18 @@
         <input id="maxActiveSessions" class="delay-range" type="range" min="1" max="4" step="1" value="2" aria-label="Max parallella Greenfield-sessioner">
         <div class="delay-scale"><span>1</span><span>2</span><span>4</span></div>
         <p class="micro">Normal kapacitet. Vid ChatGPT rate-limit går Greenfield automatiskt ned till 0 under cooldown och 1 under seriell recovery utan att avbryta redan aktiva turns.</p>
+
+        <div class="reserved-slot">
+          <div class="section-head">
+            <div>
+              <div class="label">Reserverad plats</div>
+              <strong id="reservedSlotState">Ingen</strong>
+            </div>
+            <span class="settings-scope">Global Chrome</span>
+          </div>
+          <button id="reservedSlotToggle" class="secondary" type="button">Reservera en plats för detta fönster</button>
+          <p id="reservedSlotDetail" class="micro" role="status"></p>
+        </div>
 
         <label class="priority-control" for="schedulerPriority">
           <span class="label">Prioritet för denna Greenfield-session</span>

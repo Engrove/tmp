@@ -88,11 +88,35 @@ export function effectiveSchedulerPriority(priority, readySinceMs, now = Date.no
   };
 }
 
+// v1.8.12 reserved slot. One worker (the Chrome window's Greenfield binding)
+// can be given a slot of its own for GFWs that must run around the clock.
+// With effective capacity >= 2 that slot is exclusive: the reserved worker
+// always finds it free, and no other worker may use it, even while the
+// reserved worker is idle; the other workers share capacity - 1. With
+// effective capacity 1 (serial rate-limit recovery) the reserved worker only
+// goes first. Callers pass an empty id when no reservation applies (the
+// configured capacity is 1). Running turns are never pre-empted.
+export const RESERVATION_MODES = Object.freeze({
+  NONE: "NONE",
+  EXCLUSIVE: "EXCLUSIVE",
+  FIRST_IN_LINE: "FIRST_IN_LINE",
+  SUSPENDED: "SUSPENDED"
+});
+
+export function normalizeReservedWorkerId(value) {
+  return String(value || "").trim().slice(0, 200);
+}
+
+function isReservedEntry(item, reservedWorkerId) {
+  return Boolean(reservedWorkerId) && item?.workerId === reservedWorkerId;
+}
+
 function normalizeWaiter(value = {}) {
   const processId = String(value.processId || "").trim();
   if (!processId) return null;
   return {
     processId,
+    workerId: normalizeReservedWorkerId(value.workerId),
     windowId: normalizeWindowId(value.windowId),
     promptHash: String(value.promptHash || ""),
     priority: normalizeGreenfieldPriority(value.priority),
@@ -107,6 +131,7 @@ function normalizeActiveTurn(value = {}) {
   if (!processId) return null;
   return {
     processId,
+    workerId: normalizeReservedWorkerId(value.workerId),
     windowId: normalizeWindowId(value.windowId),
     promptHash: String(value.promptHash || ""),
     priority: normalizeGreenfieldPriority(value.priority),
@@ -180,16 +205,59 @@ function publicWaiter(waiter, now, rank) {
   };
 }
 
+// Which waiters may take a slot now, in queue order, with the reserved
+// worker's lane applied.
+function laneSelection(state, { capacity, reservedWorkerId = "", now }) {
+  const effectiveCapacity = normalizeEffectiveCapacity(capacity);
+  const reserved = normalizeReservedWorkerId(reservedWorkerId);
+  const ranked = rankedWaiters(state, now);
+  const totalFree = Math.max(0, effectiveCapacity - state.activeTurns.length);
+  const activeReserved = state.activeTurns.filter((item) => isReservedEntry(item, reserved)).length;
+  const activeShared = state.activeTurns.length - activeReserved;
+  if (!reserved) {
+    return {
+      ordered: ranked,
+      runnable: ranked.slice(0, totalFree),
+      reservation: { workerId: "", mode: RESERVATION_MODES.NONE, reservedActive: false, reservedSlotFree: false,
+        sharedCapacity: effectiveCapacity, activeShared, sharedAvailableSlots: totalFree }
+    };
+  }
+  const reservedWaiters = ranked.filter((item) => isReservedEntry(item, reserved));
+  const sharedWaiters = ranked.filter((item) => !isReservedEntry(item, reserved));
+  const ordered = [...reservedWaiters, ...sharedWaiters];
+  if (effectiveCapacity >= 2) {
+    const reservedFree = activeReserved === 0 ? Math.min(1, totalFree) : 0;
+    const sharedFree = Math.max(0, Math.min(
+      effectiveCapacity - 1 - activeShared,
+      totalFree - (activeReserved === 0 ? 1 : 0)
+    ));
+    return {
+      ordered,
+      runnable: [...reservedWaiters.slice(0, reservedFree), ...sharedWaiters.slice(0, sharedFree)],
+      reservation: { workerId: reserved, mode: RESERVATION_MODES.EXCLUSIVE, reservedActive: activeReserved > 0,
+        reservedSlotFree: reservedFree > 0, sharedCapacity: effectiveCapacity - 1, activeShared, sharedAvailableSlots: sharedFree }
+    };
+  }
+  return {
+    ordered,
+    runnable: ordered.slice(0, totalFree),
+    reservation: { workerId: reserved,
+      mode: effectiveCapacity === 1 ? RESERVATION_MODES.FIRST_IN_LINE : RESERVATION_MODES.SUSPENDED,
+      reservedActive: activeReserved > 0, reservedSlotFree: false, sharedCapacity: effectiveCapacity, activeShared,
+      sharedAvailableSlots: totalFree }
+  };
+}
+
 function snapshotOf(state, {
   capacity = DEFAULT_MAX_ACTIVE_SESSIONS,
   configuredCapacity = capacity,
+  reservedWorkerId = "",
   now = Date.now()
 } = {}) {
   const effectiveCapacity = normalizeEffectiveCapacity(capacity);
   const configured = normalizeMaxActiveSessions(configuredCapacity);
-  const ranked = rankedWaiters(state, now);
+  const lanes = laneSelection(state, { capacity: effectiveCapacity, reservedWorkerId, now });
   const availableSlots = Math.max(0, effectiveCapacity - state.activeTurns.length);
-  const runnable = ranked.slice(0, availableSlots);
   return {
     schema: state.schema,
     configuredCapacity: configured,
@@ -197,9 +265,10 @@ function snapshotOf(state, {
     activeCount: state.activeTurns.length,
     waitingCount: state.waiters.length,
     availableSlots,
+    reservation: lanes.reservation,
     activeTurns: state.activeTurns.map((item) => ({ ...item })),
-    waiters: ranked.map((item, index) => publicWaiter(item, now, index + 1)),
-    runnableProcessIds: runnable.map((item) => item.processId),
+    waiters: lanes.ordered.map((item, index) => publicWaiter(item, now, index + 1)),
+    runnableProcessIds: lanes.runnable.map((item) => item.processId),
     updatedAt: state.updatedAt
   };
 }
@@ -215,10 +284,12 @@ export async function readGlobalCapacityScheduler(
 export async function requestGlobalTurnSlot({
   processId,
   windowId,
+  workerId = "",
   promptHash,
   priority = DEFAULT_GREENFIELD_PRIORITY,
   capacity = DEFAULT_MAX_ACTIVE_SESSIONS,
   configuredCapacity = capacity,
+  reservedWorkerId = "",
   now = Date.now(),
   storage = chrome.storage.local
 }) {
@@ -234,7 +305,7 @@ export async function requestGlobalTurnSlot({
     const active = current.activeTurns.find((item) => item.processId === id);
     if (active) {
       const samePrompt = !active.promptHash || active.promptHash === hash;
-      const snapshot = snapshotOf(current, { capacity, configuredCapacity, now: nowMs });
+      const snapshot = snapshotOf(current, { capacity, configuredCapacity, reservedWorkerId, now: nowMs });
       return {
         allowed: samePrompt,
         reason: samePrompt
@@ -254,6 +325,7 @@ export async function requestGlobalTurnSlot({
       const samePrompt = !existing.promptHash || existing.promptHash === hash;
       waiter = {
         ...existing,
+        workerId: normalizeReservedWorkerId(workerId) || existing.workerId,
         windowId: normalizeWindowId(windowId),
         promptHash: hash,
         priority: normalizedPriority,
@@ -273,6 +345,7 @@ export async function requestGlobalTurnSlot({
       const ticketSeq = current.ticketSeq + 1;
       waiter = {
         processId: id,
+        workerId: normalizeReservedWorkerId(workerId),
         windowId: normalizeWindowId(windowId),
         promptHash: hash,
         priority: normalizedPriority,
@@ -288,9 +361,7 @@ export async function requestGlobalTurnSlot({
     }
 
     const effectiveCapacity = normalizeEffectiveCapacity(capacity);
-    const ranked = rankedWaiters(current, nowMs);
-    const availableSlots = Math.max(0, effectiveCapacity - current.activeTurns.length);
-    const winners = ranked.slice(0, availableSlots);
+    const winners = laneSelection(current, { capacity: effectiveCapacity, reservedWorkerId, now: nowMs }).runnable;
     const selected = winners.some((item) => item.processId === id);
 
     if (!selected) {
@@ -301,6 +372,7 @@ export async function requestGlobalTurnSlot({
       const snapshot = snapshotOf(saved, {
         capacity: effectiveCapacity,
         configuredCapacity,
+        reservedWorkerId,
         now: nowMs
       });
       const queued = snapshot.waiters.find((item) => item.processId === id);
@@ -319,6 +391,7 @@ export async function requestGlobalTurnSlot({
     const selectedWaiter = current.waiters.find((item) => item.processId === id) || waiter;
     const activeTurn = {
       processId: id,
+      workerId: normalizeReservedWorkerId(workerId) || selectedWaiter.workerId || "",
       windowId: normalizeWindowId(windowId),
       promptHash: hash,
       priority: normalizedPriority,
@@ -341,6 +414,7 @@ export async function requestGlobalTurnSlot({
     const snapshot = snapshotOf(readback, {
       capacity: effectiveCapacity,
       configuredCapacity,
+      reservedWorkerId,
       now: nowMs
     });
     return {
@@ -358,10 +432,12 @@ export async function requestGlobalTurnSlot({
 export async function adoptGlobalTurnSlot({
   processId,
   windowId,
+  workerId = "",
   promptHash,
   priority = DEFAULT_GREENFIELD_PRIORITY,
   capacity = DEFAULT_MAX_ACTIVE_SESSIONS,
   configuredCapacity = capacity,
+  reservedWorkerId = "",
   observedEffect = false,
   now = Date.now(),
   storage = chrome.storage.local
@@ -379,7 +455,7 @@ export async function adoptGlobalTurnSlot({
     const effectiveCapacity = normalizeEffectiveCapacity(capacity);
     const existing = current.activeTurns.find((item) => item.processId === id);
     if (existing) {
-      const snapshot = snapshotOf(current, { capacity, configuredCapacity, now: nowMs });
+      const snapshot = snapshotOf(current, { capacity, configuredCapacity, reservedWorkerId, now: nowMs });
       return {
         adopted: false,
         alreadyActive: true,
@@ -393,6 +469,7 @@ export async function adoptGlobalTurnSlot({
     const waiter = current.waiters.find((item) => item.processId === id);
     const activeTurn = {
       processId: id,
+      workerId: normalizeReservedWorkerId(workerId) || waiter?.workerId || "",
       windowId: normalizeWindowId(windowId),
       promptHash: hash,
       priority: normalizeGreenfieldPriority(priority),
@@ -412,7 +489,7 @@ export async function adoptGlobalTurnSlot({
     if (!committed || committed.promptHash !== hash) {
       throw new Error("GLOBAL_CAPACITY_ADOPT_READBACK_MISMATCH");
     }
-    const snapshot = snapshotOf(readback, { capacity, configuredCapacity, now: nowMs });
+    const snapshot = snapshotOf(readback, { capacity, configuredCapacity, reservedWorkerId, now: nowMs });
     return {
       adopted: true,
       alreadyActive: false,
@@ -430,6 +507,7 @@ export async function releaseGlobalTurnSlot({
   promptHash = "",
   capacity = DEFAULT_MAX_ACTIVE_SESSIONS,
   configuredCapacity = capacity,
+  reservedWorkerId = "",
   now = Date.now(),
   storage = chrome.storage.local
 }) {
@@ -444,7 +522,7 @@ export async function releaseGlobalTurnSlot({
       return {
         released: false,
         reason: "GLOBAL_CAPACITY_RELEASE_PROMPT_MISMATCH",
-        scheduler: snapshotOf(current, { capacity, configuredCapacity, now: nowMs }),
+        scheduler: snapshotOf(current, { capacity, configuredCapacity, reservedWorkerId, now: nowMs }),
         runnableProcessIds: []
       };
     }
@@ -457,6 +535,7 @@ export async function releaseGlobalTurnSlot({
     const snapshot = snapshotOf(readback, {
       capacity,
       configuredCapacity,
+      reservedWorkerId,
       now: nowMs
     });
     return {
@@ -472,6 +551,7 @@ export async function cancelGlobalTurnProcess({
   processId,
   capacity = DEFAULT_MAX_ACTIVE_SESSIONS,
   configuredCapacity = capacity,
+  reservedWorkerId = "",
   now = Date.now(),
   storage = chrome.storage.local
 }) {
@@ -492,6 +572,7 @@ export async function cancelGlobalTurnProcess({
     const snapshot = snapshotOf(readback, {
       capacity,
       configuredCapacity,
+      reservedWorkerId,
       now: nowMs
     });
     return {
@@ -509,6 +590,7 @@ export async function updateGlobalTurnPriority({
   priority,
   capacity = DEFAULT_MAX_ACTIVE_SESSIONS,
   configuredCapacity = capacity,
+  reservedWorkerId = "",
   now = Date.now(),
   storage = chrome.storage.local
 }) {
@@ -536,6 +618,7 @@ export async function updateGlobalTurnPriority({
     const snapshot = snapshotOf(readback, {
       capacity,
       configuredCapacity,
+      reservedWorkerId,
       now: nowMs
     });
     return {
@@ -551,6 +634,7 @@ export async function reconcileGlobalCapacityScheduler({
   eligibleWaiters = [],
   capacity = DEFAULT_MAX_ACTIVE_SESSIONS,
   configuredCapacity = capacity,
+  reservedWorkerId = "",
   now = Date.now(),
   storage = chrome.storage.local
 } = {}) {
@@ -584,6 +668,7 @@ export async function reconcileGlobalCapacityScheduler({
       nextActive.push(prior
         ? {
             ...prior,
+            workerId: candidate.workerId || prior.workerId,
             windowId: candidate.windowId,
             promptHash: candidate.promptHash || prior.promptHash,
             priority: candidate.priority,
@@ -601,6 +686,7 @@ export async function reconcileGlobalCapacityScheduler({
       if (prior && (!candidate.promptHash || candidate.promptHash === prior.promptHash)) {
         nextWaiters.push({
           ...prior,
+          workerId: candidate.workerId || prior.workerId,
           windowId: candidate.windowId,
           promptHash: candidate.promptHash || prior.promptHash,
           priority: candidate.priority,
@@ -628,6 +714,7 @@ export async function reconcileGlobalCapacityScheduler({
     const snapshot = snapshotOf(readback, {
       capacity,
       configuredCapacity,
+      reservedWorkerId,
       now: nowMs
     });
     return {

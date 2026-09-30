@@ -1,0 +1,6 @@
+Greenfield v1.8.12 syntax verification
+command: node --check <each .js/.mjs/.cjs>
+node: v22.22.2
+files: 159
+pass: 159
+fail: 0

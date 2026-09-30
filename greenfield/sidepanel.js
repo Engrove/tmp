@@ -1,4 +1,4 @@
-import { fleetHealth, reasonLabel, workerActionAvailability, workerActionConfirmText, workerActionMessage, workerReason } from "./lib/operations-view.mjs";
+import { fleetHealth, reasonLabel, reservedSlotConfirmText, reservedSlotMessage, reservedSlotView, workerActionAvailability, workerActionConfirmText, workerActionMessage, workerReason } from "./lib/operations-view.mjs";
 import { auditAsNdjson } from "./lib/audit-store.mjs";
 import { modelCreateOptions } from "./lib/model-config.mjs";
 import { PHASES, TERMINAL_PHASES, AUDIT_FIFO_LIMIT } from "./lib/contracts.mjs";
@@ -46,6 +46,9 @@ const state = {
   // v1.8.11: per-worker "Läs svar" / "Gå till nästa uppgift i kön" results.
   workerActionBusy: "",
   workerActionNotices: {},
+  // v1.8.12 reserved slot: busy flag and the last result line.
+  reservedSlotBusy: false,
+  reservedSlotNotice: "",
   instructionBusy: false,
   auditBusy: false,
   operatorSettings: {
@@ -967,6 +970,37 @@ async function runWorkerAction(button) {
   await snapshot();
 }
 
+// v1.8.12: one capacity slot reserved for one window (Drift and the cards).
+function renderReservedSlot() {
+  if (!$("reservedSlotToggle")) return;
+  const view = reservedSlotView(state.fleetStatus?.reservation || {}, state.workerId);
+  $("reservedSlotState").textContent = view.label;
+  $("reservedSlotDetail").textContent = state.reservedSlotNotice ? `${state.reservedSlotNotice} ${view.detail}` : view.detail;
+  $("reservedSlotToggle").textContent = view.toggleText;
+  $("reservedSlotToggle").disabled = state.reservedSlotBusy || !state.workerId || !Number.isInteger(state.windowId);
+}
+
+async function setReservedSlot({ windowId, workerId, reserve }) {
+  if (state.reservedSlotBusy) return;
+  const reservedWorkerId = String(state.fleetStatus?.reservation?.workerId || "");
+  const question = reservedSlotConfirmText(reserve, { movesFromOtherWindow: Boolean(reservedWorkerId) && reservedWorkerId !== workerId });
+  if (question && !globalThis.confirm(question)) return;
+  state.reservedSlotBusy = true;
+  renderReservedSlot();
+  let result;
+  try {
+    result = await chrome.runtime.sendMessage({ type: "EIC_GF_SET_RESERVED_SLOT", windowId, workerId, enabled: reserve === true });
+  } catch (error) {
+    result = { ok: false, error: error?.message || String(error) };
+  } finally {
+    state.reservedSlotBusy = false;
+  }
+  state.reservedSlotNotice = reservedSlotMessage(result || {});
+  if (result?.operatorSettings) state.operatorSettings = result.operatorSettings;
+  if (result?.globalCapacityScheduler) state.globalCapacityScheduler = result.globalCapacityScheduler;
+  await snapshot();
+}
+
 function renderFleetStatus() {
   const fleet = state.fleetStatus || {};
   const workers = Array.isArray(fleet.workers) ? fleet.workers : [];
@@ -998,7 +1032,8 @@ function renderFleetStatus() {
   $("opsWorkerCount").textContent=String(workers.length);
   const gateWait=Math.max(0,Number(fleet.promptGate?.nextAllowedAtMs||0)-now);
   $("fleetPromptGate").textContent=gateWait>0 ? formatCountdown(gateWait) : fleet.promptGate ? "Tidsvillkor uppfyllt" : "Okänd";
-  $("fleetGlobalDetail").textContent=`${n(fleet.usedCapacity)}/${n(fleet.effectiveCapacity)} platser · ${n(fleet.waitingCount)} väntar`;
+  $("fleetGlobalDetail").textContent=`${n(fleet.usedCapacity)}/${n(fleet.effectiveCapacity)} platser · ${n(fleet.waitingCount)} väntar${fleet.reservation?.mode === "EXCLUSIVE" ? " · 1 plats reserverad" : ""}`;
+  renderReservedSlot();
   const u=fleet.safety || {}, policy=u.policy || {};
   $("usageTokens").textContent=u.error || !u.policy ? "Okänt" : n(Number(u.inputTokens24h||0)+Number(u.outputTokens24h||0));
   $("usageTokenSplit").textContent=u.error || !u.policy ? "Förbrukningen kunde inte läsas" : `${n(u.inputTokens24h)} in · ${n(u.outputTokens24h)} ut`;
@@ -1024,8 +1059,10 @@ function renderFleetStatus() {
     const title=item.label || (p.goal || "Uppdrag").split("\n")[0];
     const tone=p.safety?.qualityIncident || p.storageRecoveryRequired ? "danger" : hold ? "warn" : "neutral";
     const summary=p.lastResponse?.summary || p.lastResponse?.contract?.value?.summary || p.lastDecision?.reason || "";
-    return `<article class="fleet-worker" data-tone="${tone}">
+    const reservedHere = Boolean(p.workerId) && String(fleet.reservation?.workerId || "") === p.workerId;
+    return `<article class="fleet-worker" data-tone="${tone}"${reservedHere ? ' data-reserved="true"' : ""}>
       <div class="fleet-worker-head"><strong>${escapeHtml(short(title,110))}</strong><span class="fleet-phase">${escapeHtml(p.phase || "IDLE")}</span></div>
+      ${reservedHere ? `<div class="reserved-badge">Reserverad plats${fleet.reservation?.appliesNow ? "" : " · gäller vid Max parallella ≥ 2"}</div>` : ""}
       <p class="worker-reason">${escapeHtml(workerReason(p,now))}</p>
       <div class="worker-model" data-ok="${proof.allowed===true}">${escapeHtml(proof.model || "Modell okänd")} · ${escapeHtml(proof.effort || "Tänkenivå okänd")}</div>
       <div class="fleet-meta"><span>Tur ${n(p.turn)} · session ${n(p.sessionSeq)}</span><span>${escapeHtml(priorityLabel(p.schedulerPriority))}</span><span>${n(q.readyCount)} redo · ${n(q.pausedCount)} sover · ${n(q.blockedCount)} blockerade</span></div>
@@ -1033,6 +1070,7 @@ function renderFleetStatus() {
       ${retry>now ? `<div class="worker-next">Nästa kontroll tidigast ${escapeHtml(formatTime(retry))} · om ${escapeHtml(formatMissionCountdown(retry-now))}</div>` : ""}
       ${summary ? `<p class="worker-summary">${escapeHtml(short(summary,200))}</p>` : ""}
       ${workerActionsHtml(p, q, now)}
+      ${p.workerId && Number.isInteger(p.windowId) ? `<div class="worker-actions"><button type="button" class="ghost" data-slot-action="${reservedHere ? "release" : "reserve"}" data-window-id="${escapeHtml(String(p.windowId))}" data-worker-id="${escapeHtml(p.workerId)}"${state.reservedSlotBusy ? " disabled" : ""}>${reservedHere ? "Släpp reserverad plats" : "Reservera plats"}</button></div>` : ""}
       <details class="worker-details" data-worker-key="${escapeHtml(workerDetailsKey)}"${workerDetailsKey && previouslyOpenWorkerKeys.has(workerDetailsKey) ? " open" : ""}><summary>Uppdrag och identitet</summary><p>${escapeHtml(short(p.goal,1200))}</p><code>${escapeHtml(p.workerId || "")}<br>${escapeHtml(p.processId || "")}</code><p>${escapeHtml(reasonLabel(proof.code))} · ${escapeHtml(p.lastManagedUrl || "Konversationsadress saknas")}</p><p>Modellkontrollen bygger på synligt gränssnitt. Den intygar inte serverns interna modell.</p></details>
     </article>`;
   }).join("") : '<div class="fleet-empty">Inga pågående workers i denna profil.</div>';
@@ -2114,6 +2152,18 @@ for (const type of ["pointerup", "pointercancel"]) {
 $("fleetWorkers").addEventListener("click", (event) => {
   const button = event.target.closest?.("button[data-worker-action]");
   if (button && !button.disabled) void runWorkerAction(button);
+  const slotButton = event.target.closest?.("button[data-slot-action]");
+  if (slotButton && !slotButton.disabled) {
+    void setReservedSlot({
+      windowId: Number(slotButton.dataset.windowId),
+      workerId: slotButton.dataset.workerId || "",
+      reserve: slotButton.dataset.slotAction === "reserve"
+    });
+  }
+});
+$("reservedSlotToggle").addEventListener("click", () => {
+  const view = reservedSlotView(state.fleetStatus?.reservation || {}, state.workerId);
+  void setReservedSlot({ windowId: state.windowId, workerId: state.workerId, reserve: !view.here });
 });
 $("queueInstruction").addEventListener("click", queueInstruction);
 $("clearInstruction").addEventListener("click", clearInstruction);
@@ -2320,7 +2370,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.8.11" }
+      payload: { appVersion: "1.8.12" }
     });
     await snapshot();
   } catch (error) {

@@ -1,0 +1,76 @@
+TAP version 13
+# Subtest: v1.8.12 repro: without a reservation two other windows can hold both slots and the 24/7 window waits, even as URGENT
+ok 1 - v1.8.12 repro: without a reservation two other windows can hold both slots and the 24/7 window waits, even as URGENT
+  ---
+  duration_ms: 8.397761
+  type: 'test'
+  ...
+# Subtest: v1.8.12: with a reservation the reserved window always finds its slot; the others share capacity - 1
+ok 2 - v1.8.12: with a reservation the reserved window always finds its slot; the others share capacity - 1
+  ---
+  duration_ms: 1.068289
+  type: 'test'
+  ...
+# Subtest: v1.8.12: the reserved slot stays locked while the reserved window is idle, however long others wait
+ok 3 - v1.8.12: the reserved slot stays locked while the reserved window is idle, however long others wait
+  ---
+  duration_ms: 0.724029
+  type: 'test'
+  ...
+# Subtest: v1.8.12: turns running when the reservation is set are not interrupted; the first freed slot goes to the reserved window
+ok 4 - v1.8.12: turns running when the reservation is set are not interrupted; the first freed slot goes to the reserved window
+  ---
+  duration_ms: 0.999263
+  type: 'test'
+  ...
+# Subtest: v1.8.12: with 3 slots the others share 2; after the reserved turn ends its slot stays reserved
+ok 5 - v1.8.12: with 3 slots the others share 2; after the reserved turn ends its slot stays reserved
+  ---
+  duration_ms: 0.934382
+  type: 'test'
+  ...
+# Subtest: v1.8.12: at 1 slot (serial rate-limit recovery) the reserved window only goes first; at 0 nobody runs
+ok 6 - v1.8.12: at 1 slot (serial rate-limit recovery) the reserved window only goes first; at 0 nobody runs
+  ---
+  duration_ms: 1.53309
+  type: 'test'
+  ...
+# Subtest: v1.8.12: an empty reservation id keeps v1.8.11's behaviour, and reconciliation keeps the worker id
+ok 7 - v1.8.12: an empty reservation id keeps v1.8.11's behaviour, and reconciliation keeps the worker id
+  ---
+  duration_ms: 1.043018
+  type: 'test'
+  ...
+# Subtest: v1.8.12 E2E: the reserved window sends although another window holds the shared slot and an older URGENT waiter queues
+ok 8 - v1.8.12 E2E: the reserved window sends although another window holds the shared slot and an older URGENT waiter queues
+  ---
+  duration_ms: 451.91469
+  type: 'test'
+  ...
+# Subtest: v1.8.12 E2E: without the reservation the same window waits behind the other windows
+ok 9 - v1.8.12 E2E: without the reservation the same window waits behind the other windows
+  ---
+  duration_ms: 172.890558
+  type: 'test'
+  ...
+# Subtest: v1.8.12: Max parallella = 1 keeps the reservation but applies none; reserving elsewhere moves it; releasing elsewhere does not clear it
+ok 10 - v1.8.12: Max parallella = 1 keeps the reservation but applies none; reserving elsewhere moves it; releasing elsewhere does not clear it
+  ---
+  duration_ms: 192.323055
+  type: 'test'
+  ...
+# Subtest: v1.8.12 panel: the reserved slot is shown and set per window, with Swedish texts
+ok 11 - v1.8.12 panel: the reserved slot is shown and set per window, with Swedish texts
+  ---
+  duration_ms: 4.4629
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 955.585626

@@ -1,6 +1,8 @@
-# EIC Autonom Agent Greenfield 1.8.11
+# EIC Autonom Agent Greenfield 1.8.12
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.8.12 låter ett fönster få en **reserverad plats**. Med Max parallella 2 eller fler låses en plats för det fönstret, också när det inte kör just då. Övriga fönster delar på resten, och det reserverade fönstret väntar aldrig på platser bakom dem. Det är tänkt för GFW:er som ska gå dygnet runt. Pågående svar avbryts inte. Se [UPPDATERA_TILL_1_8_12.md](UPPDATERA_TILL_1_8_12.md).
 
 Version 1.8.11 rättar att sessionen inte visste att svaret redan var levererat. ChatGPT:s tråd är virtualiserad: bara turerna nära fönstret ligger i sidan, och långa användarmeddelanden fälls ihop med ett extra ”…”. Efter ungefär fem turer växte därför inte antalet synliga användarmeddelanden, och Greenfield kunde inte koppla den skickade prompten till sin tur. Processen stod kvar i SENDING med ”Oklart om prompten skickades – inget omskick”, trots att ChatGPT hade svarat. Nu letar Greenfield upp prompten på dess eget A2A-`messageId` i tråden. Två nya knappar på workerkortet låter operatören driva på: **Läs svar** och **Gå till nästa uppgift i kön**. Se [UPPDATERA_TILL_1_8_11.md](UPPDATERA_TILL_1_8_11.md).
 
@@ -31,6 +33,22 @@ Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfiel
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.8.12
+
+- **Reserverad plats:**
+  - Inställningen heter `reservedWorkerId`.
+  - Den väljs i fönstrets panel under **Drift → Reserverad plats**, eller på workerkortet med **Reservera plats** (`EIC_GF_SET_RESERVED_SLOT`, bunden till fönstrets verifierade worker).
+  - Bara en reservation åt gången gäller.
+- **Schemaläggaren** (`lib/global-capacity-scheduler.mjs`) räknar platser i två körfiler:
+  - Med effektiv kapacitet 2 eller mer är en plats exklusiv för den reserverade workern (`EXCLUSIVE`), och övriga delar på kapacitet − 1.
+  - Vid 1 plats (seriell återhämtning) går den reserverade först (`FIRST_IN_LINE`). Vid 0 skickar ingen.
+  - Med Max parallella = 1 gäller ingen reservation.
+  - Väntande och aktiva turer bär `workerId`.
+  - Ingen pågående tur avbryts.
+- **Panel och drift:**
+  - Märket **Reserverad plats** visas på workerkortet och ”1 plats reserverad” i kapacitetsraden.
+  - Driftstatus (`fleetStatus.reservation`) visar reservationens läge.
 
 ## Nytt i 1.8.11
 
@@ -222,4 +240,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.11.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.12.

@@ -105,6 +105,9 @@ export function normalizeOperatorSettings(value = {}) {
     queueSwitchSettleSeconds: normalizeQueueSwitchSettleSeconds(
       value.queueSwitchSettleSeconds ?? DEFAULT_QUEUE_SWITCH_SETTLE_SECONDS
     ),
+    // v1.8.12: the worker (Chrome window binding) that owns the reserved
+    // capacity slot; "" = no reservation.
+    reservedWorkerId: String(value.reservedWorkerId || "").trim().slice(0, 200),
     workModeEnabled: value.workModeEnabled === true,
     workModeSupervisorWorkerId: String(value.workModeSupervisorWorkerId || "").trim().slice(0, 200),
     workModeEndpoint: normalizeWorkModeEndpoint(value.workModeEndpoint ?? DEFAULT_WORK_MODE_ENDPOINT),

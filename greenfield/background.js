@@ -746,9 +746,15 @@ async function schedulerCapacityContext({
     globalGate?.rateLimit?.state || "NORMAL",
     configuredCapacity
   );
+  // v1.8.12: a reserved slot applies only when more than one Greenfield may
+  // run; with Max parallella = 1 the setting is kept but has no effect.
+  const reservedWorkerSetting = String(operatorSettings?.reservedWorkerId || "");
+  const reservedWorkerId = configuredCapacity >= 2 ? reservedWorkerSetting : "";
   return {
     configuredCapacity,
     effectiveCapacity,
+    reservedWorkerSetting,
+    reservedWorkerId,
     rateLimitState: globalGate?.rateLimit?.state || "NORMAL",
     gate: globalGate,
     settings: operatorSettings
@@ -769,7 +775,8 @@ async function currentSchedulerSnapshot({ gate = null, settings = null } = {}) {
   const context = await schedulerCapacityContext({ gate, settings });
   const scheduler = await readGlobalCapacityScheduler(chrome.storage.local, {
     capacity: context.effectiveCapacity,
-    configuredCapacity: context.configuredCapacity
+    configuredCapacity: context.configuredCapacity,
+    reservedWorkerId: context.reservedWorkerId
   });
   return { context, scheduler };
 }
@@ -784,7 +791,8 @@ async function releaseSchedulerTurn(process, {
     processId: process.processId,
     promptHash: promptHash || process.lastPrompt?.hash || process.pendingPrompt?.hash || "",
     capacity: context.effectiveCapacity,
-    configuredCapacity: context.configuredCapacity
+    configuredCapacity: context.configuredCapacity,
+    reservedWorkerId: context.reservedWorkerId
   });
   wakeSchedulerProcesses(result?.runnableProcessIds || []);
   await audit(process, "GLOBAL_CAPACITY_SLOT_RELEASED", "capacity-scheduler", {
@@ -804,7 +812,8 @@ async function cancelSchedulerProcess(process, reason = "PROCESS_CANCELLED") {
   const result = await cancelGlobalTurnProcess({
     processId: process.processId,
     capacity: context.effectiveCapacity,
-    configuredCapacity: context.configuredCapacity
+    configuredCapacity: context.configuredCapacity,
+    reservedWorkerId: context.reservedWorkerId
   });
   wakeSchedulerProcesses(result?.runnableProcessIds || []);
   await audit(process, "GLOBAL_CAPACITY_PROCESS_CANCELLED", "capacity-scheduler", {
@@ -824,10 +833,12 @@ async function adoptSchedulerTurnForObservedEffect(process, promptHash, reason) 
   const result = await adoptGlobalTurnSlot({
     processId: process.processId,
     windowId: process.windowId,
+    workerId: process.workerId || "",
     promptHash,
     priority: process.schedulerPriority || DEFAULT_GREENFIELD_PRIORITY,
     capacity: context.effectiveCapacity,
     configuredCapacity: context.configuredCapacity,
+    reservedWorkerId: context.reservedWorkerId,
     observedEffect: true
   });
   await audit(process, "GLOBAL_CAPACITY_SLOT_ADOPTED", "capacity-scheduler", {
@@ -4968,10 +4979,12 @@ async function tickSending(process) {
   const capacityClaim = await requestGlobalTurnSlot({
     processId: process.processId,
     windowId: process.windowId,
+    workerId: process.workerId || "",
     promptHash: pending.hash,
     priority: process.schedulerPriority || DEFAULT_GREENFIELD_PRIORITY,
     capacity: capacityContext.effectiveCapacity,
-    configuredCapacity: capacityContext.configuredCapacity
+    configuredCapacity: capacityContext.configuredCapacity,
+    reservedWorkerId: capacityContext.reservedWorkerId
   });
   if (capacityClaim.allowed !== true) {
     const staleSameProcessPrompt = Boolean(
@@ -6438,7 +6451,8 @@ async function refreshSchedulerPriority(process) {
     processId: process.processId,
     priority: process.schedulerPriority,
     capacity: context.effectiveCapacity,
-    configuredCapacity: context.configuredCapacity
+    configuredCapacity: context.configuredCapacity,
+    reservedWorkerId: context.reservedWorkerId
   }).catch(() => null);
   wakeSchedulerProcesses(schedulerUpdate?.runnableProcessIds || []);
 }
@@ -8303,6 +8317,16 @@ async function fleetStatusSnapshot() {
       activeLease: Boolean(gate.activeLease)
     } : null,
     workModeEnabled: settings.workModeEnabled === true,
+    // v1.8.12 reserved slot (see lib/global-capacity-scheduler.mjs).
+    reservation: {
+      workerId: String(settings.reservedWorkerId || ""),
+      appliesNow: Boolean(schedulerView.context?.reservedWorkerId),
+      mode: String(schedulerView.scheduler?.reservation?.mode || "NONE"),
+      reservedActive: schedulerView.scheduler?.reservation?.reservedActive === true,
+      sharedCapacity: Number(schedulerView.scheduler?.reservation?.sharedCapacity ?? schedulerView.scheduler?.effectiveCapacity ?? 0),
+      workerHasProcess: Boolean(settings.reservedWorkerId) &&
+        rows.some((row) => row.process?.workerId === settings.reservedWorkerId && !TERMINAL_PHASES.has(row.process.phase))
+    },
     workers: rows
   };
 }
@@ -8388,7 +8412,8 @@ async function setSchedulerPriority({ windowId, priority }) {
       processId: updated.processId,
       priority: normalizedPriority,
       capacity: context.effectiveCapacity,
-      configuredCapacity: context.configuredCapacity
+      configuredCapacity: context.configuredCapacity,
+      reservedWorkerId: context.reservedWorkerId
     });
     wakeSchedulerProcesses(schedulerUpdate?.runnableProcessIds || []);
     await audit(updated, "SCHEDULER_PRIORITY_UPDATED", "capacity-scheduler", {
@@ -8409,6 +8434,61 @@ async function setSchedulerPriority({ windowId, priority }) {
   });
 }
 
+// v1.8.12: reserve (or release) one capacity slot for this window's worker.
+// One reservation at a time; reserving here moves it from any other worker.
+// Running turns are never interrupted; waiters are woken under the new lanes.
+async function setReservedSlot({ windowId, workerId, enabled }) {
+  await runtimeReady;
+  if (runtimeFault) return { ok: false, code: "RUNTIME_FAULT", error: runtimeFault };
+  const worker = String(workerId || "").trim();
+  if (!worker) return { ok: false, code: "WORKER_ID_REQUIRED" };
+  const current = await loadOperatorSettings(chrome.storage.local, { restoreSavedMissions: false, bookmarks: null });
+  const previous = String(current.reservedWorkerId || "");
+  const next = enabled === true ? worker : (previous === worker ? "" : previous);
+  const settings = previous === next
+    ? current
+    : await saveOperatorSettings({ reservedWorkerId: next }, chrome.storage.local, { restoreSavedMissions: false, bookmarks: null });
+  if (String(settings.reservedWorkerId || "") !== next) {
+    return { ok: false, code: "RESERVED_SLOT_READBACK_MISMATCH" };
+  }
+  const gate = await readGlobalPromptGate().catch(() => null);
+  const context = await schedulerCapacityContext({ gate, settings });
+  const scheduler = await readGlobalCapacityScheduler(chrome.storage.local, {
+    capacity: context.effectiveCapacity,
+    configuredCapacity: context.configuredCapacity,
+    reservedWorkerId: context.reservedWorkerId
+  });
+  wakeSchedulerProcesses(scheduler?.runnableProcessIds || []);
+  const process = Number.isInteger(windowId) ? await loadProcessForWindow(windowId).catch(() => null) : null;
+  await appendAudit({
+    process,
+    scope: process ? "RUN" : (Number.isInteger(windowId) ? "WINDOW" : "APP"),
+    auditSessionId: process?.auditSessionId || BACKGROUND_AUDIT_SESSION_ID,
+    windowId: process?.windowId ?? windowId ?? null,
+    kind: "SCHEDULER_RESERVED_SLOT_UPDATED",
+    component: "capacity-scheduler",
+    payload: {
+      previousWorkerId: previous,
+      reservedWorkerId: next,
+      changed: previous !== next,
+      configuredCapacity: context.configuredCapacity,
+      effectiveCapacity: context.effectiveCapacity,
+      mode: scheduler?.reservation?.mode || "NONE",
+      nonPreemptive: true
+    }
+  }).catch(() => undefined);
+  if (process) await broadcast(process, "scheduler-reserved-slot-updated");
+  return {
+    ok: true,
+    changed: previous !== next,
+    previousWorkerId: previous,
+    reservedWorkerId: next,
+    appliesNow: Boolean(context.reservedWorkerId),
+    operatorSettings: settings,
+    globalCapacityScheduler: scheduler
+  };
+}
+
 async function setMaxActiveSessions({ windowId, maxActiveSessions }) {
   const value = Number(maxActiveSessions);
   const settings = await saveOperatorSettings(
@@ -8420,7 +8500,8 @@ async function setMaxActiveSessions({ windowId, maxActiveSessions }) {
   const context = await schedulerCapacityContext({ gate, settings });
   const scheduler = await readGlobalCapacityScheduler(chrome.storage.local, {
     capacity: context.effectiveCapacity,
-    configuredCapacity: context.configuredCapacity
+    configuredCapacity: context.configuredCapacity,
+    reservedWorkerId: context.reservedWorkerId
   });
   wakeSchedulerProcesses(scheduler?.runnableProcessIds || []);
 
@@ -8641,6 +8722,7 @@ function potentialActiveTurnDescriptor(process, priorActive = null) {
 
   return {
     processId: process.processId,
+    workerId: process.workerId || "",
     windowId: process.windowId,
     promptHash,
     priority: normalizeGreenfieldPriority(
@@ -8661,7 +8743,8 @@ async function reconcileSchedulerAfterHydration(processes) {
   const context = await schedulerCapacityContext({ gate, settings });
   const prior = await readGlobalCapacityScheduler(chrome.storage.local, {
     capacity: context.effectiveCapacity,
-    configuredCapacity: context.configuredCapacity
+    configuredCapacity: context.configuredCapacity,
+    reservedWorkerId: context.reservedWorkerId
   }).catch(() => ({
     activeTurns: [],
     waiters: []
@@ -8704,6 +8787,7 @@ async function reconcileSchedulerAfterHydration(processes) {
     ) {
       eligibleWaiters.push({
         processId: process.processId,
+        workerId: process.workerId || "",
         windowId: process.windowId,
         promptHash: pendingHash,
         priority: normalizeGreenfieldPriority(
@@ -8719,7 +8803,8 @@ async function reconcileSchedulerAfterHydration(processes) {
     activeTurns,
     eligibleWaiters,
     capacity: context.effectiveCapacity,
-    configuredCapacity: context.configuredCapacity
+    configuredCapacity: context.configuredCapacity,
+    reservedWorkerId: context.reservedWorkerId
   });
   wakeSchedulerProcesses(reconciled?.runnableProcessIds || []);
   for (const process of staleSurfaceProcesses) {
@@ -9422,6 +9507,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return respond(withVerifiedWorkerMessage(message, sender, (bound) => setSchedulerPriority({
         windowId: bound.windowId,
         priority: bound.priority
+      })));
+    case "EIC_GF_SET_RESERVED_SLOT":
+      return respond(withVerifiedWorkerMessage(message, sender, (bound) => setReservedSlot({
+        windowId: bound.windowId,
+        workerId: bound.workerId,
+        enabled: bound.enabled === true
       })));
     case "EIC_GF_SET_MAX_ACTIVE_SESSIONS":
       return respond(withVerifiedWorkerMessage(message, sender, (bound) => setMaxActiveSessions({
