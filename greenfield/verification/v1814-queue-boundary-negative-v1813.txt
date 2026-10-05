@@ -1,0 +1,22 @@
+Greenfield v1.8.14 negative control: tests/v1814-queue-boundary-no-analysis.test.mjs against v1.8.13 (git archive of commit d510242, APP_VERSION 1.8.13).
+Only the pure policy lib/queue-boundary.mjs was copied in so the test file loads; it is not wired into v1.8.13's background.js.
+
+not ok 1 - v1.8.14 reproduction: quantum 1/1 complete -> next GFW without Nano/Hjalmar
+not ok 2 - v1.8.14: 15/15 complete is a boundary as well
+not ok 3 - v1.8.14: the answer's own YIELD_TO_QUEUE before the quantum ends skips analysis and keeps quantum progress
+not ok 4 - v1.8.14: CONTINUE / PAUSE_PROCESS 3600 s at 1/1 (the reported screen) parks with the pause, no analysis
+ok 5 - v1.8.14: inside the quantum (1/3, KEEP) the answer is analysed and the next prompt is planned as before
+ok 6 - v1.8.14: no other runnable slot -> analysed (this slot continues and needs a planned prompt)
+ok 7 - v1.8.14: a NANO_TASK request at the boundary is still executed through the analysis path
+ok 8 - v1.8.14: status DONE at the boundary is decided by the full path (the GFW is retired)
+ok 9 - v1.8.14: a waiting operator instruction keeps the analysis
+ok 10 - v1.8.14: a plain-text answer without A2A control is analysed
+not ok 11 - v1.8.14: runtime control in the boundary answer is still applied (SET_PRIORITY LOW), without analysis
+not ok 12 - v1.8.14: the AI cannot raise priority above the operator's at the boundary either (rejected with a receipt)
+ok 13 - v1.8.14 policy: only a certain queue boundary with structured CONTINUE skips analysis
+not ok 14 - v1.8.14 E2E: the parked GFW comes back with a valid FULL resume prompt built from the answer's own next step
+# tests 14
+# pass 7
+# fail 7
+
+Expected on v1.8.13: every queue-boundary shortcut check fails (v1.8.13 analyses every answer); the six 'analysis still runs' controls and the pure policy test pass on both versions, so the shortcut changes only the boundary cases.

@@ -99,6 +99,7 @@ import { parseTargetResponse, targetResponseEvidence } from "./lib/response-cont
 import { createNanoTask, splitNanoTaskDirective, NANO_TASK_STATUS } from "./lib/nano-task.mjs";
 import { evaluateContinuationAdmission } from "./lib/continuation-guard.mjs";
 import { appendIncident } from "./lib/incident-log.mjs";
+import { queueBoundaryAnalysisDecision, queueBoundaryControl, runtimeControlRequestsCompletion } from "./lib/queue-boundary.mjs";
 import { applyGreenfieldControlToDecision, resolveGreenfieldControl } from "./lib/greenfield-control.mjs";
 import {
   autonomousResponseObservation,
@@ -6278,14 +6279,9 @@ async function persistNanoTaskCheckpoint(process, token, nanoTask, kind = "NANO_
   return committed;
 }
 
-async function runAnalysis(process) {
-  await ensureOffscreenAnalyzer();
-  const instructionSnapshot = await instructionQueues.enqueue(
-    process.processId,
-    () => readNextInstruction(process.processId)
-  );
-  const token = ownerToken(process, randomId("analysis"));
-
+// The captured answer's A2A control, read deterministically (no model call).
+// Shared by the analysis and by the v1.8.14 queue boundary.
+function capturedTargetResponse(process) {
   const parsedTarget = hasCanonicalResponseControl(process.lastResponse?.contract)
     ? process.lastResponse.contract
     : (() => {
@@ -6319,12 +6315,39 @@ async function runAnalysis(process) {
       : null;
   const currentObjective = process.lastPrompt?.a2a?.objective || process.objectiveState?.objective || "";
   const currentObjectiveId = process.lastPrompt?.a2a?.objectiveId || process.objectiveState?.objectiveId || "";
-  const responseExcerpt = compactResponseExcerpt(process.lastResponse?.text || "", 650);
-
   const nanoDirective = splitNanoTaskDirective(targetResponse?.nextSuggestedAction || "");
   const targetContinuationInstruction = nanoDirective.found
     ? String(nanoDirective.remainder || "").trim()
     : String(targetResponse?.nextSuggestedAction || "").trim();
+  return {
+    parsedTarget,
+    targetDisposition,
+    targetResponse,
+    currentObjective,
+    currentObjectiveId,
+    nanoDirective,
+    targetContinuationInstruction
+  };
+}
+
+async function runAnalysis(process) {
+  await ensureOffscreenAnalyzer();
+  const instructionSnapshot = await instructionQueues.enqueue(
+    process.processId,
+    () => readNextInstruction(process.processId)
+  );
+  const token = ownerToken(process, randomId("analysis"));
+
+  const {
+    parsedTarget,
+    targetDisposition,
+    targetResponse,
+    currentObjective,
+    currentObjectiveId,
+    nanoDirective,
+    targetContinuationInstruction
+  } = capturedTargetResponse(process);
+  const responseExcerpt = compactResponseExcerpt(process.lastResponse?.text || "", 650);
   const modelTargetResponse = targetResponse
     ? {
         ...targetResponse,
@@ -6770,6 +6793,167 @@ async function evaluateAndApplyRuntimeControl(current, result) {
   return { terminal: evaluation.terminal, processPatch, priorityChanged };
 }
 
+// Analysis evidence that needs no model: how the answer was observed and
+// what its A2A control said.
+function capturedResponseObservationEvidence(current) {
+  return {
+    documentId: current.lastResponse?.observation?.documentId || "",
+    messageId: current.lastResponse?.observation?.messageId || current.lastResponse?.messageId || "",
+    ownerKind: current.lastResponse?.observation?.ownerKind || "NONE",
+    ownerTrusted: current.lastResponse?.observation?.ownerTrusted === true,
+    expectedUserTurnId: current.lastResponse?.observation?.expectedUserTurnId || "",
+    pairedUserTurnId: current.lastResponse?.observation?.pairedUserTurnId || "",
+    causalMatch: current.lastResponse?.observation?.causalMatch === true,
+    visibilityState: current.lastResponse?.observation?.visibilityState || "unknown",
+    textLength: Number(current.lastResponse?.observation?.textLength || 0),
+    assistantCount: Number(current.lastResponse?.observation?.assistantCount || 0),
+    parseMode: current.lastResponse?.contract?.parseMode || "NONE",
+    externalInterleave: current.lastResponse?.observation?.externalInterleave || {
+      observed: false,
+      latestUserTurnId: "",
+      latestAssistantTurnId: "",
+      autonomousUserTurnId: current.lastResponse?.observation?.pairedUserTurnId || "",
+      autonomousAssistantTurnId: current.lastResponse?.observation?.messageId || "",
+      admissibleAsAutonomousResponse: false,
+      observedAt: ""
+    }
+  };
+}
+
+function capturedProtocolEvidence(current, result) {
+  return {
+    found: current.lastResponse?.contract?.found === true,
+    fullSchemaValid: current.lastResponse?.contract?.ok === true,
+    controlValid: current.lastResponse?.contract?.ok === true ||
+      current.lastResponse?.contract?.controlOk === true,
+    disposition: result.targetDisposition || "UNKNOWN",
+    sessionAction: result.targetResponse?.sessionAction || "KEEP",
+    sessionReason: result.targetResponse?.sessionReason || "",
+    pauseSeconds: result.targetResponse?.pauseSeconds ?? null,
+    parseMode: current.lastResponse?.contract?.parseMode || "NONE",
+    errors: Array.isArray(current.lastResponse?.contract?.errors)
+      ? current.lastResponse.contract.errors.slice(0, 12)
+      : []
+  };
+}
+
+// v1.8.14: a queue boundary needs no analysis (lib/queue-boundary.mjs).
+// Operator request 2026-10-05: when the slot's quantum is complete, or the
+// answer itself hands the slot back to the queue, the next prompt goes to
+// another GFW; Nano and Hjalmar would only plan a prompt that is never sent.
+// Everything that does not need a model still happens exactly as after an
+// analysis: runtime control (quantum, priority, schedule) with receipts,
+// mission delegations, the schedule gate, the checkpoint and the park.
+// Returns handled:false (and changes nothing) whenever analysis can change
+// the outcome; tickAnalyzing then analyses as before.
+async function maybeParkAtQueueBoundaryWithoutAnalysis(process) {
+  if (!process?.queueContext?.itemId) return { handled: false, process };
+  const target = capturedTargetResponse(process);
+  const decision = queueBoundaryAnalysisDecision({
+    queueManaged: true,
+    controlValid: hasCanonicalResponseControl(target.parsedTarget),
+    targetDisposition: target.targetDisposition,
+    sessionAction: target.targetResponse?.sessionAction || "KEEP",
+    nanoTaskRequested: target.nanoDirective.found === true,
+    completionRequested: runtimeControlRequestsCompletion(target.targetResponse?.runtimeControl),
+    interactionCount: process.queueContext.interactionCount,
+    maxInteractions: process.queueContext.maxInteractions,
+    pauseSeconds: target.targetResponse?.pauseSeconds
+  });
+  if (decision.action !== "SKIP") return { handled: false, process };
+
+  // Another slot must take over after the park (same transition as the park
+  // itself, applied to a copy). Otherwise this slot continues and its next
+  // prompt needs the analysis.
+  let queueState;
+  try {
+    queueState = await missionQueueForWindow(process.windowId);
+  } catch {
+    return { handled: false, process };
+  }
+  const item = queueItemForProcess(queueState.queue, process);
+  if (!queueState.queue.enabled || !item) return { handled: false, process };
+  const pauseUntilMs = decision.pauseSeconds ? Date.now() + decision.pauseSeconds * 1000 : 0;
+  const simulatedNext = selectNextMissionItem({
+    ...queueState.queue,
+    items: applyQueueParkTransition(queueState.queue.items, item, { pauseUntilMs, outcome: decision.outcome })
+  }, { afterOrder: Number(item.order), excludeItemId: item.itemId });
+  if (!simulatedNext) return { handled: false, process };
+
+  return instructionQueues.enqueue(process.processId, async () => {
+    // An operator instruction for this GFW is weighed by the analysis.
+    if (await readNextInstruction(process.processId)) return { handled: false, process };
+    const current = await findProcessById(process.processId);
+    if (!current || current.generation !== process.generation || current.phase !== PHASES.ANALYZING) {
+      return { handled: true, process: current };
+    }
+    const result = {
+      targetDisposition: target.targetDisposition,
+      targetResponse: target.targetResponse,
+      currentObjectiveId: target.currentObjectiveId,
+      nano: null,
+      nanoTask: null
+    };
+    const runtimeControl = await evaluateAndApplyRuntimeControl(current, result);
+    if (runtimeControl.terminal) return { handled: false, process };
+    if (runtimeControl.processPatch) Object.assign(current, runtimeControl.processPatch);
+    if (runtimeControl.priorityChanged) await refreshSchedulerPriority(current);
+    await registerResponseMissionDelegations(current, target.targetResponse);
+    const scheduleBlock = await activeSlotScheduleBlock(current);
+
+    const boundary = queueBoundaryControl({
+      nextStep: target.targetContinuationInstruction,
+      fallbackObjective: target.currentObjective || current.objectiveState?.objective || "",
+      targetDisposition: target.targetDisposition,
+      outcome: decision.outcome
+    });
+    const analysisEvidence = {
+      responseHash: current.lastResponse.hash,
+      targetDisposition: target.targetDisposition,
+      responseObservation: capturedResponseObservationEvidence(current),
+      protocol: capturedProtocolEvidence(current, result),
+      nanoTask: null,
+      nano: null,
+      hjalmar: null
+    };
+    const switched = await parkQueueMissionAfterAnalysis({
+      current,
+      completedInteractions: decision.completedInteractions,
+      effectiveNextPrompt: boundary.effectiveNextPrompt,
+      previousDisposition: "CONTINUE",
+      analysisEvidence,
+      greenfieldControl: boundary.greenfieldControl,
+      effectiveDecision: boundary.decision,
+      result,
+      latestInstruction: null,
+      pauseSeconds: decision.pauseSeconds,
+      requestedSessionAction: decision.sessionAction,
+      quantumReached: decision.quantumReached,
+      scheduleBlock
+    });
+    // The queue changed between the check and the park: analyse as before.
+    if (!switched) return { handled: false, process };
+    await audit(switched, "QUEUE_BOUNDARY_ANALYSIS_SKIPPED", "mission-work-queue", {
+      previousProcessId: current.processId,
+      previousQueueItemId: current.queueContext?.itemId || "",
+      nextQueueItemId: switched.queueContext?.itemId || "",
+      outcome: scheduleBlock ? scheduleParkOutcome(scheduleBlock) : decision.outcome,
+      completedInteractions: decision.completedInteractions,
+      maxInteractions: decision.maxInteractions,
+      sessionAction: decision.sessionAction,
+      responseHash: current.lastResponse.hash
+    }).catch(() => undefined);
+    await recordIncident(current, "ANALYSIS_SKIPPED_AT_QUEUE_BOUNDARY", scheduleBlock ? scheduleParkOutcome(scheduleBlock) : decision.outcome, {
+      completedInteractions: decision.completedInteractions,
+      maxInteractions: decision.maxInteractions,
+      sessionAction: decision.sessionAction,
+      nextProcessId: switched.processId,
+      nextItemId: switched.queueContext?.itemId || ""
+    });
+    return { handled: true, process: switched };
+  });
+}
+
 async function tickAnalyzing(process) {
   const page = await tabState(process,"analysis-model-recheck");
   if (process.safety?.qualityIncident) return holdForSafety(process,{code:process.safety.qualityIncident.code});
@@ -6780,6 +6964,8 @@ async function tickAnalyzing(process) {
     const error = Object.assign(new Error("ANALYSIS_RESPONSE_MISSING"), { code: "ANALYSIS_RESPONSE_MISSING" });
     return enterRecovery(process, error, PHASES.WAITING);
   }
+  const queueBoundary = await maybeParkAtQueueBoundaryWithoutAnalysis(process);
+  if (queueBoundary.handled) return queueBoundary.process;
 
   // Protocol parsing is enrichment only. A persisted ANALYZING state must
   // continue from the causally captured assistant response even when EIC-A2A
@@ -7053,42 +7239,8 @@ async function tickAnalyzing(process) {
       ? "READ_REQUIRED"
       : "CONTINUATION";
     const nextObjectiveId = randomId("objective");
-    const responseObservation = {
-      documentId: current.lastResponse?.observation?.documentId || "",
-      messageId: current.lastResponse?.observation?.messageId || current.lastResponse?.messageId || "",
-      ownerKind: current.lastResponse?.observation?.ownerKind || "NONE",
-      ownerTrusted: current.lastResponse?.observation?.ownerTrusted === true,
-      expectedUserTurnId: current.lastResponse?.observation?.expectedUserTurnId || "",
-      pairedUserTurnId: current.lastResponse?.observation?.pairedUserTurnId || "",
-      causalMatch: current.lastResponse?.observation?.causalMatch === true,
-      visibilityState: current.lastResponse?.observation?.visibilityState || "unknown",
-      textLength: Number(current.lastResponse?.observation?.textLength || 0),
-      assistantCount: Number(current.lastResponse?.observation?.assistantCount || 0),
-      parseMode: current.lastResponse?.contract?.parseMode || "NONE",
-      externalInterleave: current.lastResponse?.observation?.externalInterleave || {
-        observed: false,
-        latestUserTurnId: "",
-        latestAssistantTurnId: "",
-        autonomousUserTurnId: current.lastResponse?.observation?.pairedUserTurnId || "",
-        autonomousAssistantTurnId: current.lastResponse?.observation?.messageId || "",
-        admissibleAsAutonomousResponse: false,
-        observedAt: ""
-      }
-    };
-    const protocol = {
-      found: current.lastResponse?.contract?.found === true,
-      fullSchemaValid: current.lastResponse?.contract?.ok === true,
-      controlValid: current.lastResponse?.contract?.ok === true ||
-        current.lastResponse?.contract?.controlOk === true,
-      disposition: result.targetDisposition || "UNKNOWN",
-      sessionAction: result.targetResponse?.sessionAction || "KEEP",
-      sessionReason: result.targetResponse?.sessionReason || "",
-      pauseSeconds: result.targetResponse?.pauseSeconds ?? null,
-      parseMode: current.lastResponse?.contract?.parseMode || "NONE",
-      errors: Array.isArray(current.lastResponse?.contract?.errors)
-        ? current.lastResponse.contract.errors.slice(0, 12)
-        : []
-    };
+    const responseObservation = capturedResponseObservationEvidence(current);
+    const protocol = capturedProtocolEvidence(current, result);
     const analysisEvidence = {
       responseHash: current.lastResponse.hash,
       targetDisposition: result.targetDisposition,

@@ -1,6 +1,8 @@
-# EIC Autonom Agent Greenfield 1.8.13
+# EIC Autonom Agent Greenfield 1.8.14
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.8.14 hoppar över analysen av svaret vid ett köbyte. När en köplats kvant är fullbordad (1/1, 15/15 …), eller när svaret självt lämnar platsen till kön (`YIELD_TO_QUEUE`, `PAUSE_PROCESS`, `BACKGROUND_SLEEP`), parkeras platsen direkt och nästa GFW startar, utan Nano och Hjalmar. Runtime-kontroller, delegeringar, paus, schema och checkpoint hanteras som förut. Analysen körs fortfarande när den kan ändra utfallet, till exempel vid DONE, vid en Nano-uppgift, vid en väntande operatörsinstruktion eller när ingen annan köplats kan ta över. Se [UPPDATERA_TILL_1_8_14.md](UPPDATERA_TILL_1_8_14.md).
 
 Version 1.8.13 kommer från en analys av fem dygns drift i fyra fönster (diagnostik 2026-10-05). 30 utskick fick aldrig något svar, och varje sådan tur höll sin plats i hela 120-minutersstegen. Det var en tredjedel av tiden för den plats som de tre icke-reserverade fönstren delar. Nu lämnar en tur tillbaka sin plats när sidan efter omladdningen vid 30 min varken genererar eller har svarat. Turen väntar kvar, stegen är oförändrad och ett sent svar läses ändå. Exporten har dessutom fått en varaktig händelselogg över automatiska beslut, så att nästa stopp och rotation går att förklara. Se [UPPDATERA_TILL_1_8_13.md](UPPDATERA_TILL_1_8_13.md).
 
@@ -35,6 +37,22 @@ Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfiel
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.8.14
+
+- **Köbyte utan analys** (`lib/queue-boundary.mjs`, `maybeParkAtQueueBoundaryWithoutAnalysis` i `background.js`):
+  - Gäller när ett köstyrt svar har giltig A2A-kontroll med status CONTINUE och antingen fullbordar kvanten eller begär `YIELD_TO_QUEUE`, `PAUSE_PROCESS` eller `BACKGROUND_SLEEP`.
+  - En annan köplats måste kunna ta över. Det kontrolleras med samma parkeringsövergång, tillämpad på en kopia av kön.
+  - Då parkeras platsen utan Nano/Hjalmar. Runtime-kontroll (med kvitton), delegeringar, schemaspärr, paus och checkpoint hanteras som efter en analys.
+  - Den parkerade GFW:n återupptas från svarets eget `nextSuggestedAction`. `analysisEvidence.hjalmar` är `null` och beslutet är märkt `QUEUE_BOUNDARY_NO_ANALYSIS`.
+- **Full analys som förut** vid:
+  - ingen strukturerad kontroll;
+  - status annan än CONTINUE;
+  - `STOP_PROCESS` eller `COMPLETE_MISSION`;
+  - `NANO_TASK`;
+  - väntande operatörsinstruktion;
+  - ingen annan körbar köplats.
+- **Händelseloggen** får raden `ANALYSIS_SKIPPED_AT_QUEUE_BOUNDARY`.
 
 ## Nytt i 1.8.13
 
@@ -258,4 +276,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.13.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.14.

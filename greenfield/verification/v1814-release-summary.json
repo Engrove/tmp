@@ -1,9 +1,8 @@
 {
-  "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.8.14",
-  "releaseChannel": "1.8.14",
+  "schema": "eic.greenfield.v1814-release-summary.v1",
+  "version": "1.8.14",
   "generatedAt": "2026-10-05T07:27:05.234537+00:00",
-  "sourceBaseline": {
+  "source": {
     "file": "EIC_Autonom_Agent_Greenfield_v1.8.13.zip",
     "version": "1.8.13",
     "origin": "this repository, commit d510242",
@@ -20,6 +19,21 @@
     "implementation": "lib/queue-boundary.mjs queueBoundaryAnalysisDecision, queueBoundaryControl, runtimeControlRequestsCompletion. background.js: capturedTargetResponse (deterministic A2A parse, now shared with runAnalysis), capturedResponseObservationEvidence and capturedProtocolEvidence (shared with tickAnalyzing), maybeParkAtQueueBoundaryWithoutAnalysis called in tickAnalyzing after the model/turn safety checks and before runAnalysis; audit QUEUE_BOUNDARY_ANALYSIS_SKIPPED and incident ANALYSIS_SKIPPED_AT_QUEUE_BOUNDARY.",
     "unchanged": "Model and turn safety checks before analysis, usage output recording, the analysis inside a quantum, DONE/BLOCKED/STOP handling, Nano tasks, operator instructions, the queue park itself (parkQueueMissionAfterAnalysis), quantum accounting, pauses, schedules, runtime-control rules (no priority above the operator's), the stale ladder and the slot hand-back of 1.8.13.",
     "newPermissions": "none"
+  },
+  "gates": {
+    "QUANTUM_BOUNDARY_NO_ANALYSIS_PASS": true,
+    "YIELD_PAUSE_BOUNDARY_NO_ANALYSIS_PASS": true,
+    "INSIDE_QUANTUM_STILL_ANALYSED_PASS": true,
+    "NO_NEXT_SLOT_STILL_ANALYSED_PASS": true,
+    "NANO_TASK_STILL_ANALYSED_PASS": true,
+    "DONE_STILL_FULL_PATH_PASS": true,
+    "OPERATOR_INSTRUCTION_STILL_ANALYSED_PASS": true,
+    "PLAIN_TEXT_STILL_ANALYSED_PASS": true,
+    "RUNTIME_CONTROL_APPLIED_PASS": true,
+    "RESUME_PROMPT_VALID_PASS": true,
+    "NEGATIVE_CONTROL_V1813_FAILS_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
   },
   "verification": {
     "environment": {

@@ -2372,7 +2372,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.8.13" }
+      payload: { appVersion: "1.8.14" }
     });
     await snapshot();
   } catch (error) {
