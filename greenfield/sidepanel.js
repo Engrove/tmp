@@ -1,4 +1,4 @@
-import { fleetHealth, reasonLabel, reservedSlotConfirmText, reservedSlotMessage, reservedSlotView, workerActionAvailability, workerActionConfirmText, workerActionMessage, workerReason } from "./lib/operations-view.mjs";
+import { fleetHealth, reasonLabel, reservedSlotConfirmText, reservedSlotMessage, reservedSlotView, staleTurnSlotNote, workerActionAvailability, workerActionConfirmText, workerActionMessage, workerReason } from "./lib/operations-view.mjs";
 import { auditAsNdjson } from "./lib/audit-store.mjs";
 import { modelCreateOptions } from "./lib/model-config.mjs";
 import { PHASES, TERMINAL_PHASES, AUDIT_FIFO_LIMIT } from "./lib/contracts.mjs";
@@ -1060,10 +1060,12 @@ function renderFleetStatus() {
     const tone=p.safety?.qualityIncident || p.storageRecoveryRequired ? "danger" : hold ? "warn" : "neutral";
     const summary=p.lastResponse?.summary || p.lastResponse?.contract?.value?.summary || p.lastDecision?.reason || "";
     const reservedHere = Boolean(p.workerId) && String(fleet.reservation?.workerId || "") === p.workerId;
+    const slotNote = staleTurnSlotNote(p, formatTime);
     return `<article class="fleet-worker" data-tone="${tone}"${reservedHere ? ' data-reserved="true"' : ""}>
       <div class="fleet-worker-head"><strong>${escapeHtml(short(title,110))}</strong><span class="fleet-phase">${escapeHtml(p.phase || "IDLE")}</span></div>
       ${reservedHere ? `<div class="reserved-badge">Reserverad plats${fleet.reservation?.appliesNow ? "" : " · gäller vid Max parallella ≥ 2"}</div>` : ""}
       <p class="worker-reason">${escapeHtml(workerReason(p,now))}</p>
+      ${slotNote ? `<p class="worker-slot-note">${escapeHtml(slotNote)}</p>` : ""}
       <div class="worker-model" data-ok="${proof.allowed===true}">${escapeHtml(proof.model || "Modell okänd")} · ${escapeHtml(proof.effort || "Tänkenivå okänd")}</div>
       <div class="fleet-meta"><span>Tur ${n(p.turn)} · session ${n(p.sessionSeq)}</span><span>${escapeHtml(priorityLabel(p.schedulerPriority))}</span><span>${n(q.readyCount)} redo · ${n(q.pausedCount)} sover · ${n(q.blockedCount)} blockerade</span></div>
       <div class="worker-times"><span>Aktivitet: ${escapeHtml(age(p.lastMaterialAt))}</span><span>Avläst: ${escapeHtml(age(p.safety?.lastObservationAtMs))}</span></div>
@@ -2370,7 +2372,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.8.12" }
+      payload: { appVersion: "1.8.13" }
     });
     await snapshot();
   } catch (error) {

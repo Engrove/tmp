@@ -197,3 +197,13 @@ export function reservedSlotMessage(result = {}) {
     ? "Fönstret har nu en reserverad plats. Övriga fönster delar på resten."
     : "Fönstret är reserverat. Det gäller när Max parallella är 2 eller fler.";
 }
+
+// v1.8.13: a stale turn that gave its capacity slot back after the 30-minute
+// reload (no generation, no answer). It still waits; the ladder is unchanged.
+export function staleTurnSlotNote(process = {}, formatTime = (ms) => new Date(ms).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })) {
+  const released = process?.waitingRefresh?.capacityReleased || null;
+  if (String(process?.phase || "") !== "WAITING" || !released) return "";
+  if (String(released.promptHash || "") !== String(process?.lastPrompt?.hash || "")) return "";
+  const at = Number(released.atMs || 0);
+  return `Platsen lämnad tillbaka${at ? ` ${formatTime(at)}` : ""}: ingen generering efter omladdningen. Svaret läses ändå om det kommer.`;
+}

@@ -634,6 +634,7 @@ body[data-active-tab="workmode"] [data-ui-tab="workmode"] {
 .worker-action-result { font-size:11px; line-height:1.5; margin:7px 0 0; color:#e5cb94; }
 .worker-action-result[data-ok="true"] { color:#a2edcc; }
 .fleet-worker[data-reserved="true"] { border-left-color:#74dfba !important; }
+.worker-slot-note { margin:-4px 0 6px; font-size:11px; line-height:1.4; color:var(--muted); }
 .reserved-badge { display:inline-block; margin-top:6px; padding:2px 7px; border-radius:10px; font-size:10px; font-weight:700; color:#0f2a24; background:#74dfba; }
 .reserved-slot { margin-top:12px; }
 .reserved-slot button { margin-top:6px; }

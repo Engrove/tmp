@@ -98,6 +98,7 @@ import { reconcileSafetyHoldWithFreshProof } from "./lib/safety-hold-reconciliat
 import { parseTargetResponse, targetResponseEvidence } from "./lib/response-contract.mjs";
 import { createNanoTask, splitNanoTaskDirective, NANO_TASK_STATUS } from "./lib/nano-task.mjs";
 import { evaluateContinuationAdmission } from "./lib/continuation-guard.mjs";
+import { appendIncident } from "./lib/incident-log.mjs";
 import { applyGreenfieldControlToDecision, resolveGreenfieldControl } from "./lib/greenfield-control.mjs";
 import {
   autonomousResponseObservation,
@@ -111,6 +112,7 @@ import {
   createWaitingRefreshState,
   evaluateWaitingRefresh,
   resetWaitingRefreshOnAssistantResponse,
+  staleTurnCapacityDecision,
   WAITING_REFRESH_ACTIONS,
   WAITING_STALE_INTERVAL_MS
 } from "./lib/waiting-refresh.mjs";
@@ -1329,6 +1331,52 @@ async function saveObserved(process, patch, kind, payload = {}) {
   return next;
 }
 
+// v1.8.13 durable incident log (lib/incident-log.mjs): never blocks or fails
+// the caller; ids, codes, numbers and flags only.
+async function recordIncident(process, kind, code = "", detail = {}) {
+  try {
+    await appendIncident({
+      atMs: Date.now(),
+      kind,
+      code,
+      workerId: process?.workerId || "",
+      processId: process?.processId || "",
+      windowId: process?.windowId ?? null,
+      generation: process?.generation ?? null,
+      sessionSeq: process?.sessionSeq ?? null,
+      turn: process?.turn ?? null,
+      promptHash: process?.lastPrompt?.hash || process?.pendingPrompt?.hash || "",
+      detail
+    }, chrome.storage.local);
+  } catch {}
+}
+
+// What the page showed when an automatic decision was taken.
+function incidentPageEvidence(page) {
+  const health = page?.pageHealth || {};
+  const auto = page?.autonomousTurn || {};
+  return {
+    generating: page?.generating === true,
+    stopVisible: page?.signals?.stopVisible === true,
+    streaming: page?.signals?.streaming === true,
+    composerBusy: page?.signals?.composerBusy === true,
+    readyState: String(health.readyState || ""),
+    visibilityState: String(health.visibilityState || page?.signals?.visibilityState || ""),
+    composerPresent: health.composerPresent === true,
+    turnCount: Number(health.turnCount ?? 0),
+    userCount: Number(page?.userCount ?? 0),
+    assistantCount: Number(page?.assistantCount ?? 0),
+    userTurnResolved: Boolean(auto.resolvedUserTurnId),
+    resolvedBy: String(auto.resolvedBy || ""),
+    assistantFound: auto.assistantFound === true,
+    assistantGenerating: auto.assistantGenerating === true,
+    responseSlotClosed: auto.responseSlotClosed === true,
+    providerNotice: String(health.providerNotice?.kind || ""),
+    rateLimitWarning: page?.rateLimitWarning?.active === true,
+    quotaNotice: page?.modelEvidence?.quota?.active === true
+  };
+}
+
 // v1.8.2 durable response-observation trace (lib/response-observation.mjs).
 // Pure: returns the trace to carry in the next write that happens anyway.
 function tracedResponseObservation(process, reason, page, extra = {}) {
@@ -1399,6 +1447,12 @@ async function applyTabHealthCondition(process, condition, { source = "", detail
     return { handled: false, process: saved };
   }
 
+  await recordIncident(process, "TAB_RECOVERY_STEP", advanced.action, {
+    condition,
+    source,
+    stepIndex: Number(advanced.state.incident?.stepIndex ?? 0),
+    budgetUsed: Array.isArray(advanced.state.budget) ? advanced.state.budget.length : 0
+  });
   if (advanced.action === TAB_RECOVERY_STEP.GIVE_UP) {
     await audit(process, "TAB_RECOVERY_EXHAUSTED", "tab-health", { condition, source, incident: advanced.state.incident, ...detail }).catch(() => undefined);
     const rotated = await armSessionRotation({
@@ -1521,6 +1575,13 @@ async function handleProviderContentBlock(process, notice) {
       pauseMs: decision.pauseMs
     }).trace
   };
+  await recordIncident(current, "PROVIDER_CONTENT_BLOCK", decision.action, {
+    chainLength: decision.chainLength,
+    pauseMs: Number(decision.pauseMs || 0),
+    headlineMatched: notice.headlineMatched === true,
+    cyberWordMatched: notice.cyberWordMatched === true,
+    afterExpectedUserTurn: notice.afterExpectedUserTurn === true
+  });
   await audit(current, "PROVIDER_CONTENT_BLOCK_HANDLED", "provider-notice", {
     noticeKey: notice.noticeKey || "",
     sample: String(notice.sample || "").slice(0, 240),
@@ -1805,6 +1866,14 @@ async function maybeEscalateWaitingRefresh(process, page, {
       unresolvedReason: reason,
       stage: refreshDecision.stage || ""
     });
+    await recordIncident(process, "STALE_LADDER_STEP", refreshDecision.code, {
+      action: refreshDecision.action,
+      stage: refreshDecision.stage || "",
+      waitMin: Math.round(Number(refreshDecision.waitMs || 0) / 60000),
+      unresolvedReason: reason,
+      slotReleased: Boolean(refreshState?.capacityReleased),
+      ...incidentPageEvidence(page)
+    });
     return {
       handled: true,
       process: await executeWaitingRefresh({ ...process, responseObservationTrace: traced.trace }, refreshDecision)
@@ -1822,6 +1891,14 @@ async function maybeEscalateWaitingRefresh(process, page, {
       promptHash: process.lastPrompt?.hash || "",
       turn: process.turn,
       staleSessionOnly: true
+    });
+    await recordIncident(process, "STALE_LADDER_STEP", "STALE_SESSION_120M_ROTATE", {
+      action: "ROTATE",
+      waitMin: Math.round(Number(refreshDecision.waitMs || 0) / 60000),
+      unresolvedReason: reason,
+      queueManaged: Boolean(process.queueContext?.itemId),
+      slotReleased: Boolean(refreshState?.capacityReleased),
+      ...incidentPageEvidence(page)
     });
     // The last entry before the conversation is abandoned; it travels in the
     // parked snapshot (queue rotation) or the rotated process.
@@ -1856,7 +1933,77 @@ async function maybeEscalateWaitingRefresh(process, page, {
     return { handled: true, process: rotated };
   }
 
+  // The persisted state may have been updated above (generation deferral).
+  process = await maybeReleaseStaleTurnCapacity(process, page, process.waitingRefresh || refreshState);
   return { handled: false, process };
+}
+
+// v1.8.13: a turn that, after the stale ladder's first reload has settled,
+// shows neither a generation nor an answer gives its capacity slot back.
+// Diagnostics 2026-10-05: 30 such turns each held a slot for the whole
+// 120-minute ladder (a third of the shared pool's time). The turn keeps
+// waiting, the ladder is unchanged and a late answer is still captured. The
+// flag is written before the release, so a restart in between converges to
+// "released" (the reconcile skips flagged turns).
+async function maybeReleaseStaleTurnCapacity(process, page, refreshState) {
+  const decision = staleTurnCapacityDecision({
+    now: Date.now(),
+    refreshState,
+    promptHash: process.lastPrompt?.hash || "",
+    turn: Number(process.turn || 0),
+    acknowledged: process.lastPrompt?.acknowledged === true,
+    page
+  });
+  if (decision.action !== "RELEASE") return process;
+  const promptHash = process.lastPrompt?.hash || "";
+  const capacityReleased = {
+    promptHash,
+    turn: Number(process.turn || 0),
+    stage: decision.stage,
+    atMs: Date.now(),
+    reason: decision.code
+  };
+  const flagged = await saveObserved(process, {
+    waitingRefresh: { ...refreshState, capacityReleased, capacityReadopted: null }
+  }, "STALE_TURN_CAPACITY_RELEASED", {
+    promptHash,
+    turn: capacityReleased.turn,
+    stage: decision.stage,
+    reason: decision.code,
+    noPromptSent: true,
+    ladderUnchanged: true
+  });
+  await releaseSchedulerTurn(flagged, { promptHash, reason: decision.code }).catch(() => undefined);
+  await recordIncident(flagged, "STALE_TURN_SLOT_RELEASED", decision.code, {
+    stage: decision.stage,
+    ...incidentPageEvidence(page)
+  });
+  return flagged;
+}
+
+// v1.8.13: the released turn shows a generation again (stop button or
+// streaming, as for the ladder's deferral; a busy composer alone, e.g. while
+// the page loads, is not enough): it runs, so it is counted again, even above
+// the configured capacity. It is not released again before the next reload.
+async function maybeReadoptStaleTurnCapacity(process, page) {
+  const released = process.waitingRefresh?.capacityReleased || null;
+  const promptHash = process.lastPrompt?.hash || "";
+  if (process.phase !== PHASES.WAITING || !released || released.promptHash !== promptHash ||
+      Number(released.turn) !== Number(process.turn || 0) || !hasCurrentGenerationEvidence(page)) {
+    return process;
+  }
+  const capacityReadopted = { promptHash, turn: Number(process.turn || 0), stage: process.waitingRefresh?.stage || "", atMs: Date.now() };
+  const saved = await saveObserved(process, {
+    waitingRefresh: { ...process.waitingRefresh, capacityReleased: null, capacityReadopted }
+  }, "STALE_TURN_CAPACITY_READOPTED", {
+    promptHash,
+    turn: capacityReadopted.turn,
+    stage: capacityReadopted.stage,
+    generating: true
+  });
+  await adoptSchedulerTurnForObservedEffect(saved, promptHash, "STALE_TURN_GENERATION_SEEN_AGAIN").catch(() => undefined);
+  await recordIncident(saved, "STALE_TURN_SLOT_READOPTED", "GENERATION_SEEN_AGAIN", incidentPageEvidence(page));
+  return saved;
 }
 
 async function tabState(process, source = "tick") {
@@ -2607,6 +2754,14 @@ async function activateQueueItem({
       goalHash: await sha256Hex(item.goal)
     }).catch(() => undefined);
   }
+  await recordIncident(process, "QUEUE_ITEM_ACTIVATED", item.processSnapshot ? "QUEUE_MISSION_RESUME" : "QUEUE_MISSION_START", {
+    itemId: item.itemId,
+    priorProcessId: priorProcess?.processId || "",
+    resumed: Boolean(item.processSnapshot),
+    activationCount: Number(process.queueContext?.activationCount || 0),
+    maxInteractions: Number(item.maxInteractions || 0),
+    freshChat: true
+  });
   await setWatchdog(process);
   await broadcast(process, "mission-queue-activated");
   scheduleFast(process.processId, 50);
@@ -3353,6 +3508,14 @@ async function parkSlotAndActivateNext({
   if (!selected && !idleWhenNoNext) return null;
 
   await cancelSchedulerProcess(current, "MISSION_QUEUE_YIELD").catch(() => undefined);
+  await recordIncident(current, "QUEUE_SLOT_PARKED", outcome, {
+    itemId: item.itemId,
+    nextItemId: selected?.itemId || "",
+    queueWait: !selected,
+    pauseUntilMs: Number(pauseUntilMs || 0),
+    interactionCount: Number(current.queueContext?.interactionCount ?? 0),
+    maxInteractions: Number(current.queueContext?.maxInteractions ?? 0)
+  });
   try { await chrome.alarms.clear(alarmName(current.processId)); } catch {}
   try { await chrome.alarms.clear(missionPauseAlarmName(current.processId)); } catch {}
   const saved = await persistMissionQueue(
@@ -3847,6 +4010,12 @@ async function armSessionRotation(process, {
 } = {}) {
   if (!process || TERMINAL_PHASES.has(process.phase)) return process;
   if (process.phase === PHASES.ROTATING) return process;
+  await recordIncident(process, "SESSION_ROTATION_ARMED", reasonCode, {
+    requestedBy,
+    fromPhase: String(process.phase || ""),
+    sourceResponseState: String(sourceResponseState || ""),
+    queueItemId: process.queueContext?.itemId || ""
+  });
 
   if (process.phase === PHASES.SENDING &&
       process.pendingPrompt?.dispatch &&
@@ -5414,6 +5583,7 @@ async function tickWaiting(process) {
   const providerNotice = await maybeHandleProviderNotice(process, page);
   if (providerNotice.handled) return providerNotice.process;
   process = providerNotice.process;
+  process = await maybeReadoptStaleTurnCapacity(process, page);
 
   if (!process.lastPrompt?.modelProof && !process.safety?.turnProof) {
     process.safety = {...process.safety,qualityIncident:{code:"IN_FLIGHT_MODEL_UNVERIFIED",atMs:Date.now(),turn:process.turn}};
@@ -8719,6 +8889,13 @@ function potentialActiveTurnDescriptor(process, priorActive = null) {
     ? String(process.lastPrompt?.hash || process.pendingPrompt?.hash || "")
     : String(process.pendingPrompt?.hash || process.lastPrompt?.hash || "");
   if (!promptHash) return null;
+  // v1.8.13: a stale turn that gave its slot back is not re-adopted by the
+  // one-minute recovery scan; only a renewed generation takes it again.
+  const released = process.waitingRefresh?.capacityReleased || null;
+  if (waitingLike && released && released.promptHash === promptHash &&
+      Number(released.turn) === Number(process.turn || 0)) {
+    return null;
+  }
 
   return {
     processId: process.processId,
@@ -8867,6 +9044,8 @@ async function observeSafetyForProcess(process, page) {
   return proof;
 }
 
+const INCIDENT_QUIET_HOLD_CODES = new Set(["LOCAL_PACING_WAIT"]);
+
 async function holdForSafety(process, decision) {
   const now=Date.now();
   const code=decision?.code || "SAFETY_UNVERIFIED";
@@ -8877,6 +9056,16 @@ async function holdForSafety(process, decision) {
     process.safety.hold.savedAtMs=now;
     await saveProcess(process);
     await audit(process,"SAFETY_HOLD","safety",process.safety.hold).catch(()=>undefined);
+  }
+  // v1.8.13: a hold that starts or changes code (budget, model, quota, ...).
+  // Pacing waits happen before every dispatch and are not incidents.
+  if ((!prior || prior.code!==code) && !INCIDENT_QUIET_HOLD_CODES.has(code)) {
+    await recordIncident(process,"SAFETY_HOLD_STARTED",code,{
+      phase:String(process.phase||""),
+      retryAtMs:Number(decision?.retryAtMs||0) || null,
+      detail:String(decision?.detail||"").slice(0,80),
+      priorCode:String(prior?.code||"")
+    });
   }
   // An unresolved side effect keeps its turn ownership. Only unsent work may
   // relinquish a scheduler slot while it waits for a model/budget.
@@ -9012,6 +9201,13 @@ async function hydrateProcesses(reason) {
       const repaired=await recoverRc1Checkpoints(chrome.storage.local);
       await readSafety();
       const report=await reconcileRestart({local:chrome.storage.local,session:chrome.storage.session,tabs:chrome.tabs,ensureBridge:ensureContentBridgeVersion});
+      // v1.8.13: restored rows accumulate for the service worker's lifetime;
+      // each row carries its own time (diagnostics 2026-10-05 showed a days-old
+      // restore under the latest scan time).
+      const stamp=(rows)=>(rows||[]).map(row=>({atMs:report.atMs,...row}));
+      report.restored=stamp(report.restored);
+      report.unresolved=stamp(report.unresolved);
+      for (const row of report.restored) await recordIncident({workerId:row.workerId,processId:row.processId,windowId:row.windowId},"RESTART_RESTORED",row.code,{phase:row.phase,tabId:row.tabId??null,queueItems:row.queueItems??null});
       restartReport={...report,checkpointRepairs:[...(restartReport.checkpointRepairs||[]),...repaired].slice(-30),restored:[...restartReport.restored,...report.restored].slice(-30)};
       if (report.errors.length) throw new Error(`RECOVERY_INVENTORY_ERRORS:${report.errors.map(e=>e.code).join("; ")}`);
       await hydrateBoundProcesses(reason);
@@ -9067,7 +9263,11 @@ async function panelSafetyAction(message,sender) {
     const inspection=Safety.evaluateModel(response.state.modelEvidence,(await readSafety()).policy,{url:response.state.url,gptRoot:root});
     return {ok:true,inspection};
   }
-  if (message.type==="EIC_GF_SAFETY_UPDATE") await updateSafetyPolicy(message.policy || {});
+  if (message.type==="EIC_GF_SAFETY_UPDATE") {
+    const before=(await readSafety()).policy;
+    const after=(await updateSafetyPolicy(message.policy || {})).policy;
+    await recordIncident(null,"SAFETY_POLICY_UPDATED","OPERATOR",Object.fromEntries(Object.keys(after||{}).filter(k=>before?.[k]!==after[k]).map(k=>[k,after[k]])));
+  }
   if (message.type==="EIC_GF_SAFETY_PAUSE") await pauseAdmission(message.paused===true);
   if (message.type==="EIC_GF_RECOVERY_SCAN") await hydrateProcesses("operator-recovery-scan");
   if (message.type==="EIC_GF_SAFETY_RECHECK") {

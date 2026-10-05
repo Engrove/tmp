@@ -1,6 +1,8 @@
-# EIC Autonom Agent Greenfield 1.8.12
+# EIC Autonom Agent Greenfield 1.8.13
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.8.13 kommer från en analys av fem dygns drift i fyra fönster (diagnostik 2026-10-05). 30 utskick fick aldrig något svar, och varje sådan tur höll sin plats i hela 120-minutersstegen. Det var en tredjedel av tiden för den plats som de tre icke-reserverade fönstren delar. Nu lämnar en tur tillbaka sin plats när sidan efter omladdningen vid 30 min varken genererar eller har svarat. Turen väntar kvar, stegen är oförändrad och ett sent svar läses ändå. Exporten har dessutom fått en varaktig händelselogg över automatiska beslut, så att nästa stopp och rotation går att förklara. Se [UPPDATERA_TILL_1_8_13.md](UPPDATERA_TILL_1_8_13.md).
 
 Version 1.8.12 låter ett fönster få en **reserverad plats**. Med Max parallella 2 eller fler låses en plats för det fönstret, också när det inte kör just då. Övriga fönster delar på resten, och det reserverade fönstret väntar aldrig på platser bakom dem. Det är tänkt för GFW:er som ska gå dygnet runt. Pågående svar avbryts inte. Se [UPPDATERA_TILL_1_8_12.md](UPPDATERA_TILL_1_8_12.md).
 
@@ -33,6 +35,22 @@ Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfiel
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.8.13
+
+- **Död tur lämnar tillbaka platsen** (`staleTurnCapacityDecision` i `lib/waiting-refresh.mjs`):
+  - Villkor: minst 60 s efter stegens F5 vid 30 min, sidan färdigladdad, ingen Stopp-knapp, ingen strömning, ingen upptagen inmatning och inget svar.
+  - Flaggan `waitingRefresh.capacityReleased` skrivs före frisläppningen. Minutskanningen (`potentialActiveTurnDescriptor`) tar inte platsen igen.
+  - Syns Stopp-knapp eller strömning igen tas platsen tillbaka med `observedEffect`, och den släpps inte igen förrän efter nästa omladdning.
+  - F5/Ctrl-F5/köbyte efter 30/60/90/120 min är oförändrat. Ingenting skickas om.
+  - Workerkortet visar ”Platsen lämnad tillbaka …”.
+- **Händelselogg** (`lib/incident-log.mjs`, `eic.gf.incident-log.v1`, 400 rader):
+  - Innehåller stegets moment med sidans läge, rotationer med orsak, köbyten och aktiveringar, platser som lämnas och tas tillbaka, spärrar som börjar (utom takten), Daybreak-spärrar, flikåterhämtning, återanslutningar och policyändringar.
+  - Bara id, koder, tal och flaggor.
+- **Diagnostikexporten** tar med händelseloggen, en sammanställning (`incidents`), kapacitetsschemaläggaren och promptgrinden.
+- **Mindre rättelser:**
+  - `SAFETY_POLICY_UPDATED` anger vad som ändrades.
+  - Återanslutningsrader har egen tid.
 
 ## Nytt i 1.8.12
 
@@ -240,4 +258,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.12.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.13.

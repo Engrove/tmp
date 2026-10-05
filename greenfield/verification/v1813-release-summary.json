@@ -1,9 +1,8 @@
 {
-  "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.8.13",
-  "releaseChannel": "1.8.13",
+  "schema": "eic.greenfield.v1813-release-summary.v1",
+  "version": "1.8.13",
   "generatedAt": "2026-10-05T06:44:36.933842+00:00",
-  "sourceBaseline": {
+  "source": {
     "file": "EIC_Autonom_Agent_Greenfield_v1.8.12.zip",
     "version": "1.8.12",
     "origin": "this repository, commit d4d36e4",
@@ -23,6 +22,21 @@
     "implementation": "lib/waiting-refresh.mjs staleTurnCapacityDecision (pure). background.js: maybeReleaseStaleTurnCapacity (in maybeEscalateWaitingRefresh's wait path; writes waitingRefresh.capacityReleased before releaseSchedulerTurn), maybeReadoptStaleTurnCapacity (stop button or streaming seen again: adoptSchedulerTurnForObservedEffect, not released again before the next reload stage), potentialActiveTurnDescriptor skips a released turn. lib/incident-log.mjs (eic.gf.incident-log.v1, 400-row ring, ids/codes/numbers/flags only) with rows from the stale ladder (with page evidence), slot hand-back/readopt, armSessionRotation, queue park and activation, safety holds that start or change (pacing excluded), provider content block, tab recovery, restart restore and policy update. lib/startup-diagnostics.mjs exports the incident log, an incident index, the capacity scheduler and the prompt gate. lib/usage-governor.mjs: policy update event lists changed values. Worker card note in lib/operations-view.mjs staleTurnSlotNote and sidepanel.js/css.",
     "unchanged": "The stale ladder (F5 30, Ctrl-F5 60/90, switch or rotation 120), exact-once dispatch (nothing is resent), answer capture, the queue design (fresh chat per activation), the reserved slot, prompt pacing and every safety budget and its accounting (output reserve) are unchanged.",
     "newPermissions": "none"
+  },
+  "gates": {
+    "STALE_TURN_RELEASES_SLOT_PASS": true,
+    "RECOVERY_SCAN_RESPECTS_RELEASE_PASS": true,
+    "GENERATION_READOPTS_PASS": true,
+    "VISIBLE_GENERATION_KEEPS_SLOT_PASS": true,
+    "LADDER_UNCHANGED_PASS": true,
+    "WAITER_GETS_SLOT_PASS": true,
+    "LATE_ANSWER_CAPTURED_NO_RESEND_PASS": true,
+    "INCIDENT_LOG_NO_TEXT_PASS": true,
+    "DIAGNOSTICS_EXPORT_PASS": true,
+    "PANEL_PASS": true,
+    "NEGATIVE_CONTROL_V1812_FAILS_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
   },
   "verification": {
     "environment": {

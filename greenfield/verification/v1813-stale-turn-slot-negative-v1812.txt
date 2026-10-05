@@ -1,0 +1,27 @@
+Greenfield v1.8.13 negative control: the new checks run against v1.8.12 (git archive of commit d4d36e4, APP_VERSION 1.8.12)
+
+1) node --test tests/v1813-stale-turn-slot.test.mjs (file copied into the v1.8.12 tree)
+not ok 1 - v1.8.13 reproduction: a turn without generation after the 30 min F5 gives its slot back and keeps waiting
+not ok 2 - v1.8.13: the one-minute recovery scan does not take the given-back slot again
+not ok 3 - v1.8.13: generation seen again after the release takes the slot back (reality wins)
+ok 4 - v1.8.13: a visible generation at 31 min keeps the slot (no release while ChatGPT works)
+not ok 5 - v1.8.13: the ladder is unchanged after the release: Ctrl-F5 at 60 and 90, switch at 120, nothing resent
+not ok 6 - v1.8.13 E2E: with one shared slot, a window waiting behind a dead turn gets the slot when it is given back
+not ok 7 - v1.8.13 E2E: a late answer after the hand-back is still captured, nothing is resent
+not ok 8 - v1.8.13: a busy composer alone neither releases nor takes back the slot
+not ok 9 - v1.8.13 guard: a release after a generation deferral leaves the ended deferral at 0
+# tests 9
+# pass 1
+# fail 8
+
+Expected on v1.8.12: only test 4 (keep the slot while ChatGPT visibly generates) passes; every hand-back check fails because v1.8.12 holds the slot for the whole 120-minute ladder.
+
+2) GF_PANEL_ROOT=<v1.8.12 tree> node tools/verify-stale-slot-panel.mjs
+PASS both workers are shown, the dead turn still WAITING
+FAIL the dead turn's card says the slot was given back, when, and that the answer is still read
+PASS a worker that holds its slot has no note
+PASS the slot line counts the slot the other worker now holds
+PASS no page errors
+checks 4/5
+
+Expected on v1.8.12: the card has no hand-back note.

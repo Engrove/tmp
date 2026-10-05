@@ -1,0 +1,124 @@
+TAP version 13
+# Subtest: v1.8.13 incident rows keep ids, codes, numbers and flags only
+ok 1 - v1.8.13 incident rows keep ids, codes, numbers and flags only
+  ---
+  duration_ms: 2.416135
+  type: 'test'
+  ...
+# Subtest: v1.8.13 incident log is a bounded ring and counts what it dropped
+ok 2 - v1.8.13 incident log is a bounded ring and counts what it dropped
+  ---
+  duration_ms: 332.322564
+  type: 'test'
+  ...
+# Subtest: v1.8.13 concurrent appends do not lose rows
+ok 3 - v1.8.13 concurrent appends do not lose rows
+  ---
+  duration_ms: 3.048284
+  type: 'test'
+  ...
+# Subtest: v1.8.13 E2E: a dead turn leaves its whole story in the log, without prompt text
+ok 4 - v1.8.13 E2E: a dead turn leaves its whole story in the log, without prompt text
+  ---
+  duration_ms: 937.367812
+  type: 'test'
+  ...
+# Subtest: v1.8.13 E2E: a budget hold is logged when it starts; pacing waits are not
+ok 5 - v1.8.13 E2E: a budget hold is logged when it starts; pacing waits are not
+  ---
+  duration_ms: 177.266467
+  type: 'test'
+  ...
+# Subtest: v1.8.13 a policy update says what changed
+ok 6 - v1.8.13 a policy update says what changed
+  ---
+  duration_ms: 3.058962
+  type: 'test'
+  ...
+# Subtest: v1.8.13 diagnostics export carries the incident log, the capacity scheduler and an index
+ok 7 - v1.8.13 diagnostics export carries the incident log, the capacity scheduler and an index
+  ---
+  duration_ms: 1.278426
+  type: 'test'
+  ...
+# Subtest: v1.8.13 restart report rows carry their own time
+ok 8 - v1.8.13 restart report rows carry their own time
+  ---
+  duration_ms: 2.424468
+  type: 'test'
+  ...
+# Subtest: v1.8.13 worker card note for a turn that gave its slot back
+ok 9 - v1.8.13 worker card note for a turn that gave its slot back
+  ---
+  duration_ms: 0.512814
+  type: 'test'
+  ...
+# Subtest: v1.8.13 E2E queue: a dead turn's 120 min switch is logged as park + activation of the next slot
+ok 10 - v1.8.13 E2E queue: a dead turn's 120 min switch is logged as park + activation of the next slot
+  ---
+  duration_ms: 1400.368562
+  type: 'test'
+  ...
+# Subtest: v1.8.13 reproduction: a turn without generation after the 30 min F5 gives its slot back and keeps waiting
+ok 11 - v1.8.13 reproduction: a turn without generation after the 30 min F5 gives its slot back and keeps waiting
+  ---
+  duration_ms: 666.217236
+  type: 'test'
+  ...
+# Subtest: v1.8.13: the one-minute recovery scan does not take the given-back slot again
+ok 12 - v1.8.13: the one-minute recovery scan does not take the given-back slot again
+  ---
+  duration_ms: 575.202987
+  type: 'test'
+  ...
+# Subtest: v1.8.13: generation seen again after the release takes the slot back (reality wins)
+ok 13 - v1.8.13: generation seen again after the release takes the slot back (reality wins)
+  ---
+  duration_ms: 658.207866
+  type: 'test'
+  ...
+# Subtest: v1.8.13: a visible generation at 31 min keeps the slot (no release while ChatGPT works)
+ok 14 - v1.8.13: a visible generation at 31 min keeps the slot (no release while ChatGPT works)
+  ---
+  duration_ms: 527.491836
+  type: 'test'
+  ...
+# Subtest: v1.8.13: the ladder is unchanged after the release: Ctrl-F5 at 60 and 90, switch at 120, nothing resent
+ok 15 - v1.8.13: the ladder is unchanged after the release: Ctrl-F5 at 60 and 90, switch at 120, nothing resent
+  ---
+  duration_ms: 885.51275
+  type: 'test'
+  ...
+# Subtest: v1.8.13 E2E: with one shared slot, a window waiting behind a dead turn gets the slot when it is given back
+ok 16 - v1.8.13 E2E: with one shared slot, a window waiting behind a dead turn gets the slot when it is given back
+  ---
+  duration_ms: 497.545292
+  type: 'test'
+  ...
+# Subtest: v1.8.13 E2E: a late answer after the hand-back is still captured, nothing is resent
+ok 17 - v1.8.13 E2E: a late answer after the hand-back is still captured, nothing is resent
+  ---
+  duration_ms: 800.387767
+  type: 'test'
+  ...
+# Subtest: v1.8.13: a busy composer alone neither releases nor takes back the slot
+ok 18 - v1.8.13: a busy composer alone neither releases nor takes back the slot
+  ---
+  duration_ms: 606.984058
+  type: 'test'
+  ...
+# Subtest: v1.8.13 guard: a release after a generation deferral leaves the ended deferral at 0
+ok 19 - v1.8.13 guard: a release after a generation deferral leaves the ended deferral at 0
+  ---
+  duration_ms: 665.66774
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6000.161229

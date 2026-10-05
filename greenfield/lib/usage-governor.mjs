@@ -153,8 +153,17 @@ export async function probeProviderRecovery(proof, storage = chrome.storage.loca
     event(v,"PROVIDER_HOLD_CLEARED",operator ? "OPERATOR_FRESH_UI_RECHECK" : "TWO_FRESH_UI_PROBES_AFTER_EXPLICIT_RESET",now);
   });
 }
+// v1.8.13: the event says what changed ("messages7d 400→1000"); diagnostics
+// 2026-10-05 had the update but not the old or new limits.
+export function safetyPolicyChanges(before = {}, after = {}) {
+  return Object.keys(after).filter((key) => before[key] !== after[key]).map((key) => `${key} ${before[key] ?? "–"}→${after[key]}`);
+}
 export async function updateSafetyPolicy(patch, storage = chrome.storage.local) {
-  return change(storage, v => { v.policy = S.normalizePolicy({...v.policy,...patch}); event(v,"SAFETY_POLICY_UPDATED"); });
+  return change(storage, v => {
+    const before = { ...v.policy };
+    v.policy = S.normalizePolicy({...v.policy,...patch});
+    event(v,"SAFETY_POLICY_UPDATED",safetyPolicyChanges(before, v.policy).join(", ") || "unchanged");
+  });
 }
 export async function pauseAdmission(paused, storage = chrome.storage.local) {
   return change(storage, v => { v.admissionPaused = paused === true; event(v,paused ? "OPERATOR_PAUSED_NEW_WORK" : "OPERATOR_RESUMED_NEW_WORK"); });

@@ -335,3 +335,48 @@ export function waitingRefreshSchedule({ staleSince = "", stage = "", requestedA
   }
   return { anchorMs, stage: normalizedStage, nextAction: step.action, nextAtMs, rotateAtMs };
 }
+
+// v1.8.13: when a stale turn gives its capacity slot back. Only after the
+// ladder's first reload (F5 at 30 min) has settled, while the readable,
+// loaded page shows no generation signal at all (stop button, streaming or a
+// busy composer) and no answer has been admitted for this prompt. A turn that
+// took its slot back because it generated again is not released before the
+// next reload stage. Pure.
+export function staleTurnCapacityDecision({
+  now = Date.now(),
+  refreshState = null,
+  promptHash = "",
+  turn = 0,
+  acknowledged = false,
+  page = null
+} = {}) {
+  const hold = (code) => ({ action: "HOLD", code, stage: normalizeWaitingRefreshStage(refreshState?.stage) });
+  if (acknowledged !== true) return hold("PROMPT_NOT_ACKNOWLEDGED");
+  if (!refreshState || !promptHash || refreshState.promptHash !== promptHash ||
+      Number(refreshState.turn || 0) !== Number(turn || 0)) {
+    return hold("STALE_STATE_NOT_FOR_THIS_PROMPT");
+  }
+  const stage = normalizeWaitingRefreshStage(refreshState.stage);
+  if (![WAITING_REFRESH_STAGES.F5_30, WAITING_REFRESH_STAGES.CTRL_F5_60, WAITING_REFRESH_STAGES.CTRL_F5_90].includes(stage)) {
+    return hold("NO_RELOAD_YET");
+  }
+  const released = refreshState.capacityReleased;
+  if (released && released.promptHash === promptHash && Number(released.turn) === Number(turn || 0)) {
+    return hold("ALREADY_RELEASED");
+  }
+  const readopted = refreshState.capacityReadopted;
+  if (readopted && readopted.promptHash === promptHash && Number(readopted.turn) === Number(turn || 0) &&
+      normalizeWaitingRefreshStage(readopted.stage) === stage) {
+    return hold("READOPTED_IN_THIS_STAGE");
+  }
+  const requestedAtMs = parseTime(refreshState.requestedAt);
+  if (requestedAtMs == null || Number(now) < requestedAtMs + WAITING_RECOVERY_SETTLE_MS) {
+    return hold("RELOAD_SETTLING");
+  }
+  if (!page || page.pageHealth?.readyState !== "complete") return hold("PAGE_NOT_LOADED");
+  if (page.generating === true || page.signals?.stopVisible === true ||
+      page.signals?.streaming === true || page.signals?.composerBusy === true) {
+    return hold("GENERATION_SIGNAL");
+  }
+  return { action: "RELEASE", code: "STALE_TURN_NO_GENERATION_AFTER_RELOAD", stage };
+}
