@@ -1,0 +1,65 @@
+# GreenSea configuration (/etc/greensea/greensea.toml)
+#
+# [server] and [llama] are read at start. The other sections are defaults for
+# runtime settings; the web interface (Inställningar) can override them, and
+# the overrides are stored in the database.
+# Environment variables GREENSEA_<SECTION>_<KEY> override this file,
+# e.g. GREENSEA_SERVER_AUTH_TOKEN, GREENSEA_LLAMA_API_KEY.
+
+[server]
+# 127.0.0.1 = only this host (use an SSH tunnel or a reverse proxy with TLS).
+# 0.0.0.0   = whole network: then auth_token MUST be set.
+host = "127.0.0.1"
+port = 8765
+data_dir = "/var/lib/greensea"
+# Login token for the web interface and API (empty = no login).
+# Generate one with: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+auth_token = ""
+
+[llama]
+# llama-server (llama.cpp). Start it with --jinja (default in current builds).
+base_url = "http://127.0.0.1:8080"
+# Same value as llama-server --api-key, if used.
+api_key = ""
+# Only for llama-server in router (multi-model) mode.
+model = ""
+
+[generation]
+max_tokens = 2048
+temperature = 0.6
+top_p = 0.95
+# json_schema (grammar-constrained, recommended) | json_object | off
+structured_output = "json_schema"
+store_reasoning = true
+
+[context]
+# 0 = per-slot n_ctx from llama-server /props. Set explicitly if llama-server
+# uses a unified KV cache shared by several slots (-kvu) and you run missions in parallel.
+n_ctx = 0
+rotate_at = 0.75
+checkpoint_share = 0.35
+max_session_turns = 0
+progress_log_items = 20
+artifact_read_chars = 6000
+
+[scheduler]
+# 0 = llama-server total_slots (-np).
+max_parallel = 0
+aging_seconds = 180
+
+[timeouts]
+# Prompt processing of a long context on CPU can take minutes.
+first_token_seconds = 900
+stall_seconds = 180
+turn_seconds = 3600
+health_interval_seconds = 15
+
+[reviewer]
+# off | terminal (check DONE/BLOCKED claims) | every_turn
+mode = "terminal"
+max_tokens = 600
+max_rejections = 2
+
+[missions]
+default_max_turns = 200
+default_priority = "NORMAL"

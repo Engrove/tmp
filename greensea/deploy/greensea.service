@@ -1,0 +1,50 @@
+[Unit]
+Description=GreenSea - autonomous long-session runner for llama.cpp
+After=network-online.target
+Wants=network-online.target
+# If llama-server runs as a systemd unit on the same host, uncomment:
+#After=llama-server.service
+#Wants=llama-server.service
+
+[Service]
+Type=simple
+User=greensea
+Group=greensea
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/greensea/venv/bin/greensea --config /etc/greensea/greensea.toml
+Restart=on-failure
+RestartSec=5
+# GreenSea finishes in-flight HTTP work for up to 30 s; an interrupted
+# generation is re-sent after restart (it never reached the session context).
+TimeoutStopSec=40
+
+# /var/lib/greensea, owned by the service user (database lives here).
+StateDirectory=greensea
+StateDirectoryMode=0750
+ConfigurationDirectory=greensea
+
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GreenSea</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><img src="/static/icon.svg" alt="" class="logo"><span>GreenSea</span><small id="app-version"></small></div>
+  <nav class="tabs" id="main-nav">
+    <button data-view="missions" class="active">Uppdrag</button>
+    <button data-view="templates">Mallar</button>
+    <button data-view="events">Händelser</button>
+    <button data-view="settings">Inställningar</button>
+  </nav>
+  <div class="llama" id="llama-pill" title="llama-server">
+    <span class="dot"></span><span id="llama-text">llama-server: okänd</span>
+  </div>
+  <button class="ghost small" id="logout-btn" hidden>Logga ut</button>
+</header>
+
+<div id="toast" class="toast" hidden></div>
+
+<main>
+  <!-- Login -->
+  <section id="view-login" class="view" hidden>
+    <form id="login-form" class="card narrow">
+      <h2>Logga in</h2>
+      <p class="muted">Ange GreenSea-token (server.auth_token).</p>
+      <input type="password" id="login-token" autocomplete="current-password" required>
+      <button type="submit" class="primary">Logga in</button>
+      <p class="error" id="login-error" hidden></p>
+    </form>
+  </section>
+
+  <!-- Missions -->
+  <section id="view-missions" class="view">
+    <div class="split">
+      <aside class="mission-list-pane">
+        <div class="pane-head">
+          <h2>Uppdrag</h2>
+          <button class="primary small" id="new-mission-btn">+ Nytt</button>
+        </div>
+        <div class="filter-row">
+          <select id="mission-filter">
+            <option value="active">Aktiva</option>
+            <option value="all">Alla</option>
+            <option value="ended">Avslutade</option>
+          </select>
+          <span class="muted small" id="capacity-text"></span>
+        </div>
+        <ul id="mission-list" class="mission-list"></ul>
+        <p class="muted empty" id="mission-list-empty" hidden>Inga uppdrag här.</p>
+      </aside>
+
+      <section class="mission-detail" id="mission-detail">
+        <div class="placeholder" id="detail-placeholder">
+          <h2>Välj ett uppdrag</h2>
+          <p class="muted">eller skapa ett nytt. GreenSea driver uppdraget självständigt över många prompter mot din llama-server och håller sessionen vid liv genom kontextrotation.</p>
+        </div>
+
+        <!-- New mission form -->
+        <form id="new-mission-form" class="card" hidden>
+          <h2>Nytt uppdrag</h2>
+          <label>Mall
+            <select id="nm-template"><option value="">— ingen —</option></select>
+          </label>
+          <label>Titel <input id="nm-title" maxlength="200" placeholder="Kort namn"></label>
+          <label>Uppdrag (målet, kraven och leveransen)
+            <textarea id="nm-goal" rows="12" required placeholder="Beskriv uppgiften, acceptanskriterier och vad som ska levereras (t.ex. en artefakt report.md)."></textarea>
+          </label>
+          <div class="row">
+            <label>Prioritet
+              <select id="nm-priority">
+                <option value="LOW">Låg</option><option value="NORMAL" selected>Normal</option>
+                <option value="HIGH">Hög</option><option value="URGENT">Brådskande</option>
+              </select>
+            </label>
+            <label>Max turer <input id="nm-max-turns" type="number" min="1" max="1000000" value="200"></label>
+          </div>
+          <label class="check"><input type="checkbox" id="nm-start" checked> Starta direkt</label>
+          <label class="check"><input type="checkbox" id="nm-save-template"> Spara även som mall</label>
+          <div class="actions">
+            <button type="submit" class="primary">Skapa</button>
+            <button type="button" class="ghost" id="nm-cancel">Avbryt</button>
+          </div>
+        </form>
+
+        <!-- Mission detail -->
+        <div id="detail" hidden>
+          <div class="detail-head">
+            <div>
+              <h2 id="d-title"></h2>
+              <div class="badges">
+                <span class="badge" id="d-phase"></span>
+                <span class="muted small" id="d-reason"></span>
+              </div>
+            </div>
+            <div class="actions" id="d-actions">
+              <button class="primary" data-act="start">Starta</button>
+              <button data-act="pause">Pausa</button>
+              <button class="primary" data-act="resume">Återuppta</button>
+              <button data-act="rotate" title="Starta en ny session från checkpoint vid nästa tur">Ny session</button>
+              <button class="danger" data-act="stop">Stoppa</button>
+              <button data-act="export">Exportera</button>
+              <button class="danger ghost" data-act="delete">Ta bort</button>
+            </div>
+          </div>
+
+          <div class="question" id="d-question" hidden>
+            <strong>Uppdraget väntar på dig</strong>
+            <p id="d-question-text"></p>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><span class="k">Tur</span><span class="v" id="d-turns"></span></div>
+            <div class="stat"><span class="k">Session</span><span class="v" id="d-session"></span></div>
+            <div class="stat wide"><span class="k">Kontext</span>
+              <div class="bar"><div class="fill" id="d-ctx-fill"></div><div class="mark" id="d-ctx-mark"></div></div>
+              <span class="v small" id="d-ctx-text"></span></div>
+            <div class="stat"><span class="k">Prioritet</span>
+              <select id="d-priority">
+                <option value="LOW">Låg</option><option value="NORMAL">Normal</option>
+                <option value="HIGH">Hög</option><option value="URGENT">Brådskande</option>
+              </select></div>
+            <div class="stat"><span class="k">Status</span><span class="v small" id="d-waiting"></span></div>
+          </div>
+
+          <div class="objective"><span class="k">Nästa mål</span><p id="d-objective"></p></div>
+
+          <form id="instruction-form" class="instruction">
+            <label for="instr-text">Instruktion till nästa prompt <span class="muted small">(engångs, går före målet)</span></label>
+            <textarea id="instr-text" rows="3" maxlength="12000" placeholder="T.ex. svar på modellens fråga, ändrad prioritering, ett beslut…"></textarea>
+            <div class="actions">
+              <label class="check"><input type="checkbox" id="instr-resume" checked> och återuppta</label>
+              <button type="submit" class="primary small" id="instr-send">Skicka instruktion</button>
+              <button type="button" class="small" id="reopen-btn" hidden>Öppna igen med instruktionen</button>
+            </div>
+            <ul class="pending-instr" id="pending-instr"></ul>
+          </form>
+
+          <nav class="subtabs" id="detail-tabs">
+            <button data-tab="live" class="active">Live</button>
+            <button data-tab="turns">Turer</button>
+            <button data-tab="memory">Minne</button>
+            <button data-tab="artifacts">Artefakter</button>
+            <button data-tab="sessions">Sessioner</button>
+            <button data-tab="events">Händelser</button>
+            <button data-tab="mission">Uppdragstext</button>
+          </nav>
+
+          <div class="tab" id="tab-live">
+            <p class="muted small" id="live-status"></p>
+            <details id="live-reasoning-box" hidden><summary>Resonemang</summary><pre id="live-reasoning" class="stream"></pre></details>
+            <pre id="live-content" class="stream"></pre>
+            <div id="live-last"></div>
+          </div>
+          <div class="tab" id="tab-turns" hidden>
+            <ul id="turn-list" class="turn-list"></ul>
+            <button class="ghost small" id="turns-more" hidden>Visa äldre</button>
+          </div>
+          <div class="tab" id="tab-memory" hidden>
+            <table class="grid"><thead><tr><th>Nyckel</th><th>Värde</th><th>Tur</th></tr></thead><tbody id="memory-body"></tbody></table>
+            <p class="muted small" id="memory-empty">Modellen har inte sparat några anteckningar ännu.</p>
+          </div>
+          <div class="tab" id="tab-artifacts" hidden>
+            <table class="grid"><thead><tr><th>Namn</th><th>Storlek</th><th>SHA-256</th><th>Tur</th><th></th></tr></thead><tbody id="artifact-body"></tbody></table>
+            <p class="muted small" id="artifact-empty">Inga artefakter ännu.</p>
+            <div id="artifact-view" hidden>
+              <h3 id="artifact-view-name"></h3>
+              <pre id="artifact-view-content" class="doc"></pre>
+            </div>
+          </div>
+          <div class="tab" id="tab-sessions" hidden>
+            <table class="grid"><thead><tr><th>#</th><th>Orsak</th><th>Turer</th><th>n_ctx</th><th>Start</th><th>Slut</th></tr></thead><tbody id="session-body"></tbody></table>
+          </div>
+          <div class="tab" id="tab-events" hidden>
+            <table class="grid events"><thead><tr><th>Tid</th><th>Händelse</th><th>Detaljer</th></tr></thead><tbody id="mission-events"></tbody></table>
+          </div>
+          <div class="tab" id="tab-mission" hidden>
+            <form id="edit-form">
+              <label>Titel <input id="ed-title" maxlength="200"></label>
+              <label>Uppdrag <textarea id="ed-goal" rows="14"></textarea></label>
+              <label>Max turer <input id="ed-max-turns" type="number" min="1" max="1000000"></label>
+              <p class="muted small">Ändrad uppdragstext börjar gälla i en ny session (startas automatiskt vid nästa tur).</p>
+              <div class="actions"><button type="submit" class="primary small">Spara ändringar</button>
+                <button type="button" class="ghost small" id="ed-template">Spara som mall</button></div>
+            </form>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- Templates -->
+  <section id="view-templates" class="view" hidden>
+    <div class="split">
+      <aside class="mission-list-pane">
+        <div class="pane-head"><h2>Mallar</h2><button class="primary small" id="new-template-btn">+ Ny</button></div>
+        <ul id="template-list" class="mission-list"></ul>
+        <p class="muted empty" id="template-empty" hidden>Inga mallar ännu.</p>
+      </aside>
+      <section class="mission-detail">
+        <form id="template-form" class="card" hidden>
+          <h2 id="tf-heading">Mall</h2>
+          <label>Etikett <input id="tf-label" maxlength="120"></label>
+          <label>Titel <input id="tf-title" maxlength="200"></label>
+          <label>Uppdrag <textarea id="tf-goal" rows="14" required></textarea></label>
+          <div class="row">
+            <label>Prioritet <select id="tf-priority">
+              <option value="LOW">Låg</option><option value="NORMAL">Normal</option>
+              <option value="HIGH">Hög</option><option value="URGENT">Brådskande</option></select></label>
+            <label>Max turer <input id="tf-max-turns" type="number" min="1" max="1000000" value="200"></label>
+          </div>
+          <div class="actions">
+            <button type="submit" class="primary">Spara</button>
+            <button type="button" id="tf-use">Skapa uppdrag från mallen</button>
+            <button type="button" class="danger ghost" id="tf-delete">Ta bort</button>
+          </div>
+        </form>
+        <div class="placeholder" id="template-placeholder"><h2>Mallar</h2>
+          <p class="muted">Spara uppdrag du kör ofta och starta dem med ett klick.</p></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- Global events -->
+  <section id="view-events" class="view" hidden>
+    <div class="card">
+      <h2>Händelselogg</h2>
+      <table class="grid events"><thead><tr><th>Tid</th><th>Uppdrag</th><th>Händelse</th><th>Detaljer</th></tr></thead><tbody id="global-events"></tbody></table>
+    </div>
+  </section>
+
+  <!-- Settings -->
+  <section id="view-settings" class="view" hidden>
+    <form id="settings-form" class="card">
+      <h2>Inställningar</h2>
+      <p class="muted small">Gäller direkt, även för pågående uppdrag (från nästa tur). Grundvärdena kommer från konfigurationsfilen.</p>
+      <div id="settings-fields"></div>
+      <div class="actions">
+        <button type="submit" class="primary">Spara</button>
+        <button type="button" class="ghost" id="settings-reset">Återställ till filens värden</button>
+      </div>
+    </form>
+    <div class="card">
+      <h2>llama-server</h2>
+      <dl class="kv" id="llama-details"></dl>
+    </div>
+  </section>
+</main>
+</body>
+</html>
