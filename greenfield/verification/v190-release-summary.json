@@ -1,9 +1,8 @@
 {
-  "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.9.0",
-  "releaseChannel": "1.9.0",
+  "schema": "eic.greenfield.v190-release-summary.v1",
+  "version": "1.9.0",
   "generatedAt": "2026-10-06T05:55:22.157868+00:00",
-  "sourceBaseline": {
+  "source": {
     "file": "EIC_Autonom_Agent_Greenfield_v1.8.14.zip",
     "version": "1.8.14",
     "origin": "this repository, commit 870408c",
@@ -54,6 +53,20 @@
         "tests/v137-multi-mission-static.test.mjs (rolling version test)"
       ]
     }
+  },
+  "gates": {
+    "WARM_RESUME_COMPACT_SAME_CONVERSATION_PASS": true,
+    "WARM_RESUME_UNPROVEN_CONVERSATION_FALLS_BACK_COLD_PASS": true,
+    "WARM_RESUME_COLD_CASES_PASS": true,
+    "WARM_RESUME_DEFAULT_ON_PASS": true,
+    "PANEL_EDIT_GUARD_BROWSER_PASS": true,
+    "PANEL_EDIT_GUARD_UNIT_PASS": true,
+    "WORK_MODE_ON_AT_STARTUP_PASS": true,
+    "WORK_MODE_SUPERVISOR_TAKEOVER_PASS": true,
+    "NEGATIVE_CONTROL_V1814_FAILS_PASS": true,
+    "PANEL_TOOL_REGRESSIONS_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "VERSION_INTEGRITY_PASS": true
   },
   "verification": {
     "environment": {

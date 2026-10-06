@@ -21,6 +21,7 @@ import {
   DEFAULT_QUEUE_SWITCH_HARD_RELOAD,
   DEFAULT_QUEUE_SWITCH_DELAY_SECONDS,
   DEFAULT_QUEUE_SWITCH_SETTLE_SECONDS,
+  DEFAULT_WARM_QUEUE_RESUME,
   normalizeMissionQuantumInteractions,
   normalizeQueuePriorityAgingSeconds,
   normalizeQueueSwitchDelaySeconds,
@@ -105,6 +106,11 @@ export function normalizeOperatorSettings(value = {}) {
     queueSwitchSettleSeconds: normalizeQueueSwitchSettleSeconds(
       value.queueSwitchSettleSeconds ?? DEFAULT_QUEUE_SWITCH_SETTLE_SECONDS
     ),
+    // v1.9.0: a parked GFW resumes in its own conversation when eligible
+    // (lib/warm-resume.mjs); on unless the operator turns it off.
+    warmQueueResume: value.warmQueueResume == null
+      ? DEFAULT_WARM_QUEUE_RESUME
+      : value.warmQueueResume === true,
     // v1.8.12: the worker (Chrome window binding) that owns the reserved
     // capacity slot; "" = no reservation.
     reservedWorkerId: String(value.reservedWorkerId || "").trim().slice(0, 200),

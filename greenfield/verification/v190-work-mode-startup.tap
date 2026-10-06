@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: v1.9.0 work mode: startup patch and supervisor decision
+ok 1 - v1.9.0 work mode: startup patch and supervisor decision
+  ---
+  duration_ms: 3.174673
+  type: 'test'
+  ...
+# Subtest: v1.9.0 work mode: a Chrome start turns Arbetsläge on (stored, read back, logged)
+ok 2 - v1.9.0 work mode: a Chrome start turns Arbetsläge on (stored, read back, logged)
+  ---
+  duration_ms: 232.017284
+  type: 'test'
+  ...
+# Subtest: v1.9.0 work mode: a new profile without settings gets Arbetsläge on at install
+ok 3 - v1.9.0 work mode: a new profile without settings gets Arbetsläge on at install
+  ---
+  duration_ms: 195.564327
+  type: 'test'
+  ...
+# Subtest: v1.9.0 work mode: a supervisor that no longer exists does not keep Arbetsläge idle
+ok 4 - v1.9.0 work mode: a supervisor that no longer exists does not keep Arbetsläge idle
+  ---
+  duration_ms: 217.534307
+  type: 'test'
+  ...
+# Subtest: v1.9.0 work mode: with no supervisor the first ticking worker claims the role; a reserved worker that is not running does not block it
+ok 5 - v1.9.0 work mode: with no supervisor the first ticking worker claims the role; a reserved worker that is not running does not block it
+  ---
+  duration_ms: 309.248294
+  type: 'test'
+  ...
+# Subtest: v1.9.0 work mode: switched off, nothing polls and a service-worker wake does not turn it on
+ok 6 - v1.9.0 work mode: switched off, nothing polls and a service-worker wake does not turn it on
+  ---
+  duration_ms: 146.545487
+  type: 'test'
+  ...
+# Subtest: v1.9.0 work mode: only runtime.onStartup and runtime.onInstalled turn it on
+ok 7 - v1.9.0 work mode: only runtime.onStartup and runtime.onInstalled turn it on
+  ---
+  duration_ms: 3.402082
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1244.105103

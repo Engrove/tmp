@@ -1,6 +1,14 @@
-# EIC Autonom Agent Greenfield 1.8.14
+# EIC Autonom Agent Greenfield 1.9.0
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.9.0 har tre delar:
+
+- **Varm återupptagning.** En parkerad GFW som får tur i kön igen fortsätter i sin egen ChatGPT-chatt, i stället för att öppna en ny chatt med FULL prompt. Promptprofilen följer reglerna från 1.7.7: kort prompt i samma chatt, FULL var tionde gång eller när uppdraget har ändrats. Varje tvivel ger den gamla vägen: chatten raderad, någon annan har skrivit i den, AI:n har begärt ny chatt, eller chatten är för lång eller för gammal. Inställningen är på som standard.
+- **Panelen skriver inte över det du ändrar.** Kryssrutor, fält, dropdowns och instruktionsutkast behåller ditt värde genom panelens omritningar. Osparade ändringar markeras med streckad ram.
+- **Arbetsläge är på vid start.** Det slås på vid varje start av Chrome och tillägget. En körande worker tar över hämtningen när den sparade ansvariga workern inte längre finns.
+
+Se [UPPDATERA_TILL_1_9_0.md](UPPDATERA_TILL_1_9_0.md).
 
 Version 1.8.14 hoppar över analysen av svaret vid ett köbyte. När en köplats kvant är fullbordad (1/1, 15/15 …), eller när svaret självt lämnar platsen till kön (`YIELD_TO_QUEUE`, `PAUSE_PROCESS`, `BACKGROUND_SLEEP`), parkeras platsen direkt och nästa GFW startar, utan Nano och Hjalmar. Runtime-kontroller, delegeringar, paus, schema och checkpoint hanteras som förut. Analysen körs fortfarande när den kan ändra utfallet, till exempel vid DONE, vid en Nano-uppgift, vid en väntande operatörsinstruktion eller när ingen annan köplats kan ta över. Se [UPPDATERA_TILL_1_8_14.md](UPPDATERA_TILL_1_8_14.md).
 
@@ -37,6 +45,30 @@ Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfiel
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.9.0
+
+- **Varm återupptagning** (`lib/warm-resume.mjs`; `buildQueueActivationProcess`, `tickRotating` och `abandonWarmResume` i `background.js`):
+  - **Beslutet** `warmResumeDecision` fattas vid köaktivering. Varm väg kräver allt detta:
+    - besvarad och fångad senaste tur;
+    - parkering vid ett vanligt köbyte (`WARM_RESUME_PARK_OUTCOMES`);
+    - ingen `ROTATE_SESSION_NOW`;
+    - känd och entydig konversation, som ingen annan GFW har använt;
+    - färre än 10 prompter i chatten;
+    - högst 24 h sedan GFW:n lämnade den.
+  - **Varm väg:** `sessionSeq` är oförändrad, meddelandet är `CONTINUATION` med `warmResumeObjective`, och fliken navigeras till GFW:ns konversation. Promptprofilen väljs av `selectPromptProfile` (COMPACT/FULL enligt 1.7.7).
+  - **Sidkontrollen** `warmResumePageVerdict` kräver rätt konversation (15 s för omdirigering), laddad tråd, inget pågående svar, tom inmatning och att senaste användarmeddelandet är GFW:ns egen prompt. Sidan måste bli klar inom 90 s. Annars bygger `abandonWarmResume` den kalla FULL `SESSION_ROTATION`-prompten (`sessionSeq`+1) och öppnar en ny chatt.
+  - **Inställningen** `warmQueueResume` är på som standard och syns i panelen under Grundparametrar.
+  - **Händelseloggen** visar `QUEUE_ITEM_ACTIVATED` med `warmResume`, samt `WARM_RESUME_READY` och `WARM_RESUME_ABANDONED`.
+- **Panelens redigeringsskydd** (`lib/panel-edit-guard.mjs`, `sidepanel.js`):
+  - `guardedSet` skriver inte över ett fält som har fokus eller en osparad ändring, och markerar ändringen med `gf-unsaved`.
+  - `guardedHtml` bygger inte om kölistan, rensningslistan eller dropdownernas alternativ när innehållet är oförändrat, när ett fält i dem har fokus eller medan en ändring verkställs.
+  - Efter en verkställd köplatsändring byggs raden om direkt, och markören står kvar i fältet.
+  - Processhändelsen tömmer inte längre instruktionsutkastet.
+- **Arbetsläge vid start** (`lib/work-mode-supervisor.mjs`; `enableWorkModeAtStartup` och `syncWorkModeForWorker` i `background.js`):
+  - `runtime.onStartup` och `runtime.onInstalled` slår på `workModeEnabled`, med readback.
+  - En ansvarig worker som inte längre kör ersätts av den körande workern. Den reserverade workern föredras.
+  - Händelseloggen visar `WORK_MODE_ENABLED_AT_STARTUP` och `WORK_MODE_SUPERVISOR_CLAIMED`.
 
 ## Nytt i 1.8.14
 
@@ -250,6 +282,8 @@ Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.8, 
 
 ```sh
 npm test
+node --test tests/v190-warm-resume.test.mjs tests/v190-panel-edit-guard.test.mjs tests/v190-work-mode-startup.test.mjs
+NODE_PATH="$(npm root -g)" node tools/verify-panel-edit-guard.mjs   # kräver Playwright + Chromium
 node --test tests/v189-queue-start-discovery.test.mjs
 NODE_PATH="$(npm root -g)" node tools/verify-queue-start-panel.mjs   # kräver Playwright + Chromium
 node --test tests/v187-eic-surface-new-ui.test.mjs
@@ -276,4 +310,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.8.14.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.9.0.

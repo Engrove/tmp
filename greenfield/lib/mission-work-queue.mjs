@@ -36,6 +36,8 @@ export const DEFAULT_QUEUE_PRIORITY_AGING_SECONDS = 180;
 export const MIN_QUEUE_PRIORITY_AGING_SECONDS = 30;
 export const MAX_QUEUE_PRIORITY_AGING_SECONDS = 3600;
 export const DEFAULT_QUEUE_SWITCH_HARD_RELOAD = true;
+// v1.9.0: resume a parked GFW in its own conversation when eligible (lib/warm-resume.mjs).
+export const DEFAULT_WARM_QUEUE_RESUME = true;
 export const DEFAULT_QUEUE_SWITCH_DELAY_SECONDS = 5;
 export const MIN_QUEUE_SWITCH_DELAY_SECONDS = 0;
 export const MAX_QUEUE_SWITCH_DELAY_SECONDS = 300;

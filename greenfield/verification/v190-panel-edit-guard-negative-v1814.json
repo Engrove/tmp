@@ -1,0 +1,129 @@
+{
+  "tool": "tools/verify-panel-edit-guard.mjs",
+  "root": "GF_PANEL_ROOT",
+  "rerenders": 60,
+  "observed": {
+    "hardReload": {
+      "present": true,
+      "focused": false,
+      "value": "on",
+      "checked": true,
+      "unsaved": false
+    },
+    "workMode": {
+      "present": true,
+      "focused": false,
+      "value": "on",
+      "checked": false,
+      "unsaved": false
+    },
+    "workModeBefore": false,
+    "rowPriority": {
+      "present": false,
+      "focused": false,
+      "value": null,
+      "checked": null,
+      "unsaved": false
+    },
+    "rowQuantum": {
+      "present": false,
+      "focused": false,
+      "value": null,
+      "checked": null,
+      "unsaved": false
+    },
+    "instruction": {
+      "present": true,
+      "focused": false,
+      "value": "",
+      "checked": null,
+      "unsaved": false
+    },
+    "delay": {
+      "present": true,
+      "focused": true,
+      "value": "5",
+      "checked": false,
+      "unsaved": false
+    },
+    "afterSave": {
+      "hardReload": true,
+      "delay": "5",
+      "unsaved": 0
+    },
+    "rowCommit": {
+      "rebuilt": true,
+      "value": "HIGH",
+      "focused": false,
+      "meta": "Hög · 7 interaktioner/kvant · nytt uppdrag",
+      "label": "Hög"
+    },
+    "external": {
+      "settle": "4",
+      "unsaved": false
+    },
+    "sentSettings": {
+      "type": "EIC_GF_SET_QUEUE_SETTINGS",
+      "windowId": 7,
+      "workerId": "worker-test",
+      "defaultMissionQuantumInteractions": 5,
+      "queuePriorityAgingSeconds": 180,
+      "queueSwitchDelaySeconds": 5,
+      "queueSwitchHardReload": true,
+      "queueSwitchSettleSeconds": 2
+    }
+  },
+  "pageErrors": [],
+  "checks": [
+    {
+      "name": "re-renders happened while editing (stub fired storage changes and broadcasts)",
+      "pass": true
+    },
+    {
+      "name": "a clicked queue-settings checkbox stays as clicked through re-renders (marked unsaved)",
+      "pass": false
+    },
+    {
+      "name": "Aktivera Arbetsläge stays as clicked through re-renders",
+      "pass": false
+    },
+    {
+      "name": "a focused (open) queue-row dropdown is not rebuilt under the cursor",
+      "pass": false
+    },
+    {
+      "name": "typing in a queue row's quantum field is not overwritten and keeps focus",
+      "pass": false
+    },
+    {
+      "name": "an unsent instruction draft survives re-renders after the cursor leaves",
+      "pass": false
+    },
+    {
+      "name": "a numeric setting being typed keeps the typed value",
+      "pass": false
+    },
+    {
+      "name": "Spara grundparametrar sends the edited values",
+      "pass": false
+    },
+    {
+      "name": "after saving, the controls show the saved values and are no longer marked unsaved",
+      "pass": false
+    },
+    {
+      "name": "a committed queue-row change is shown at once (row rebuilt) and keeps the cursor",
+      "pass": false
+    },
+    {
+      "name": "a setting saved elsewhere is shown when the control is not held",
+      "pass": true
+    },
+    {
+      "name": "no page errors",
+      "pass": true
+    }
+  ],
+  "passed": 3,
+  "total": 12
+}

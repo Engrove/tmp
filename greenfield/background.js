@@ -100,6 +100,8 @@ import { createNanoTask, splitNanoTaskDirective, NANO_TASK_STATUS } from "./lib/
 import { evaluateContinuationAdmission } from "./lib/continuation-guard.mjs";
 import { appendIncident } from "./lib/incident-log.mjs";
 import { queueBoundaryAnalysisDecision, queueBoundaryControl, runtimeControlRequestsCompletion } from "./lib/queue-boundary.mjs";
+import { warmResumeDecision, warmResumeObjective, warmResumePageVerdict } from "./lib/warm-resume.mjs";
+import { workModeStartupPatch, workModeSupervisorDecision } from "./lib/work-mode-supervisor.mjs";
 import { applyGreenfieldControlToDecision, resolveGreenfieldControl } from "./lib/greenfield-control.mjs";
 import {
   autonomousResponseObservation,
@@ -185,6 +187,7 @@ import {
   DEFAULT_QUEUE_SWITCH_HARD_RELOAD,
   DEFAULT_QUEUE_SWITCH_DELAY_SECONDS,
   DEFAULT_QUEUE_SWITCH_SETTLE_SECONDS,
+  DEFAULT_WARM_QUEUE_RESUME,
   QUEUE_STATUS,
   addMissionWorkItem,
   createQueueContext,
@@ -2330,7 +2333,10 @@ async function queueRuntimeSettings() {
     ),
     queueSwitchSettleSeconds: Number(
       settings.queueSwitchSettleSeconds ?? DEFAULT_QUEUE_SWITCH_SETTLE_SECONDS
-    )
+    ),
+    warmQueueResume: settings.warmQueueResume == null
+      ? DEFAULT_WARM_QUEUE_RESUME
+      : settings.warmQueueResume === true
   };
 }
 
@@ -2438,6 +2444,19 @@ function queueResumeRecordFromAnalysis({
   };
 }
 
+// v1.9.0: conversations last used by other GFWs of this window (other slots'
+// snapshots and the process that just parked); a warm resume never enters them.
+function conversationsOfOtherGfws(queue, priorProcess, processId) {
+  const keys = [];
+  const add = (snapshot) => {
+    if (!snapshot || snapshot.processId === processId) return;
+    keys.push(snapshot.lastResponse?.observation?.conversationKey || "", snapshot.lastManagedUrl || "");
+  };
+  for (const candidate of queue?.items || []) add(candidate.processSnapshot);
+  add(priorProcess);
+  return keys.filter(Boolean);
+}
+
 async function buildQueueActivationProcess({
   queue,
   item,
@@ -2472,10 +2491,22 @@ async function buildQueueActivationProcess({
     String(item.processSnapshot.workerId) === String(queue?.workerId || "")
   );
 
+  let warmPlan = null;
+  let coldPlan = null;
   if (parkedMatchesWorker) {
     const parked = deepClone(item.processSnapshot);
+    // v1.9.0: resume in the GFW's own conversation when eligible.
+    warmPlan = warmResumeDecision({
+      enabled: settings?.warmQueueResume == null ? DEFAULT_WARM_QUEUE_RESUME : settings.warmQueueResume === true,
+      item,
+      parked,
+      lastSessionAction: capturedTargetResponse(parked).targetResponse?.sessionAction || "KEEP",
+      otherConversationKeys: conversationsOfOtherGfws(queue, priorProcess, parked.processId),
+      now: activationAtMs
+    });
     generation = Number(parked.generation || 1) + 1;
-    sessionSeq = Number(parked.sessionSeq || 1) + 1;
+    // A warm resume stays in the same ChatGPT session (conversation).
+    sessionSeq = Number(parked.sessionSeq || 1) + (warmPlan.warm ? 0 : 1);
     turn = Number(parked.turn || 0) + 1;
     objective = sessionRotationObjective(
       item.resume?.objective ||
@@ -2517,6 +2548,23 @@ async function buildQueueActivationProcess({
       updatedAt: nowIso()
     };
     messageType = "SESSION_ROTATION";
+    // Inputs of the cold (fresh chat) prompt, kept small so a warm resume
+    // that cannot be verified on the page falls back to exactly today's path.
+    coldPlan = {
+      objective,
+      previousResponseHash,
+      previousDisposition,
+      analysisEvidence,
+      processStatusMode: item.resume?.processStatusRequest || ""
+    };
+    if (warmPlan.warm) {
+      messageType = "CONTINUATION";
+      objective = warmResumeObjective({
+        objective: String(item.resume?.objective || parked.objectiveState?.objective || "").trim(),
+        outcome: warmPlan.outcome,
+        idleMinutes: (activationAtMs - warmPlan.leftAtMs) / 60000
+      });
+    }
   } else {
     objective = String(item.resume?.objective || "").trim() || initialMissionObjective();
     previousResponseHash = item.resume?.previousResponseHash || "";
@@ -2540,10 +2588,13 @@ async function buildQueueActivationProcess({
   }
 
   const rotationId = randomId("queue-switch");
+  const warm = warmPlan?.warm === true;
   const rotation = createSessionRotationRecord({
     rotationId,
-    reasonCode: parkedSnapshotPresent ? "QUEUE_MISSION_RESUME" : "QUEUE_MISSION_START",
-    reason: parkedSnapshotPresent
+    reasonCode: warm ? "QUEUE_MISSION_WARM_RESUME" : parkedSnapshotPresent ? "QUEUE_MISSION_RESUME" : "QUEUE_MISSION_START",
+    reason: warm
+      ? "Work-queue mission resumed in its own ChatGPT conversation."
+      : parkedSnapshotPresent
       ? "Work-queue mission resumed in a fresh ChatGPT conversation."
       : "Work-queue mission starts in a fresh ChatGPT conversation.",
     requestedBy: "MISSION_WORK_QUEUE",
@@ -2566,6 +2617,12 @@ async function buildQueueActivationProcess({
     : 0;
   rotation.switchNotBeforeAtMs = Date.now() + rotation.switchDelayMs;
   rotation.settleMs = Math.max(0, Number(settings.queueSwitchSettleSeconds || 0) * 1000);
+  if (warmPlan) {
+    rotation.warmResume = warm
+      ? { ...warmPlan, state: "PLANNED", coldSessionSeq: sessionSeq + 1 }
+      : { schema: warmPlan.schema, warm: false, code: warmPlan.code, state: "COLD" };
+  }
+  if (warm) rotation.coldPlan = coldPlan;
   process.sessionRotation = rotation;
 
   const pendingPrompt = await buildPendingA2A(process, {
@@ -2575,7 +2632,8 @@ async function buildQueueActivationProcess({
     previousDisposition,
     analysisEvidence,
     processStatusMode: item.resume?.processStatusRequest || "",
-    sessionRotation: parkedSnapshotPresent ? {
+    // A warm resume continues the conversation: no fresh-chat rotation capsule.
+    sessionRotation: parkedSnapshotPresent && !warm ? {
       ...rotation,
       sourceResponseState: rotation.sourceResponseState
     } : null,
@@ -2755,7 +2813,10 @@ async function activateQueueItem({
       goalHash: await sha256Hex(item.goal)
     }).catch(() => undefined);
   }
-  await recordIncident(process, "QUEUE_ITEM_ACTIVATED", item.processSnapshot ? "QUEUE_MISSION_RESUME" : "QUEUE_MISSION_START", {
+  await recordIncident(process, "QUEUE_ITEM_ACTIVATED", process.sessionRotation?.reasonCode || (item.processSnapshot ? "QUEUE_MISSION_RESUME" : "QUEUE_MISSION_START"), {
+    warmResume: process.sessionRotation?.warmResume?.state === "PLANNED",
+    resumeMode: String(process.sessionRotation?.warmResume?.code || ""),
+    promptProfile: String(process.pendingPrompt?.promptProfile?.profile || ""),
     itemId: item.itemId,
     priorProcessId: priorProcess?.processId || "",
     resumed: Boolean(item.processSnapshot),
@@ -4154,6 +4215,86 @@ async function armSessionRotation(process, {
   return next;
 }
 
+// v1.9.0: the conversation a planned warm resume returns to ("" = cold).
+function warmResumeTarget(rotation) {
+  const warm = rotation?.warmResume;
+  return warm?.warm === true && ["PLANNED", "NAVIGATING"].includes(String(warm.state || ""))
+    ? String(warm.conversationUrl || "")
+    : "";
+}
+
+// v1.9.0: the GFW's conversation could not be proven or used; nothing was
+// sent. Rebuild exactly the cold prompt (fresh chat, FULL, rotation capsule)
+// from the inputs kept at activation and restart the rotation as before.
+async function abandonWarmResume(process, rotation, code, detail = {}) {
+  const plan = rotation.coldPlan || {};
+  const coldSessionSeq = Number(rotation.warmResume?.coldSessionSeq || Number(process.sessionSeq || 1) + 1);
+  const coldRotation = {
+    ...rotation,
+    reasonCode: "QUEUE_MISSION_RESUME",
+    reason: `Work-queue mission resumed in a fresh ChatGPT conversation (warm resume not possible: ${code}).`,
+    state: SESSION_ROTATION_STATES.ARMED,
+    sessionSeq: coldSessionSeq,
+    navigationStartedAt: "",
+    freshnessRetryCount: 0,
+    eicLanding: null,
+    hardReloadState: rotation.hardReloadBeforeResume === true ? "PENDING" : "DISABLED",
+    warmResume: {
+      ...(rotation.warmResume || {}),
+      state: "ABANDONED",
+      abandonCode: String(code || ""),
+      abandonedAt: nowIso()
+    },
+    coldPlan: null
+  };
+  const coldProcess = {
+    ...process,
+    sessionSeq: coldSessionSeq,
+    sessionHealth: resetSessionHealthForRotation(process.sessionHealth, {
+      sessionSeq: coldSessionSeq,
+      sessionStartTurn: Number(process.turn || 0),
+      now: Date.now()
+    })
+  };
+  const objective = String(plan.objective || "").trim() ||
+    sessionRotationObjective(process.objectiveState?.objective || process.goal);
+  const pendingPrompt = await buildPendingA2A(coldProcess, {
+    objective,
+    messageType: "SESSION_ROTATION",
+    previousResponseHash: plan.previousResponseHash || process.lastResponse?.hash || "",
+    previousDisposition: plan.previousDisposition || "CONTINUE",
+    analysisEvidence: plan.analysisEvidence || null,
+    processStatusMode: plan.processStatusMode || "",
+    sessionRotation: { ...coldRotation, sourceResponseState: coldRotation.sourceResponseState },
+    baselineAssistantHash: "",
+    turn: Number(process.turn || 0)
+  });
+  const next = await saveRotationState({
+    ...coldProcess,
+    pendingPrompt,
+    objectiveState: {
+      ...(process.objectiveState || {}),
+      objectiveId: pendingPrompt.a2a?.objectiveId || process.objectiveState?.objectiveId || "",
+      objective,
+      status: "PENDING",
+      updatedAt: nowIso()
+    }
+  }, coldRotation, "WARM_RESUME_ABANDONED", {
+    rotationId: rotation.rotationId,
+    code,
+    conversationKey: rotation.warmResume?.conversationKey || "",
+    noPromptSent: true,
+    ...detail
+  });
+  await recordIncident(next, "WARM_RESUME_ABANDONED", code, {
+    navigationAgeMs: Number(detail.navigationAgeMs || 0),
+    observedConversation: Boolean(detail.observedConversationKey),
+    sameConversation: detail.observedConversationKey === rotation.warmResume?.conversationKey
+  });
+  scheduleFast(next.processId, 300);
+  return next;
+}
+
 async function saveRotationState(process, sessionRotation, kind, payload = {}) {
   const next = {
     ...process,
@@ -4409,13 +4550,16 @@ async function tickRotating(process) {
       if (candidates.length === 1) tab = candidates[0];
     }
 
+    const warmUrl = warmResumeTarget(rotation);
+    const targetUrl = warmUrl || gptRoot;
     let navigating = {
       ...rotation,
       state: SESSION_ROTATION_STATES.NAVIGATING,
       gptRoot,
       sourceTabId: rotation.sourceTabId ?? process.tabId,
       navigationStartedAt: nowIso(),
-      freshnessRetryCount: Number(rotation.freshnessRetryCount || 0)
+      freshnessRetryCount: Number(rotation.freshnessRetryCount || 0),
+      ...(warmUrl ? { warmResume: { ...rotation.warmResume, state: "NAVIGATING" } } : {})
     };
 
     if (tab) {
@@ -4428,14 +4572,16 @@ async function tickRotating(process) {
         rotationId: rotation.rotationId,
         targetTabId: tab.id,
         gptRoot,
+        warmResume: Boolean(warmUrl),
         method: "NAVIGATE_MANAGED_TAB"
       });
       try {
-        await chrome.tabs.update(tab.id, { url: gptRoot });
+        await chrome.tabs.update(tab.id, { url: targetUrl });
         await audit(process, "SESSION_ROTATION_NAVIGATION_TRIGGERED", "chrome", {
           rotationId: rotation.rotationId,
           targetTabId: tab.id,
           gptRoot,
+          warmResume: Boolean(warmUrl),
           method: "tabs.update"
         });
       } catch (error) {
@@ -4458,7 +4604,7 @@ async function tickRotating(process) {
     try {
       const created = await chrome.tabs.create({
         windowId: process.windowId,
-        url: gptRoot,
+        url: targetUrl,
         active: false
       });
       if (!created || !Number.isInteger(created.id)) {
@@ -4521,7 +4667,7 @@ async function tickRotating(process) {
 
   if (!supportedUrl(tab.url)) {
     try {
-      await chrome.tabs.update(tab.id, { url: gptRoot });
+      await chrome.tabs.update(tab.id, { url: warmResumeTarget(rotation) || gptRoot });
       scheduleFast(process.processId, 1200);
       return process;
     } catch (error) {
@@ -4637,6 +4783,73 @@ async function tickRotating(process) {
   } catch (error) {
     scheduleFast(process.processId, 1200);
     return process;
+  }
+
+  // v1.9.0: a warm resume needs the GFW's own idle conversation, not a new chat.
+  if (warmResumeTarget(rotation)) {
+    const verdict = warmResumePageVerdict({ warm: rotation.warmResume, page, tabUrl: tab.url || "", navigationAgeMs });
+    if (verdict.action === "WAIT") {
+      scheduleFast(process.processId, 900);
+      return process;
+    }
+    if (verdict.action === "ABANDON") {
+      return abandonWarmResume(process, rotation, verdict.code, {
+        navigationAgeMs,
+        observedConversationKey: conversationKey(page.url || tab.url || "")
+      });
+    }
+    const warmLanding = Safety.eicSurfaceProof(page.modelEvidence, page.url || tab.url || "", gptRoot);
+    if (!warmLanding.ok) {
+      return abandonWarmResume(process, rotation, "EIC_SURFACE_UNPROVEN", {
+        navigationAgeMs,
+        observedConversationKey: verdict.conversationKey
+      });
+    }
+    const warmRotation = {
+      ...rotation,
+      state: SESSION_ROTATION_STATES.READY_TO_RESUME,
+      targetTabId: tab.id,
+      readyAt: nowIso(),
+      warmResume: { ...rotation.warmResume, state: "VERIFIED", verifiedAt: nowIso() },
+      coldPlan: null
+    };
+    const warmPending = {
+      ...process.pendingPrompt,
+      baselineAssistantHash: page.assistantHash || "",
+      sendAttempts: 0,
+      dispatch: null,
+      promptPause: null
+    };
+    const resumed = await commitTransition(process, PHASES.SENDING, {
+      tabId: tab.id,
+      gptRoot,
+      lastManagedUrl: page.url || tab.url || process.lastManagedUrl || "",
+      sessionRotation: warmRotation,
+      pendingPrompt: warmPending,
+      responseCandidate: null,
+      waitingRefresh: null,
+      lastError: null,
+      lastMaterialAt: nowIso()
+    }, {
+      kind: "WARM_RESUME_READY",
+      component: "session-rotation",
+      detail: {
+        rotationId: rotation.rotationId,
+        targetTabId: tab.id,
+        conversationKey: verdict.conversationKey,
+        eicSurface: warmLanding.kind,
+        promptProfile: warmPending.promptProfile?.profile || "",
+        observedUserCount: Number(page.userCount || 0),
+        messageType: warmPending.a2a?.messageType || ""
+      }
+    });
+    await recordIncident(resumed, "WARM_RESUME_READY", verdict.code, {
+      navigationAgeMs,
+      promptProfile: String(warmPending.promptProfile?.profile || ""),
+      prompts: Number(rotation.warmResume?.prompts || 0)
+    });
+    scheduleFast(resumed.processId, 50);
+    return resumed;
   }
 
   const freshChat = Number(page.userCount || 0) === 0;
@@ -4985,7 +5198,8 @@ async function tickSending(process) {
         turn: process.turn,
         staleSince: pending.dispatch?.startedAt || nowIso()
       }),
-      sessionRotation: pending.a2a?.messageType === "SESSION_ROTATION" && process.sessionRotation
+      sessionRotation: (pending.a2a?.messageType === "SESSION_ROTATION" ||
+          process.sessionRotation?.warmResume?.state === "VERIFIED") && process.sessionRotation
         ? {
             ...process.sessionRotation,
             state: SESSION_ROTATION_STATES.RESUMED,
@@ -7809,17 +8023,75 @@ async function drainWorkModePrequeue(supervisorProcess, settings) {
   }
 }
 
+// v1.9.0: Arbetsläge is turned on when Chrome starts the profile and when
+// the extension is installed, updated or reloaded (lib/work-mode-supervisor.mjs).
+async function enableWorkModeAtStartup(reason) {
+  try {
+    const current = await loadOperatorSettings(chrome.storage.local, { restoreSavedMissions: false, bookmarks: null });
+    const patch = workModeStartupPatch(current);
+    if (!patch) return { ok: true, state: "ALREADY_ENABLED" };
+    const saved = await saveOperatorSettings(patch, chrome.storage.local, { restoreSavedMissions: false, bookmarks: null });
+    if (saved.workModeEnabled !== true) throw new Error("WORK_MODE_STARTUP_READBACK_MISMATCH");
+    await recordIncident(null, "WORK_MODE_ENABLED_AT_STARTUP", String(reason || ""), {
+      supervisorKept: Boolean(saved.workModeSupervisorWorkerId)
+    });
+    return { ok: true, state: "ENABLED" };
+  } catch (error) {
+    await recordIncident(null, "WORK_MODE_STARTUP_ENABLE_FAILED", String(reason || ""), {
+      error: String(error?.message || error).slice(0, 120)
+    });
+    return { ok: false, state: "FAILED", error: String(error?.message || error) };
+  }
+}
+
+// A worker is live for Arbetsläge when it has a running process bound to an
+// open window in this browser session.
+async function workModeWorkerLive(workerId) {
+  if (!workerId) return false;
+  const all = await loadAllProcesses().catch(() => []);
+  const process = all.find((item) => item.workerId === workerId &&
+    !TERMINAL_PHASES.has(item.phase) && item.phase !== PHASES.DETACHED);
+  if (!process || !Number.isInteger(process.windowId)) return false;
+  const binding = await getWorkerBinding(process.windowId, chrome.storage.session).catch(() => null);
+  return binding?.workerId === workerId;
+}
+
 async function syncWorkModeForWorker(process, { force = false } = {}) {
   if (!process?.workerId || !Number.isInteger(process.windowId)) return { ok: true, state: "NO_WORKER" };
-  const settings = await loadOperatorSettings(chrome.storage.local, { restoreSavedMissions: false, bookmarks: null });
+  let settings = await loadOperatorSettings(chrome.storage.local, { restoreSavedMissions: false, bookmarks: null });
   if (settings.workModeEnabled !== true) return { ok: true, state: "DISABLED" };
-  if (settings.workModeSupervisorWorkerId && settings.workModeSupervisorWorkerId !== process.workerId) {
-    return { ok: true, state: "NOT_SUPERVISOR" };
-  }
   const now = Date.now();
   const last = Number(workModeLastPoll.get(process.workerId) || 0);
   if (!force && now - last < WORK_MODE_POLL_MS) return { ok: true, state: "THROTTLED" };
   workModeLastPoll.set(process.workerId, now);
+  // v1.9.0: one live worker polls; it takes over from a supervisor that is gone.
+  if (String(settings.workModeSupervisorWorkerId || "") !== process.workerId) {
+    const liveWorkerIds = [];
+    for (const id of new Set([String(settings.workModeSupervisorWorkerId || ""), String(settings.reservedWorkerId || "")])) {
+      if (id && id !== process.workerId && await workModeWorkerLive(id)) liveWorkerIds.push(id);
+    }
+    const decision = workModeSupervisorDecision({ settings, workerId: process.workerId, liveWorkerIds });
+    if (decision.action === "SKIP") return { ok: true, state: decision.code };
+    if (decision.action === "CLAIM") {
+      try {
+        settings = await saveOperatorSettings({ workModeSupervisorWorkerId: process.workerId }, chrome.storage.local, {
+          restoreSavedMissions: false,
+          bookmarks: null
+        });
+      } catch {
+        return { ok: false, state: "SUPERVISOR_CLAIM_FAILED" };
+      }
+      if (settings.workModeEnabled !== true) return { ok: true, state: "DISABLED" };
+      if (settings.workModeSupervisorWorkerId !== process.workerId) return { ok: true, state: "NOT_SUPERVISOR" };
+      await audit(process, "WORK_MODE_SUPERVISOR_CLAIMED", "work-mode", {
+        code: decision.code,
+        previousWorkerId: decision.previousWorkerId || ""
+      }).catch(() => undefined);
+      await recordIncident(process, "WORK_MODE_SUPERVISOR_CLAIMED", decision.code, {
+        previousWorkerId: decision.previousWorkerId || ""
+      });
+    }
+  }
   const endpoint = String(settings.workModeEndpoint || "").replace(/\/$/, "");
   const url = `${endpoint}/tasks/next?workerId=${encodeURIComponent(process.workerId)}&ts=${now}`;
   let response;
@@ -8997,10 +9269,12 @@ chrome.runtime.onInstalled.addListener(() => {
   try {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   } catch {}
+  void enableWorkModeAtStartup("installed");
   void hydrateProcesses("installed");
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  void enableWorkModeAtStartup("startup");
   void hydrateProcesses("startup");
 });
 
@@ -9893,7 +10167,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           queuePriorityAgingSeconds: bound.queuePriorityAgingSeconds,
           queueSwitchHardReload: bound.queueSwitchHardReload === true,
           queueSwitchDelaySeconds: bound.queueSwitchDelaySeconds,
-          queueSwitchSettleSeconds: bound.queueSwitchSettleSeconds
+          queueSwitchSettleSeconds: bound.queueSwitchSettleSeconds,
+          ...(typeof bound.warmQueueResume === "boolean" ? { warmQueueResume: bound.warmQueueResume } : {})
         }, chrome.storage.local, { restoreSavedMissions: false, bookmarks: null });
         return { ok: true, operatorSettings: settings };
       }));

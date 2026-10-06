@@ -710,3 +710,10 @@ button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-v
 .saved-mission-count { color: var(--muted); font-weight: 600; }
 .saved-mission-count.full { color: var(--danger); }
 .saved-mission-status:empty { display: none; }
+
+/* v1.9.0: a control the operator changed but has not saved. The periodic
+   re-render leaves it alone (lib/panel-edit-guard.mjs). */
+.gf-unsaved {
+  outline: 2px dashed #ffd27a;
+  outline-offset: 2px;
+}

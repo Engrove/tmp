@@ -1,4 +1,12 @@
-# Greenfield 1.8.14 – börja här
+# Greenfield 1.9.0 – börja här
+
+Greenfield 1.9.0 har tre delar:
+
+- En parkerad GFW fortsätter i sin egen ChatGPT-chatt när den får tur i kön igen, i stället för att öppna en ny chatt med full prompt. Kan chatten inte bekräftas öppnas en ny chatt som förut.
+- Panelen skriver inte längre över kryssrutor, fält och dropdowns som du håller på att ändra.
+- Arbetsläge är ikryssat och aktivt efter varje start av Chrome och tillägget.
+
+Se [UPPDATERA_TILL_1_9_0.md](UPPDATERA_TILL_1_9_0.md).
 
 Greenfield 1.8.14 analyserar inte svaret när kön ändå går vidare. Det gäller när kvanten är fullbordad, eller när svaret självt lämnar platsen till kön (YIELD, PAUSE, SLEEP). Platsen parkeras direkt och nästa GFW startar. Se [UPPDATERA_TILL_1_8_14.md](UPPDATERA_TILL_1_8_14.md).
 
@@ -117,10 +125,10 @@ Från tidigare versioner bevaras den deterministiska Uppdragskön, 1.7.5:s auton
 
 1. Pausa nya Greenfield-utskick.
 2. Säkerhetskopiera den uppackade tilläggsmappen.
-3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.8.14.zip`.
+3. Packa upp `EIC_Autonom_Agent_Greenfield_v1.9.0.zip`.
 4. Kopiera innehållet över samma mapp som Chrome redan använder så extension-ID/lokal state bevaras.
 5. I `chrome://extensions`, välj **Läs in igen**.
-6. Verifiera att panelen visar `v1.8.14`. Följ sedan [UPPDATERA_TILL_1_8_14.md](UPPDATERA_TILL_1_8_14.md). Kommer du från en äldre version, följ även anvisningen för varje mellanliggande version: [1.8.13](UPPDATERA_TILL_1_8_13.md), [1.8.12](UPPDATERA_TILL_1_8_12.md), [1.8.11](UPPDATERA_TILL_1_8_11.md), [1.8.10](UPPDATERA_TILL_1_8_10.md), [1.8.9](UPPDATERA_TILL_1_8_9.md) och [1.8.8](UPPDATERA_TILL_1_8_8.md).
+6. Verifiera att panelen visar `v1.9.0`. Följ sedan [UPPDATERA_TILL_1_9_0.md](UPPDATERA_TILL_1_9_0.md). Kommer du från en äldre version, följ även anvisningen för varje mellanliggande version: [1.8.14](UPPDATERA_TILL_1_8_14.md), [1.8.13](UPPDATERA_TILL_1_8_13.md), [1.8.12](UPPDATERA_TILL_1_8_12.md), [1.8.11](UPPDATERA_TILL_1_8_11.md), [1.8.10](UPPDATERA_TILL_1_8_10.md), [1.8.9](UPPDATERA_TILL_1_8_9.md) och [1.8.8](UPPDATERA_TILL_1_8_8.md).
 7. Återgå till den exakta EIC-konversation som hör till workern.
 8. Kör **Kontrollera modell igen** och exportera diagnostik om safety-hold kvarstår.
 9. Låt Greenfield reconcilea befintlig process-state; gör inget manuellt omskick av en dispatch med okänd effekt.

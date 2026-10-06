@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: v1.9.0 policy: warm only after an answered turn in a known conversation, inside the caps
+ok 1 - v1.9.0 policy: warm only after an answered turn in a known conversation, inside the caps
+  ---
+  duration_ms: 2.611667
+  type: 'test'
+  ...
+# Subtest: v1.9.0 policy: the page verdict proves the conversation, waits for it, or gives up
+ok 2 - v1.9.0 policy: the page verdict proves the conversation, waits for it, or gives up
+  ---
+  duration_ms: 0.449003
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: a parked GFW comes back to its own conversation with a COMPACT prompt
+ok 3 - v1.9.0 E2E: a parked GFW comes back to its own conversation with a COMPACT prompt
+  ---
+  duration_ms: 9168.140506
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: the conversation does not open (e.g. deleted chat) -> fresh chat with FULL, nothing sent before
+ok 4 - v1.9.0 E2E: the conversation does not open (e.g. deleted chat) -> fresh chat with FULL, nothing sent before
+  ---
+  duration_ms: 8926.881485
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: someone wrote in A's conversation meanwhile -> fresh chat, A's thread is not reused
+ok 5 - v1.9.0 E2E: someone wrote in A's conversation meanwhile -> fresh chat, A's thread is not reused
+  ---
+  duration_ms: 4280.508233
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: Fortsätt i egen chatt turned off -> the v1.8.14 cold resume (fresh chat, FULL)
+ok 6 - v1.9.0 E2E: Fortsätt i egen chatt turned off -> the v1.8.14 cold resume (fresh chat, FULL)
+  ---
+  duration_ms: 3836.524992
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: the AI asked for a new chat in its last answer -> cold
+ok 7 - v1.9.0 E2E: the AI asked for a new chat in its last answer -> cold
+  ---
+  duration_ms: 3773.947901
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: the saved mission text changed while parked -> same conversation, but FULL
+ok 8 - v1.9.0 E2E: the saved mission text changed while parked -> same conversation, but FULL
+  ---
+  duration_ms: 3458.793512
+  type: 'test'
+  ...
+# Subtest: v1.9.0: warm resume is on by default and can be turned off
+ok 9 - v1.9.0: warm resume is on by default and can be turned off
+  ---
+  duration_ms: 0.579959
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: another GFW answered in A's conversation -> A's thread is no longer A's alone -> cold
+ok 10 - v1.9.0 E2E: another GFW answered in A's conversation -> A's thread is no longer A's alone -> cold
+  ---
+  duration_ms: 3592.303758
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 37165.760592

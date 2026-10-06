@@ -33,8 +33,16 @@ import {
   DEFAULT_QUEUE_PRIORITY_AGING_SECONDS,
   DEFAULT_QUEUE_SWITCH_DELAY_SECONDS,
   DEFAULT_QUEUE_SWITCH_HARD_RELOAD,
-  DEFAULT_QUEUE_SWITCH_SETTLE_SECONDS
+  DEFAULT_QUEUE_SWITCH_SETTLE_SECONDS,
+  DEFAULT_WARM_QUEUE_RESUME
 } from "./lib/mission-work-queue.mjs";
+import {
+  beginPending,
+  forceSet,
+  guardedHtml,
+  guardedSet,
+  releaseControl
+} from "./lib/panel-edit-guard.mjs";
 
 const $ = (id) => document.getElementById(id);
 const state = {
@@ -59,7 +67,9 @@ const state = {
     queueSwitchDelaySeconds: DEFAULT_QUEUE_SWITCH_DELAY_SECONDS,
     queueSwitchHardReload: DEFAULT_QUEUE_SWITCH_HARD_RELOAD,
     queueSwitchSettleSeconds: DEFAULT_QUEUE_SWITCH_SETTLE_SECONDS,
-    workModeEnabled: false,
+    warmQueueResume: DEFAULT_WARM_QUEUE_RESUME,
+    // v1.9.0: Arbetsläge is turned on at every Chrome/extension start.
+    workModeEnabled: true,
     workModeEndpoint: "https://api.elho.fi/greenfield/work-mode/v1",
     savedMissions: []
   },
@@ -289,7 +299,7 @@ async function renderAudit() {
   const enabled = auditState.enabled === true;
   const rows = Array.isArray(auditState.events) ? auditState.events.slice(-AUDIT_FIFO_LIMIT) : [];
 
-  $("auditEnabled").checked = enabled;
+  guardedSet($("auditEnabled"), enabled);
   $("auditEnabled").disabled = state.auditBusy;
   $("exportAudit").disabled = !enabled || state.auditBusy;
   $("auditState").textContent = enabled
@@ -324,20 +334,23 @@ function renderOperatorSettings() {
     queueSwitchDelaySeconds: DEFAULT_QUEUE_SWITCH_DELAY_SECONDS,
     queueSwitchHardReload: DEFAULT_QUEUE_SWITCH_HARD_RELOAD,
     queueSwitchSettleSeconds: DEFAULT_QUEUE_SWITCH_SETTLE_SECONDS,
+    warmQueueResume: DEFAULT_WARM_QUEUE_RESUME,
     savedMissions: []
   };
+  // v1.9.0: guardedSet/guardedHtml leave a control alone while the operator
+  // holds it (focus or an unsaved edit); see lib/panel-edit-guard.mjs.
   const delay = Number(settings.postDelaySeconds || 0);
   const maxActiveSessions = Number(
     settings.maxActiveSessions ?? DEFAULT_MAX_ACTIVE_SESSIONS
   );
-  $("postDelay").value = String(delay);
-  $("postDelayValue").textContent = `${delay} s`;
+  guardedSet($("postDelay"), String(delay));
+  $("postDelayValue").textContent = `${Number($("postDelay").value || 0)} s`;
   $("postDelay").disabled = state.operatorSettingsBusy;
-  $("maxActiveSessions").value = String(maxActiveSessions);
-  $("maxActiveSessionsValue").textContent = String(maxActiveSessions);
+  guardedSet($("maxActiveSessions"), String(maxActiveSessions));
+  $("maxActiveSessionsValue").textContent = String(Number($("maxActiveSessions").value || maxActiveSessions));
   $("maxActiveSessions").disabled = state.operatorSettingsBusy;
-  if ($("workModeEnabled")) $("workModeEnabled").checked = settings.workModeEnabled === true;
-  if ($("workModeEndpoint")) $("workModeEndpoint").value = settings.workModeEndpoint || "https://api.elho.fi/greenfield/work-mode/v1";
+  guardedSet($("workModeEnabled"), settings.workModeEnabled === true);
+  guardedSet($("workModeEndpoint"), settings.workModeEndpoint || "https://api.elho.fi/greenfield/work-mode/v1");
   if ($("workModeState")) $("workModeState").textContent = settings.workModeEnabled === true ? "Aktiv" : "Av";
   if ($("saveWorkMode")) $("saveWorkMode").disabled = state.operatorSettingsBusy;
   if ($("syncWorkMode")) $("syncWorkMode").disabled = state.operatorSettingsBusy || !activeProcess(state.process);
@@ -346,7 +359,7 @@ function renderOperatorSettings() {
   const selectedPriority = active
     ? String(state.process.schedulerPriority || DEFAULT_GREENFIELD_PRIORITY)
     : state.startSchedulerPriority;
-  $("schedulerPriority").value = selectedPriority;
+  guardedSet($("schedulerPriority"), selectedPriority);
   $("schedulerPriority").disabled = state.operatorSettingsBusy;
 
   const missions = Array.isArray(settings.savedMissions) ? settings.savedMissions : [];
@@ -358,9 +371,10 @@ function renderOperatorSettings() {
       ? new Set([...select.selectedOptions].map((option) => option.value).filter(Boolean))
       : new Set(select.value ? [select.value] : []);
     const emptyLabel = multi ? "Välj ett eller flera sparade uppdrag…" : "Sparade uppdrag…";
-    select.innerHTML = (multi ? "" : `<option value="">${emptyLabel}</option>`) + missions
+    const optionsHtml = (multi ? "" : `<option value="">${emptyLabel}</option>`) + missions
       .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(savedMissionDisplayLabel(item))}</option>`)
       .join("");
+    if (guardedHtml(select, optionsHtml) !== "WRITTEN") continue;
     for (const option of select.options) {
       option.selected = selectedValues.has(option.value);
     }
@@ -376,33 +390,41 @@ function renderOperatorSettings() {
     !(state.process?.goal || $("goal").value.trim());
   $("queueAddMission").disabled = !$("queueSavedMissionSelect").value || state.queueBusy;
 
-  $("defaultMissionQuantumInteractions").value = String(
+  guardedSet($("defaultMissionQuantumInteractions"), String(
     settings.defaultMissionQuantumInteractions ?? DEFAULT_MISSION_QUANTUM_INTERACTIONS
-  );
-  $("queuePriorityAgingSeconds").value = String(
+  ));
+  guardedSet($("queuePriorityAgingSeconds"), String(
     settings.queuePriorityAgingSeconds ?? DEFAULT_QUEUE_PRIORITY_AGING_SECONDS
-  );
-  $("queueSwitchDelaySeconds").value = String(
+  ));
+  guardedSet($("queueSwitchDelaySeconds"), String(
     settings.queueSwitchDelaySeconds ?? DEFAULT_QUEUE_SWITCH_DELAY_SECONDS
-  );
-  $("queueSwitchHardReload").checked = settings.queueSwitchHardReload == null
+  ));
+  guardedSet($("queueSwitchHardReload"), settings.queueSwitchHardReload == null
     ? DEFAULT_QUEUE_SWITCH_HARD_RELOAD
-    : settings.queueSwitchHardReload === true;
-  $("queueSwitchSettleSeconds").value = String(
+    : settings.queueSwitchHardReload === true);
+  guardedSet($("queueSwitchSettleSeconds"), String(
     settings.queueSwitchSettleSeconds ?? DEFAULT_QUEUE_SWITCH_SETTLE_SECONDS
-  );
+  ));
+  guardedSet($("warmQueueResume"), settings.warmQueueResume == null
+    ? DEFAULT_WARM_QUEUE_RESUME
+    : settings.warmQueueResume === true);
   for (const id of [
-    "defaultMissionQuantumInteractions",
-    "queuePriorityAgingSeconds",
-    "queueSwitchDelaySeconds",
-    "queueSwitchHardReload",
-    "queueSwitchSettleSeconds",
+    ...QUEUE_SETTING_CONTROLS,
     "saveQueueSettings"
   ]) {
     if ($(id)) $(id).disabled = state.operatorSettingsBusy || state.queueBusy;
   }
   renderSavedMissionAdmin();
 }
+const QUEUE_SETTING_CONTROLS = [
+  "defaultMissionQuantumInteractions",
+  "queuePriorityAgingSeconds",
+  "queueSwitchDelaySeconds",
+  "queueSwitchHardReload",
+  "queueSwitchSettleSeconds",
+  "warmQueueResume"
+];
+
 async function refreshOperatorSettings() {
   state.operatorSettings = await loadOperatorSettings();
   renderOperatorSettings();
@@ -423,6 +445,7 @@ async function updatePostDelay() {
     $("statusDetail").textContent = error?.message || String(error);
   } finally {
     state.operatorSettingsBusy = false;
+    releaseControl($("postDelay"));
     renderOperatorSettings();
   }
 }
@@ -451,6 +474,7 @@ async function updateMaxActiveSessions() {
     $("statusDetail").textContent = error?.message || String(error);
   } finally {
     state.operatorSettingsBusy = false;
+    releaseControl($("maxActiveSessions"));
     await render();
   }
 }
@@ -460,6 +484,7 @@ async function updateSchedulerPriority() {
   const priority = String($("schedulerPriority").value || DEFAULT_GREENFIELD_PRIORITY);
   if (!activeProcess(state.process)) {
     state.startSchedulerPriority = priority;
+    releaseControl($("schedulerPriority"));
     renderOperatorSettings();
     return;
   }
@@ -483,6 +508,7 @@ async function updateSchedulerPriority() {
     $("statusDetail").textContent = error?.message || String(error);
   } finally {
     state.operatorSettingsBusy = false;
+    releaseControl($("schedulerPriority"));
     await render();
   }
 }
@@ -630,10 +656,10 @@ function renderSavedMissionAdmin() {
   const sorted = missions.slice().sort((a, b) =>
     savedMissionDisplayLabel(a).localeCompare(savedMissionDisplayLabel(b), "sv", { numeric: true }));
   const selected = select.value;
-  select.innerHTML = `<option value="">Välj sparat uppdrag…</option>` + sorted
+  const written = guardedHtml(select, `<option value="">Välj sparat uppdrag…</option>` + sorted
     .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(savedMissionDisplayLabel(item))}</option>`)
-    .join("");
-  select.value = sorted.some((item) => item.id === selected) ? selected : "";
+    .join(""));
+  if (written === "WRITTEN") select.value = sorted.some((item) => item.id === selected) ? selected : "";
   if (admin.editingId && !missions.some((item) => item.id === admin.editingId)) admin.editingId = "";
 
   const keyCounts = new Map();
@@ -683,10 +709,10 @@ function renderSavedMissionCleanup(missions) {
   const rows = savedMissionCleanupRows(missions);
   const ids = new Set(rows.map((row) => row.id));
   for (const id of [...admin.cleanupSelected]) if (!ids.has(id)) admin.cleanupSelected.delete(id);
-  $("savedMissionCleanupList").innerHTML = rows.map((row) => {
+  guardedHtml($("savedMissionCleanupList"), rows.map((row) => {
     const note = [CLEANUP_REASON_SV[row.reason] || "", `uppdaterad ${formatSavedAt(row.updatedAt)}`].filter(Boolean).join(" · ");
     return `<label class="row${row.reason ? " changed" : ""}"><span><input type="checkbox" data-cleanup-id="${escapeHtml(row.id)}"${admin.cleanupSelected.has(row.id) ? " checked" : ""}>${escapeHtml(row.label)}</span><span>${escapeHtml(note)}</span></label>`;
-  }).join("") || `<div class="empty">Inga sparade uppdrag.</div>`;
+  }).join("") || `<div class="empty">Inga sparade uppdrag.</div>`);
   const count = admin.cleanupSelected.size;
   const confirmPending = count > 0 && admin.cleanupConfirmUntil > Date.now();
   $("savedMissionCleanupDelete").disabled = state.operatorSettingsBusy || count === 0;
@@ -1091,12 +1117,12 @@ function renderMissionQueueSets() {
   const select = $("queueSetSelect");
   if (!select) return;
   const selected = select.value;
-  select.innerHTML = sets.length
+  const written = guardedHtml(select, sets.length
     ? sets.map((item) =>
         `<option value="${escapeHtml(item.setId)}">${escapeHtml(item.name)} · ${Number(item.itemCount || 0)} uppdrag</option>`
       ).join("")
-    : '<option value="">Inga sparade set</option>';
-  if (selected && sets.some((item) => item.setId === selected)) select.value = selected;
+    : '<option value="">Inga sparade set</option>');
+  if (written === "WRITTEN" && selected && sets.some((item) => item.setId === selected)) select.value = selected;
 
   const selectedId = select.value;
   const active = activeProcess(state.process);
@@ -1116,7 +1142,7 @@ function renderMissionQueueSets() {
   $("queueSetSelect").disabled = state.queueSetBusy || sets.length === 0;
 }
 
-function renderMissionQueue() {
+function renderMissionQueue({ refocus = null } = {}) {
   const queue = state.missionQueue || {
     enabled: false,
     activeItemId: "",
@@ -1145,7 +1171,7 @@ function renderMissionQueue() {
   $("queueClearHistory").disabled = state.queueBusy || history.length === 0;
   $("queueAddMission").disabled = state.queueBusy || !$("queueSavedMissionSelect").value;
 
-  $("missionQueueList").innerHTML = items.length
+  const listHtml = items.length
     ? [...items].sort((a,b) => Number(a.order || 0) - Number(b.order || 0)).map((item) => {
         const active = item.itemId === queue.activeItemId || item.status === "ACTIVE";
         const paused = item.status === "PAUSED";
@@ -1188,6 +1214,16 @@ function renderMissionQueue() {
           </div>`;
       }).join("")
     : '<div class="empty">Arbetslistan är tom. Lägg till ett eller flera sparade uppdrag.</div>';
+  // Not rebuilt while a row field has focus (an open dropdown, a number being
+  // typed) or while a row change is applied. After a committed row change the
+  // list is rebuilt at once and the cursor returns to the same field.
+  const list = $("missionQueueList");
+  if (refocus) {
+    guardedHtml(list, listHtml, { force: true });
+    list.querySelector(`[data-item-id="${CSS.escape(refocus.itemId)}"] [data-queue-field="${CSS.escape(refocus.field)}"]`)?.focus();
+  } else {
+    guardedHtml(list, listHtml);
+  }
 
   $("missionQueueHistory").innerHTML = history.length
     ? history.slice().reverse().map((item) => `
@@ -1408,7 +1444,8 @@ async function saveQueueSettings() {
     queuePriorityAgingSeconds: Number($("queuePriorityAgingSeconds").value),
     queueSwitchDelaySeconds: Number($("queueSwitchDelaySeconds").value),
     queueSwitchHardReload: $("queueSwitchHardReload").checked === true,
-    queueSwitchSettleSeconds: Number($("queueSwitchSettleSeconds").value)
+    queueSwitchSettleSeconds: Number($("queueSwitchSettleSeconds").value),
+    warmQueueResume: $("warmQueueResume").checked === true
   };
   state.operatorSettingsBusy = true;
   renderOperatorSettings();
@@ -1421,6 +1458,9 @@ async function saveQueueSettings() {
     });
     if (!result?.ok) throw new Error(result?.error || result?.code || "Grundparametrarna kunde inte sparas.");
     state.operatorSettings = result.operatorSettings || state.operatorSettings;
+    // Saved: show the stored (normalised) values again. A failed save keeps
+    // the edits on screen, marked unsaved.
+    for (const id of QUEUE_SETTING_CONTROLS) releaseControl($(id));
   } catch (error) {
     $("statusDetail").textContent = error?.message || String(error);
   } finally {
@@ -1590,9 +1630,16 @@ async function handleQueueListChange(event) {
   const patch = field === "priority"
     ? { itemId, priority: event.target.value }
     : { itemId, maxInteractions: Number(event.target.value) };
+  const list = $("missionQueueList");
+  const hadFocus = document.activeElement === event.target;
+  const release = beginPending(list);
   try {
     await mutateMissionQueue("UPDATE", patch);
-  } catch {}
+  } catch {} finally {
+    release();
+  }
+  if (hadFocus && document.activeElement === event.target) renderMissionQueue({ refocus: { itemId, field } });
+  else renderMissionQueue();
 }
 
 
@@ -1691,9 +1738,8 @@ async function render() {
             : "Continuity inactive";
 
   const instructionText = state.nextInstruction?.text || "";
-  if (document.activeElement !== $("nextInstruction")) {
-    $("nextInstruction").value = instructionText;
-  }
+  // An unsent draft stays (marked unsaved) until it is queued or cleared.
+  guardedSet($("nextInstruction"), instructionText);
   $("instructionState").textContent = instructionText ? "ARMED · nästa prompt" : "Tom";
   $("instructionState").classList.toggle("armed", Boolean(instructionText));
   $("nextInstruction").disabled = !active || state.instructionBusy;
@@ -1909,7 +1955,7 @@ async function setNextInstruction(instruction) {
     if (!result?.ok) throw new Error(result?.error || result?.code || "Tilläggsinstruktionen kunde inte sparas.");
     state.process = result.process || state.process;
     state.nextInstruction = result.nextInstruction || null;
-    if (!state.nextInstruction) $("nextInstruction").value = "";
+    forceSet($("nextInstruction"), state.nextInstruction?.text || "");
   } catch (error) {
     $("statusDetail").textContent = error?.message || String(error);
   } finally {
@@ -1929,7 +1975,6 @@ async function queueInstruction() {
 
 async function clearInstruction() {
   await setNextInstruction("");
-  $("nextInstruction").value = "";
 }
 
 async function stop() {
@@ -2008,9 +2053,10 @@ async function setAuditPreference() {
     if (result.audit) state.audit = result.audit;
   } catch (error) {
     $("statusDetail").textContent = error?.message || String(error);
-    $("auditEnabled").checked = state.audit?.enabled === true;
+    forceSet($("auditEnabled"), state.audit?.enabled === true);
   } finally {
     state.auditBusy = false;
+    releaseControl($("auditEnabled"));
     await renderAudit();
   }
 }
@@ -2066,6 +2112,8 @@ async function saveWorkModeSettings() {
     });
     if (!result?.ok) throw new Error(result?.error || result?.code || "Arbetsläge kunde inte sparas.");
     if (result.operatorSettings) state.operatorSettings = result.operatorSettings;
+    releaseControl($("workModeEnabled"));
+    releaseControl($("workModeEndpoint"));
     $("workModeDetail").textContent = state.operatorSettings.workModeEnabled
       ? "Arbetsläge aktivt. Nano/runtime synkar WMT-förkön under aktiva Greenfield-ticks."
       : "Arbetsläge avstängt.";
@@ -2235,7 +2283,6 @@ chrome.runtime.onMessage.addListener((message) => {
   if (message.missionQueue) state.missionQueue = message.missionQueue;
   if (Array.isArray(message.missionQueueSets)) state.missionQueueSets = message.missionQueueSets;
   if (message.fleetStatus) state.fleetStatus = message.fleetStatus;
-  if (!state.nextInstruction) $("nextInstruction").value = "";
   void render();
 });
 
@@ -2372,7 +2419,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.8.14" }
+      payload: { appVersion: "1.9.0" }
     });
     await snapshot();
   } catch (error) {

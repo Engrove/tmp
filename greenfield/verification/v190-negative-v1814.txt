@@ -1,0 +1,55 @@
+Greenfield v1.9.0 negative control: the three v1.9.0 test files against v1.8.14 (git archive of commit 870408c, APP_VERSION 1.8.14).
+Copied in so the test files load: the pure modules lib/warm-resume.mjs, lib/panel-edit-guard.mjs and lib/work-mode-supervisor.mjs, and one
+constant appended to v1.8.14's lib/mission-work-queue.mjs (export const DEFAULT_WARM_QUEUE_RESUME = true; lib/warm-resume.mjs imports it).
+None of them is wired into v1.8.14's background.js, sidepanel.js or sidepanel.html.
+
+== tests/v190-panel-edit-guard.test.mjs
+ok 1 - v1.9.0 edit guard: an untouched control shows storage on every render
+ok 2 - v1.9.0 edit guard: an operator edit survives re-renders, marked unsaved, until it is saved
+ok 3 - v1.9.0 edit guard: a clicked checkbox stays as clicked; reverting it by hand releases it
+ok 4 - v1.9.0 edit guard: focus alone keeps the value (no unsaved mark); after blur storage is shown
+ok 5 - v1.9.0 edit guard: release after a save shows the stored (normalised) value; forceSet resets
+ok 6 - v1.9.0 edit guard: a rebuilt container is kept while a field in it has focus or a change is pending
+not ok 7 - v1.9.0 panel: every periodically rendered control goes through the guard
+# tests 7
+# pass 6
+# fail 1
+== tests/v190-warm-resume.test.mjs
+ok 1 - v1.9.0 policy: warm only after an answered turn in a known conversation, inside the caps
+ok 2 - v1.9.0 policy: the page verdict proves the conversation, waits for it, or gives up
+not ok 3 - v1.9.0 E2E: a parked GFW comes back to its own conversation with a COMPACT prompt
+not ok 4 - v1.9.0 E2E: the conversation does not open (e.g. deleted chat) -> fresh chat with FULL, nothing sent before
+not ok 5 - v1.9.0 E2E: someone wrote in A's conversation meanwhile -> fresh chat, A's thread is not reused
+not ok 6 - v1.9.0 E2E: Fortsätt i egen chatt turned off -> the v1.8.14 cold resume (fresh chat, FULL)
+not ok 7 - v1.9.0 E2E: the AI asked for a new chat in its last answer -> cold
+not ok 8 - v1.9.0 E2E: the saved mission text changed while parked -> same conversation, but FULL
+not ok 9 - v1.9.0: warm resume is on by default and can be turned off
+not ok 10 - v1.9.0 E2E: another GFW answered in A's conversation -> A's thread is no longer A's alone -> cold
+# tests 10
+# pass 2
+# fail 8
+== tests/v190-work-mode-startup.test.mjs
+ok 1 - v1.9.0 work mode: startup patch and supervisor decision
+not ok 2 - v1.9.0 work mode: a Chrome start turns Arbetsläge on (stored, read back, logged)
+not ok 3 - v1.9.0 work mode: a new profile without settings gets Arbetsläge on at install
+not ok 4 - v1.9.0 work mode: a supervisor that no longer exists does not keep Arbetsläge idle
+not ok 5 - v1.9.0 work mode: with no supervisor the first ticking worker claims the role; a reserved worker that is not running does not block it
+ok 6 - v1.9.0 work mode: switched off, nothing polls and a service-worker wake does not turn it on
+not ok 7 - v1.9.0 work mode: only runtime.onStartup and runtime.onInstalled turn it on
+# tests 7
+# pass 2
+# fail 5
+
+Expected on v1.8.14:
+- tests/v190-warm-resume.test.mjs: the two pure policy tests pass; every end-to-end test fails because v1.8.14 always opens a fresh chat
+  with a FULL prompt and writes no rotation.warmResume record. Tests 6 and 7 (setting off, AI asked for a new chat) expect the cold path,
+  which v1.8.14 also takes; they fail on v1.8.14 only because the v1.9.0 decision record (rotation.warmResume.state/code) is absent.
+  Test 9 fails because v1.8.14's operator settings have no warmQueueResume.
+- tests/v190-panel-edit-guard.test.mjs: the six module tests pass (pure, copied in); the panel test fails because v1.8.14's sidepanel.js
+  writes the controls and rebuilds the queue list directly.
+- tests/v190-work-mode-startup.test.mjs: the pure decision test passes; the startup tests fail (v1.8.14 has no enableWorkModeAtStartup);
+  the stale-supervisor test fails with state NOT_SUPERVISOR and no poll (reproduces "on but idle"); with no supervisor v1.8.14 stores no
+  supervisor (every worker polls); the static start-hook test fails. Test 6 (switched off: no poll) passes on both versions.
+
+Browser counterpart: verification/v190-panel-edit-guard-negative-v1814.json (tools/verify-panel-edit-guard.mjs with GF_PANEL_ROOT at the
+v1.8.14 tree): 3/12; the three checks that pass on both are "re-renders happened", "a setting saved elsewhere is shown" and "no page errors".

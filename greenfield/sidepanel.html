@@ -11,8 +11,8 @@
     <header class="hero">
       <div>
         <div class="eyebrow">EIC AUTONOM AGENT</div>
-        <h1>Greenfield <span>v1.8.14</span></h1>
-        <div class="micro">1.8.14 · Ingen analys vid köbyte</div>
+        <h1>Greenfield <span>v1.9.0</span></h1>
+        <div class="micro">1.9.0 · Varm återupptagning · stabil panel · Arbetsläge vid start</div>
       </div>
       <div id="continuityLamp" class="lamp" title="Continuity"></div>
     </header>
@@ -472,8 +472,12 @@
         <span>Stabilisering efter hård reload (sekunder)</span>
         <input id="queueSwitchSettleSeconds" type="number" min="0" max="30" step="1" value="2">
       </label>
+      <label class="queue-setting queue-setting-check">
+        <span>Fortsätt i GFW:ns egen chatt när den kommer tillbaka i kön (varm återupptagning)</span>
+        <input id="warmQueueResume" type="checkbox" checked>
+      </label>
       <button id="saveQueueSettings" class="secondary queue-settings-save" type="button">Spara grundparametrar</button>
-      <p class="micro">Färsk ChatGPT-konversation är isolationsgränsen mellan köplatser. Listordningen är styrande och loopar; prioritet används först när en aktiv köplats konkurrerar om profilglobal ChatGPT-kapacitet. Växlingens minsta paus är separat från promptpausen. Ofärdig kvant bevaras över tidig yield/pause/block; först full kvant nollställer platsens kvantmätare inför nästa varv. PAUSE_PROCESS i köläge sover den logiska GFW:n och låter nästa körbara plats gå vidare. BLOCKED återförs efter cooldown; DONE/STOP_PROCESS avslutar den logiska sparade GFW:n och tar bort dess eventuella dubblettplatser.</p>
+      <p class="micro">Varje GFW har sin egen ChatGPT-konversation; två köplatser delar aldrig chatt. Med varm återupptagning fortsätter en parkerad GFW i sin egen chatt med kort prompt när chatten kan bekräftas på sidan; annars, och efter AI:ns begäran om ny chatt, öppnas en färsk konversation med full prompt. Ändrade fält som inte är sparade markeras med streckad ram och skrivs inte över av panelens uppdatering. Listordningen är styrande och loopar; prioritet används först när en aktiv köplats konkurrerar om profilglobal ChatGPT-kapacitet. Växlingens minsta paus är separat från promptpausen. Ofärdig kvant bevaras över tidig yield/pause/block; först full kvant nollställer platsens kvantmätare inför nästa varv. PAUSE_PROCESS i köläge sover den logiska GFW:n och låter nästa körbara plats gå vidare. BLOCKED återförs efter cooldown; DONE/STOP_PROCESS avslutar den logiska sparade GFW:n och tar bort dess eventuella dubblettplatser.</p>
     </section>
 
     <footer>
