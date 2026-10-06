@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install or upgrade GreenSea as a systemd service.
-#   sudo ./deploy/install.sh            (run from the greensea/ directory)
+#   sudo bash deploy/install.sh         (run from the unpacked greensea directory)
 # Idempotent: an existing /etc/greensea/greensea.toml and the database are kept.
 set -euo pipefail
 
@@ -28,8 +28,16 @@ rm -rf "$PREFIX/src"
 install -d -m 0755 "$PREFIX/src"
 cp -r "$SRC/greensea" "$SRC/pyproject.toml" "$SRC/README.md" "$PREFIX/src/"
 [[ -x "$PREFIX/venv/bin/python" ]] || "$PY" -m venv "$PREFIX/venv"
-"$PREFIX/venv/bin/pip" install --quiet --upgrade pip
-"$PREFIX/venv/bin/pip" install --quiet "$PREFIX/src"
+# Offline install: put wheels (aiohttp and its dependencies, setuptools, wheel)
+# in a directory "wheels" next to deploy/ and no network access is needed.
+PIP_ARGS=()
+if [[ -d "$SRC/wheels" ]]; then
+  echo "   offline: installing from $SRC/wheels (no network)"
+  PIP_ARGS=(--no-index --find-links "$SRC/wheels")
+else
+  "$PREFIX/venv/bin/pip" install --quiet --upgrade pip
+fi
+"$PREFIX/venv/bin/pip" install --quiet ${PIP_ARGS[@]+"${PIP_ARGS[@]}"} "$PREFIX/src"
 
 echo "== configuration -> $CONF_DIR"
 install -d -m 0750 -g greensea "$CONF_DIR"

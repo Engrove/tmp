@@ -28,9 +28,12 @@ GreenSea bygger på idéerna i Greenfield 1.9.0, men flyttade från ChatGPT-flik
 
 ## Installation som tjänst
 
+**Steg-för-steg-guide:** [INSTALLATION_OCH_ANVANDNING.md](INSTALLATION_OCH_ANVANDNING.md) (installation, användning, API, drift, felsökning).
+
 ```bash
-git clone … && cd tmp/greensea          # branch claude/greensea
-sudo ./deploy/install.sh
+sha256sum -c GreenSea_v0.1.0.zip.sha256
+unzip GreenSea_v0.1.0.zip && cd greensea-0.1.0
+sudo bash deploy/install.sh
 ```
 
 Skriptet gör följande:
