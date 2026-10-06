@@ -121,7 +121,7 @@ Skriptet gör följande, och kan köras igen vid uppgradering:
 **Spara tokenet** som skrivs ut. Det står också i konfigurationsfilen:
 
 ```bash
-sudo grep auth_token /etc/greensea/greensea.toml
+sudo grep '^auth_token' /etc/greensea/greensea.toml
 ```
 
 ### 3.3 Kontrollera att tjänsten kör
@@ -211,7 +211,7 @@ location / {
    - **Max turer**: `20`
    - **Starta direkt**: kryssad
 4. Klicka **Skapa**. Detaljvyn öppnas:
-   - fasen går *Ny session* → *Skickar* → *Genererar* → *Analyserar* → *Skickar* …;
+   - fasen går *Ny session* → *Skickar* → *Genererar* → *Analyserar* → *Skickar* … Mellanfaserna passerar ofta på bråkdelen av en sekund, så det du mest ser är *Genererar*;
    - fliken **Live** visar modellens text medan den skrivs;
    - **Nästa mål** visar vad modellen ska göra i nästa tur.
 5. Efter några turer: titta under **Artefakter** (klicka `guide.md`) och **Minne** (modellens plan och anteckningar).
@@ -477,7 +477,7 @@ sudo userdel greensea
 | *Väntar på dig: turbudgeten är slut* | Max turer uppnått | Höj **Max turer** under *Uppdragstext* och **Återuppta**, eller **Stoppa** |
 | *Väntar på dig: granskaren bestrider att det är klart* (`DONE_DISPUTED`) | Modellen säger klart, granskaren håller inte med | Läs frågerutan. Är du nöjd: **Stoppa**. Annars en instruktion om vad som saknas, med *och återuppta*. |
 | *Väntar på dig: modellen behöver dig* (`MODEL_BLOCKED`) | Modellen saknar information eller ett beslut | Svara i instruktionsrutan med *och återuppta* |
-| Inloggningen fungerar inte | Fel token | `sudo grep auth_token /etc/greensea/greensea.toml`. Efter byte av token: `systemctl restart greensea` och logga in igen. |
+| Inloggningen fungerar inte | Fel token | `sudo grep '^auth_token' /etc/greensea/greensea.toml`. Efter byte av token: `systemctl restart greensea` och logga in igen. |
 | API-anrop ger 403 | Headern `X-GreenSea: 1` saknas | Lägg till den på POST/PUT/PATCH/DELETE |
 | `install.sh`: *Python 3.11 or newer is required* | För gammal `python3` | Installera Python ≥ 3.11 och kör `sudo PYTHON=python3.11 bash deploy/install.sh` |
 | `install.sh`: *ensurepip is not available* eller venv-fel | `python3-venv` saknas | `sudo apt install python3-venv` (eller `python3.11-venv`) |
