@@ -52,10 +52,12 @@ sudo systemctl restart greensea           # omstart (pågående tur skickas om)
 
 ### Manuellt / utveckling
 
+Se avsnitt 12 i [guiden](INSTALLATION_OCH_ANVANDNING.md#12-köra-utan-systemd-och-köra-testerna):
+
 ```bash
-python3 -m venv venv && ./venv/bin/pip install -e '.[test]'
-./venv/bin/greensea --config deploy/greensea.toml.example   # (ändra data_dir först)
-./venv/bin/python -m pytest -q
+python3 -m venv venv && venv/bin/pip install -e '.[test]'
+venv/bin/greensea --config lokal.toml        # lokal.toml enligt guiden, data_dir = "./data"
+venv/bin/python -m pytest -q                 # 42 passed
 ```
 
 ## Åtkomst och säkerhet

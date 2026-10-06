@@ -40,8 +40,20 @@ def main(argv: list[str] | None = None) -> int:
             config.server.host)
 
     from .web import build_app  # imported late so --check works without side effects
-    web.run_app(build_app(config), host=config.server.host, port=config.server.port,
-                access_log=None, print=None, shutdown_timeout=30)
+    url = f"http://{config.server.host}:{config.server.port}/"
+    try:
+        # aiohttp calls `print` once the socket is bound, so "listening" is only logged on success.
+        web.run_app(build_app(config), host=config.server.host, port=config.server.port,
+                    access_log=None, shutdown_timeout=30,
+                    print=lambda _msg: logging.getLogger("greensea.web").info("listening on %s", url))
+    except OSError as exc:  # e.g. address already in use, permission denied on data_dir
+        print(f"greensea: {exc}", file=sys.stderr)
+        return 1
+    except RuntimeError as exc:
+        if "database schema" not in str(exc):
+            raise
+        print(f"greensea: {exc}", file=sys.stderr)  # newer database than this version
+        return 1
     return 0
 
 

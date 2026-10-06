@@ -71,7 +71,16 @@ llama-server -m /models/din-modell.gguf -c 32768 -np 2 --host 127.0.0.1 --port 8
 - svaret reserverar `max_tokens` (standard 2 048);
 - en ny session behöver plats för checkpointen.
 
-Med 4 096 tokens per slot blir det nästan ingen plats kvar. Sänk i så fall `max_tokens` till 1 024 eller lägre.
+Räkneexempel med GreenSeas egen budgetfunktion och ett uppdrag på 1 200 tecken (kontrakt + uppdrag ≈ 1 850 tokens, försiktigt uppskattat):
+
+| Kontext per slot | `max_tokens` | Plats för checkpoint |
+|---|---|---|
+| 4 096 | 1 024 | 0 tokens (räcker inte för långa sessioner) |
+| 8 192 | 2 048 | ≈ 1 850 tokens |
+| 8 192 | 1 024 | ≈ 2 870 tokens |
+| 16 384 | 2 048 | ≈ 5 730 tokens |
+
+4 096 tokens per slot räcker alltså inte. Utan checkpoint förlorar en ny session sitt minne av vad som gjorts.
 
 **Modell:** en instruktionstränad modell som följer instruktioner väl. GreenSea kräver JSON-svar och använder llama-serverns grammatikbundna JSON (`response_format`), så formatet tvingas fram. Kvaliteten i innehållet avgörs ändå av modellen. Testa med ett kort uppdrag först (avsnitt 5).
 
@@ -119,7 +128,7 @@ sudo grep auth_token /etc/greensea/greensea.toml
 
 ```bash
 systemctl status greensea                  # active (running)
-journalctl -u greensea -n 20               # "GreenSea 0.1.0 listening …" och "llama-server ready (ok)"
+journalctl -u greensea -n 20               # "starting …", "listening on http://127.0.0.1:8765/", "llama-server ready (ok)"
 curl -s http://127.0.0.1:8765/api/session  # {"app": "GreenSea", "version": "0.1.0", "auth_required": true, …}
 ```
 
@@ -143,6 +152,8 @@ auth_token = "…"          # skapades av install.sh
 base_url = "http://127.0.0.1:8080"   # var llama-server lyssnar
 api_key = ""                          # om llama-server körs med --api-key
 ```
+
+**llama-server på en annan dator:** sätt `base_url = "http://<ip>:8080"`. Starta llama-server med `--host 0.0.0.0` (eller värdens IP) och gärna `--api-key`, ange samma nyckel i `api_key`, och begränsa porten i brandväggen till GreenSea-servern. Kontrollera från GreenSea-servern med `curl http://<ip>:8080/health`.
 
 Om llama-server kör som systemd-tjänst på samma maskin kan du låta GreenSea starta efter den:
 
@@ -205,6 +216,8 @@ location / {
    - **Nästa mål** visar vad modellen ska göra i nästa tur.
 5. Efter några turer: titta under **Artefakter** (klicka `guide.md`) och **Minne** (modellens plan och anteckningar).
 6. När modellen anser sig klar granskar granskaren påståendet. Fasen blir **Klar**, eller fortsätter om granskaren hittar brister.
+
+**Kontrollera första körningen med din modell** under **Turer**: klicka en tur och se att *tolkning* är `STRICT` och att kvittona är `APPLIED`. Många formatfel tyder på att modellen eller `max_tokens` inte räcker (se avsnitt 10). Kör sedan ett längre uppdrag och se under **Sessioner** att en ny session startar när kontextmätaren passerar det röda strecket. `cache` i turdetaljerna visar hur många tokens llama-server återanvände från sin prefixcache.
 
 ## 6. Användning i detalj
 
@@ -373,6 +386,8 @@ curl -sN "${A[@]}" "$GS/api/stream?mission=$MID"           # live (Server-Sent E
 
 Utan `auth_token` behövs ingen `Authorization`-header, men `X-GreenSea: 1` krävs alltid för ändrande anrop.
 
+Är uppdraget redan **Klart** när du kör instruktions- eller pausexemplet, svarar GreenSea 409. Det händer med en snabb modell och ett litet uppdrag. Använd då `reopen`.
+
 | Metod och sökväg | Funktion |
 |---|---|
 | `GET /api/session`, `POST /api/login`, `POST /api/logout` | Inloggning |
@@ -451,6 +466,8 @@ sudo userdel greensea
 |---|---|---|
 | Röd punkt, *llama-server: …* | llama-server kör inte, laddar fortfarande modellen (503) eller har en annan adress | `curl http://127.0.0.1:8080/health`; kontrollera `[llama] base_url`. Uppdragen väntar under tiden, utan att förbruka omförsök. |
 | Tjänsten startar inte | Fel i konfigurationen | `sudo /opt/greensea/venv/bin/greensea --config /etc/greensea/greensea.toml --check` och `journalctl -u greensea -n 50` |
+| `greensea: … address already in use` | Porten används redan, t.ex. av tjänsten när du startar en manuell kopia | Byt `port` i konfigurationen, eller stoppa den andra processen |
+| `greensea: database schema N is newer than this GreenSea` | En äldre version startas mot en databas från en nyare version | Installera den nyare versionen igen, eller återställ en säkerhetskopia från den äldre (9.2) |
 | *Väntar på dig: n_ctx okänd* | llama-server rapporterar ingen kontextstorlek | Sätt **n_ctx** under Inställningar och klicka **Återuppta** |
 | *Väntar på dig: kontexten räcker inte* (`CONTEXT_TOO_SMALL`) | Kontraktet + uppdraget + checkpoint + `max_tokens` ryms inte i en session | Kortare uppdragstext, lägre `max_tokens`, eller större `-c`/färre `-np` i llama-server |
 | *Väntar på dig: llama-server avvisade anropet* (`LLAMA_REQUEST_REJECTED`) | HTTP 4xx: fel API-nyckel, fel modellnamn (routerläge) eller ett JSON-schema som denna llama-version inte stöder | Läs felet i frågerutan och **Händelser**. Vid schemafel: sätt **Strukturerat svar** till `json_object` och klicka **Återuppta**. |
@@ -473,14 +490,26 @@ Varje automatiskt beslut syns i **Händelser** och under **Turer** (beslut och k
 
 `install.sh` använder en katalog `wheels/` i det uppackade paketet om den finns, och går då inte ut på nätet.
 
-På en dator **med** internet, med samma CPU-arkitektur och samma Python-version (`python3 --version`) som servern:
+**1. Hämta paketen på en dator med internet.** Den ska ha samma CPU-arkitektur (`uname -m`) som servern, och helst samma Python-version (`python3 --version`):
 
 ```bash
-mkdir wheels
-python3 -m pip download --only-binary=:all: -d wheels "aiohttp>=3.9,<4" "setuptools>=68" wheel
+python3 -m venv /tmp/gs-dl                     # egen pip, oberoende av systemets
+/tmp/gs-dl/bin/pip download --only-binary=:all: -d wheels \
+    "aiohttp>=3.9,<4" typing_extensions "setuptools>=68" wheel
 ```
 
-Kopiera katalogen till servern, in i det uppackade paketet, och installera:
+`typing_extensions` ska alltid vara med. aiohttp kräver det på Python under 3.13, men `pip download` tar bara med det när nedladdningen körs med en sådan Python.
+
+Har nedladdningsdatorn en annan Python-version än servern, ange serverns version och plattform:
+
+```bash
+/tmp/gs-dl/bin/pip download --only-binary=:all: --python-version 3.11 --platform manylinux2014_x86_64 -d wheels \
+    "aiohttp>=3.9,<4" typing_extensions "setuptools>=68" wheel
+```
+
+Byt `3.11` mot serverns version och `x86_64` mot `aarch64` på ARM.
+
+**2. Installera på servern.** Kopiera `wheels/` in i det uppackade paketet:
 
 ```bash
 cp -r wheels greensea-0.1.0/
@@ -488,16 +517,15 @@ cd greensea-0.1.0
 sudo bash deploy/install.sh        # skriver "offline: installing from …/wheels (no network)"
 ```
 
-Har servern en annan Python-version eller arkitektur, lägg till `--python-version 3.11 --platform manylinux2014_x86_64` (eller `aarch64`) i `pip download`. Ange serverns version och arkitektur.
+Får du `No matching distribution found for …`, saknas ett paket för serverns Python-version eller arkitektur. Ladda ner igen enligt steg 1 med rätt `--python-version` och `--platform`.
 
 ## 12. Köra utan systemd och köra testerna
 
-För test eller utveckling på en vanlig användare:
+För test eller utveckling som vanlig användare. Packa upp paketet (3.1) och stå i katalogen `greensea-0.1.0`:
 
 ```bash
-cd greensea-0.1.0
 python3 -m venv venv
-venv/bin/pip install '.[test]'
+venv/bin/pip install -e '.[test]'              # -e: ändringar i källkoden gäller direkt
 cat > lokal.toml <<'EOF'
 [server]
 host = "127.0.0.1"
@@ -509,6 +537,8 @@ base_url = "http://127.0.0.1:8080"
 EOF
 venv/bin/greensea --config lokal.toml          # Ctrl-C avslutar
 ```
+
+Loggen visar `listening on http://127.0.0.1:8765/` och, när llama-server svarar, `llama-server ready (ok)`. Öppna http://127.0.0.1:8765. `lokal.toml` saknar `auth_token`, så ingen inloggning krävs. Kör tjänsten från avsnitt 3 redan på 8765, välj en annan port (till exempel `port = 8766`); annars avslutas GreenSea med `address already in use`.
 
 Testsviten kör GreenSea mot en inbyggd fejkad llama-server och behöver ingen riktig modell:
 

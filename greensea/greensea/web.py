@@ -473,7 +473,7 @@ def build_app(config: AppConfig, *, database: dbm.Database | None = None, llama:
         async def on_startup(app: web.Application) -> None:
             await database.open()
             await engine.start()
-            log.info("%s %s listening, llama-server at %s", APP_NAME, APP_VERSION, config.llama.base_url)
+            log.info("%s %s starting, llama-server at %s", APP_NAME, APP_VERSION, config.llama.base_url)
 
         async def on_shutdown(app: web.Application) -> None:
             bus.close_all()
