@@ -136,8 +136,11 @@ test("v1.9.3 an unknown Nano result continues without replay (C14/F16)", () => {
     decision: decision("NANO_TASK: Calculate 2 + 2"),
     nanoTask: { requested: true, status: "UNKNOWN_EFFECT", result: "" }
   });
-  assert.equal(reissue.ok, false);
-  assert.equal(reissue.code, "NANO_TASK_REISSUE");
+  // v1.9.3: removed instead of blocking the mission.
+  assert.equal(reissue.ok, true);
+  assert.equal(reissue.code, "REPLANNED_NANO_TASK_DIRECTIVE_REMOVED");
+  assert.doesNotMatch(reissue.effectiveNextPrompt, /NANO_TASK\s*:/i);
+  assert.match(reissue.effectiveNextPrompt, /will not be replayed/);
 });
 
 
@@ -145,11 +148,13 @@ test("completed Nano task directive cannot be reissued back to target", () => {
   const r = evaluateContinuationAdmission({
     targetDisposition: "CONTINUE",
     currentObjective: "Inspect local analysis",
-    decision: decision("NANO_TASK: Calculate 37 * 19"),
+    decision: decision("Verify the product in owner state.\nNANO_TASK: Calculate 37 * 19"),
     nanoTask: { requested: true, status: "COMPLETED", result: "703" }
   });
-  assert.equal(r.ok, false);
-  assert.equal(r.code, "NANO_TASK_REISSUE");
+  // v1.9.3: the directive line is removed; the mission is not blocked.
+  assert.equal(r.ok, true);
+  assert.equal(r.code, "REPLANNED_NANO_TASK_DIRECTIVE_REMOVED");
+  assert.equal(r.effectiveNextPrompt, "Verify the product in owner state.");
 });
 
 

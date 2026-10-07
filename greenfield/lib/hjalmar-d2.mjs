@@ -158,7 +158,7 @@ function containsNanoTaskDirective(value) {
   return /(^|\n)\s*NANO_TASK\s*:/i.test(String(value || ""));
 }
 
-function consumedNanoContinuation(nanoTask) {
+export function consumedNanoContinuation(nanoTask) {
   const status = String(nanoTask?.status || "").toUpperCase();
   if (status === "CONTEXT_REQUIRED") {
     return [

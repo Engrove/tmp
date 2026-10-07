@@ -499,18 +499,12 @@ async function runStructuredWithFallback(args, fallbackFactory, fallbackKind) {
     const run = await runStructured(args);
     return { ...run, fallbackApplied: false, fallbackError: null };
   } catch (error) {
-    const code = String(error?.code || "");
-    const softCodes = new Set([
-      "ANALYSIS_JSON_INVALID",
-      "ANALYSIS_EMPTY",
-      "LOCAL_MODEL_CONTEXT_BUDGET_EXCEEDED",
-      `${String(args.stage || "").toUpperCase()}_INVALID`
-    ]);
-    // Only model-output shape/content drift is advisory. Model unavailability,
-    // create failures and timeouts still enter technical recovery because the
-    // fixed local analysis stages must actually be attempted.
-    if (!softCodes.has(code)) throw error;
-
+    // v1.9.3 (contract C14/F16): the local model is optional advisory
+    // analysis. Every failure of that layer (output drift, a model that is
+    // still downloadable or downloading, create or prompt errors, quota,
+    // timeouts) falls back to the deterministic runtime decision instead of
+    // stalling the mission in recovery. Only a fallback that itself fails
+    // validation is rethrown.
     const normalized = fallbackFactory(error);
     const validation = args.validate(normalized);
     if (!validation.ok) throw error;
@@ -534,8 +528,11 @@ async function runStructuredWithFallback(args, fallbackFactory, fallbackKind) {
 // Without a local LanguageModel a requested Nano task ends FAILED (it was
 // never executed, so it has no effect) and the analysis falls back to the
 // deterministic runtime decision; neither stalls the mission in recovery.
+// A model that is still downloadable or downloading cannot be created from
+// the offscreen document (no user gesture), so it counts as missing until the
+// download from the panel has finished.
 function localModelMissing(availability) {
-  return availability === "unavailable" || !globalThis.LanguageModel?.create;
+  return ["unavailable", "downloadable", "downloading"].includes(availability) || !globalThis.LanguageModel?.create;
 }
 
 function localModelUnavailableError(availability) {

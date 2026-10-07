@@ -1,3 +1,5 @@
+import { consumedNanoContinuation } from "./hjalmar-d2.mjs";
+
 export const GREENFIELD_STATES = Object.freeze({
   ACTIVE: "ACTIVE",
   DONE: "DONE"
@@ -34,6 +36,42 @@ export function eicHandoffWithoutNanoTask(value) {
 // terminal closure), so Greenfield continues and asks for the EIC's verdict.
 export const ADVISORY_DONE_CONTINUATION = "Greenfield's local advisory analysis judged the previous objective satisfied, but your response carried no terminal status, so the mission continues. Re-read fresh owner state and continue with the next single bounded slice. Return status=DONE only with supported owner-verified terminal closure; if no executable slice remains, return a truthful no-delta status with a restart-safe nextSuggestedAction or a real blocker.";
 
+// v1.9.3: objective when an EIC terminal arrives while an operator instruction
+// is pending; the instruction itself is attached to the same prompt.
+export const TERMINAL_DEFERRED_CONTINUATION = "Your previous response requested terminal closure, but an operator instruction queued before it is attached to this prompt and takes precedence. Apply that instruction first against fresh owner state. Afterwards return status=DONE again only if supported owner-verified terminal closure still holds; otherwise continue with the next single bounded slice.";
+
+// v1.9.3: objective when a session control (rotation or queue yield) or an
+// advisory BLOCKED recovery carries neither an EIC handoff nor a usable local
+// prompt. The EIC resumes from fresh owner state; nothing waits for a person.
+export const OWNER_RESUME_CONTINUATION = "Re-read fresh owner state and continue the current mission with the next single bounded slice. If no executable slice remains, return a truthful no-delta status with a restart-safe nextSuggestedAction, a concrete real blocker, or status=DONE only with supported owner-verified terminal closure.";
+
+// v1.9.3: no operator is present in a GFW session. A local DONE repeated
+// without EIC terminal status or handoff is a no-delta state, not a stop:
+// Greenfield pauses (a queue slot is paused and the next runnable slot runs;
+// a mission without a queue gets a timed process pause) and then asks the EIC
+// again. The pause doubles per repeat, the same shape as the recovery backoff
+// (15 min doubling to 6 h).
+export const ADVISORY_NO_DELTA_PAUSE_BASE_SECONDS = 15 * 60;
+export const ADVISORY_NO_DELTA_PAUSE_MAX_SECONDS = 6 * 60 * 60;
+const ADVISORY_DONE_REASONS = new Set(["ADVISORY_DONE_WITHOUT_EIC_TERMINAL", "ADVISORY_DONE_NO_DELTA_PAUSE"]);
+
+// The prompt sent after the pause names the pause, so consecutive no-delta
+// prompts differ and the EIC sees why Greenfield waited.
+export function advisoryNoDeltaResumePrompt({ streak = 1, pauseSeconds = ADVISORY_NO_DELTA_PAUSE_BASE_SECONDS } = {}) {
+  return `Greenfield no-delta pause ${Math.max(1, Math.floor(Number(streak) || 1))} (${Math.round(Number(pauseSeconds) || 0)} s) has ended. Greenfield's local advisory analysis judged the objective satisfied again, while your responses carried neither terminal status nor a handoff. Re-read fresh owner state. If the mission is complete, return status=DONE with supported owner-verified terminal closure. Otherwise continue with the next single bounded slice, or return a truthful no-delta status (with a session control your responseContract offers) and a restart-safe nextSuggestedAction.`;
+}
+
+export function advisoryNoDeltaPauseSeconds(streak) {
+  const n = Math.max(1, Math.floor(Number(streak) || 1));
+  return Math.min(ADVISORY_NO_DELTA_PAUSE_MAX_SECONDS, ADVISORY_NO_DELTA_PAUSE_BASE_SECONDS * (2 ** Math.min(5, n - 1)));
+}
+
+// Fallback objective without any NANO_TASK directive: a consumed Nano task
+// gets its own resume text, otherwise the given default.
+function fallbackObjective(nanoTask, fallback) {
+  return nanoTask?.requested === true ? consumedNanoContinuation(nanoTask) : fallback;
+}
+
 /**
  * Resolve the browser-side Greenfield control action from structured runtime facts.
  *
@@ -57,8 +95,11 @@ export function resolveGreenfieldControl({
   nanoTask = null,
   sessionAction = "KEEP",
   terminalControl = null,
-  // v1.9.3: reason of the previous turn's control decision.
-  previousReason = ""
+  // v1.9.3: the previous turn's control decision (reason, no-delta streak).
+  previousReason = "",
+  previousNoDeltaStreak = 0,
+  // v1.9.3: a one-shot operator instruction is waiting for the next prompt.
+  operatorInstructionPending = false
 } = {}) {
   const target = upper(targetDisposition, "UNKNOWN");
   const nextSuggestedAction = trim(targetNextSuggestedAction);
@@ -85,6 +126,28 @@ export function resolveGreenfieldControl({
   }
 
   const structuredComplete = terminal?.source === "RUNTIME_CONTROL";
+  const terminalRequested = session === "STOP_PROCESS" || (
+    target === "DONE" && !["ROTATE_SESSION_NOW", "YIELD_TO_QUEUE"].includes(session)
+  );
+
+  // v1.9.3: operator input outranks an AI terminal control (contract
+  // precedence). The terminal is not committed; the pending instruction rides
+  // on the next prompt and the EIC re-confirms closure afterwards. Before
+  // 1.9.3 this case looped in technical recovery without applying either.
+  if (terminalRequested && operatorInstructionPending === true) {
+    return {
+      state: GREENFIELD_STATES.ACTIVE,
+      action: GREENFIELD_ACTIONS.NEXT,
+      reason: "EIC_TERMINAL_DEFERRED_FOR_OPERATOR_INSTRUCTION",
+      deferredTerminalReason: structuredComplete
+        ? "EIC_RUNTIME_CONTROL_COMPLETE_MISSION"
+        : session === "STOP_PROCESS" ? "EIC_EXPLICIT_STOP_PROCESS" : "EIC_EXPLICIT_STATUS_DONE",
+      hardStop: false,
+      effectiveDisposition: "CONTINUE",
+      effectiveNextPrompt: TERMINAL_DEFERRED_CONTINUATION,
+      controllerOverride: true
+    };
+  }
 
   if (session === "STOP_PROCESS") {
     return {
@@ -98,27 +161,44 @@ export function resolveGreenfieldControl({
     };
   }
 
-  if (session === "ROTATE_SESSION_NOW") {
+  // v1.9.3: an explicit rotation or queue yield keeps its session effect, but
+  // the objective follows the same rules as without it: only the EIC closes a
+  // mission (a local DONE or BLOCKED is advisory), the EIC's own handoff is
+  // forwarded verbatim, and a consumed NANO_TASK line is never re-sent.
+  if (session === "ROTATE_SESSION_NOW" || session === "YIELD_TO_QUEUE") {
+    const reason = session === "ROTATE_SESSION_NOW" ? "EIC_EXPLICIT_SESSION_ROTATION" : "EIC_EXPLICIT_QUEUE_YIELD";
+    if (!["CONTINUE", "READ_REQUIRED"].includes(disposition)) {
+      return {
+        state: GREENFIELD_STATES.ACTIVE,
+        action: GREENFIELD_ACTIONS.NEXT,
+        reason,
+        hardStop: false,
+        effectiveDisposition: "CONTINUE",
+        effectiveNextPrompt: handoff || fallbackObjective(nanoTask,
+          disposition === "DONE" ? ADVISORY_DONE_CONTINUATION : OWNER_RESUME_CONTINUATION),
+        controllerOverride: true
+      };
+    }
+    const localPrompt = trim(decision?.nextPrompt);
+    if (handoff && target === "CONTINUE") {
+      return {
+        state: GREENFIELD_STATES.ACTIVE,
+        action: GREENFIELD_ACTIONS.NEXT,
+        reason,
+        hardStop: false,
+        effectiveDisposition: disposition,
+        effectiveNextPrompt: handoff,
+        handoffForwarded: true
+      };
+    }
     return {
       state: GREENFIELD_STATES.ACTIVE,
       action: GREENFIELD_ACTIONS.NEXT,
-      reason: "EIC_EXPLICIT_SESSION_ROTATION",
+      reason,
       hardStop: false,
-      effectiveDisposition: "CONTINUE",
-      effectiveNextPrompt: nextSuggestedAction || trim(decision?.nextPrompt),
-      controllerOverride: disposition === "BLOCKED"
-    };
-  }
-
-  if (session === "YIELD_TO_QUEUE") {
-    return {
-      state: GREENFIELD_STATES.ACTIVE,
-      action: GREENFIELD_ACTIONS.NEXT,
-      reason: "EIC_EXPLICIT_QUEUE_YIELD",
-      hardStop: false,
-      effectiveDisposition: "CONTINUE",
-      effectiveNextPrompt: nextSuggestedAction || trim(decision?.nextPrompt),
-      controllerOverride: disposition === "BLOCKED"
+      effectiveDisposition: disposition,
+      effectiveNextPrompt: localPrompt || handoff || fallbackObjective(nanoTask, OWNER_RESUME_CONTINUATION),
+      ...(localPrompt ? {} : { handoffForwarded: true })
     };
   }
 
@@ -177,18 +257,22 @@ export function resolveGreenfieldControl({
         controllerOverride: true
       };
     }
-    // Twice in a row without any EIC terminal status or handoff: the EIC is
-    // not closing the mission and gives no next step; an operator decides
-    // instead of an unbounded generic loop.
-    if (upper(previousReason) === "ADVISORY_DONE_WITHOUT_EIC_TERMINAL") {
+    // Repeated without any EIC terminal status or handoff: no delta. Pause
+    // and ask again; no operator is present to decide.
+    if (ADVISORY_DONE_REASONS.has(upper(previousReason))) {
+      const streak = upper(previousReason) === "ADVISORY_DONE_NO_DELTA_PAUSE"
+        ? Math.max(1, Math.floor(Number(previousNoDeltaStreak) || 1)) + 1
+        : 1;
+      const noDeltaPause = { streak, pauseSeconds: advisoryNoDeltaPauseSeconds(streak) };
       return {
         state: GREENFIELD_STATES.ACTIVE,
-        action: GREENFIELD_ACTIONS.BLOCK,
-        reason: "ADVISORY_DONE_REPEATED_WITHOUT_EIC_TERMINAL",
-        hardStop: true,
-        effectiveDisposition: "BLOCKED",
-        effectiveNextPrompt: "",
-        controllerOverride: true
+        action: GREENFIELD_ACTIONS.NEXT,
+        reason: "ADVISORY_DONE_NO_DELTA_PAUSE",
+        hardStop: false,
+        effectiveDisposition: "CONTINUE",
+        effectiveNextPrompt: advisoryNoDeltaResumePrompt(noDeltaPause),
+        controllerOverride: true,
+        noDeltaPause
       };
     }
     return {
@@ -197,21 +281,22 @@ export function resolveGreenfieldControl({
       reason: "ADVISORY_DONE_WITHOUT_EIC_TERMINAL",
       hardStop: false,
       effectiveDisposition: "CONTINUE",
-      effectiveNextPrompt: handoff || ADVISORY_DONE_CONTINUATION,
+      effectiveNextPrompt: handoff || fallbackObjective(nanoTask, ADVISORY_DONE_CONTINUATION),
       controllerOverride: true
     };
   }
 
   if (disposition === "BLOCKED") {
-    if (target === "CONTINUE" && (handoff || nextSuggestedAction)) {
+    if (target === "CONTINUE" && nextSuggestedAction) {
       return {
         state: GREENFIELD_STATES.ACTIVE,
         action: GREENFIELD_ACTIONS.NEXT,
         reason: "TARGET_CONTINUE_EXECUTABLE_NEXT_RECOVERY",
         hardStop: false,
         effectiveDisposition: "CONTINUE",
-        // v1.9.3: a consumed NANO_TASK line is never sent back to the EIC.
-        effectiveNextPrompt: handoff || nextSuggestedAction,
+        // v1.9.3: a consumed NANO_TASK line is never sent back to the EIC; a
+        // handoff that was only that line resumes from the Nano outcome.
+        effectiveNextPrompt: handoff || fallbackObjective(nanoTask, OWNER_RESUME_CONTINUATION),
         controllerOverride: true
       };
     }
@@ -229,14 +314,15 @@ export function resolveGreenfieldControl({
   // executable handoff, that handoff is the next objective verbatim. The local
   // model only previews 260 characters of it and may not rewrite the EIC's
   // slice plan (contract: the prompt engine is not a second semantic owner).
-  // A requested Nano task keeps the local text, which carries its result.
-  if (disposition === "CONTINUE" && target === "CONTINUE" && handoff && nanoTask?.requested !== true) {
+  // A Nano result travels separately in analysisEvidence.nanoTask, and an
+  // advisory READ_REQUIRED keeps its message type around the EIC's slice.
+  if (["CONTINUE", "READ_REQUIRED"].includes(disposition) && target === "CONTINUE" && handoff) {
     return {
       state: GREENFIELD_STATES.ACTIVE,
       action: GREENFIELD_ACTIONS.NEXT,
       reason: "EIC_HANDOFF_FORWARDED",
       hardStop: false,
-      effectiveDisposition: "CONTINUE",
+      effectiveDisposition: disposition,
       effectiveNextPrompt: handoff,
       handoffForwarded: true
     };

@@ -352,10 +352,13 @@ test("v1.7.7 E2E: a pending operator instruction outranks an AI terminal control
     responseJson: baseResponse({ status: "DONE", sessionAction: "STOP_PROCESS", nextSuggestedAction: "" })
   });
   await writeNextInstruction(p, "Operator: do not close this mission yet; verify the acceptance fixture first.");
-  const recovering = await h.mod.tickAnalyzing(p);
-  assert.equal(recovering.phase, "RECOVERING");
-  assert.equal(recovering.lastError.code, "HJALMAR_D2_DONE_WITH_PENDING_OPERATOR_INSTRUCTION");
-  const terminalReceipt = recovering.runtimeControl.lastReceipts.find((row) => row.op === "COMPLETE_MISSION");
+  // v1.9.3: the terminal is deferred and the instruction rides on the next
+  // prompt (before 1.9.3 this looped in technical recovery).
+  const deferred = await h.mod.tickAnalyzing(p);
+  assert.equal(deferred.phase, "SENDING");
+  assert.equal(deferred.greenfieldControl.reason, "EIC_TERMINAL_DEFERRED_FOR_OPERATOR_INSTRUCTION");
+  assert.match(JSON.stringify(deferred.pendingPrompt.a2a), /verify the acceptance fixture first/);
+  const terminalReceipt = deferred.runtimeControl.lastReceipts.find((row) => row.op === "COMPLETE_MISSION");
   assert.equal(terminalReceipt.status, "REJECTED");
   assert.equal(terminalReceipt.reason, "OPERATOR_INSTRUCTION_PENDING");
   const after = await loadMissionWorkQueue(1, h.chrome.storage.local, { workerId: p.workerId });

@@ -122,7 +122,7 @@ import { appendIncident } from "./lib/incident-log.mjs";
 import { queueBoundaryAnalysisDecision, queueBoundaryControl, runtimeControlRequestsCompletion } from "./lib/queue-boundary.mjs";
 import { warmResumeDecision, warmResumeObjective, warmResumePageVerdict } from "./lib/warm-resume.mjs";
 import { workModeStartupPatch, workModeSupervisorDecision } from "./lib/work-mode-supervisor.mjs";
-import { applyGreenfieldControlToDecision, resolveGreenfieldControl } from "./lib/greenfield-control.mjs";
+import { applyGreenfieldControlToDecision, eicHandoffWithoutNanoTask, resolveGreenfieldControl } from "./lib/greenfield-control.mjs";
 import {
   autonomousResponseObservation,
   expectedAutonomousUserTurn,
@@ -3525,7 +3525,8 @@ async function parkQueueMissionAfterAnalysis({
   pauseSeconds = null,
   requestedSessionAction = "KEEP",
   quantumReached = false,
-  scheduleBlock = ""
+  scheduleBlock = "",
+  outcomeOverride = ""
 }) {
   const { queue, settings } = await missionQueueForWindow(current.windowId);
   const item = queueItemForProcess(queue, current);
@@ -3578,7 +3579,7 @@ async function parkQueueMissionAfterAnalysis({
   const isSameLogicalMission = (candidate) =>
     candidate.itemId === item.itemId ||
     Boolean(logicalSavedMissionId && String(candidate.savedMissionId || "").trim() === logicalSavedMissionId);
-  const outcome = scheduleBlock
+  const outcome = outcomeOverride || (scheduleBlock
     ? scheduleParkOutcome(scheduleBlock)
     : requestedSessionAction === "BACKGROUND_SLEEP"
     ? "EIC_BACKGROUND_SLEEP"
@@ -3588,7 +3589,7 @@ async function parkQueueMissionAfterAnalysis({
         ? "EIC_PAUSE_PARKED"
         : quantumReached
           ? "QUANTUM_EXHAUSTED"
-          : "MISSION_QUEUE_PARKED";
+          : "MISSION_QUEUE_PARKED");
   const summary = String(result.targetResponse?.summary || effectiveDecision?.analysis || "").slice(0, 2000);
   return parkSlotAndActivateNext({
     current,
@@ -7416,8 +7417,14 @@ async function tickAnalyzing(process) {
       nanoTask: result.nanoTask,
       sessionAction: result.targetResponse?.sessionAction || "KEEP",
       terminalControl: runtimeControl.terminal,
-      previousReason: current.greenfieldControl?.reason || ""
+      previousReason: current.greenfieldControl?.reason || "",
+      previousNoDeltaStreak: current.greenfieldControl?.noDeltaPause?.streak || 0,
+      operatorInstructionPending: Boolean(latestInstruction)
     });
+    if (greenfieldControl.reason === "EIC_TERMINAL_DEFERRED_FOR_OPERATOR_INSTRUCTION") {
+      // The terminal was not committed, so its receipt must not claim APPLIED.
+      current.runtimeControl = withTerminalReceiptsRejected(current.runtimeControl, "OPERATOR_INSTRUCTION_PENDING");
+    }
     const d = applyGreenfieldControlToDecision(modelControllerDecision, greenfieldControl);
     const controllerValidation = validateHjalmarDecision(d);
     const queueContextAfterResponse = current.queueContext?.itemId ? {
@@ -7470,17 +7477,10 @@ async function tickAnalyzing(process) {
     // already-running queue-managed worker to accept on that worker's own tick.
     await registerResponseMissionDelegations(current, result.targetResponse);
 
+    // v1.9.3: a terminal with a pending operator instruction is deferred by
+    // resolveGreenfieldControl (EIC_TERMINAL_DEFERRED_FOR_OPERATOR_INSTRUCTION),
+    // so DONE here always commits instead of looping in recovery.
     if (d.disposition === DISPOSITIONS.DONE) {
-      if (latestInstruction) {
-        // Operator input outranks an AI terminal control; the terminal was not
-        // committed, so its receipt must not claim APPLIED.
-        current.runtimeControl = withTerminalReceiptsRejected(current.runtimeControl, "OPERATOR_INSTRUCTION_PENDING");
-        const error = Object.assign(
-          new Error("HJALMAR_D2_DONE_WITH_PENDING_OPERATOR_INSTRUCTION"),
-          { code: "HJALMAR_D2_DONE_WITH_PENDING_OPERATOR_INSTRUCTION" }
-        );
-        return enterRecovery(current, error, PHASES.ANALYZING);
-      }
       return commitTransition(current, PHASES.DONE, {
         lastNano: result.nano || null,
         lastNanoTask: result.nanoTask || current.lastNanoTask || null,
@@ -7540,14 +7540,18 @@ async function tickAnalyzing(process) {
       });
     }
 
+    // v1.9.3: admission recovers only from the EIC handoff without its
+    // consumed NANO_TASK line, so a Nano directive is never sent back.
+    const targetHandoff = eicHandoffWithoutNanoTask(result.targetResponse?.nextSuggestedAction || "");
     let admission = evaluateContinuationAdmission({
       targetDisposition: result.targetDisposition,
       currentObjective: result.currentObjective,
-      targetNextSuggestedAction: result.targetResponse?.nextSuggestedAction || "",
+      targetNextSuggestedAction: targetHandoff,
       previousDecision: current.lastDecision,
       decision: d,
       nanoTask: result.nanoTask,
-      operatorInstructionPending: Boolean(latestInstruction)
+      operatorInstructionPending: Boolean(latestInstruction),
+      queueManaged: Boolean(current.queueContext?.itemId)
     });
     if (isExplicitRotationAction(result.targetResponse?.sessionAction || "KEEP") && !admission.ok) {
       admission = {
@@ -7558,7 +7562,7 @@ async function tickAnalyzing(process) {
         recoveryKind: "SESSION_ROTATION",
         originalNextPrompt: d.nextPrompt || "",
         effectiveNextPrompt: sessionRotationObjective(
-          result.targetResponse?.nextSuggestedAction ||
+          targetHandoff ||
           d.nextPrompt ||
           current.objectiveState?.objective
         )
@@ -7667,7 +7671,18 @@ async function tickAnalyzing(process) {
         runtimeCorrections: (result.runtimeReconciliation?.corrections || []).map((item) => item.code)
       }
     };
-    const requestedSessionAction = result.targetResponse?.sessionAction || "KEEP";
+    const eicSessionAction = result.targetResponse?.sessionAction || "KEEP";
+    // v1.9.3: no operator is present in a GFW session. A repeated local DONE
+    // without EIC terminal status or handoff (ADVISORY_DONE_NO_DELTA_PAUSE)
+    // becomes a Greenfield-timed pause: a queue slot is paused while the next
+    // runnable slot runs, otherwise the process pauses; afterwards the EIC is
+    // asked again. An EIC session control of its own takes precedence.
+    const noDeltaPause = greenfieldControl.noDeltaPause &&
+      String(eicSessionAction).trim().toUpperCase() === "KEEP"
+      ? greenfieldControl.noDeltaPause
+      : null;
+    const requestedSessionAction = noDeltaPause ? "PAUSE_PROCESS" : eicSessionAction;
+    const requestedPauseSeconds = noDeltaPause ? noDeltaPause.pauseSeconds : result.targetResponse?.pauseSeconds;
     const requestedProcessStatus = result.targetResponse?.greenfieldStatusRequest || "";
     const queueManaged = Boolean(queueContextAfterResponse?.itemId);
     // v1.8.1: the turn that was in flight when the window closed has finished;
@@ -7698,11 +7713,12 @@ async function tickAnalyzing(process) {
         result,
         latestInstruction,
         pauseSeconds: (backgroundSleepRequested || queuePauseRequested)
-          ? result.targetResponse?.pauseSeconds
+          ? requestedPauseSeconds
           : null,
         requestedSessionAction,
         quantumReached: queueQuantumReached,
-        scheduleBlock
+        scheduleBlock,
+        outcomeOverride: noDeltaPause && !scheduleBlock ? "ADVISORY_NO_DELTA_PAUSED" : ""
       });
       if (switched) {
         await audit(switched, "MISSION_QUEUE_SWITCH_COMPLETED", "mission-work-queue", {
@@ -7711,7 +7727,9 @@ async function tickAnalyzing(process) {
           nextQueueItemId: switched.queueContext?.itemId || "",
           reason: scheduleBlock
             ? scheduleParkOutcome(scheduleBlock)
-            : backgroundSleepRequested
+            : noDeltaPause
+              ? "ADVISORY_NO_DELTA_PAUSED"
+              : backgroundSleepRequested
               ? "EIC_BACKGROUND_SLEEP"
               : queuePauseRequested
                 ? "EIC_PAUSE_PARKED"
@@ -7779,8 +7797,11 @@ async function tickAnalyzing(process) {
       missionPause = createMissionPauseRecord({
         processId: current.processId,
         generation: current.generation,
-        durationSeconds: result.targetResponse?.pauseSeconds,
-        reason: result.targetResponse?.sessionReason || (
+        durationSeconds: requestedPauseSeconds,
+        requestedBy: noDeltaPause ? "GREENFIELD_NO_DELTA" : "EIC_AI",
+        reason: noDeltaPause
+          ? `Greenfield no-delta pause ${noDeltaPause.streak}: the local advisory analysis judged the objective satisfied again, but the EIC gave neither terminal status nor a handoff. The EIC is asked again after ${noDeltaPause.pauseSeconds} s.`
+          : result.targetResponse?.sessionReason || (
           backgroundSleepRequested
             ? "EIC requested background sleep; no other queued mission was runnable, so the worker is held until wake."
             : "EIC requested a timed Greenfield process pause."
