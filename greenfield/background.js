@@ -6250,7 +6250,12 @@ async function tickWaiting(process) {
   // v1.9.3: while ChatGPT shows its background-processing notice or the
   // connection-lost banner the visible text may be partial; nothing is
   // admitted until the provider has finished.
-  const providerPending = providerTransportPending(page);
+  // A complete, schema-valid EIC answer already on the page wins over a
+  // lingering connection banner (the processing notice is only flagged while
+  // no substantive answer is visible).
+  const providerPending = providerTransportPending(page) &&
+    !(page.providerNotices?.processingNotice !== true &&
+      parseTargetResponse(responsePage.assistantText || "").ok === true);
   const noNewAssistant = !responsePage.assistantHash ||
     responsePage.assistantHash === baselineHash ||
     responsePage.assistantHash === lastResponseHash ||

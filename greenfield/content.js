@@ -1,7 +1,7 @@
 (() => {
   const BRIDGE = "__EIC_GF_CONTENT_V2__";
   const OVERLAY_ID = "eic-gf-linked-overlay";
-  const CONTENT_VERSION = "1.9.2";
+  const CONTENT_VERSION = "1.9.3";
   const previousBridge = globalThis[BRIDGE] || null;
   const DOCUMENT_ID = previousBridge?.documentId || crypto.randomUUID();
   const dispatchRecords = previousBridge?.dispatchRecords instanceof Map
@@ -770,64 +770,68 @@
     return null;
   }
 
-  // v1.9.3: ChatGPT transport notices as page state, never as text. The
-  // processing notice lives in the last assistant turn (real DOM 2026-09-25)
-  // and counts only while that turn has no substantive answer yet. The
-  // connection-lost banner ("Anslutningen bröts. Väntar på hela svaret",
-  // operator screenshot 2026-10-07; English wording assumed) is searched in
-  // short visible elements outside user messages, earlier assistant turns,
-  // answer prose, code and Greenfield's own UI, so a quoted sentence in an
-  // answer or prompt is never mistaken for the banner.
-  // Short status line that starts with the banner text (it may carry a
-  // trailing "Väntar på hela svaret" and a retry control).
+  // v1.9.3: ChatGPT transport notices as page state, never as text.
+  // - Background processing: the notice sits in the in-progress turn after
+  //   the last user message, often in a turn without an assistant role node
+  //   (real DOM 2026-09-25, tools/verify-processing-notice.mjs fixtures A/B).
+  //   It counts only while no substantive answer (> 80 chars) is visible.
+  // - Connection lost: "Anslutningen bröts. Väntar på hela svaret" (operator
+  //   screenshot 2026-10-07; English wording assumed), possibly a toast
+  //   outside <main>.
+  // Both are searched only in short visible elements outside user messages,
+  // answer prose (markdown), code, forms and Greenfield's own UI, and inside
+  // the thread only after the last user message, so a quoted sentence in an
+  // answer or a prompt is never mistaken for the notice.
+  const PROVIDER_PROCESSING_NOTICE_PROBE = /Våra system bearbetar|Our systems are/iu;
   const PROVIDER_CONNECTION_NOTICE = /^(?:Anslutningen bröts|Connection (?:lost|interrupted|was lost|dropped))(?![\p{L}\p{N}])/iu;
   const PROVIDER_CONNECTION_NOTICE_PROBE = /Anslutningen bröts|Connection (?:lost|interrupted|was lost|dropped)/iu;
   const PROVIDER_CONNECTION_NOTICE_MAX_CHARS = 160;
   const NOTICE_EXCLUDED_ANCESTORS = "pre, code, blockquote, .markdown, [class*='markdown'], .prose, [data-message-author-role='user'], [data-eic-gf-ui='true'], #" + OVERLAY_ID + ", form";
 
-  function providerTransportNotices(lastAssistantEntry, lastAssistantText) {
-    const root = document.querySelector("main") || document.body;
-    const all = String(root?.textContent || "");
-    let processingNotice = false;
-    let connectionInterrupted = false;
-    const owner = lastAssistantEntry?.owner || null;
-    if (owner && (all.includes("Våra system bearbetar") || all.includes("Our systems are")) &&
-        String(lastAssistantText || "").trim().length <= 80) {
-      for (const element of owner.querySelectorAll("div, p, span, section")) {
-        if (element.closest("pre, code")) continue;
-        if (providerProcessingNoticeText(element.textContent)) {
-          processingNotice = true;
-          break;
-        }
-      }
+  function noticeElementMatches(start, matches, maxChars) {
+    let element = start;
+    for (let i = 0; i < 4 && element && element !== document.body; i += 1) {
+      const value = String(element.textContent || "").replace(/\s+/g, " ").trim();
+      if (value.length > maxChars) return false;
+      if (matches(value)) return true;
+      element = element.parentElement;
     }
-    // The banner may also be a toast outside <main>.
+    return false;
+  }
+
+  function findTransportNotice(probe, matches, maxChars, lastUserOwner) {
     const body = document.body;
-    if (body && PROVIDER_CONNECTION_NOTICE_PROBE.test(String(body.textContent || ""))) {
-      const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
-        acceptNode: (node) => PROVIDER_CONNECTION_NOTICE_PROBE.test(String(node.nodeValue || ""))
-          ? NodeFilter.FILTER_ACCEPT
-          : NodeFilter.FILTER_SKIP
-      });
-      for (let node = walker.nextNode(); node && !connectionInterrupted; node = walker.nextNode()) {
-        const start = node.parentElement;
-        if (!start || start.closest(NOTICE_EXCLUDED_ANCESTORS) || !visible(start)) continue;
-        // Inside a message turn only the last assistant turn may carry it.
-        const turn = start.closest(MESSAGE_TURN_SELECTOR);
-        if (turn && !(owner && (owner === turn || owner.contains(start)))) continue;
-        let element = start;
-        for (let i = 0; i < 4 && element; i += 1) {
-          const value = String(element.textContent || "").replace(/\s+/g, " ").trim();
-          if (value.length > PROVIDER_CONNECTION_NOTICE_MAX_CHARS) break;
-          if (PROVIDER_CONNECTION_NOTICE.test(value)) {
-            connectionInterrupted = true;
-            break;
-          }
-          if (element === owner || element.parentElement === body) break;
-          element = element.parentElement;
-        }
+    if (!body || !probe.test(String(body.textContent || ""))) return false;
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => probe.test(String(node.nodeValue || ""))
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_SKIP
+    });
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const start = node.parentElement;
+      if (!start || start.closest(NOTICE_EXCLUDED_ANCESTORS) || !visible(start)) continue;
+      // Inside the thread only the turn after the last user message counts.
+      if (start.closest(MESSAGE_TURN_SELECTOR) || start.closest("[data-testid^='conversation-turn-'], [data-turn]")) {
+        if (lastUserOwner && !(lastUserOwner.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
       }
+      if (noticeElementMatches(start, matches, maxChars)) return true;
     }
+    return false;
+  }
+
+  function providerTransportNotices(lastUserEntry, lastAssistantEntry, lastAssistantText) {
+    const lastUserOwner = lastUserEntry?.owner || null;
+    // Only an answer after the last user message is this turn's answer.
+    const assistantOwner = lastAssistantEntry?.owner || null;
+    const currentAnswer = assistantOwner && (!lastUserOwner ||
+      (lastUserOwner.compareDocumentPosition(assistantOwner) & Node.DOCUMENT_POSITION_FOLLOWING))
+      ? String(lastAssistantText || "")
+      : "";
+    const processingNotice = currentAnswer.trim().length <= 80 &&
+      findTransportNotice(PROVIDER_PROCESSING_NOTICE_PROBE, providerProcessingNoticeText,
+        PROVIDER_PROCESSING_NOTICE_MAX_CHARS, lastUserOwner);
+    const connectionInterrupted = findTransportNotice(PROVIDER_CONNECTION_NOTICE_PROBE,
+      (value) => PROVIDER_CONNECTION_NOTICE.test(value), PROVIDER_CONNECTION_NOTICE_MAX_CHARS, lastUserOwner);
     return { processingNotice, connectionInterrupted };
   }
 
@@ -889,7 +893,7 @@
       composerReady: Boolean(composer),
       composerEmpty: !composerText,
       composerTextHash: composerText ? await sha256Hex(composerText) : "",
-      providerNotices: providerTransportNotices(lastAssistant, assistantText),
+      providerNotices: providerTransportNotices(lastUser, lastAssistant, assistantText),
       rateLimitWarning,
       modelEvidence: globalThis.GreenfieldModelObservation?.observe() || null,
       pageHealth: pageHealthState(entries, autonomous.userEntry || lastUser),
