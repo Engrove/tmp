@@ -1,0 +1,587 @@
+TAP version 13
+# Subtest: v1.9.0 policy: warm only after an answered turn in a known conversation, inside the caps
+not ok 1 - v1.9.0 policy: warm only after an answered turn in a known conversation, inside the caps
+  ---
+  duration_ms: 15.729103
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:136:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'WARM_RESUME_PLANNED'
+    - 'NEW_QUANTUM_FRESH_CHAT'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'NEW_QUANTUM_FRESH_CHAT'
+  actual: 'WARM_RESUME_PLANNED'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:150:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: v1.9.0 policy: the page verdict proves the conversation, waits for it, or gives up
+ok 2 - v1.9.0 policy: the page verdict proves the conversation, waits for it, or gives up
+  ---
+  duration_ms: 0.515721
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: a parked GFW comes back to its own conversation with a COMPACT prompt
+ok 3 - v1.9.0 E2E: a parked GFW comes back to its own conversation with a COMPACT prompt
+  ---
+  duration_ms: 18645.906767
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: the conversation does not open (e.g. deleted chat) -> fresh chat with FULL, nothing sent before
+ok 4 - v1.9.0 E2E: the conversation does not open (e.g. deleted chat) -> fresh chat with FULL, nothing sent before
+  ---
+  duration_ms: 10879.453267
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: someone wrote in A's conversation meanwhile -> fresh chat, A's thread is not reused
+ok 5 - v1.9.0 E2E: someone wrote in A's conversation meanwhile -> fresh chat, A's thread is not reused
+  ---
+  duration_ms: 5188.672005
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: Fortsätt i egen chatt turned off -> the v1.8.14 cold resume (fresh chat, FULL)
+ok 6 - v1.9.0 E2E: Fortsätt i egen chatt turned off -> the v1.8.14 cold resume (fresh chat, FULL)
+  ---
+  duration_ms: 4869.975441
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: the AI asked for a new chat in its last answer -> cold
+ok 7 - v1.9.0 E2E: the AI asked for a new chat in its last answer -> cold
+  ---
+  duration_ms: 4329.411809
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: the saved mission text changed while parked -> same conversation, but FULL
+ok 8 - v1.9.0 E2E: the saved mission text changed while parked -> same conversation, but FULL
+  ---
+  duration_ms: 4614.86217
+  type: 'test'
+  ...
+# Subtest: v1.9.0: warm resume is on by default and can be turned off
+ok 9 - v1.9.0: warm resume is on by default and can be turned off
+  ---
+  duration_ms: 0.406251
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: another GFW answered in A's conversation -> A's thread is no longer A's alone -> cold
+ok 10 - v1.9.0 E2E: another GFW answered in A's conversation -> A's thread is no longer A's alone -> cold
+  ---
+  duration_ms: 4709.629386
+  type: 'test'
+  ...
+# Subtest: v1.9.3 E2E: a completed quantum (5/5) comes back at interaction 1/5 in a fresh chat with FULL
+not ok 11 - v1.9.3 E2E: a completed quantum (5/5) comes back at interaction 1/5 in a fresh chat with FULL
+  ---
+  duration_ms: 4858.225958
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:343:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'PLANNED' !== 'COLD'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'COLD'
+  actual: 'PLANNED'
+  operator: 'strictEqual'
+  stack: |-
+    assertFreshChatAtNewQuantum (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:321:10)
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:347:11)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.9.3 E2E: YIELD_TO_QUEUE on the final interaction (5/5) also starts the next quantum in a fresh chat
+not ok 12 - v1.9.3 E2E: YIELD_TO_QUEUE on the final interaction (5/5) also starts the next quantum in a fresh chat
+  ---
+  duration_ms: 4684.494476
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:351:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'PLANNED' !== 'COLD'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'COLD'
+  actual: 'PLANNED'
+  operator: 'strictEqual'
+  stack: |-
+    assertFreshChatAtNewQuantum (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:321:10)
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:355:11)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.9.3 E2E: a slot with maxInteractions 1 starts every activation in a fresh chat
+not ok 13 - v1.9.3 E2E: a slot with maxInteractions 1 starts every activation in a fresh chat
+  ---
+  duration_ms: 3713.168771
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:359:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'PLANNED' !== 'COLD'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'COLD'
+  actual: 'PLANNED'
+  operator: 'strictEqual'
+  stack: |-
+    assertFreshChatAtNewQuantum (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:321:10)
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:363:11)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v1.9.3 E2E: a warm resume of an unfinished quantum is recorded as not a fresh chat
+not ok 14 - v1.9.3 E2E: a warm resume of an unfinished quantum is recorded as not a fresh chat
+  ---
+  duration_ms: 3822.684291
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:367:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v190-warm-resume.test.mjs:374:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: no-delta: a repeated local DONE without EIC terminal or handoff pauses with a doubling, capped pause instead of blocking
+not ok 15 - no-delta: a repeated local DONE without EIC terminal or handoff pauses with a doubling, capped pause instead of blocking
+  ---
+  duration_ms: 3.373315
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:30:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'HJALMAR_OBJECTIVE_DONE'
+    - 'ADVISORY_DONE_WITHOUT_EIC_TERMINAL'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'ADVISORY_DONE_WITHOUT_EIC_TERMINAL'
+  actual: 'HJALMAR_OBJECTIVE_DONE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:32:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: CC-01: a local DONE with ROTATE_SESSION_NOW or YIELD_TO_QUEUE never closes; the EIC handoff is the objective
+not ok 16 - CC-01: a local DONE with ROTATE_SESSION_NOW or YIELD_TO_QUEUE never closes; the EIC handoff is the objective
+  ---
+  duration_ms: 0.384592
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:60:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:68:14)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: CC-04: the EIC CONTINUE handoff is forwarded verbatim with a Nano task, for READ_REQUIRED and with rotation or yield
+not ok 17 - CC-04: the EIC CONTINUE handoff is forwarded verbatim with a Nano task, for READ_REQUIRED and with rotation or yield
+  ---
+  duration_ms: 0.277854
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:81:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'HJALMAR_CONTINUE'
+    - 'EIC_HANDOFF_FORWARDED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'EIC_HANDOFF_FORWARDED'
+  actual: 'HJALMAR_CONTINUE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:85:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: CC-05: an advisory BLOCKED never re-attaches a NANO_TASK line and never leaves an empty prompt
+not ok 18 - CC-05: an advisory BLOCKED never re-attaches a NANO_TASK line and never leaves an empty prompt
+  ---
+  duration_ms: 0.369137
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:99:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input was expected to not match the regular expression /NANO_TASK\s*:/. Input:
+    
+    'NANO_TASK: Add 2 and 2'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: 'NANO_TASK: Add 2 and 2'
+  operator: 'doesNotMatch'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:103:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: CC-02: admission never recovers a consumed NANO_TASK line from the EIC handoff
+not ok 19 - CC-02: admission never recovers a consumed NANO_TASK line from the EIC handoff
+  ---
+  duration_ms: 0.697696
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:113:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'Verify the sum in owner state.\nNANO_TASK: {"instruction":"Add 2 and 2"}'
+    - 'Verify the sum in owner state.'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'Verify the sum in owner state.'
+  actual: |-
+    Verify the sum in owner state.
+    NANO_TASK: {"instruction":"Add 2 and 2"}
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:121:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: CC-07: the no-delta exit names only controls the current responseContract offers
+not ok 20 - CC-07: the no-delta exit names only controls the current responseContract offers
+  ---
+  duration_ms: 0.346602
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:125:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /sessionAction PAUSE_PROCESS and pauseSeconds/. Input:
+    
+    '[EIC alternative continuation 0514da2f] The previous continuation repeated the active objective and is not material progress. Continue the same mission by choosing exactly one materially different, bounded next step. Do not repeat the current objective or the previous nextSuggestedAction. Priority: (1) the next unmet dependency or acceptance criterion; (2) one discriminating owner read or test that can change the plan; (3) a non-conflicting parallel item. Preserve verified completed work and avoid replaying already-consumed effects. If no authorized alternative exists, return a concrete real blocker or DONE with evidence instead of repeating the prompt.'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: '[EIC alternative continuation 0514da2f] The previous continuation repeated the active objective and is not material progress. Continue the same mission by choosing exactly one materially different, bounded next step. Do not repeat the current objective or the previous nextSuggestedAction. Priority: (1) the next unmet dependency or acceptance criterion; (2) one discriminating owner read or test that can change the plan; (3) a non-conflicting parallel item. Preserve verified completed work and avoid replaying already-consumed effects. If no authorized alternative exists, return a concrete real blocker or DONE with evidence instead of repeating the prompt.'
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:128:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: CC-08: an EIC terminal with a pending operator instruction is deferred, not routed to recovery
+not ok 21 - CC-08: an EIC terminal with a pending operator instruction is deferred, not routed to recovery
+  ---
+  duration_ms: 0.290665
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:134:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'DONE' !== 'ACTIVE'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'ACTIVE'
+  actual: 'DONE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:137:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E2E no-delta: a repeated local DONE without EIC terminal pauses the GFW and asks the EIC again after the pause
+not ok 22 - E2E no-delta: a repeated local DONE without EIC terminal pauses the GFW and asks the EIC again after the pause
+  ---
+  duration_ms: 2054.130481
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:244:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    first local DONE continues
+    
+    'DONE' !== 'SENDING'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'SENDING'
+  actual: 'DONE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:250:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E2E CC-01: a local DONE never closes the GFW when the EIC rotates or yields
+not ok 23 - E2E CC-01: a local DONE never closes the GFW when the EIC rotates or yields
+  ---
+  duration_ms: 1552.50434
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:279:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    ROTATE_SESSION_NOW null
+    
+    'DONE' !== 'ROTATING'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'ROTATING'
+  actual: 'DONE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:284:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E2E CC-02/CC-04: a consumed NANO_TASK line never reaches the next prompt; the EIC handoff is forwarded
+not ok 24 - E2E CC-02/CC-04: a consumed NANO_TASK line never reaches the next prompt; the EIC handoff is forwarded
+  ---
+  duration_ms: 1342.855877
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:289:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'Verify the sum in owner state.\n' +
+    +   'NANO_TASK: Add 2 and 2 and return only the number.'
+    - 'Verify the sum in owner state.'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'Verify the sum in owner state.'
+  actual: |-
+    Verify the sum in owner state.
+    NANO_TASK: Add 2 and 2 and return only the number.
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:295:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E2E CC-03: a downloadable model or a failing create() falls back to the runtime decision instead of recovery
+not ok 25 - E2E CC-03: a downloadable model or a failing create() falls back to the runtime decision instead of recovery
+  ---
+  duration_ms: 1000.880899
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:299:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    "downloadable" {"name":"Error","message":"Requires a user gesture.","code":"NotAllowedError","stack":"Error: Requires a user gesture.\n    at runAnalysis (data:text/javascript;base64,Y29uc3Qgc2V0VGltZW91dD0oZm4sbXMpPT57Z2xvYmFsVGhpcy5fX2dmSGFybmVzc1RpbWVycy5wdXNoKHtmbixtc30pO3JldHVybiBnbG9iYWxUaGlzLl9fZ2ZIYXJuZXNzVGltZXJzLmxlbmd0aDt9O2NvbnN0IGNsZWFyVGltZW91dD0oKT0+e307CmltcG9ydCAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvc2FmZXR5LXBvbGljeS5qcyI7CmltcG9ydCB7IHJlYWRTYWZldHksIHVzYWdlU3VtbWFyeSwgYnVkZ2V0RGVjaXNpb24sIHJlc2VydmVVc2FnZSwgYXV0aG9yaXplVXNhZ2VTZW5kLCByZWNvcmRVc2FnZU91dHB1dCwgdXNhZ2VJZGVudGl0eSwgb2JzZXJ2ZVByb3ZpZGVyUXVvdGEsIHByb2JlUHJvdmlkZXJSZWNvdmVyeSwgdXBkYXRlU2FmZXR5UG9saWN5LCBwYXVzZUFkbWlzc2lvbiwgYWRvcHRTYWZldHlQb2xpY3lGcm9tVmF1bHQsIGVxdWFsU2FmZXR5UG9saWN5IH0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvdXNhZ2UtZ292ZXJub3IubWpzIjsKaW1wb3J0IHsgbG9hZFNhZmV0eVBvbGljeVZhdWx0LCB3cml0ZVNhZmV0eVBvbGljeVZhdWx0LCBzYWZldHlQb2xpY3lWYXVsdFBsYW4sIFNBRkVUWV9QT0xJQ1lfVkFVTFRfRk9MREVSLCBsb2FkRHJpZnRTZXR0aW5nc1ZhdWx0LCB3cml0ZURyaWZ0U2V0dGluZ3NWYXVsdCB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3NhZmV0eS1wb2xpY3ktdmF1bHQubWpzIjsKaW1wb3J0IHsgY29udmVyc2F0aW9uS2V5LCByZWNvbmNpbGVSZXN0YXJ0IH0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvcmVzdGFydC1yZWNvdmVyeS5tanMiOwppbXBvcnQgeyBjb252ZXJzYXRpb25SZWNvdmVyeVVybCwgc2hvdWxkUmVtZW1iZXJNYW5hZ2VkVXJsLCBleHBlY3RlZFRocmVhZE1pc3NpbmcgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9jb252ZXJzYXRpb24tcmVjb3ZlcnkubWpzIjsKaW1wb3J0IHsgcmVjb25jaWxlUmVjb3ZlcnlSZXBvcnRXaXRoTGl2ZU9ic2VydmF0aW9uIH0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvcmVjb3ZlcnktcmVwb3J0Lm1qcyI7CmltcG9ydCB7IGNyZWF0ZU9wZXJhdG9yQmFja3VwLCByZXN0b3JlT3BlcmF0b3JCYWNrdXAgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9vcGVyYXRvci1iYWNrdXAubWpzIjsKaW1wb3J0IHsgc3RvcmFnZUhlYWx0aCB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3N0b3JhZ2UtaGVhbHRoLm1qcyI7CmltcG9ydCB7IG1haW50YWluU3RvcmFnZUhlYWRyb29tLCByZWFkU3RvcmFnZVJldGVudGlvblN0YXR1cyB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3N0b3JhZ2UtcmV0ZW50aW9uLm1qcyI7CmltcG9ydCB7IHJlY292ZXJSYzFDaGVja3BvaW50cyB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3JjMS1jaGVja3BvaW50LW1pZ3JhdGlvbi5tanMiOwppbXBvcnQgeyBjcmVhdGVTdGFydHVwRGlhZ25vc3RpY3MgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9zdGFydHVwLWRpYWdub3N0aWNzLm1qcyI7CmltcG9ydCB7IHByb2JlU3RvcmFnZUNvbnRyYWN0IH0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvc3RvcmFnZS1jb250cmFjdC1wcm9iZS5tanMiOwppbXBvcnQgeyBsb2FkUGVyc2lzdGVkUHJvY2Vzc0ludmVudG9yeSB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3Byb2Nlc3Mtc3RvcmUubWpzIjsKY29uc3QgU2FmZXR5ID0gZ2xvYmFsVGhpcy5HcmVlbmZpZWxkU2FmZXR5UG9saWN5OwpsZXQgcmVzdGFydFJlcG9ydCA9IHthdE1zOjAscmVzdG9yZWQ6W10sdW5yZXNvbHZlZDpbXSxlcnJvcnM6W119OwpsZXQgcnVudGltZUZhdWx0ID0gIiI7CmxldCBoeWRyYXRpb25JbkZsaWdodCA9IG51bGw7CmxldCBzdG9yYWdlQ29udHJhY3RQcm9vZiA9IG51bGw7Ci8vIHYxLjkuMTogcnVuIHJlcXVpcmVtZW50cyAoS8O2cmtyYXYpIGFsc28gbGl2ZSBpbiB0aGUgQ2hyb21lIHByb2ZpbGUgYm9va21hcmsKLy8gc3RvcmUsIHNvIGEgbmV3IGV4dGVuc2lvbiBpZCAoYSByZWxlYXNlIGxvYWRlZCBmcm9tIGEgbmV3IGZvbGRlcikgcmVzdG9yZXMKLy8gdGhlbSBpbnN0ZWFkIG9mIHN0YXJ0aW5nIGZyb20gdGhlIGRlZmF1bHRzLiBTeW5jZWQgb25jZSBwZXIgc2VydmljZSB3b3JrZXIKLy8gbGlmZXRpbWU7IGEgdmF1bHQgZmFpbHVyZSBuZXZlciBibG9ja3Mgc3RhcnR1cCBvciB0aGUgbG9jYWwgc2F2ZS4KbGV0IHNhZmV0eVZhdWx0U3RhdHVzID0ge3N0YXRlOiJOT1RfQ0hFQ0tFRCIsYXRNczowLGZvbGRlcjpTQUZFVFlfUE9MSUNZX1ZBVUxUX0ZPTERFUn07CmxldCBzYWZldHlWYXVsdFN5bmNlZCA9IGZhbHNlOwpjb25zdCBTQUZFVFlfVkFVTFRfVElNRU9VVF9NUyA9IDgwMDA7Ci8vIFRoZSByZWNvdmVyeSBhbGFybSB3YWtlcyB0aGUgd29ya2VyIGV2ZXJ5IG1pbnV0ZTsgYSBzZXR0bGVkIHJlc3VsdCBpcyBrZXB0Ci8vIGZvciB0aGUgYnJvd3NlciBzZXNzaW9uIChjaHJvbWUuc3RvcmFnZS5zZXNzaW9uIGlzIGNsZWFyZWQgb24gYnJvd3NlcgovLyByZXN0YXJ0IGFuZCBvbiAiTMOkcyBpbiBpZ2VuIiksIHNvIHRoZSBib29rbWFyayB0cmVlIGlzIHJlYWQgb25jZSBwZXIgc2Vzc2lvbi4KY29uc3QgU0FGRVRZX1ZBVUxUX1NFU1NJT05fS0VZID0gImVpYy5nZi5zYWZldHktdmF1bHQtc3RhdHVzLnYxIjsKY29uc3QgU0FGRVRZX1ZBVUxUX1NFVFRMRUQgPSBuZXcgU2V0KFsiUkVTVE9SRUQiLCJTQVZFRCIsIklOX1NZTkMiLCJFTVBUWSJdKTsKLy8gdjEuOS4yOiB0aGUgRHJpZnQgc2V0dGluZ3MgKG9wZXJhdG9yLXNldHRpbmdzLm1qcyBEUklGVF9TRVRUSU5HU19LRVlTKSBhcmUgYQovLyBzZWNvbmQsIGluZGVwZW5kZW50IHNlY3Rpb24gb2YgdGhlIHNhbWUgdmF1bHQsIHdpdGggaXRzIG93biBzdGF0dXMuCmxldCBkcmlmdFZhdWx0U3RhdHVzID0ge3N0YXRlOiJOT1RfQ0hFQ0tFRCIsYXRNczowLGZvbGRlcjpTQUZFVFlfUE9MSUNZX1ZBVUxUX0ZPTERFUn07CmNvbnN0IERSSUZUX1ZBVUxUX1NFU1NJT05fS0VZID0gImVpYy5nZi5kcmlmdC12YXVsdC1zdGF0dXMudjEiOwpsZXQgZHJpZnRWYXVsdFF1ZXVlID0gUHJvbWlzZS5yZXNvbHZlKCk7CmxldCBzdG9yYWdlUmV0ZW50aW9uU3RhdHVzID0gbnVsbDsKY29uc3QgUkVDT1ZFUllfU0NBTl9BTEFSTSA9ICJlaWMuZ2YucmVjb3Zlcnktc2Nhbi52MSI7Cgphc3luYyBmdW5jdGlvbiBtYWludGFpbkxvY2FsU3RvcmFnZShyZWFzb24sIG9wdGlvbnMgPSB7fSkgewogIHRyeSB7CiAgICBzdG9yYWdlUmV0ZW50aW9uU3RhdHVzID0gYXdhaXQgbWFpbnRhaW5TdG9yYWdlSGVhZHJvb20oCiAgICAgIGNocm9tZS5zdG9yYWdlLmxvY2FsLAogICAgICBjaHJvbWUuc3RvcmFnZS5zZXNzaW9uLAogICAgICB7IHJlYXNvbiwgLi4ub3B0aW9ucyB9CiAgICApOwogIH0gY2F0Y2ggKGVycm9yKSB7CiAgICBzdG9yYWdlUmV0ZW50aW9uU3RhdHVzID0gewogICAgICBzY2hlbWE6ICJlaWMuZ3JlZW5maWVsZC5zdG9yYWdlLXJldGVudGlvbi52MSIsCiAgICAgIGF0OiBuZXcgRGF0ZSgpLnRvSVNPU3RyaW5nKCksCiAgICAgIHJlYXNvbiwKICAgICAga25vd246IGZhbHNlLAogICAgICBhY3Rpb246ICJFUlJPUiIsCiAgICAgIGVycm9yOiBTdHJpbmcoZXJyb3I/Lm1lc3NhZ2UgfHwgZXJyb3IpCiAgICB9OwogIH0KICByZXR1cm4gc3RvcmFnZVJldGVudGlvblN0YXR1czsKfQppbXBvcnQgewogIEFQUF9WRVJTSU9OLAogIFBIQVNFUywKICBURVJNSU5BTF9QSEFTRVMsCiAgV0FUQ0hET0dfTUlOVVRFUywKICBGQVNUX1JFQ0hFQ0tfTVMsCiAgSURMRV9LRUVQQUxJVkVfTVMsCiAgSURMRV9LRUVQQUxJVkVfTUlOX01TLAogIE1BWF9QUk9NUFRfQ0hBUlMsCiAgTUFYX05FWFRfSU5TVFJVQ1RJT05fQ0hBUlMsCiAgQVVESVRfREVGQVVMVF9FTkFCTEVELAogIEFVRElUX0ZJRk9fTElNSVQsCiAgTUFYX1BFUlNJU1RFRF9BVURJVF9FVkVOVFMsCiAgQVVESVRfTk9JU0VfU0FNUExFX01TCn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvY29udHJhY3RzLm1qcyI7CmltcG9ydCB7CiAgbWFrZUF1ZGl0RXZlbnQsCiAgd3JpdGVBdWRpdEV2ZW50LAogIHJlYWRBdWRpdCwKICBwcnVuZUF1ZGl0Cn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvYXVkaXQtc3RvcmUubWpzIjsKaW1wb3J0IHsgY3JlYXRlS2V5ZWRRdWV1ZSB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL2tleWVkLXF1ZXVlLm1qcyI7CmltcG9ydCB7CiAgY3JlYXRlUHJvY2VzcywKICBpc0N1cnJlbnRUb2tlbiwKICBvd25lclRva2VuLAogIHJlc2V0UmVjb3ZlcnksCiAgdHJhbnNpdGlvblByb2Nlc3MsCiAgd2l0aFJlY292ZXJ5Cn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvc3RhdGUubWpzIjsKaW1wb3J0IHsKICBsb2FkQWxsUHJvY2Vzc2VzLAogIGxvYWRQcm9jZXNzRm9yV2luZG93LAogIHNhdmVQcm9jZXNzCn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvcHJvY2Vzcy1zdG9yZS5tanMiOwppbXBvcnQgewogIGVuc3VyZVdvcmtlckJpbmRpbmcsCiAgZ2V0V29ya2VyQmluZGluZywKICByZWxlYXNlV29ya2VyQmluZGluZywKICB3b3JrZXJCaW5kaW5nTWF0Y2hlcwp9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3dvcmtlci1pZGVudGl0eS5tanMiOwppbXBvcnQgeyBhZHZhbmNlUmVzcG9uc2VDYW5kaWRhdGUgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9yZXNwb25zZS1zdGFiaWxpdHkubWpzIjsKaW1wb3J0IHsKICBjbGVhck5leHRJbnN0cnVjdGlvbiwKICByZWFkTmV4dEluc3RydWN0aW9uLAogIHdyaXRlTmV4dEluc3RydWN0aW9uCn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvaW5zdHJ1Y3Rpb24tc3RvcmUubWpzIjsKaW1wb3J0IHsgY29tcG9zZUEyQVByb21wdCwgaW5pdGlhbE1pc3Npb25PYmplY3RpdmUgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9hMmEubWpzIjsKaW1wb3J0IHsKICBESVNQT1NJVElPTlMsCiAgbm9ybWFsaXplSGphbG1hckRlY2lzaW9uLAogIHJlY29uY2lsZUhqYWxtYXJSdW50aW1lRmFjdHMsCiAgdmFsaWRhdGVIamFsbWFyRGVjaXNpb24sCiAgdmFsaWRhdGVIamFsbWFyRXZpZGVuY2VCaW5kaW5nCn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvaGphbG1hci1kMi5tanMiOwppbXBvcnQgeyBkZWVwQ2xvbmUsIGVycm9yUmVjb3JkLCBub3dJc28sIHJhbmRvbUlkLCBzaGEyNTZIZXgsIHRleHQgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9jb21tb24ubWpzIjsKaW1wb3J0IHsgcmVjb25jaWxlRGlzcGF0Y2hPYnNlcnZhdGlvbiB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL2Rpc3BhdGNoLXJlY29uY2lsaWF0aW9uLm1qcyI7CmltcG9ydCB7IHJlY29uY2lsZVNhZmV0eUhvbGRXaXRoRnJlc2hQcm9vZiB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3NhZmV0eS1ob2xkLXJlY29uY2lsaWF0aW9uLm1qcyI7CmltcG9ydCB7IHBhcnNlVGFyZ2V0UmVzcG9uc2UsIHRhcmdldFJlc3BvbnNlRXZpZGVuY2UgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9yZXNwb25zZS1jb250cmFjdC5tanMiOwppbXBvcnQgeyBjcmVhdGVOYW5vVGFzaywgc3BsaXROYW5vVGFza0RpcmVjdGl2ZSwgTkFOT19UQVNLX1NUQVRVUyB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL25hbm8tdGFzay5tanMiOwppbXBvcnQgeyBldmFsdWF0ZUNvbnRpbnVhdGlvbkFkbWlzc2lvbiB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL2NvbnRpbnVhdGlvbi1ndWFyZC5tanMiOwppbXBvcnQgeyBhcHBlbmRJbmNpZGVudCB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL2luY2lkZW50LWxvZy5tanMiOwppbXBvcnQgeyBxdWV1ZUJvdW5kYXJ5QW5hbHlzaXNEZWNpc2lvbiwgcXVldWVCb3VuZGFyeUNvbnRyb2wsIHJ1bnRpbWVDb250cm9sUmVxdWVzdHNDb21wbGV0aW9uIH0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvcXVldWUtYm91bmRhcnkubWpzIjsKaW1wb3J0IHsgd2FybVJlc3VtZURlY2lzaW9uLCB3YXJtUmVzdW1lT2JqZWN0aXZlLCB3YXJtUmVzdW1lUGFnZVZlcmRpY3QgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi93YXJtLXJlc3VtZS5t"}
+    + actual - expected
+    
+    + 'RECOVERING'
+    - 'SENDING'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'SENDING'
+  actual: 'RECOVERING'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:305:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E2E CC-08: an EIC DONE with a pending operator instruction applies the instruction, then a later DONE closes
+not ok 26 - E2E CC-08: an EIC DONE with a pending operator instruction applies the instruction, then a later DONE closes
+  ---
+  duration_ms: 1459.798944
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:310:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"name":"Error","message":"HJALMAR_D2_DONE_WITH_PENDING_OPERATOR_INSTRUCTION","code":"HJALMAR_D2_DONE_WITH_PENDING_OPERATOR_INSTRUCTION","stack":"Error: HJALMAR_D2_DONE_WITH_PENDING_OPERATOR_INSTRUCTION\n    at data:text/javascript;base64,Y29uc3Qgc2V0VGltZW91dD0oZm4sbXMpPT57Z2xvYmFsVGhpcy5fX2dmSGFybmVzc1RpbWVycy5wdXNoKHtmbixtc30pO3JldHVybiBnbG9iYWxUaGlzLl9fZ2ZIYXJuZXNzVGltZXJzLmxlbmd0aDt9O2NvbnN0IGNsZWFyVGltZW91dD0oKT0+e307CmltcG9ydCAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvc2FmZXR5LXBvbGljeS5qcyI7CmltcG9ydCB7IHJlYWRTYWZldHksIHVzYWdlU3VtbWFyeSwgYnVkZ2V0RGVjaXNpb24sIHJlc2VydmVVc2FnZSwgYXV0aG9yaXplVXNhZ2VTZW5kLCByZWNvcmRVc2FnZU91dHB1dCwgdXNhZ2VJZGVudGl0eSwgb2JzZXJ2ZVByb3ZpZGVyUXVvdGEsIHByb2JlUHJvdmlkZXJSZWNvdmVyeSwgdXBkYXRlU2FmZXR5UG9saWN5LCBwYXVzZUFkbWlzc2lvbiwgYWRvcHRTYWZldHlQb2xpY3lGcm9tVmF1bHQsIGVxdWFsU2FmZXR5UG9saWN5IH0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvdXNhZ2UtZ292ZXJub3IubWpzIjsKaW1wb3J0IHsgbG9hZFNhZmV0eVBvbGljeVZhdWx0LCB3cml0ZVNhZmV0eVBvbGljeVZhdWx0LCBzYWZldHlQb2xpY3lWYXVsdFBsYW4sIFNBRkVUWV9QT0xJQ1lfVkFVTFRfRk9MREVSLCBsb2FkRHJpZnRTZXR0aW5nc1ZhdWx0LCB3cml0ZURyaWZ0U2V0dGluZ3NWYXVsdCB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3NhZmV0eS1wb2xpY3ktdmF1bHQubWpzIjsKaW1wb3J0IHsgY29udmVyc2F0aW9uS2V5LCByZWNvbmNpbGVSZXN0YXJ0IH0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvcmVzdGFydC1yZWNvdmVyeS5tanMiOwppbXBvcnQgeyBjb252ZXJzYXRpb25SZWNvdmVyeVVybCwgc2hvdWxkUmVtZW1iZXJNYW5hZ2VkVXJsLCBleHBlY3RlZFRocmVhZE1pc3NpbmcgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9jb252ZXJzYXRpb24tcmVjb3ZlcnkubWpzIjsKaW1wb3J0IHsgcmVjb25jaWxlUmVjb3ZlcnlSZXBvcnRXaXRoTGl2ZU9ic2VydmF0aW9uIH0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvcmVjb3ZlcnktcmVwb3J0Lm1qcyI7CmltcG9ydCB7IGNyZWF0ZU9wZXJhdG9yQmFja3VwLCByZXN0b3JlT3BlcmF0b3JCYWNrdXAgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9vcGVyYXRvci1iYWNrdXAubWpzIjsKaW1wb3J0IHsgc3RvcmFnZUhlYWx0aCB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3N0b3JhZ2UtaGVhbHRoLm1qcyI7CmltcG9ydCB7IG1haW50YWluU3RvcmFnZUhlYWRyb29tLCByZWFkU3RvcmFnZVJldGVudGlvblN0YXR1cyB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3N0b3JhZ2UtcmV0ZW50aW9uLm1qcyI7CmltcG9ydCB7IHJlY292ZXJSYzFDaGVja3BvaW50cyB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3JjMS1jaGVja3BvaW50LW1pZ3JhdGlvbi5tanMiOwppbXBvcnQgeyBjcmVhdGVTdGFydHVwRGlhZ25vc3RpY3MgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9zdGFydHVwLWRpYWdub3N0aWNzLm1qcyI7CmltcG9ydCB7IHByb2JlU3RvcmFnZUNvbnRyYWN0IH0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvc3RvcmFnZS1jb250cmFjdC1wcm9iZS5tanMiOwppbXBvcnQgeyBsb2FkUGVyc2lzdGVkUHJvY2Vzc0ludmVudG9yeSB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3Byb2Nlc3Mtc3RvcmUubWpzIjsKY29uc3QgU2FmZXR5ID0gZ2xvYmFsVGhpcy5HcmVlbmZpZWxkU2FmZXR5UG9saWN5OwpsZXQgcmVzdGFydFJlcG9ydCA9IHthdE1zOjAscmVzdG9yZWQ6W10sdW5yZXNvbHZlZDpbXSxlcnJvcnM6W119OwpsZXQgcnVudGltZUZhdWx0ID0gIiI7CmxldCBoeWRyYXRpb25JbkZsaWdodCA9IG51bGw7CmxldCBzdG9yYWdlQ29udHJhY3RQcm9vZiA9IG51bGw7Ci8vIHYxLjkuMTogcnVuIHJlcXVpcmVtZW50cyAoS8O2cmtyYXYpIGFsc28gbGl2ZSBpbiB0aGUgQ2hyb21lIHByb2ZpbGUgYm9va21hcmsKLy8gc3RvcmUsIHNvIGEgbmV3IGV4dGVuc2lvbiBpZCAoYSByZWxlYXNlIGxvYWRlZCBmcm9tIGEgbmV3IGZvbGRlcikgcmVzdG9yZXMKLy8gdGhlbSBpbnN0ZWFkIG9mIHN0YXJ0aW5nIGZyb20gdGhlIGRlZmF1bHRzLiBTeW5jZWQgb25jZSBwZXIgc2VydmljZSB3b3JrZXIKLy8gbGlmZXRpbWU7IGEgdmF1bHQgZmFpbHVyZSBuZXZlciBibG9ja3Mgc3RhcnR1cCBvciB0aGUgbG9jYWwgc2F2ZS4KbGV0IHNhZmV0eVZhdWx0U3RhdHVzID0ge3N0YXRlOiJOT1RfQ0hFQ0tFRCIsYXRNczowLGZvbGRlcjpTQUZFVFlfUE9MSUNZX1ZBVUxUX0ZPTERFUn07CmxldCBzYWZldHlWYXVsdFN5bmNlZCA9IGZhbHNlOwpjb25zdCBTQUZFVFlfVkFVTFRfVElNRU9VVF9NUyA9IDgwMDA7Ci8vIFRoZSByZWNvdmVyeSBhbGFybSB3YWtlcyB0aGUgd29ya2VyIGV2ZXJ5IG1pbnV0ZTsgYSBzZXR0bGVkIHJlc3VsdCBpcyBrZXB0Ci8vIGZvciB0aGUgYnJvd3NlciBzZXNzaW9uIChjaHJvbWUuc3RvcmFnZS5zZXNzaW9uIGlzIGNsZWFyZWQgb24gYnJvd3NlcgovLyByZXN0YXJ0IGFuZCBvbiAiTMOkcyBpbiBpZ2VuIiksIHNvIHRoZSBib29rbWFyayB0cmVlIGlzIHJlYWQgb25jZSBwZXIgc2Vzc2lvbi4KY29uc3QgU0FGRVRZX1ZBVUxUX1NFU1NJT05fS0VZID0gImVpYy5nZi5zYWZldHktdmF1bHQtc3RhdHVzLnYxIjsKY29uc3QgU0FGRVRZX1ZBVUxUX1NFVFRMRUQgPSBuZXcgU2V0KFsiUkVTVE9SRUQiLCJTQVZFRCIsIklOX1NZTkMiLCJFTVBUWSJdKTsKLy8gdjEuOS4yOiB0aGUgRHJpZnQgc2V0dGluZ3MgKG9wZXJhdG9yLXNldHRpbmdzLm1qcyBEUklGVF9TRVRUSU5HU19LRVlTKSBhcmUgYQovLyBzZWNvbmQsIGluZGVwZW5kZW50IHNlY3Rpb24gb2YgdGhlIHNhbWUgdmF1bHQsIHdpdGggaXRzIG93biBzdGF0dXMuCmxldCBkcmlmdFZhdWx0U3RhdHVzID0ge3N0YXRlOiJOT1RfQ0hFQ0tFRCIsYXRNczowLGZvbGRlcjpTQUZFVFlfUE9MSUNZX1ZBVUxUX0ZPTERFUn07CmNvbnN0IERSSUZUX1ZBVUxUX1NFU1NJT05fS0VZID0gImVpYy5nZi5kcmlmdC12YXVsdC1zdGF0dXMudjEiOwpsZXQgZHJpZnRWYXVsdFF1ZXVlID0gUHJvbWlzZS5yZXNvbHZlKCk7CmxldCBzdG9yYWdlUmV0ZW50aW9uU3RhdHVzID0gbnVsbDsKY29uc3QgUkVDT1ZFUllfU0NBTl9BTEFSTSA9ICJlaWMuZ2YucmVjb3Zlcnktc2Nhbi52MSI7Cgphc3luYyBmdW5jdGlvbiBtYWludGFpbkxvY2FsU3RvcmFnZShyZWFzb24sIG9wdGlvbnMgPSB7fSkgewogIHRyeSB7CiAgICBzdG9yYWdlUmV0ZW50aW9uU3RhdHVzID0gYXdhaXQgbWFpbnRhaW5TdG9yYWdlSGVhZHJvb20oCiAgICAgIGNocm9tZS5zdG9yYWdlLmxvY2FsLAogICAgICBjaHJvbWUuc3RvcmFnZS5zZXNzaW9uLAogICAgICB7IHJlYXNvbiwgLi4ub3B0aW9ucyB9CiAgICApOwogIH0gY2F0Y2ggKGVycm9yKSB7CiAgICBzdG9yYWdlUmV0ZW50aW9uU3RhdHVzID0gewogICAgICBzY2hlbWE6ICJlaWMuZ3JlZW5maWVsZC5zdG9yYWdlLXJldGVudGlvbi52MSIsCiAgICAgIGF0OiBuZXcgRGF0ZSgpLnRvSVNPU3RyaW5nKCksCiAgICAgIHJlYXNvbiwKICAgICAga25vd246IGZhbHNlLAogICAgICBhY3Rpb246ICJFUlJPUiIsCiAgICAgIGVycm9yOiBTdHJpbmcoZXJyb3I/Lm1lc3NhZ2UgfHwgZXJyb3IpCiAgICB9OwogIH0KICByZXR1cm4gc3RvcmFnZVJldGVudGlvblN0YXR1czsKfQppbXBvcnQgewogIEFQUF9WRVJTSU9OLAogIFBIQVNFUywKICBURVJNSU5BTF9QSEFTRVMsCiAgV0FUQ0hET0dfTUlOVVRFUywKICBGQVNUX1JFQ0hFQ0tfTVMsCiAgSURMRV9LRUVQQUxJVkVfTVMsCiAgSURMRV9LRUVQQUxJVkVfTUlOX01TLAogIE1BWF9QUk9NUFRfQ0hBUlMsCiAgTUFYX05FWFRfSU5TVFJVQ1RJT05fQ0hBUlMsCiAgQVVESVRfREVGQVVMVF9FTkFCTEVELAogIEFVRElUX0ZJRk9fTElNSVQsCiAgTUFYX1BFUlNJU1RFRF9BVURJVF9FVkVOVFMsCiAgQVVESVRfTk9JU0VfU0FNUExFX01TCn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvY29udHJhY3RzLm1qcyI7CmltcG9ydCB7CiAgbWFrZUF1ZGl0RXZlbnQsCiAgd3JpdGVBdWRpdEV2ZW50LAogIHJlYWRBdWRpdCwKICBwcnVuZUF1ZGl0Cn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvYXVkaXQtc3RvcmUubWpzIjsKaW1wb3J0IHsgY3JlYXRlS2V5ZWRRdWV1ZSB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL2tleWVkLXF1ZXVlLm1qcyI7CmltcG9ydCB7CiAgY3JlYXRlUHJvY2VzcywKICBpc0N1cnJlbnRUb2tlbiwKICBvd25lclRva2VuLAogIHJlc2V0UmVjb3ZlcnksCiAgdHJhbnNpdGlvblByb2Nlc3MsCiAgd2l0aFJlY292ZXJ5Cn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvc3RhdGUubWpzIjsKaW1wb3J0IHsKICBsb2FkQWxsUHJvY2Vzc2VzLAogIGxvYWRQcm9jZXNzRm9yV2luZG93LAogIHNhdmVQcm9jZXNzCn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvcHJvY2Vzcy1zdG9yZS5tanMiOwppbXBvcnQgewogIGVuc3VyZVdvcmtlckJpbmRpbmcsCiAgZ2V0V29ya2VyQmluZGluZywKICByZWxlYXNlV29ya2VyQmluZGluZywKICB3b3JrZXJCaW5kaW5nTWF0Y2hlcwp9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3dvcmtlci1pZGVudGl0eS5tanMiOwppbXBvcnQgeyBhZHZhbmNlUmVzcG9uc2VDYW5kaWRhdGUgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9yZXNwb25zZS1zdGFiaWxpdHkubWpzIjsKaW1wb3J0IHsKICBjbGVhck5leHRJbnN0cnVjdGlvbiwKICByZWFkTmV4dEluc3RydWN0aW9uLAogIHdyaXRlTmV4dEluc3RydWN0aW9uCn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvaW5zdHJ1Y3Rpb24tc3RvcmUubWpzIjsKaW1wb3J0IHsgY29tcG9zZUEyQVByb21wdCwgaW5pdGlhbE1pc3Npb25PYmplY3RpdmUgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9hMmEubWpzIjsKaW1wb3J0IHsKICBESVNQT1NJVElPTlMsCiAgbm9ybWFsaXplSGphbG1hckRlY2lzaW9uLAogIHJlY29uY2lsZUhqYWxtYXJSdW50aW1lRmFjdHMsCiAgdmFsaWRhdGVIamFsbWFyRGVjaXNpb24sCiAgdmFsaWRhdGVIamFsbWFyRXZpZGVuY2VCaW5kaW5nCn0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvaGphbG1hci1kMi5tanMiOwppbXBvcnQgeyBkZWVwQ2xvbmUsIGVycm9yUmVjb3JkLCBub3dJc28sIHJhbmRvbUlkLCBzaGEyNTZIZXgsIHRleHQgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9jb21tb24ubWpzIjsKaW1wb3J0IHsgcmVjb25jaWxlRGlzcGF0Y2hPYnNlcnZhdGlvbiB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL2Rpc3BhdGNoLXJlY29uY2lsaWF0aW9uLm1qcyI7CmltcG9ydCB7IHJlY29uY2lsZVNhZmV0eUhvbGRXaXRoRnJlc2hQcm9vZiB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL3NhZmV0eS1ob2xkLXJlY29uY2lsaWF0aW9uLm1qcyI7CmltcG9ydCB7IHBhcnNlVGFyZ2V0UmVzcG9uc2UsIHRhcmdldFJlc3BvbnNlRXZpZGVuY2UgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi9yZXNwb25zZS1jb250cmFjdC5tanMiOwppbXBvcnQgeyBjcmVhdGVOYW5vVGFzaywgc3BsaXROYW5vVGFza0RpcmVjdGl2ZSwgTkFOT19UQVNLX1NUQVRVUyB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL25hbm8tdGFzay5tanMiOwppbXBvcnQgeyBldmFsdWF0ZUNvbnRpbnVhdGlvbkFkbWlzc2lvbiB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL2NvbnRpbnVhdGlvbi1ndWFyZC5tanMiOwppbXBvcnQgeyBhcHBlbmRJbmNpZGVudCB9IGZyb20gImZpbGU6Ly8vdG1wL2NsYXVkZS0wLy1ob21lLXVzZXItdG1wLzEzMzAzOTAxLWI3YzgtNTg5Yi1iZmE1LTAxZTZhZmRlYmJhYi9zY3JhdGNocGFkL25lZ3J1bi12MTkyL2dyZWVuZmllbGQvbGliL2luY2lkZW50LWxvZy5tanMiOwppbXBvcnQgeyBxdWV1ZUJvdW5kYXJ5QW5hbHlzaXNEZWNpc2lvbiwgcXVldWVCb3VuZGFyeUNvbnRyb2wsIHJ1bnRpbWVDb250cm9sUmVxdWVzdHNDb21wbGV0aW9uIH0gZnJvbSAiZmlsZTovLy90bXAvY2xhdWRlLTAvLWhvbWUtdXNlci10bXAvMTMzMDM5MDEtYjdjOC01ODliLWJmYTUtMDFlNmFmZGViYmFiL3NjcmF0Y2hwYWQvbmVncnVuLXYxOTIvZ3JlZW5maWVsZC9saWIvcXVldWUtYm91bmRhcnkubWpzIjsKaW1wb3J0IHsgd2FybVJlc3VtZURlY2lzaW9uLCB3YXJtUmVzdW1lT2JqZWN0aXZlLCB3YXJtUmVzdW1lUGFnZVZlcmRpY3QgfSBmcm9tICJmaWxlOi8vL3RtcC9jbGF1ZGUtMC8taG9tZS11c2VyLXRtcC8xMzMwMzkwMS1iN2M4LTU4OWItYmZhNS0wMWU2YWZkZWJiYWIvc2NyYXRjaHBhZC9uZWdydW4tdjE5Mi9ncmVlbmZpZWxkL2xpYi93YXJt"}
+    + actual - expected
+    
+    + 'RECOVERING'
+    - 'SENDING'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'SENDING'
+  actual: 'RECOVERING'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:317:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E2E no-delta in a queue: the slot is paused and the next runnable slot runs
+not ok 27 - E2E no-delta in a queue: the slot is paused and the next runnable slot runs
+  ---
+  duration_ms: 1874.827344
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:329:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of null (reading 'reason')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:360:38)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Greenfield-authored objective texts pass the C01-C20 text rules
+not ok 28 - Greenfield-authored objective texts pass the C01-C20 text rules
+  ---
+  duration_ms: 8.345971
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs:374:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/lib/prompt-lint.mjs' imported from /tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-autonomous-control.test.mjs"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    moduleResolve (node:internal/modules/esm/resolve:859:10)
+    defaultResolve (node:internal/modules/esm/resolve:983:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:663:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+# node:internal/modules/esm/resolve:274
+#     throw new ERR_MODULE_NOT_FOUND(
+#           ^
+# Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/lib/prompt-lint.mjs' imported from /tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-gfw-contract-conformance.test.mjs
+#     at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+#     at moduleResolve (node:internal/modules/esm/resolve:859:10)
+#     at defaultResolve (node:internal/modules/esm/resolve:983:11)
+#     at \#cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+#     at ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+#     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+#     at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+#   code: 'ERR_MODULE_NOT_FOUND',
+#   url: 'file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/lib/prompt-lint.mjs'
+# }
+# Node.js v22.22.0
+# Subtest: tests/v193-gfw-contract-conformance.test.mjs
+not ok 3 - tests/v193-gfw-contract-conformance.test.mjs
+  ---
+  duration_ms: 322.273275
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-gfw-contract-conformance.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: v1.9.3 E2E: a GFW's missionDelegations are appended to its own window's queue
+not ok 30 - v1.9.3 E2E: a GFW's missionDelegations are appended to its own window's queue
+  ---
+  duration_ms: 2011.625756
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-same-window-delegation.test.mjs:54:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'slots')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-same-window-delegation.test.mjs:77:55)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# file:///tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-transport-notices.test.mjs:18
+#   providerTransportPending,
+#   ^^^^^^^^^^^^^^^^^^^^^^^^
+# SyntaxError: The requested module '../lib/waiting-refresh.mjs' does not provide an export named 'providerTransportPending'
+#     at ModuleJob._instantiate (node:internal/modules/esm/module_job:226:21)
+#     at async ModuleJob.run (node:internal/modules/esm/module_job:335:5)
+#     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+#     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+# Node.js v22.22.0
+# Subtest: tests/v193-transport-notices.test.mjs
+not ok 5 - tests/v193-transport-notices.test.mjs
+  ---
+  duration_ms: 141.31422
+  type: 'test'
+  location: '/tmp/claude-0/-home-user-tmp/13303901-b7c8-589b-bfa5-01e6afdebbab/scratchpad/negrun-v192/greenfield/tests/v193-transport-notices.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 9
+# fail 22
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 70679.050602

@@ -1,0 +1,194 @@
+[
+ {
+  "id": "AC-01",
+  "severity": "HIGH",
+  "title": "Queue park drops the operator instruction that CC-08 defers a terminal for; the next prompt claims it is attached but carries none",
+  "where": "greenfield/background.js:3694-3696 (parkSlotAndActivateNext clearNextInstruction), called from parkQueueMissionAfterAnalysis (background.js:7705-7722); greenfield/lib/greenfield-control.mjs:137-150 (TERMINAL_DEFERRED_CONTINUATION)",
+  "scenario": "A queue-managed GFW is on the last interaction of its quantum (or yields or pauses), another slot is runnable, the operator has queued an instruction, and the EIC returns DONE or STOP_PROCESS. resolveGreenfieldControl defers the terminal (correct) and tickAnalyzing sends it down PARK_AND_SWITCH. The instruction is silently consumed, the slot is parked with a text that says an instruction is attached, and when the slot resumes the EIC re-confirms DONE. The mission closes without the operator's higher-precedence instruction ever being applied. Before 1.9.3 this case went to recovery and the instruction was kept. test v177 and CC-08 cover only a non-boundary slot (interactionCount 0 of 5), so the boundary path is untested. The same loss happens when a no-delta pause parks the slot (ADVISORY_NO_DELTA_PAUSED) while an instruction is pending.",
+  "suggestedFix": "Do not clear the inbox entry at park time. Either (a) carry latestInstruction into item.resume (e.g. resume.operatorInstruction) and have buildQueueActivationProcess pass it to buildPendingA2A, or (b) skip the PARK_AND_SWITCH when an instruction is pending, so the prompt carrying it is built first. Add a test with maxInteractions=1 and two slots for EIC DONE plus a pending instruction."
+ },
+ {
+  "id": "AC-02",
+  "severity": "MEDIUM",
+  "title": "The ADVISORY_DONE_NO_DELTA_PAUSE streak is bypassable, so a no-delta state loops without any pause (R10)",
+  "where": "greenfield/lib/greenfield-control.mjs:262-277 (streak keyed on previousReason); lib/queue-boundary.mjs:95 (QUEUE_BOUNDARY_NO_ANALYSIS resets it); greenfield-control.mjs:168-203 (rotate/yield branch has no streak); background.js:7680-7685; lib/continuation-guard.mjs:34-38 (advertised exit)",
+  "scenario": "The no-delta pause only fires when the advisory local model says DONE on two consecutive, unanalysis-skipped turns without an EIC handoff. In queue mode with quantum 2 or less, with a repeated handoff, with a single-slot queue and YIELD, or with no local model, an EIC that makes no progress is re-prompted indefinitely, bounded only by the prompt gate. A fresh chat and a FULL prompt follow each queue activation. The doc (UPPDATERA_TILL_1_9_3.md section 8) promises that no-delta resolves by pause.",
+  "suggestedFix": "Keep the streak in its own persisted field (for example process.noDeltaStreak), not in greenfieldControl.reason, and let QUEUE_BOUNDARY, rotation and yield preserve it. Count a turn as no-delta from EIC-visible facts (empty handoff or a handoff equal to the previous objective, with no runtimeControl or delegation effect), not from the local DONE verdict. Treat YIELD_TO_QUEUE with no runnable slot as a no-delta pause. Reset only on a materially new handoff."
+ },
+ {
+  "id": "AC-03",
+  "severity": "MEDIUM",
+  "title": "With the local model missing or failing, an EIC BLOCKED is turned into an endless unpaused CONTINUE loop",
+  "where": "greenfield/offscreen.js:440-447 and 497-512 (runtimeHjalmarFallback always CONTINUE; softened runStructuredWithFallback) combined with lib/greenfield-control.mjs:331-340 (HJALMAR_CONTINUE)",
+  "scenario": "Chrome without the Prompt API (or a model still downloading, which 1.9.3 now treats as missing) is exactly the R4 case. The fallback is hard-wired to CONTINUE, so the EIC's own BLOCKED status never stops or pauses the mission. The EIC reports its blocker every turn and Greenfield re-prompts each time with no pause, no streak and no backoff. R4 (never stall) was implemented as 'ignore the EIC status', which violates R10 (resolve no-delta by pause or yield).",
+  "suggestedFix": "Make the control deterministic on the EIC status: for target BLOCKED, do not forward a local or fallback CONTINUE. Route it to a bounded autonomous path (a pause with the doubling backoff of ADVISORY_NO_DELTA_PAUSE) instead of an immediate re-prompt. Have runtimeHjalmarFallback return BLOCKED, or flag fallback decisions as non-authoritative, when target is BLOCKED."
+ },
+ {
+  "id": "AC-04",
+  "severity": "LOW",
+  "title": "Pre-existing paths that still end in BLOCKED or OPERATOR where an autonomous retry would resolve; queue retries are constant 180 s with no backoff",
+  "where": "greenfield/lib/greenfield-control.mjs:115-126, 223-232, 238-247, 289-311, 342-349; lib/continuation-guard.mjs NEXT_PROMPT_EMPTY and NANO_TASK_FALSE_SATISFIED; background.js:7509-7541 and 7582-7609; background.js:1348-1350 and 4044-4062; lib/mission-work-queue.mjs:36",
+  "scenario": "Non-queue runs end in BLOCKED until an operator restarts them, which R10 forbids. Queue runs retry, but a persistent blocker costs one fresh-chat FULL prompt about every 3 minutes with no doubling. 1.9.3 replaced this exact loop for the repeated advisory DONE with a doubling pause (15 min to 6 h) but left it for the codes above. The remaining rotation-time BLOCKED codes (SESSION_ROTATION_CHAT_READY_TIMEOUT, SESSION_ROTATION_EIC_NOT_SELECTED, SESSION_ROTATION_STATE_INVALID, SESSION_ROTATION_GPT_ROOT_UNRESOLVED, SESSION_ROTATION_STAGE_INVALID, SESSION_ROTATION_PROMPT_EFFECT_UNKNOWN, EIC_GPT_ROOT_UNKNOWN, RECOVERY_TARGET_INVALID, MISSION_PAUSE_STATE_INVALID) are likewise pre-existing and retried by the queue only.",
+  "suggestedFix": "Map target CONTINUE with a local BLOCKED or humanAuthorityRequired to OWNER_RESUME_CONTINUATION and a bounded pause. Re-ask with the fresh target for RUNTIME_CONTROL_TERMINAL_REJECTED. Scale requeueBlockedMissionWorkItem's retryAfterSeconds by blockedCount (the same 15 min to 6 h doubling) and let a non-queue BLOCKED convert to a RECOVERING-style timed retry."
+ },
+ {
+  "id": "AC-05",
+  "severity": "LOW",
+  "title": "A second deferred terminal replaces the deferral text with the stale-repeat text",
+  "where": "greenfield/lib/greenfield-control.mjs:41 and 147 versus lib/continuation-guard.mjs:156-172",
+  "scenario": "The EIC is told its continuation 'repeated the active objective' instead of 'apply the attached instruction, then re-confirm DONE'.",
+  "suggestedFix": "Exempt EIC_TERMINAL_DEFERRED_FOR_OPERATOR_INSTRUCTION objectives from the stale-repeat check, or make TERMINAL_DEFERRED_CONTINUATION include the instruction id or a counter."
+ },
+ {
+  "id": "AC-06",
+  "severity": "LOW",
+  "title": "A no-delta pause holds an operator instruction inside the paused prompt and starves a parked slot that becomes runnable",
+  "where": "greenfield/background.js:7814-7834 and 7861 (instruction attached to the held prompt); background.js:3010-3013 (wakeMissionQueue returns while a non-terminal process exists); background.js:3663",
+  "scenario": "An operator instruction is delayed by a Greenfield-chosen pause. A runnable slot waits behind another slot's long in-process pause.",
+  "suggestedFix": "Do not arm a no-delta pause (and do not count it toward the streak) while latestInstruction exists. In queue mode, park the in-process-paused slot with pauseUntilMs so wakeMissionQueue can activate the runnable slot."
+ },
+ {
+  "id": "AC-07",
+  "severity": "LOW",
+  "title": "Soft fallback lets one analysis request exceed the MV3 five-minute single-request limit (analytical, not verified in Chromium)",
+  "where": "greenfield/offscreen.js:497-512, 117-131, 174-188; lib/contracts.mjs:46 (ANALYSIS_WALL_MS = 180_000); background.js:6722-6760",
+  "scenario": "If Chrome terminates a service worker whose single request exceeds 5 minutes, the hung-model case never reaches its fallback, and the process re-enters runAnalysis after every restart. This is an assumption about Chrome and could not be tested here.",
+  "suggestedFix": "Cache a model-unavailable verdict for a cooldown after the first timeout or create failure. Use a combined wall budget below 4 minutes per request. Skip the nano stage when the hjalmar stage has fallen back."
+ },
+ {
+  "id": "SL-01",
+  "severity": "MEDIUM",
+  "title": "windowQueue shows stale quantum progress for the current slot, contradicting control.workQueue in the same prompt",
+  "where": "lib/window-queue-overview.mjs:59 (completedInteractions from item.quantumProgress); lib/mission-work-queue.mjs:521-539 and background.js:7432-7460 (item.quantumProgress is persisted only when a slot is parked, the running counter lives only in process.queueContext)",
+  "scenario": "Every FULL and COMPACT queue prompt from interaction 2 on tells the EIC two different progress counts for its own slot (C03 says the workQueue counters are the only quantum position; R7 says the overview carries slot status and quantum). The overview reads 0/5 at interaction 4 of 5. The EIC can mis-read where it is in the quantum, and any future lint or telemetry that compares the two will disagree. Other (parked) slots are correct.",
+  "suggestedFix": "In windowQueueOverview, for the slot where current === true take completedInteractions and maxInteractions from the process.queueContext (interactionCount, maxInteractions) passed in by windowQueueForPrompt, or add them to the options. Add an e2e test asserting windowQueue.slots[current].completedInteractions === workQueue.completedInteractions at interaction 3."
+ },
+ {
+  "id": "SL-02",
+  "severity": "MEDIUM",
+  "title": "windowQueue silently truncates at 24 slots although the queue holds up to 48; the current slot can be missing from the list",
+  "where": "lib/window-queue-overview.mjs:17 (WINDOW_QUEUE_OVERVIEW_MAX_SLOTS = 24) and :78 (`ordered.slice(0, WINDOW_QUEUE_OVERVIEW_MAX_SLOTS)`), versus lib/mission-work-queue.mjs:48 (MAX_QUEUE_ITEMS = 48)",
+  "scenario": "A window queue with 25..48 slots (reachable: missionDelegations append up to 3 slots per response at the tail, MAX_QUEUE_ITEMS is 48) violates R7 ('lists all GF slots'). The omitted slots are exactly the tail slots, i.e. the delegated work the EIC just created, and their status and schedule are not visible at all. If the prompted slot sits beyond position 24 the overview has no slot marked current, while its rule says 'Only the slot marked current is yours'.",
+  "suggestedFix": "Raise the cap to MAX_QUEUE_ITEMS (import the constant; size at 48 slots is about 25 KB, so shorten label/schedule fields instead of dropping slots), or at minimum always include the current slot and emit one compact line per omitted slot (position, gf, status). Fix the document claim if a cap stays."
+ },
+ {
+  "id": "SL-03",
+  "severity": "MEDIUM",
+  "title": "Context-size signals alone (LONG_SESSION + LARGE_MANAGED_CONTEXT) set slicePressure=SHRINK with signals=[], contradicting the module comment, the test title and the release document",
+  "where": "lib/interaction-slicing.mjs:131-136 (`const shrink = signals.length > 0 || band === \"ELEVATED\" || band === \"HIGH\"`); band computed in lib/session-health.mjs:344-358 counting every signal including LONG_SESSION and LARGE_MANAGED_CONTEXT",
+  "scenario": "Any session reaching 20 prompts (normal for a single-runnable-slot queue, which keeps the same chat across quanta, or a non-queue run) is told 'shrink this slice to one decision/effect-owner lane' on every later prompt until a rotation, although nothing observed is wrong. The prompt shows level SHRINK with an empty signals list, and responseContract.sessionHealthControl.sliceSizing lists only completion/transport/churn signals, so the EIC cannot see why. This shrinks every later slice against the documented behaviour (contract adaptiveRule: expand when clearly within headroom).",
+  "suggestedFix": "Decide SHRINK only from the filtered SLICE_SHRINK_SIGNALS (drop the band clause), or compute a slice band from the filtered signals only. Add a test with LONG_SESSION + LARGE_MANAGED_CONTEXT expecting NORMAL."
+ },
+ {
+  "id": "SL-04",
+  "severity": "MEDIUM",
+  "title": "C01-C20 linter does not match the contract's own forbidden phrasings for C01, C03, C04, C14, C16 (and C06/C07 variants)",
+  "where": "lib/prompt-lint.mjs:32-48 (FORBIDDEN regex table)",
+  "scenario": "R9 asks for a C01-C20 contradiction linter that fails closed before posting, and R1 forbids any ChatGPT TTL claim. The linter is the only regression guard for edits to the Greenfield-authored constants (responseContract note, queueControl, learning contract, rules). A future or accidental edit that uses the contract's literal wording (whole current WORK_QUANTUM in this response; Nano absence as blocker; a stated provider time limit) passes lint and is posted. The mutation test proves only the regexes' own examples.",
+  "suggestedFix": "Broaden the patterns to the contract text: C01 allow up to ~3 modifier words between determiner and envelope|WORK_QUANTUM|VTF and the verbs complete|finish|execute|do|deliver plus 'everything|all phases|all remaining'; C03 add 'quantum counter|quantum index|interaction counter'; C04 add 'as|treat[^.]*as' before DONE; C14 add 'Nano[^.]{0,40}(absence|null|unavailable|missing)[^.]{0,40}(block|fail|stop)'; C16 add a generic rule: any `\\d+\\s*(minutes?|hours?|min|h)` next to provider|ChatGPT|response|session outside the labelled watchdog string; C06 allow 're-?plan'; C07 allow 'blind-?retr'. Add the contract's forbid sentences verbatim as negative-control fixtures."
+ },
+ {
+  "id": "SL-05",
+  "severity": "LOW",
+  "title": "RECOVERY_CHURN never decays, so two recoveries ever in a session keep slicePressure=SHRINK until rotation",
+  "where": "lib/session-health.mjs:348 (`if (state.recoveryChurn >= 2) signals.push(\"RECOVERY_CHURN\")`), recoveryChurn only increments (markSessionHealthRecovery, background.js:1768 per stale-ladder reload and :5030 per enterRecovery); lib/interaction-slicing.mjs:39-46 lists RECOVERY_CHURN in SLICE_SHRINK_SIGNALS",
+  "scenario": "A stale ladder with F5 at 30 min and Ctrl-F5 at 60 min (each counts one) or two transient send errors makes every later prompt of that session SHRINK, however long ago they happened and however healthy later turns are. The adaptive rule says expand when clearly within headroom; here there is no exit except rotation.",
+  "suggestedFix": "Count churn per recent turns (store the churn counter at each sample and signal only if churn rose within the last N=3 completed turns), or reset recoveryChurn when N consecutive clean turns complete."
+ },
+ {
+  "id": "SL-06",
+  "severity": "LOW",
+  "title": "Overpack heuristic counts Greenfield's own wrapper vocabulary ('work package', 'completed work', 'verified'), so wrapped small handoffs trigger the multi-phase guard and inflate overpackGuardFired telemetry",
+  "where": "lib/interaction-slicing.mjs:155-159 (COMPLETE, VERIFY, PACKAGE stems) and :164 (threshold 4); wrappers in lib/provider-notice.mjs:89 ('another open work package'), lib/warm-resume.mjs:125-128 ('do not repeat completed work'), lib/session-rotation.mjs:87 ('next bounded work package'), lib/a2a.mjs:188 initialMissionObjective",
+  "scenario": "On warm resume, provider-block recovery and rotation prompts, a handoff that is a single bounded slice is classified as overpacked and receives 'Treat it as the ordered plan for this quantum: execute only its first bounded slice...'. This can make the EIC drop the second half of a deliberately small slice (extra interactions), and `objectivePhaseCount`-based telemetry (TURN_METRICS.overpackGuardFired, contract observabilityRecommendations) is polluted by Greenfield text.",
+  "suggestedFix": "Compute the phase count on the EIC/local handoff only (strip the Greenfield wrapper before the 'Next step:' / 'Mission objective to continue:' marker, or pass the raw handoff to interactionSlicingCapsule), and drop 'work package' from PACKAGE (require package as a verb: 'package the', 'paketera')."
+ },
+ {
+  "id": "SL-07",
+  "severity": "LOW",
+  "title": "Completion baseline is polluted by turns whose first response was never observed (completionMs=0 but clean=true), producing spurious COMPLETION_HIGH_RELATIVE",
+  "where": "lib/session-health.mjs:256-257 (`if (first == null && completed != null) first = completed`), :262 (clean ignores that case), :330-340 (baseline median over clean samples)",
+  "scenario": "After a worker suspension, a reload, or a short answer completed between two ticks, the turn gets completionMs=0 and enters the relative baseline as a clean sample. The median of two baseline samples then halves and an ordinary slower turn is read as 2.5x pressure, shrinking the next slice. ttfr is unaffected, completion is not.",
+  "suggestedFix": "Mark such samples (firstObserved:false) and exclude them from the completion baseline and from the latest-turn ratio (treat completionMs as null when first was not observed), or require a minimum baseline value."
+ },
+ {
+  "id": "SL-08",
+  "severity": "LOW",
+  "title": "WINDOW_CHECKPOINT hint omits the required 'later interactions are execution depth' statement when remaining > 1, and the linter exempts checkpoint roles from checking it",
+  "where": "lib/interaction-slicing.mjs:118-119 (WINDOW_CHECKPOINT and FINAL branches) and lib/prompt-lint.mjs:150 (`if (!checkpointRole && ... remainingInteractionsIncludingCurrent > 1 ...)`)",
+  "scenario": "Whenever the schedule window is about to close mid-quantum (likelyLastTurnInWindow) the prompt gives the receiver a checkpoint instruction but never says that the remaining queue interactions exist, nor forbids forcing the whole envelope into this response; the template sentence is dropped exactly when the receiver is under pressure to finish.",
+  "suggestedFix": "Append DEPTH to the WINDOW_CHECKPOINT hint (reworded: 'later interactions resume after the window reopens') and keep the first-slice clause for interaction 1; make the lint require the depth statement whenever remainingInteractionsIncludingCurrent > 1, regardless of role."
+ },
+ {
+  "id": "SL-09",
+  "severity": "LOW",
+  "title": "Contract hard invariant 'atomic mutations remain unsplit' (F07) is absent from every prompt, and its test is vacuous",
+  "where": "lib/interaction-slicing.mjs (planningHint, slicePressure.rule, methodControl) and tests/v193-gfw-contract-conformance.test.mjs:136",
+  "scenario": "canonicalGranularityModel.hardInvariants: 'Atomic mutations remain unsplit. Bound preparation/readback around them.' and F07 expect Greenfield sizing text to preserve that. With the new first-slice/shrink wording and no stated exception, a receiver whose next step is one atomic mutation can be pushed to split it mid-effect; the conformance suite cannot detect this.",
+  "suggestedFix": "Add one clause to ENVELOPE or the SHRINK rule: 'An atomic mutation stays unsplit; bound preparation and readback around it.' and replace the F07 assertion with a positive match on that clause."
+ },
+ {
+  "id": "SQD-01",
+  "severity": "HIGH",
+  "title": "UNBLOCKS_CURRENT child finishing DONE in the (now always same) queue races its own queue advance: activation throws a *_READBACK_MISMATCH error and trips the global runtimeFault",
+  "where": "background.js:3449-3497 (makeDelegationSourceRetryable), background.js:3506, background.js:4106-4124 (finalizeQueueTerminalAndMaybeAdvance), background.js:2880, background.js:8395, background.js:8337",
+  "scenario": "A GFW is BLOCKED and delegates an UNBLOCKS_CURRENT unblocker (the designed use). The unblocker is appended to the same queue (R6), runs, and answers DONE while another runnable slot exists. The DONE tick throws, the whole extension (all windows) stops ticking and the panel shows RUNTIME_FAULT for up to ~60 s, and two activateQueueItem calls (possibly for different slots) write the single per-worker process record concurrently, so the queue's ACTIVE slot and the stored process can disagree until the next park. The existing test only has a static regex for MISSION_QUEUE_DELEGATED_UNBLOCKER_COMPLETED (tests/v140-mission-delegation.test.mjs:372); no end-to-end same-queue completion test exists.",
+  "suggestedFix": "Since source and child queue are now the same queue, do not write it behind finalizeQueueTerminalAndMaybeAdvance's back: in finalizeQueueTerminalAndMaybeAdvance reload the queue (missionQueueForWindow) after completeMissionDelegationForQueueItem and drop the `void wakeMissionQueue(...)` when delegation.sourceQueueId equals the finishing process's queueId (the following selectNextMissionItem then sees the retryable source). Use targetProcess.windowId instead of delegation.sourceWindowId in that case (see SQD-08)."
+ },
+ {
+  "id": "SQD-02",
+  "severity": "MEDIUM",
+  "title": "A same-window delegation is only appended on a tick of a live, non-terminal queue worker; when the delegating GFW ends or parks into an idle queue the delegation stays PENDING indefinitely (or until an unrelated schedule reopens)",
+  "where": "background.js:3351 (acceptPendingMissionDelegationForWorker), background.js:8339 and 8363 (tickProcess), lib/contracts.mjs:28-34 (TERMINAL_PHASES incl. DONE, BLOCKED, QUEUE_WAIT), lib/mission-delegation.mjs claimPendingMissionDelegationForWorker (ownedBySource)",
+  "scenario": "Last runnable GFW in a window finishes with STOP_PROCESS/COMPLETE_MISSION and delegates follow-up missions, or parks into QUEUE_WAIT, or blocks with an UNBLOCKS_CURRENT child. The registry row has no consumer, no operator is present (R10), and the work is not queued (never / until an unrelated wake). R6 says 'appended on a later worker tick' but there is no later tick.",
+  "suggestedFix": "Make acceptance independent of a running process: extract an acceptPendingMissionDelegationsForQueue(windowId, queue) and call it (before selectNextMissionItem) from finalizeQueueTerminalAndMaybeAdvance, from enterQueueWait/parkSlotAndActivateNext idle paths, from wakeMissionQueue and from the 1-minute hydrateProcesses loop for every enabled queue; accept all pending rows of the queue in one pass."
+ },
+ {
+  "id": "SQD-03",
+  "severity": "MEDIUM",
+  "title": "While the delegating worker is process-paused only the first delegation is appended (one per tick, no ticks during PAUSED) and the appended slot cannot run during the pause",
+  "where": "background.js:8359-8363 (one delegation per tick), background.js:701-703 (setWatchdog clears the alarm for PAUSED), background.js:10177 (`if (current.phase !== PHASES.PAUSED) scheduleFast(...)`), background.js:3338 (single scheduleFast), background.js:3012 (wakeMissionQueue returns while the process is non-terminal)",
+  "scenario": "EIC delegates 2-3 supporting missions and asks for a timed pause because time is the next dependency. Delegations 2 and 3 land only when the pause alarm fires (hours later), and delegation 1 sits READY and unrun for the whole pause although the queue-managed pause semantics promise 'advance to the next runnable queue slot when available'.",
+  "suggestedFix": "Accept all pending rows of the queue in one pass (not one per tick), and after an accept while the worker is PAUSED convert the process pause into a queue park (parkSlotAndActivateNext with the pause as pauseUntilMs) so the new slot runs; or have the recovery scan tick PAUSED queue-managed workers that have PENDING rows."
+ },
+ {
+  "id": "SQD-04",
+  "severity": "MEDIUM",
+  "title": "control.windowQueue shows a stale quantum position and quantum size for the current slot, contradicting control.workQueue in the same prompt (FULL and COMPACT)",
+  "where": "lib/window-queue-overview.mjs:59 (`completedInteractions: Math.max(0, Math.floor(Number(item?.quantumProgress || 0)))`), background.js:2299-2307 (windowQueueForPrompt passes only currentItemId)",
+  "scenario": "At interaction 4 of 5 the EIC sees workQueue 3 completed / interaction 4 and windowQueue current slot 0/5 (or 0/8 after SET_QUANTUM). The operator requirement R7 calls for correct status per slot; the contradictory counters are exactly the kind of position confusion (C03) the slicing work tries to remove.",
+  "suggestedFix": "Pass the live context into windowQueueOverview (currentItemId plus process.queueContext.interactionCount and maxInteractions) and use those for the slot whose itemId matches instead of item.quantumProgress/item.maxInteractions."
+ },
+ {
+  "id": "SQD-05",
+  "severity": "MEDIUM",
+  "title": "The 24-slot cap drops slots by queue position, so the current slot (and the newest delegated slots, which are appended last) can be missing from the overview",
+  "where": "lib/window-queue-overview.mjs:17 (WINDOW_QUEUE_OVERVIEW_MAX_SLOTS = 24) and :78 (`ordered.slice(0, WINDOW_QUEUE_OVERVIEW_MAX_SLOTS)`) versus lib/mission-work-queue.mjs MAX_QUEUE_ITEMS = 48",
+  "scenario": "A window with more than 24 slots where the active slot is at position 25+: the prompt claims 'every slot in this Chrome window's Greenfield queue' yet has no slot marked current and cannot show that a delegation landed (R6/R7).",
+  "suggestedFix": "Always include the current slot and keep the cap by dropping from the slots farthest from the current position (or by showing compact one-line entries beyond 24) and say which positions were omitted."
+ },
+ {
+  "id": "SQD-06",
+  "severity": "LOW",
+  "title": "A non-queue run in a window that has a configured (stopped) queue gets a windowQueue overview whose rule text promises controls that are not offered",
+  "where": "background.js:2299-2311 (windowQueueForPrompt does not require process.queueContext), lib/window-queue-overview.mjs:19 (WINDOW_QUEUE_OVERVIEW_RULE), lib/a2a.mjs:564 and :625 (missionDelegationControl only when workQueue)",
+  "scenario": "The EIC of a plain single-GFW run sees idle READY slots of an unstarted queue as 'this window's queue' and is told it can delegate into it; any delegation it emits is rejected silently.",
+  "suggestedFix": "Build the overview only when process.queueContext.itemId is set (or mark it informational and omit the missionDelegations sentence for non-queue runs)."
+ },
+ {
+  "id": "SQD-07",
+  "severity": "LOW",
+  "title": "A delegation that cannot be inserted (queue full at 48 slots, or request-id/goal conflict) is retried on every tick forever with two registry writes each time and no feedback",
+  "where": "background.js:3350-3445 (acceptPendingMissionDelegationForWorker catch -> releaseMissionDelegation), lib/mission-delegation.mjs claimPendingMissionDelegationForWorker (attempts incremented, no cap or backoff), lib/mission-work-queue.mjs addMissionWorkItem (MISSION_WORK_QUEUE_FULL / MISSION_WORK_QUEUE_DELEGATION_CONFLICT)",
+  "scenario": "A long-lived full queue turns every worker tick into registry churn and the EIC never learns that its delegation is not being queued; the row also counts toward the 128 unfinished-row registry cap forever.",
+  "suggestedFix": "Back off per row (e.g. next-attempt time doubling to a cap), stop claiming while the queue is full, and surface the lastError in the next prompt's runtimeControl/delegation receipts."
+ },
+ {
+  "id": "SQD-08",
+  "severity": "LOW",
+  "title": "After a Chrome restart the completed unblocker cannot make its BLOCKED source retryable: the source window id is stale although source and child share one queue",
+  "where": "background.js:3449-3466 (makeDelegationSourceRetryable uses delegation.sourceWindowId and chrome.windows.get)",
+  "scenario": "UNBLOCKS_CURRENT delegation outlives a Chrome restart: the source stays BLOCKED for its whole cooldown (default 180 s, up to 3600 s) although its unblocker is done. If chrome.windows.get instead resolves to an unrelated window, missionQueueForWindow also creates a worker binding for it as a side effect.",
+  "suggestedFix": "When delegation.sourceQueueId equals targetProcess.queueContext.queueId use targetProcess.windowId (the live window) and the already loaded queue instead of delegation.sourceWindowId."
+ }
+]

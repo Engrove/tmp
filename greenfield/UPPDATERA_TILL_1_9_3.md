@@ -143,7 +143,26 @@ Efter pausen tillfrågas EIC igen, med pausens nummer i prompten. Pausen är 15 
 
 En köplats i BLOCKED försöks om automatiskt efter köns väntetid. En process utan kö stannar däremot. Det beteendet ändras inte i 1.9.3.
 
-## 9. Kontrollera efter uppdateringen
+## 9. Kända öppna granskningsfynd
+
+En andra granskningsrunda gav 24 fynd (2 HIGH, 10 MEDIUM, 12 LOW). Tre sonnet-granskare hann klart: autonomi, prompt/linter och kö/delegering. Motgranskningen och transportgranskningen avbröts av sessionsgränsen. Fynden är därför **obekräftade**, och inget av dem är åtgärdat i 1.9.3. Hela listan finns i `verification/v193-open-review-findings.json`.
+
+**HIGH:**
+- **AC-01:** vid ett köbyte (sista interaktionen, YIELD eller paus) försvinner en väntande operatörsinstruktion när platsen parkeras. Det sker när EIC:s DONE skjuts upp för just den instruktionen. Grundfelet fanns redan före 1.9.3, men uppskjutandet gör det skadligt.
+- **SQD-01:** en avblockerare (`UNBLOCKS_CURRENT`) som blir DONE i samma kö krockar med köns egen växling när en annan plats är körbar. Följden blir `*_READBACK_MISMATCH` och ett globalt `runtimeFault` i upp till ungefär 60 s.
+
+**MEDIUM:**
+- **AC-02:** no-delta-pausen kan kringgås, så ett läge utan förändring kan loopa utan paus. Det gäller vid köbyte efter analys, växlande handoff, YIELD utan annan körbar plats, rotation och när den lokala modellen saknas.
+- **AC-03:** med en saknad lokal modell kan EIC:s BLOCKED bli en oändlig CONTINUE-slinga utan paus.
+- **SL-01/SQD-04:** kööversikten visar ett inaktuellt kvantframsteg för den aktuella platsen, som motsäger `control.workQueue`.
+- **SL-02/SQD-05:** översikten stannar vid 24 platser, men kön rymmer 48. Den aktuella platsen kan därför saknas i listan.
+- **SL-03:** lång session plus stor kontext ger SHRINK med en tom signallista. Det motsäger avsnitt 2.
+- **SL-04:** lintern fångar inte alla förbjudna formuleringar som kontraktet själv anger.
+- **SQD-02/SQD-03:** en delegering läggs bara in vid ett tick av en levande worker. Den kan därför bli kvar som PENDING när den delegerande GFW:n avslutas eller pausas.
+
+**LOW:** AC-04–07, SL-05–09 och SQD-06–08. Se JSON-filen.
+
+## 10. Kontrollera efter uppdateringen
 
 - Nästa köbyte till en plats som börjar en ny kvant ska öppna en ny chatt och skicka FULL.
 - I diagnostikexportens incidentlogg ska `QUEUE_ITEM_ACTIVATED` ha `interactionInQuantum` och, efter varje fångat svar, `TURN_METRICS`.

@@ -1,0 +1,352 @@
+TAP version 13
+# Subtest: v1.9.0 policy: warm only after an answered turn in a known conversation, inside the caps
+ok 1 - v1.9.0 policy: warm only after an answered turn in a known conversation, inside the caps
+  ---
+  duration_ms: 2.545767
+  type: 'test'
+  ...
+# Subtest: v1.9.0 policy: the page verdict proves the conversation, waits for it, or gives up
+ok 2 - v1.9.0 policy: the page verdict proves the conversation, waits for it, or gives up
+  ---
+  duration_ms: 0.481346
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: a parked GFW comes back to its own conversation with a COMPACT prompt
+ok 3 - v1.9.0 E2E: a parked GFW comes back to its own conversation with a COMPACT prompt
+  ---
+  duration_ms: 17248.410529
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: the conversation does not open (e.g. deleted chat) -> fresh chat with FULL, nothing sent before
+ok 4 - v1.9.0 E2E: the conversation does not open (e.g. deleted chat) -> fresh chat with FULL, nothing sent before
+  ---
+  duration_ms: 12371.758997
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: someone wrote in A's conversation meanwhile -> fresh chat, A's thread is not reused
+ok 5 - v1.9.0 E2E: someone wrote in A's conversation meanwhile -> fresh chat, A's thread is not reused
+  ---
+  duration_ms: 6512.448231
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: Fortsätt i egen chatt turned off -> the v1.8.14 cold resume (fresh chat, FULL)
+ok 6 - v1.9.0 E2E: Fortsätt i egen chatt turned off -> the v1.8.14 cold resume (fresh chat, FULL)
+  ---
+  duration_ms: 4912.152222
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: the AI asked for a new chat in its last answer -> cold
+ok 7 - v1.9.0 E2E: the AI asked for a new chat in its last answer -> cold
+  ---
+  duration_ms: 4992.164399
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: the saved mission text changed while parked -> same conversation, but FULL
+ok 8 - v1.9.0 E2E: the saved mission text changed while parked -> same conversation, but FULL
+  ---
+  duration_ms: 5118.776077
+  type: 'test'
+  ...
+# Subtest: v1.9.0: warm resume is on by default and can be turned off
+ok 9 - v1.9.0: warm resume is on by default and can be turned off
+  ---
+  duration_ms: 0.475141
+  type: 'test'
+  ...
+# Subtest: v1.9.0 E2E: another GFW answered in A's conversation -> A's thread is no longer A's alone -> cold
+ok 10 - v1.9.0 E2E: another GFW answered in A's conversation -> A's thread is no longer A's alone -> cold
+  ---
+  duration_ms: 5114.98809
+  type: 'test'
+  ...
+# Subtest: v1.9.3 E2E: a completed quantum (5/5) comes back at interaction 1/5 in a fresh chat with FULL
+ok 11 - v1.9.3 E2E: a completed quantum (5/5) comes back at interaction 1/5 in a fresh chat with FULL
+  ---
+  duration_ms: 10075.939249
+  type: 'test'
+  ...
+# Subtest: v1.9.3 E2E: YIELD_TO_QUEUE on the final interaction (5/5) also starts the next quantum in a fresh chat
+ok 12 - v1.9.3 E2E: YIELD_TO_QUEUE on the final interaction (5/5) also starts the next quantum in a fresh chat
+  ---
+  duration_ms: 9222.585011
+  type: 'test'
+  ...
+# Subtest: v1.9.3 E2E: a slot with maxInteractions 1 starts every activation in a fresh chat
+ok 13 - v1.9.3 E2E: a slot with maxInteractions 1 starts every activation in a fresh chat
+  ---
+  duration_ms: 9161.12647
+  type: 'test'
+  ...
+# Subtest: v1.9.3 E2E: a warm resume of an unfinished quantum is recorded as not a fresh chat
+ok 14 - v1.9.3 E2E: a warm resume of an unfinished quantum is recorded as not a fresh chat
+  ---
+  duration_ms: 3992.644277
+  type: 'test'
+  ...
+# Subtest: no-delta: a repeated local DONE without EIC terminal or handoff pauses with a doubling, capped pause instead of blocking
+ok 15 - no-delta: a repeated local DONE without EIC terminal or handoff pauses with a doubling, capped pause instead of blocking
+  ---
+  duration_ms: 3.411806
+  type: 'test'
+  ...
+# Subtest: CC-01: a local DONE with ROTATE_SESSION_NOW or YIELD_TO_QUEUE never closes; the EIC handoff is the objective
+ok 16 - CC-01: a local DONE with ROTATE_SESSION_NOW or YIELD_TO_QUEUE never closes; the EIC handoff is the objective
+  ---
+  duration_ms: 0.629981
+  type: 'test'
+  ...
+# Subtest: CC-04: the EIC CONTINUE handoff is forwarded verbatim with a Nano task, for READ_REQUIRED and with rotation or yield
+ok 17 - CC-04: the EIC CONTINUE handoff is forwarded verbatim with a Nano task, for READ_REQUIRED and with rotation or yield
+  ---
+  duration_ms: 0.284462
+  type: 'test'
+  ...
+# Subtest: CC-05: an advisory BLOCKED never re-attaches a NANO_TASK line and never leaves an empty prompt
+ok 18 - CC-05: an advisory BLOCKED never re-attaches a NANO_TASK line and never leaves an empty prompt
+  ---
+  duration_ms: 0.37135
+  type: 'test'
+  ...
+# Subtest: CC-02: admission never recovers a consumed NANO_TASK line from the EIC handoff
+ok 19 - CC-02: admission never recovers a consumed NANO_TASK line from the EIC handoff
+  ---
+  duration_ms: 0.582737
+  type: 'test'
+  ...
+# Subtest: CC-07: the no-delta exit names only controls the current responseContract offers
+ok 20 - CC-07: the no-delta exit names only controls the current responseContract offers
+  ---
+  duration_ms: 0.348912
+  type: 'test'
+  ...
+# Subtest: CC-08: an EIC terminal with a pending operator instruction is deferred, not routed to recovery
+ok 21 - CC-08: an EIC terminal with a pending operator instruction is deferred, not routed to recovery
+  ---
+  duration_ms: 0.25417
+  type: 'test'
+  ...
+# Subtest: E2E no-delta: a repeated local DONE without EIC terminal pauses the GFW and asks the EIC again after the pause
+ok 22 - E2E no-delta: a repeated local DONE without EIC terminal pauses the GFW and asks the EIC again after the pause
+  ---
+  duration_ms: 4915.937713
+  type: 'test'
+  ...
+# Subtest: E2E CC-01: a local DONE never closes the GFW when the EIC rotates or yields
+ok 23 - E2E CC-01: a local DONE never closes the GFW when the EIC rotates or yields
+  ---
+  duration_ms: 2865.434113
+  type: 'test'
+  ...
+# Subtest: E2E CC-02/CC-04: a consumed NANO_TASK line never reaches the next prompt; the EIC handoff is forwarded
+ok 24 - E2E CC-02/CC-04: a consumed NANO_TASK line never reaches the next prompt; the EIC handoff is forwarded
+  ---
+  duration_ms: 1751.766896
+  type: 'test'
+  ...
+# Subtest: E2E CC-03: a downloadable model or a failing create() falls back to the runtime decision instead of recovery
+ok 25 - E2E CC-03: a downloadable model or a failing create() falls back to the runtime decision instead of recovery
+  ---
+  duration_ms: 2884.366148
+  type: 'test'
+  ...
+# Subtest: E2E CC-08: an EIC DONE with a pending operator instruction applies the instruction, then a later DONE closes
+ok 26 - E2E CC-08: an EIC DONE with a pending operator instruction applies the instruction, then a later DONE closes
+  ---
+  duration_ms: 1439.590254
+  type: 'test'
+  ...
+# Subtest: E2E no-delta in a queue: the slot is paused and the next runnable slot runs
+ok 27 - E2E no-delta in a queue: the slot is paused and the next runnable slot runs
+  ---
+  duration_ms: 2902.273207
+  type: 'test'
+  ...
+# Subtest: Greenfield-authored objective texts pass the C01-C20 text rules
+ok 28 - Greenfield-authored objective texts pass the C01-C20 text rules
+  ---
+  duration_ms: 4.655534
+  type: 'test'
+  ...
+# Subtest: F01 interaction 1/5: owner refresh plus first real bounded slice, later interactions are depth, no whole chain
+ok 29 - F01 interaction 1/5: owner refresh plus first real bounded slice, later interactions are depth, no whole chain
+  ---
+  duration_ms: 54.672363
+  type: 'test'
+  ...
+# Subtest: F02 interaction 2/5: continue the same envelope with the next dependency slice; no frontier replan
+ok 30 - F02 interaction 2/5: continue the same envelope with the next dependency slice; no frontier replan
+  ---
+  duration_ms: 21.254514
+  type: 'test'
+  ...
+# Subtest: F03 final interaction: checkpoint/readback/handoff priority, never DONE
+ok 31 - F03 final interaction: checkpoint/readback/handoff priority, never DONE
+  ---
+  duration_ms: 15.480794
+  type: 'test'
+  ...
+# Subtest: F04 hot reload: current always-fetch method wins over FULL/COMPACT sizing text without waiting for rotation
+ok 32 - F04 hot reload: current always-fetch method wins over FULL/COMPACT sizing text without waiting for rotation
+  ---
+  duration_ms: 21.226118
+  type: 'test'
+  ...
+# Subtest: F05 quantum boundary is transport only; a new quantum is announced as a fresh chat
+ok 33 - F05 quantum boundary is transport only; a new quantum is announced as a fresh chat
+  ---
+  duration_ms: 3.618442
+  type: 'test'
+  ...
+# Subtest: F06 a lost response carries the exact-effect-owner rule in every prompt that follows, queue or not
+ok 34 - F06 a lost response carries the exact-effect-owner rule in every prompt that follows, queue or not
+  ---
+  duration_ms: 13.090065
+  type: 'test'
+  ...
+# Subtest: F07/F13/F14/F20 receiver-side fixtures: Greenfield text does not contradict them
+ok 35 - F07/F13/F14/F20 receiver-side fixtures: Greenfield text does not contradict them
+  ---
+  duration_ms: 12.022234
+  type: 'test'
+  ...
+# Subtest: F08 known future-time dependency: SET_SCHEDULE mandate, no prompt polling
+ok 36 - F08 known future-time dependency: SET_SCHEDULE mandate, no prompt polling
+  ---
+  duration_ms: 3.244157
+  type: 'test'
+  ...
+# Subtest: F09-F12, F19 are covered by existing deterministic tests (names asserted so they cannot vanish silently)
+ok 37 - F09-F12, F19 are covered by existing deterministic tests (names asserted so they cannot vanish silently)
+  ---
+  duration_ms: 2.287822
+  type: 'test'
+  ...
+# Subtest: F15 no fresh/external Hjalmar; local analysis is labelled optional advisory
+ok 38 - F15 no fresh/external Hjalmar; local analysis is labelled optional advisory
+  ---
+  duration_ms: 4.096411
+  type: 'test'
+  ...
+# Subtest: F16 Nano null/absent/unknown is never a mission blocker and is never replayed
+ok 39 - F16 Nano null/absent/unknown is never a mission blocker and is never replayed
+  ---
+  duration_ms: 1.838948
+  type: 'test'
+  ...
+# Subtest: F17 stale current_focus: newer owner evidence wins
+ok 40 - F17 stale current_focus: newer owner evidence wins
+  ---
+  duration_ms: 8.365884
+  type: 'test'
+  ...
+# Subtest: F18 repeated no-delta: the replanned continuation offers a truthful no-delta exit, DONE only with closure
+ok 41 - F18 repeated no-delta: the replanned continuation offers a truthful no-delta exit, DONE only with closure
+  ---
+  duration_ms: 0.478507
+  type: 'test'
+  ...
+# Subtest: v1.9.3 local advisory DONE never closes a mission without an EIC terminal status
+ok 42 - v1.9.3 local advisory DONE never closes a mission without an EIC terminal status
+  ---
+  duration_ms: 0.326428
+  type: 'test'
+  ...
+# Subtest: v1.9.3 structured EIC CONTINUE handoff is forwarded verbatim without its NANO_TASK line
+ok 43 - v1.9.3 structured EIC CONTINUE handoff is forwarded verbatim without its NANO_TASK line
+  ---
+  duration_ms: 0.122299
+  type: 'test'
+  ...
+# Subtest: C01 objective guard: a multi-phase objective gets a first-slice guard; a single slice does not
+ok 44 - C01 objective guard: a multi-phase objective gets a first-slice guard; a single slice does not
+  ---
+  duration_ms: 12.522513
+  type: 'test'
+  ...
+# Subtest: C16 no response-time budget or provider TTL in Greenfield text; the watchdog is labelled and derived
+ok 45 - C16 no response-time budget or provider TTL in Greenfield text; the watchdog is labelled and derived
+  ---
+  duration_ms: 3.375138
+  type: 'test'
+  ...
+# Subtest: C01-C20 lint: every message type, role and profile composes clean
+ok 46 - C01-C20 lint: every message type, role and profile composes clean
+  ---
+  duration_ms: 299.330702
+  type: 'test'
+  ...
+# Subtest: C01-C20 lint never fails on data: mission text, EIC learning summaries, labels or edge counters
+ok 47 - C01-C20 lint never fails on data: mission text, EIC learning summaries, labels or edge counters
+  ---
+  duration_ms: 11.850111
+  type: 'test'
+  ...
+# Subtest: C01-C20 lint catches each injected contradiction (mutation check)
+ok 48 - C01-C20 lint catches each injected contradiction (mutation check)
+  ---
+  duration_ms: 177.862374
+  type: 'test'
+  ...
+# Subtest: adaptive sizing: completion pressure and provider notices shrink the next slice; context size alone does not
+ok 49 - adaptive sizing: completion pressure and provider notices shrink the next slice; context size alone does not
+  ---
+  duration_ms: 12.227654
+  type: 'test'
+  ...
+# Subtest: planning hint is built from counters only and is identical for identical counters
+ok 50 - planning hint is built from counters only and is identical for identical counters
+  ---
+  duration_ms: 11.318624
+  type: 'test'
+  ...
+# Subtest: Hjalmar D2 sizes nextPrompt for the next interaction and cannot declare mission DONE on its own
+ok 51 - Hjalmar D2 sizes nextPrompt for the next interaction and cannot declare mission DONE on its own
+  ---
+  duration_ms: 0.637932
+  type: 'test'
+  ...
+# Subtest: window queue overview lists every GF slot with state, quantum and schedule, in queue order
+ok 52 - window queue overview lists every GF slot with state, quantum and schedule, in queue order
+  ---
+  duration_ms: 33.653554
+  type: 'test'
+  ...
+# Subtest: v1.9.3 E2E: a GFW's missionDelegations are appended to its own window's queue
+ok 53 - v1.9.3 E2E: a GFW's missionDelegations are appended to its own window's queue
+  ---
+  duration_ms: 3739.37941
+  type: 'test'
+  ...
+# Subtest: v1.9.3 pure: a provider notice is pending generation for the ladder, the slot hand-back and warm resume
+ok 54 - v1.9.3 pure: a provider notice is pending generation for the ladder, the slot hand-back and warm resume
+  ---
+  duration_ms: 2.085366
+  type: 'test'
+  ...
+# Subtest: v1.9.3 E2E: background processing defers the 30-min F5, blocks capture of a partial answer and is recorded as pressure
+ok 55 - v1.9.3 E2E: background processing defers the 30-min F5, blocks capture of a partial answer and is recorded as pressure
+  ---
+  duration_ms: 2951.422858
+  type: 'test'
+  ...
+# Subtest: v1.9.3 E2E: a complete A2A answer is captured even if a connection banner lingers
+ok 56 - v1.9.3 E2E: a complete A2A answer is captured even if a connection banner lingers
+  ---
+  duration_ms: 1493.231558
+  type: 'test'
+  ...
+# Subtest: v1.9.3 E2E: no prompt is posted while a provider notice is shown; the hold is bounded
+ok 57 - v1.9.3 E2E: no prompt is posted while a provider notice is shown; the hold is bounded
+  ---
+  duration_ms: 1916.654458
+  type: 'test'
+  ...
+1..57
+# tests 57
+# suites 0
+# pass 57
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 88876.837573
