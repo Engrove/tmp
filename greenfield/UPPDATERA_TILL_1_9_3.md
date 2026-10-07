@@ -108,15 +108,42 @@ Id:n (`itemId`) finns bara för den aktuella platsen, och COMPACT hänvisar till
   - **Metod-id:t är en konstant, inte en inställning.** EIC-ägarens aktuella metod vinner oavsett vilket id prompten anger, så en panelinställning skulle inte ge någon styrning.
 - **Linter för C01–C20.** Den kontrollerar varje prompt innan den postas. Bara text som Greenfield själv skriver granskas; uppdrag, mission och operatörsinstruktioner är data. Ett fynd stoppar posten (`A2A_PROMPT_LINT_FAILED`). Alla meddelandetyper, kvantpositioner och profiler passerar.
 - **Lokal analys.**
-  - **Lokal DONE.** Hjalmar D2 kan inte längre avsluta ett uppdrag på egen hand. Bara EIC:s status DONE, STOP_PROCESS eller ett godkänt COMPLETE_MISSION avslutar. Säger den lokala analysen DONE två gånger i rad utan att EIC har lämnat varken terminalstatus eller handoff, blir uppdraget BLOCKED och operatören avgör. Greenfield fortsätter då inte i en evig slinga.
-  - **Nano blockerar aldrig.** Ett okänt Nano-resultat, en saknad lokal modell eller en Nano som inte svarar blockerar inte uppdraget och stoppar inte starten (C14/F16). Nano-uppgiften spelas aldrig upp igen.
+  - **Lokal DONE.** Hjalmar D2 kan inte längre avsluta ett uppdrag på egen hand. Bara EIC:s status DONE, STOP_PROCESS eller ett godkänt COMPLETE_MISSION avslutar. Det gäller också när EIC samtidigt roterar sessionen eller lämnar platsen till kön (`ROTATE_SESSION_NOW`, `YIELD_TO_QUEUE`); där kunde 1.9.2 och tidiga 1.9.3-byggen avsluta på en lokal DONE.
+  - **Upprepad lokal DONE utan förändring.** Se avsnitt 8. Ingen operatör behövs.
+  - **Nano blockerar aldrig.** Följande blockerar inte uppdraget och stoppar inte starten (C14/F16):
+    - ett okänt Nano-resultat;
+    - en lokal modell som saknas, fortfarande kan laddas ned eller laddas ned;
+    - en lokal modell som inte går att starta, svarar fel, når sin kvot eller överskrider tidsgränsen.
+
+    Analysen faller då tillbaka på Greenfields deterministiska beslut. Nano-uppgiften spelas aldrig upp igen, och dess `NANO_TASK:`-rad skickas aldrig tillbaka till EIC. En sådan rad i fortsättningen tas bort i stället för att stoppa uppdraget.
   - **Etikett i prompten.** Greenfields lokala analys beskrivs nu som valfri och rådgivande, aldrig som ägarbevis.
   - **Hjalmars input.** Hjalmar får nästa interaktions position.
+  - **EIC:s handoff.** EIC:s strukturerade CONTINUE-handoff går vidare ordagrant även i tre fall där den lokala texten tidigare vann: med en Nano-uppgift, vid READ_REQUIRED och vid rotation eller köbyte. Nano-resultatet följer separat i `analysisEvidence`.
 - **Okänd effekt (C07).** En prompt efter en obesvarad tur säger alltid att effekten ska läsas hos exakt effektägare före omförsök, både med och utan kö.
-- **Ingen förändring (C20).** Den ersättande fortsättningen vid upprepning erbjuder en ärlig status utan förändring (YIELD/SLEEP/SET_SCHEDULE) i stället för bara blocker eller DONE.
+- **Ingen förändring (C20).** Den ersättande fortsättningen vid upprepning erbjuder en ärlig status utan förändring i stället för bara blocker eller DONE. Den nämner bara styrningar som svarskontraktet erbjuder: YIELD/SLEEP/SET_SCHEDULE i en kö, PAUSE_PROCESS utan kö.
 - **Avvikelse från kontraktet, på operatörens order.** Kontraktets observerade delegeringsregel (`ANOTHER_LIVE_QUEUE_MANAGED_GREENFIELD_WORKER`, "never self-create") ersätts av operatörens uttryckliga instruktion 2026-10-07: samma fönster. Det följer kontraktets egen prioritetsordning, där operatörens avsikt kommer först.
 
-## 8. Kontrollera efter uppdateringen
+## 8. Ingen operatör i en GFW-session
+
+Ingen operatör är närvarande i en GFW-session. Inget nytt i 1.9.3 väntar på eller kräver en operatör.
+
+**Upprepad lokal DONE utan förändring.** Första gången den lokala analysen säger DONE utan att EIC har lämnat terminalstatus eller handoff fortsätter uppdraget och EIC tillfrågas. Händer det igen direkt efter (`ADVISORY_DONE_NO_DELTA_PAUSE`) pausar Greenfield:
+- **I en kö:** platsen pausas (`ADVISORY_NO_DELTA_PAUSED`), kvantens framsteg sparas och nästa körbara plats kör. Finns ingen annan körbar plats pausas processen i stället.
+- **Utan kö:** processen får en tidsatt paus (`MISSION_PAUSE_ARMED`, `requestedBy: GREENFIELD_NO_DELTA`).
+
+Efter pausen tillfrågas EIC igen, med pausens nummer i prompten. Pausen är 15 min och fördubblas för varje upprepning upp till 6 h, samma form som återhämtningens backoff. En handoff från EIC nollställer räkningen. Tidigare 1.9.3-byggen blockerade här och väntade på en operatör.
+
+**EIC:s DONE medan en operatörsinstruktion väntar.** Instruktionen går före, enligt kontraktets prioritetsordning. Avslutet skjuts upp (`EIC_TERMINAL_DEFERRED_FOR_OPERATOR_INSTRUCTION`), instruktionen följer med nästa prompt och EIC bekräftar avslutet därefter. Före 1.9.3 hamnade detta i en återhämtningsslinga med backoff upp till 6 h, utan att instruktionen eller avslutet genomfördes.
+
+**Kvar sedan tidigare versioner:** fyra lägen blir fortfarande BLOCKED:
+- EIC säger själv BLOCKED;
+- EIC kräver mänskligt beslut (`humanAuthorityRequired`);
+- ett EIC-avslut med fel target;
+- en lokal blockering utan någon nästa åtgärd från EIC.
+
+En köplats i BLOCKED försöks om automatiskt efter köns väntetid. En process utan kö stannar däremot. Det beteendet ändras inte i 1.9.3.
+
+## 9. Kontrollera efter uppdateringen
 
 - Nästa köbyte till en plats som börjar en ny kvant ska öppna en ny chatt och skicka FULL.
 - I diagnostikexportens incidentlogg ska `QUEUE_ITEM_ACTIVATED` ha `interactionInQuantum` och, efter varje fångat svar, `TURN_METRICS`.

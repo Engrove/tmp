@@ -372,3 +372,23 @@ test("E2E no-delta in a queue: the slot is paused and the next runnable slot run
     assert.equal(parked.quantumProgress, 2, "quantum progress is preserved");
   } finally { t.restore(); }
 });
+
+test("Greenfield-authored objective texts pass the C01-C20 text rules", async () => {
+  const { lintA2AEnvelope } = await import("../lib/prompt-lint.mjs");
+  const { consumedNanoContinuation } = await import("../lib/hjalmar-d2.mjs");
+  const texts = {
+    ADVISORY_DONE_CONTINUATION,
+    OWNER_RESUME_CONTINUATION,
+    TERMINAL_DEFERRED_CONTINUATION,
+    noDelta1: advisoryNoDeltaResumePrompt({ streak: 1, pauseSeconds: 900 }),
+    noDelta6: advisoryNoDeltaResumePrompt({ streak: 6, pauseSeconds: 21600 }),
+    alternativeAlone: evaluateContinuationAdmission({ currentObjective: "S.", decision: { disposition: "CONTINUE", nextPrompt: "S." } }).effectiveNextPrompt,
+    alternativeQueued: evaluateContinuationAdmission({ currentObjective: "S.", decision: { disposition: "CONTINUE", nextPrompt: "S." }, queueManaged: true }).effectiveNextPrompt,
+    ...Object.fromEntries(["COMPLETED", "FAILED", "CONTEXT_REQUIRED", "UNKNOWN_EFFECT"].map((status) => [`nano${status}`, consumedNanoContinuation({ status })]))
+  };
+  for (const [name, text] of Object.entries(texts)) {
+    const findings = lintA2AEnvelope({ responseContract: { probe: text } }).findings.filter((f) => f.path === "responseContract.probe");
+    assert.deepEqual(findings, [], name);
+    assert.doesNotMatch(text, /operator (decides|must|will)|wait for (the )?operator/i, name);
+  }
+});

@@ -3,7 +3,8 @@
 Greenfield 1.9.3 styr EIC att ta en avgränsad del av arbetet per interaktion. Nästa del krymper när svaren blir långsamma eller när ChatGPT visar "Våra system bearbetar …" eller "Anslutningen bröts". Medan någon av dem syns skickas ingen ny prompt och inget halvfärdigt svar fångas. Dessutom:
 - en köplats som börjar en ny kvant öppnar alltid en ny chatt;
 - arbete som en GFW delegerar hamnar i samma fönsters kö;
-- varje prompt listar fönstrets alla GF-platser med status och schema.
+- varje prompt listar fönstrets alla GF-platser med status och schema;
+- ingenting väntar på en operatör: en upprepad lokal DONE utan förändring blir en tidsatt paus, varefter EIC tillfrågas igen.
 
 Uppdatera i samma mapp och välj **Läs in igen**. Se [UPPDATERA_TILL_1_9_3.md](UPPDATERA_TILL_1_9_3.md).
 

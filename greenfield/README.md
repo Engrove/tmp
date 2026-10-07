@@ -2,7 +2,7 @@
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
 
-Version 1.9.3 har sex delar. De bygger på operatörens rapporter 2026-10-07 och styrkontraktet `GFW_EIC_CONTROL_A2A_v1`.
+Version 1.9.3 har sju delar. De bygger på operatörens rapporter 2026-10-07 och styrkontraktet `GFW_EIC_CONTROL_A2A_v1`.
 
 - **En avgränsad slice per interaktion.** Promptarna säger nu uttryckligen vad varje interaktion ska omfatta, för varje position i kvanten:
   - en avgränsad, sammanhängande slice;
@@ -19,6 +19,7 @@ Version 1.9.3 har sex delar. De bygger på operatörens rapporter 2026-10-07 och
   - hot-reload-referens till EIC:s always-fetch-metod;
   - en lokal DONE eller en saknad Nano stoppar aldrig ett uppdrag;
   - en incidentrad per tur.
+- **Ingen operatör i en GFW-session.** En upprepad lokal DONE utan förändring blir en tidsatt paus. Därefter tillfrågas EIC igen. I en kö kör nästa plats under tiden. Ett EIC-avslut medan en operatörsinstruktion väntar skjuts upp, och instruktionen följer med nästa prompt.
 
 Se [UPPDATERA_TILL_1_9_3.md](UPPDATERA_TILL_1_9_3.md).
 
@@ -100,11 +101,16 @@ Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad 
 - **Fortsättningskedjan:**
   - `lib/greenfield-control.mjs`:
     - `EIC_HANDOFF_FORWARDED`: EIC:s strukturerade CONTINUE-handoff ordagrant, utan NANO_TASK-rad.
-    - `ADVISORY_DONE_WITHOUT_EIC_TERMINAL`/`ADVISORY_DONE_TARGET_BLOCKED`: en lokal DONE avslutar aldrig.
+    - `ADVISORY_DONE_WITHOUT_EIC_TERMINAL`/`ADVISORY_DONE_TARGET_BLOCKED`: en lokal DONE avslutar aldrig, inte heller med `ROTATE_SESSION_NOW`/`YIELD_TO_QUEUE`.
+    - `ADVISORY_DONE_NO_DELTA_PAUSE`: en upprepning blir en paus på 15 min som fördubblas upp till 6 h, aldrig BLOCKED. Kodvägen i `background.js`: `PAUSE_PROCESS` med `requestedBy: GREENFIELD_NO_DELTA`, köutfallet `ADVISORY_NO_DELTA_PAUSED`.
+    - `EIC_TERMINAL_DEFERRED_FOR_OPERATOR_INSTRUCTION`: ersätter återhämtningsslingan `HJALMAR_D2_DONE_WITH_PENDING_OPERATOR_INSTRUCTION`.
     - Hårt stopp vid `NANO_TASK_UNKNOWN_EFFECT` är borttaget.
   - `lib/hjalmar-d2.mjs`: `NEXT_INTERACTION`, regel 16 och en ny DONE-definition. Ett okänt Nano-resultat fortsätter utan omspelning.
-  - `lib/continuation-guard.mjs`: utgång utan förändring.
-  - `offscreen.js`: deterministisk reserv när den lokala modellen saknas.
+  - `lib/continuation-guard.mjs`:
+    - utgång utan förändring, med styrningar efter kö eller ingen kö;
+    - `REPLANNED_NANO_TASK_DIRECTIVE_REMOVED` ersätter stoppet `NANO_TASK_REISSUE`;
+    - återvinning sker bara från handoff utan NANO_TASK-rad.
+  - `offscreen.js`: deterministisk reserv vid varje fel i den lokala modellen. `downloadable` och `downloading` räknas som saknad modell.
   - `sidepanel.js`: `prepareLocalAnalyzerOptional`.
 - **Ny kvant i ny chatt** (`warmResumeDecision` med `interactionInQuantum`):
   - koden `NEW_QUANTUM_FRESH_CHAT`;
