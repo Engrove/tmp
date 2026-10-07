@@ -195,20 +195,33 @@ export function normalizeDriftVaultSettings(value) {
   const values = normalizeDriftSettingsStrict(value.values);
   const source = value.keySavedAtMs;
   if (!source || typeof source !== "object" || Array.isArray(source)) throw new Error("DRIFT_SETTINGS_INVALID:keySavedAtMs");
+  // A time from a clock that runs more than a day fast is held at that limit
+  // for this setting only; one bad time never discards the other settings.
   const limit = Date.now() + MAX_CLOCK_SKEW_MS;
   const keySavedAtMs = {};
   for (const key of DRIFT_SETTINGS_KEYS) {
     const n = source[key];
-    if (!Number.isSafeInteger(n) || n < 1 || n > limit) throw new Error(`DRIFT_SETTINGS_INVALID:keySavedAtMs.${key}`);
-    keySavedAtMs[key] = n;
+    if (!Number.isSafeInteger(n) || n < 1) throw new Error(`DRIFT_SETTINGS_INVALID:keySavedAtMs.${key}`);
+    keySavedAtMs[key] = Math.min(n, limit);
   }
   return { values, keySavedAtMs };
 }
 
-// A value never saved by an operator, or saved before v1.9.2 (no save time),
-// enters the vault with this time: older than any real save anywhere, newer
-// than "never saved" in another installation.
-export const LEGACY_DRIFT_STAMP = 1;
+// Save times below any real save (Date.now()), for values without one:
+//   DRIFT_STAMP_DEFAULT  a never-saved default, carried into the vault so the
+//                        record is complete; loses to every saved value;
+//   DRIFT_STAMP_LEGACY   a non-default value saved before v1.9.2; beats a
+//                        carried default, loses to every save made in 1.9.2.
+export const DRIFT_STAMP_DEFAULT = 1;
+export const DRIFT_STAMP_LEGACY = 2;
+function effectiveDriftStamps(settings) {
+  const values = driftSettingsOf(settings || {});
+  const savedAt = normalizeDriftStamps(settings?.driftSettingsSavedAtMs);
+  return Object.fromEntries(DRIFT_SETTINGS_KEYS.map((key) => [
+    key,
+    savedAt[key] || (values[key] !== DEFAULT_DRIFT_SETTINGS[key] ? DRIFT_STAMP_LEGACY : 0)
+  ]));
+}
 
 /**
  * v1.9.2: per-setting merge of this installation and the vault. For each
@@ -218,26 +231,24 @@ export const LEGACY_DRIFT_STAMP = 1;
  *   values/stamps   the merged state for both sides
  *   adoptedKeys     settings whose value this installation takes from the vault
  *   localChanged    this installation's record must be rewritten
- *   vaultWrite      the vault must be (re)written
- * Without a vault, nothing is seeded while every setting is still a never-saved
- * default. Save times ahead of `now` (a clock that ran fast) are pulled back.
+ *   vaultWrite      the vault must be (re)written (also when two copies met)
+ * Without a vault, nothing is seeded while every setting is a never-saved
+ * default.
  */
-export function mergeDriftSettings(local, vault = null, { now = Date.now() } = {}) {
+export function mergeDriftSettings(local, vault = null) {
   const localValues = driftSettingsOf(local || {});
   const savedAt = normalizeDriftStamps(local?.driftSettingsSavedAtMs);
+  const effective = effectiveDriftStamps(local || {});
   const values = {};
   const stamps = {};
   const adoptedKeys = [];
   let localChanged = false;
   let vaultWrite = false;
-  for (const key of DRIFT_SETTINGS_KEYS) {
-    if (savedAt[key] > now) { savedAt[key] = now; localChanged = true; }
-  }
   if (!vault) {
-    const seed = DRIFT_SETTINGS_KEYS.some((key) => savedAt[key] > 0 || localValues[key] !== DEFAULT_DRIFT_SETTINGS[key]);
+    const seed = DRIFT_SETTINGS_KEYS.some((key) => effective[key] > 0);
     for (const key of DRIFT_SETTINGS_KEYS) {
       values[key] = localValues[key];
-      stamps[key] = savedAt[key] || (seed ? LEGACY_DRIFT_STAMP : 0);
+      stamps[key] = seed ? (effective[key] || DRIFT_STAMP_DEFAULT) : savedAt[key];
       if (stamps[key] !== savedAt[key]) localChanged = true;
     }
     return { values, stamps, adoptedKeys, localChanged, vaultWrite: seed };
@@ -245,18 +256,37 @@ export function mergeDriftSettings(local, vault = null, { now = Date.now() } = {
   for (const key of DRIFT_SETTINGS_KEYS) {
     const vaultValue = vault.settings.values[key];
     const vaultAt = vault.settings.keySavedAtMs[key];
-    if (vaultAt > savedAt[key] || (vaultAt === savedAt[key] && vaultValue !== localValues[key])) {
+    if (vaultAt > effective[key] || (vaultAt === effective[key] && vaultValue !== localValues[key])) {
       values[key] = vaultValue;
       stamps[key] = vaultAt;
       if (vaultValue !== localValues[key]) adoptedKeys.push(key);
       if (vaultValue !== localValues[key] || vaultAt !== savedAt[key]) localChanged = true;
     } else {
       values[key] = localValues[key];
-      stamps[key] = savedAt[key];
-      if (localValues[key] !== vaultValue || savedAt[key] !== vaultAt) vaultWrite = true;
+      stamps[key] = effective[key];
+      if (localValues[key] !== vaultValue || effective[key] !== vaultAt) vaultWrite = true;
+      if (effective[key] !== savedAt[key]) localChanged = true;
     }
   }
+  if ((vault.copies || 1) > 1) vaultWrite = true; // collapse copies met through Chrome Sync
   return { values, stamps, adoptedKeys, localChanged, vaultWrite };
+}
+
+// v1.9.2 backup restore: per setting, the newer of this installation and the
+// backup wins (a tie keeps this installation). Pure.
+export function mergeImportedDriftSettings(current, imported) {
+  const currentValues = driftSettingsOf(current || {});
+  const importedValues = driftSettingsOf(imported || {});
+  const currentAt = effectiveDriftStamps(current || {});
+  const importedAt = effectiveDriftStamps(imported || {});
+  const values = {};
+  const stamps = {};
+  for (const key of DRIFT_SETTINGS_KEYS) {
+    const fromBackup = importedAt[key] > currentAt[key];
+    values[key] = fromBackup ? importedValues[key] : currentValues[key];
+    stamps[key] = fromBackup ? importedAt[key] : currentAt[key];
+  }
+  return { values, stamps };
 }
 
 async function readLocalOperatorSettings(storage) {
@@ -330,11 +360,14 @@ export async function saveOperatorSettings(
   return withOperatorSettingsLock(storage, async () => {
     const current = await readLocalOperatorSettings(requireStorage(storage));
     const next = normalizeOperatorSettings({ ...current, ...operatorPatch });
-    // v1.9.2: each Drift setting in an operator save gets its own save time,
-    // so the newest save of that setting in the Chrome profile wins.
-    const savedKeys = DRIFT_SETTINGS_KEYS.filter((key) => Object.hasOwn(operatorPatch, key));
-    if (savedKeys.length) {
-      for (const key of savedKeys) next.driftSettingsSavedAtMs[key] = now;
+    // v1.9.2: each Drift setting the operator changes gets its own save time,
+    // so the newest save of that setting in the Chrome profile wins. A value
+    // sent unchanged (a form resubmitting what it shows) is not a new save.
+    // The time never goes behind the setting's known time (a vault time from a
+    // clock that ran fast), so the operator's latest change always wins.
+    const changedKeys = DRIFT_SETTINGS_KEYS.filter((key) => Object.hasOwn(operatorPatch, key) && next[key] !== current[key]);
+    if (changedKeys.length) {
+      for (const key of changedKeys) next.driftSettingsSavedAtMs[key] = Math.max(now, current.driftSettingsSavedAtMs[key] + 1);
       next.driftSettingsOrigin = "OPERATOR";
     }
     return writeLocalOperatorSettings(next, storage);
@@ -345,10 +378,10 @@ export async function saveOperatorSettings(
 // computed inside the write lock on the stored record, so a save that landed
 // after the vault was read is merged, never overwritten. Only the Drift
 // settings, their save times and the origin change.
-export async function reconcileLocalDriftSettings(vault, storage = defaultStorage(), { now = Date.now() } = {}) {
+export async function reconcileLocalDriftSettings(vault, storage = defaultStorage()) {
   return withOperatorSettingsLock(storage, async () => {
     const local = await readLocalOperatorSettings(requireStorage(storage));
-    const merge = mergeDriftSettings(local, vault, { now });
+    const merge = mergeDriftSettings(local, vault);
     if (!merge.localChanged) return { settings: local, merge };
     const settings = await writeLocalOperatorSettings({
       ...local,

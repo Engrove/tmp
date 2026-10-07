@@ -22,20 +22,28 @@ const CHUNK_CHARS = 1800;
 const MAX_CLOCK_SKEW_MS = 86400000;
 const SECTIONS = Object.freeze({
   policy: Object.freeze({ schema: SAFETY_POLICY_VAULT_SCHEMA, field: "policy", final: "GFK1:ACTIVE", stage: "GFK1-STAGE:", path: "safety-policy-v1", code: "SAFETY_POLICY_VAULT" }),
-  drift: Object.freeze({ schema: DRIFT_SETTINGS_VAULT_SCHEMA, field: "settings", final: "GFD1:ACTIVE", stage: "GFD1-STAGE:", path: "drift-settings-v1", code: "DRIFT_SETTINGS_VAULT", combine: combineDriftCopies })
+  drift: Object.freeze({ schema: DRIFT_SETTINGS_VAULT_SCHEMA, field: "settings", final: "GFD1:ACTIVE", stage: "GFD1-STAGE:", path: "drift-settings-v1", code: "DRIFT_SETTINGS_VAULT", combine: combineDriftCopies, perKeyTimes: true })
 });
 // Normally one committed copy. With Chrome Sync two can meet; for the Drift
-// section each setting is taken from the copy that saved it last.
+// section each setting is taken from the copy that saved it last. Equal times
+// are decided by the value itself, so every machine picks the same one, and
+// `copies` tells the caller to write the combination back as one copy.
 function combineDriftCopies(records) {
   const values = {};
   const keySavedAtMs = {};
+  const later = (a, r, key) => {
+    const ta = a.settings.keySavedAtMs[key];
+    const tr = r.settings.keySavedAtMs[key];
+    if (tr !== ta) return tr > ta;
+    return JSON.stringify(r.settings.values[key]) > JSON.stringify(a.settings.values[key]);
+  };
   for (const key of Object.keys(records[0].settings.values)) {
-    const best = records.reduce((a, r) => (r.settings.keySavedAtMs[key] > a.settings.keySavedAtMs[key] ? r : a));
+    const best = records.reduce((a, r) => (later(a, r, key) ? r : a));
     values[key] = best.settings.values[key];
     keySavedAtMs[key] = best.settings.keySavedAtMs[key];
   }
   const newest = records.reduce((a, r) => (r.savedAtMs > a.savedAtMs ? r : a));
-  return { settings: { values, keySavedAtMs }, savedAtMs: newest.savedAtMs, appVersion: newest.appVersion };
+  return { settings: { values, keySavedAtMs }, savedAtMs: newest.savedAtMs, appVersion: newest.appVersion, copies: records.length };
 }
 const chunkUrlPrefix = (section) => `https://greenfield.invalid/${section.path}/chunk/`;
 
@@ -92,8 +100,10 @@ function decodeRecord(section, parsed, normalize, now = Date.now()) {
   if (parsed?.schema !== section.schema) return null;
   const savedAtMs = Number(parsed.savedAtMs);
   // A far-future stamp would outrank every real save; it reads as absent and
-  // the next save or startup seed replaces it.
-  if (!Number.isSafeInteger(savedAtMs) || savedAtMs <= 0 || savedAtMs > now + MAX_CLOCK_SKEW_MS) return null;
+  // the next save or startup seed replaces it. A section with one time per
+  // setting validates those itself; its record time is only a summary.
+  if (!Number.isSafeInteger(savedAtMs) || savedAtMs <= 0) return null;
+  if (savedAtMs > now + MAX_CLOCK_SKEW_MS && !section.perKeyTimes) return null;
   // normalize fills missing keys with defaults; a record missing any key is
   // damaged and must never be adopted as "the defaults".
   const value = parsed[section.field];
@@ -203,7 +213,8 @@ export function loadDriftSettingsVault(bookmarks, { normalizeSettings }) {
   return loadSection(SECTIONS.drift, bookmarks, normalizeSettings);
 }
 export function writeDriftSettingsVault({ settings, appVersion = "" }, { bookmarks, normalizeSettings, nonce = "" }) {
-  const savedAtMs = Math.max(0, ...Object.values(settings?.keySavedAtMs || {}).map(Number).filter(Number.isSafeInteger));
+  const times = Object.values(settings?.keySavedAtMs || {}).map(Number).filter(Number.isSafeInteger);
+  const savedAtMs = Math.min(Math.max(0, ...times), Date.now());
   return writeSection(SECTIONS.drift, settings, { savedAtMs, appVersion }, { bookmarks, normalize: normalizeSettings, nonce });
 }
 

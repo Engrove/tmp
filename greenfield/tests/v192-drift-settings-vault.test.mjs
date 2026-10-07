@@ -24,7 +24,8 @@ import {
   OPERATOR_SETTINGS_KEY,
   DRIFT_SETTINGS_KEYS,
   DEFAULT_DRIFT_SETTINGS,
-  LEGACY_DRIFT_STAMP,
+  DRIFT_STAMP_DEFAULT,
+  DRIFT_STAMP_LEGACY,
   driftSettingsOf,
   mergeDriftSettings,
   normalizeDriftSettingsStrict,
@@ -35,6 +36,7 @@ import {
   reconcileLocalDriftSettings,
   saveMissionPreset
 } from "../lib/operator-settings.mjs";
+import { createOperatorBackup, restoreOperatorBackup } from "../lib/operator-backup.mjs";
 
 const S = globalThis.GreenfieldSafetyPolicy;
 const normalizeSettings = normalizeDriftVaultSettings;
@@ -96,7 +98,7 @@ test("v1.9.2 vault: Drift settings are a second, independent section in the run-
   });
 });
 
-test("v1.9.2 vault: a clamped, mistyped or incomplete value, or a missing or far-future save time, is refused", async () => {
+test("v1.9.2 vault: a clamped, mistyped or incomplete value, or a missing save time, is refused", async () => {
   const { postDelaySeconds, ...missing } = OPERATOR;
   const badValues = [{ ...OPERATOR, postDelaySeconds: 999 }, { ...OPERATOR, maxActiveSessions: 9 }, { ...OPERATOR, queueSwitchHardReload: "yes" }, { ...OPERATOR, defaultMissionQuantumInteractions: 2.5 }, missing, []];
   for (const values of badValues) assert.throws(() => normalizeDriftSettingsStrict(values), /DRIFT_SETTINGS_INVALID/, JSON.stringify(values));
@@ -105,7 +107,6 @@ test("v1.9.2 vault: a clamped, mistyped or incomplete value, or a missing or far
     ...badValues.map((values) => ({ values, keySavedAtMs: stampsAll(1000) })),
     { values: OPERATOR, keySavedAtMs: stampMissing },
     { values: OPERATOR, keySavedAtMs: { ...stampsAll(1000), warmQueueResume: 0 } },
-    { values: OPERATOR, keySavedAtMs: { ...stampsAll(1000), postDelaySeconds: Date.now() + 3 * 86400000 } },
     { values: OPERATOR }
   ];
   for (const settings of badRecords) {
@@ -121,44 +122,50 @@ test("v1.9.2 vault: a clamped, mistyped or incomplete value, or a missing or far
 
 test("v1.9.2 merge: per setting, the newest save wins; never-saved defaults never seed", () => {
   const local = (values, stamps = {}) => normalizeOperatorSettings({ ...values, driftSettingsSavedAtMs: stamps });
-  const now = 10_000;
   // Fresh installation, empty profile: nothing to do.
-  let m = mergeDriftSettings(local({}), null, { now });
+  let m = mergeDriftSettings(local({}), null);
   assert.deepEqual([m.vaultWrite, m.localChanged, m.adoptedKeys], [false, false, []]);
-  // Values from before 1.9.2 (no save times), empty vault: seeded, older than any real save.
-  m = mergeDriftSettings(local(OPERATOR), null, { now });
+  // Values from before 1.9.2 (no save times), empty vault: seeded with the legacy time.
+  m = mergeDriftSettings(local(OPERATOR), null);
   assert.equal(m.vaultWrite, true);
   assert.deepEqual(m.values, OPERATOR);
-  assert.deepEqual(m.stamps, stampsAll(LEGACY_DRIFT_STAMP));
+  assert.deepEqual(m.stamps, stampsAll(DRIFT_STAMP_LEGACY));
+  // Only one non-default legacy value: the never-saved defaults go in with the lower time.
+  m = mergeDriftSettings(local({ ...DEFAULT_DRIFT_SETTINGS, maxActiveSessions: 4 }), null);
+  assert.deepEqual(m.stamps, { ...stampsAll(DRIFT_STAMP_DEFAULT), maxActiveSessions: DRIFT_STAMP_LEGACY });
   // New folder (never saved here), vault present: every value comes from the vault.
-  m = mergeDriftSettings(local({}), vaultRecord(OPERATOR, 5000), { now });
+  m = mergeDriftSettings(local({}), vaultRecord(OPERATOR, 5000));
   assert.deepEqual(m.values, OPERATOR);
   assert.equal(m.adoptedKeys.length, 8);
   assert.equal(m.vaultWrite, false);
   // One setting saved here after the vault: only that one goes to the vault,
   // the other seven come from the vault (review finding 2026-10-07, reproduced).
-  m = mergeDriftSettings(local({ ...DEFAULT_DRIFT_SETTINGS, maxActiveSessions: 2 }, { maxActiveSessions: 6000 }), vaultRecord(OPERATOR, 5000), { now });
+  m = mergeDriftSettings(local({ ...DEFAULT_DRIFT_SETTINGS, maxActiveSessions: 2 }, { maxActiveSessions: 6000 }), vaultRecord(OPERATOR, 5000));
   assert.deepEqual(m.values, { ...OPERATOR, maxActiveSessions: 2 });
   assert.equal(m.vaultWrite, true);
-  assert.deepEqual(m.adoptedKeys.sort(), DRIFT_SETTINGS_KEYS.filter((k) => k !== "maxActiveSessions" && OPERATOR[k] !== DEFAULT_DRIFT_SETTINGS[k]).sort());
   // Mixed: each side newer for different settings.
-  m = mergeDriftSettings(local(SECOND, { ...stampsAll(3000), postDelaySeconds: 8000 }), vaultRecord(OPERATOR, { ...stampsAll(5000), postDelaySeconds: 4000 }), { now });
+  m = mergeDriftSettings(local(SECOND, { ...stampsAll(3000), postDelaySeconds: 8000 }), vaultRecord(OPERATOR, { ...stampsAll(5000), postDelaySeconds: 4000 }));
   assert.deepEqual(m.values, { ...OPERATOR, postDelaySeconds: SECOND.postDelaySeconds });
   assert.deepEqual([m.vaultWrite, m.localChanged], [true, true]);
   // Same save time, different value: the vault wins so every installation converges.
-  m = mergeDriftSettings(local(SECOND, stampsAll(5000)), vaultRecord(OPERATOR, 5000), { now });
+  m = mergeDriftSettings(local(SECOND, stampsAll(5000)), vaultRecord(OPERATOR, 5000));
   assert.deepEqual(m.values, OPERATOR);
   assert.equal(m.vaultWrite, false);
   // In sync: nothing to do.
-  m = mergeDriftSettings(local(OPERATOR, stampsAll(5000)), vaultRecord(OPERATOR, 5000), { now });
+  m = mergeDriftSettings(local(OPERATOR, stampsAll(5000)), vaultRecord(OPERATOR, 5000));
   assert.deepEqual([m.vaultWrite, m.localChanged, m.adoptedKeys], [false, false, []]);
-  // A save time ahead of the clock is pulled back to now.
-  m = mergeDriftSettings(local(OPERATOR, stampsAll(now + 99_999)), null, { now });
-  assert.deepEqual(m.stamps, stampsAll(now));
-  assert.equal(m.localChanged, true);
+  // A legacy value (no save time) beats a carried default, loses to a real save (round-2 review finding).
+  m = mergeDriftSettings(local({ ...DEFAULT_DRIFT_SETTINGS, queueSwitchDelaySeconds: 30 }), vaultRecord({ ...DEFAULT_DRIFT_SETTINGS, maxActiveSessions: 4 }, { ...stampsAll(DRIFT_STAMP_DEFAULT), maxActiveSessions: DRIFT_STAMP_LEGACY }));
+  assert.deepEqual(m.values, { ...DEFAULT_DRIFT_SETTINGS, maxActiveSessions: 4, queueSwitchDelaySeconds: 30 });
+  assert.equal(m.vaultWrite, true);
+  m = mergeDriftSettings(local({ ...DEFAULT_DRIFT_SETTINGS, queueSwitchDelaySeconds: 30 }), vaultRecord(DEFAULT_DRIFT_SETTINGS, 5000));
+  assert.equal(m.values.queueSwitchDelaySeconds, DEFAULT_DRIFT_SETTINGS.queueSwitchDelaySeconds);
+  // Two copies met through Chrome Sync are written back as one.
+  m = mergeDriftSettings(local(OPERATOR, stampsAll(5000)), { ...vaultRecord(OPERATOR, 5000), copies: 2 });
+  assert.equal(m.vaultWrite, true);
 });
 
-test("v1.9.2 settings: an operator save stamps exactly the saved settings; the stamp cannot be injected", async () => {
+test("v1.9.2 settings: an operator save stamps exactly the changed settings; the stamp cannot be injected", async () => {
   const store = memory();
   const at = (now) => ({ ...OPTS, now });
   let s = await saveOperatorSettings({ workModeEnabled: true }, store, at(10));
@@ -170,9 +177,26 @@ test("v1.9.2 settings: an operator save stamps exactly the saved settings; the s
   assert.equal(s.driftSettingsOrigin, "OPERATOR");
   s = await saveOperatorSettings(pickQueue(OPERATOR), store, at(40));
   assert.deepEqual(s.driftSettingsSavedAtMs, { ...stampsAll(0), postDelaySeconds: 30, ...Object.fromEntries(QUEUE_KEYS.map((k) => [k, 40])) });
+  // A value sent unchanged (a form resubmitting what it shows) is not a new save (round-2 review finding).
+  s = await saveOperatorSettings({ ...pickQueue(OPERATOR), postDelaySeconds: 31 }, store, at(50));
+  assert.deepEqual(s.driftSettingsSavedAtMs, { ...stampsAll(0), postDelaySeconds: 50, ...Object.fromEntries(QUEUE_KEYS.map((k) => [k, 40])) });
   assert.deepEqual(await loadOperatorSettings(store, OPTS), s, "stable across a reload");
   assert.deepEqual(normalizeOperatorSettings({ driftSettingsSavedAtMs: { postDelaySeconds: -5, maxActiveSessions: "x" }, driftSettingsOrigin: "HACK" }).driftSettingsSavedAtMs, stampsAll(0));
   assert.equal(normalizeOperatorSettings({ driftSettingsOrigin: "HACK" }).driftSettingsOrigin, "");
+});
+
+test("v1.9.2 settings: a save never goes behind a known save time from a clock that ran fast (round-2 review finding)", async () => {
+  const store = memory();
+  const fast = Date.now() + 3_600_000; // another machine, clock one hour ahead
+  await reconcileLocalDriftSettings(vaultRecord({ ...DEFAULT_DRIFT_SETTINGS, maxActiveSessions: 4 }, { ...stampsAll(DRIFT_STAMP_DEFAULT), maxActiveSessions: fast }), store);
+  const s = await saveOperatorSettings({ maxActiveSessions: 1 }, store, OPTS);
+  assert.equal(s.driftSettingsSavedAtMs.maxActiveSessions, fast + 1);
+  const m = mergeDriftSettings(s, vaultRecord({ ...DEFAULT_DRIFT_SETTINGS, maxActiveSessions: 4 }, { ...stampsAll(DRIFT_STAMP_DEFAULT), maxActiveSessions: fast }));
+  assert.equal(m.values.maxActiveSessions, 1, "the operator's later change wins");
+  // A time more than a day ahead is held at that limit for that setting only; the record stays readable.
+  const held = normalizeDriftVaultSettings({ values: OPERATOR, keySavedAtMs: { ...stampsAll(1000), postDelaySeconds: Date.now() + 9 * 86_400_000 } });
+  assert.ok(held.keySavedAtMs.postDelaySeconds <= Date.now() + 86_400_000);
+  assert.equal(held.keySavedAtMs.maxActiveSessions, 1000);
 });
 
 test("v1.9.2 settings: the local reconciliation changes only the Drift settings and merges a save made meanwhile", async () => {
@@ -262,7 +286,7 @@ test("v1.9.2 upgrade in place: values saved before 1.9.2 seed the vault, then fo
   const a = await start({ seed: legacy.state, bookmarks: profile });
   assert.equal((await a.mod.fleetStatusSnapshot()).driftSettingsVault.state, "SAVED");
   assert.deepEqual(driftSettingsOf(await settingsOf(a)), OPERATOR, "local values untouched");
-  assert.deepEqual((await readVault(profile)).settings.keySavedAtMs, stampsAll(LEGACY_DRIFT_STAMP));
+  assert.deepEqual((await readVault(profile)).settings.keySavedAtMs, stampsAll(DRIFT_STAMP_LEGACY));
   const b = await start({ bookmarks: profile });
   assert.equal((await b.mod.fleetStatusSnapshot()).driftSettingsVault.state, "RESTORED");
   assert.deepEqual(driftSettingsOf(await settingsOf(b)), OPERATOR);
@@ -294,7 +318,7 @@ test("v1.9.2 a failed startup read followed by a one-setting save keeps the vaul
   assert.equal((await b.mod.fleetStatusSnapshot()).driftSettingsVault.state, "ERROR");
   broken = false;
   const r = await b.mod.setMaxActiveSessions({ windowId: 1, maxActiveSessions: 2 });
-  assert.equal(r.driftSettingsVault.state, "RESTORED", "the other settings come from the vault in the same step");
+  assert.equal(r.driftSettingsVault.state, "SAVED");
   assert.deepEqual((await readVault(profile)).settings.values, { ...OPERATOR, maxActiveSessions: 2 });
   assert.deepEqual(driftSettingsOf(await settingsOf(b)), { ...OPERATOR, maxActiveSessions: 2 });
 });
@@ -377,4 +401,104 @@ test("v1.9.2 two committed copies (Chrome Sync) are combined setting by setting"
   assert.deepEqual(combined.settings.values, { ...OPERATOR, postDelaySeconds: SECOND.postDelaySeconds });
   assert.equal(combined.settings.keySavedAtMs.postDelaySeconds, 6000);
   assert.equal(combined.settings.keySavedAtMs.maxActiveSessions, 5000);
+});
+
+test("v1.9.2 two legacy installations: a real old value is never replaced by the other's carried default (round-2 review finding)", async () => {
+  const legacy = (values) => memory({ [OPERATOR_SETTINGS_KEY]: { ...DEFAULT_DRIFT_SETTINGS, ...values, schema: "eic.greenfield.operator-settings.v3", savedMissions: [] } }).state;
+  const profile = mockBookmarks();
+  const a = await start({ seed: legacy({ maxActiveSessions: 4 }), bookmarks: profile });
+  assert.equal((await a.mod.fleetStatusSnapshot()).driftSettingsVault.state, "SAVED");
+  const b = await start({ seed: legacy({ queueSwitchDelaySeconds: 30 }), bookmarks: profile });
+  assert.equal((await b.mod.fleetStatusSnapshot()).driftSettingsVault.state, "RESTORED");
+  const both = { ...DEFAULT_DRIFT_SETTINGS, maxActiveSessions: 4, queueSwitchDelaySeconds: 30 };
+  assert.deepEqual(driftSettingsOf(await settingsOf(b)), both);
+  assert.deepEqual((await readVault(profile)).settings.values, both);
+  const a2 = await start({ seed: a.chrome.storage.local.state, bookmarks: profile }); // next browser session
+  assert.deepEqual(driftSettingsOf(await settingsOf(a2)), both);
+});
+
+test("v1.9.2 a form that resends unchanged fields cannot overwrite a newer value from another installation", async () => {
+  const profile = mockBookmarks();
+  const b = await start({ bookmarks: profile });
+  assert.equal((await b.mod.fleetStatusSnapshot()).driftSettingsVault.state, "EMPTY");
+  await writeVault(profile, { ...DEFAULT_DRIFT_SETTINGS, queueSwitchDelaySeconds: 30 }, { ...stampsAll(DRIFT_STAMP_DEFAULT), queueSwitchDelaySeconds: Date.now() });
+  await tick();
+  const b2 = await start({ seed: b.chrome.storage.local.state, sessionSeed: b.chrome.storage.session.state, bookmarks: profile });
+  // The panel sends only what the operator changed (sidepanel.js saveQueueSettings).
+  await b2.mod.saveQueueSettingsFromPanel({ windowId: 1, workerId: "w", defaultMissionQuantumInteractions: 9 });
+  const expected = { ...DEFAULT_DRIFT_SETTINGS, queueSwitchDelaySeconds: 30, defaultMissionQuantumInteractions: 9 };
+  assert.deepEqual((await readVault(profile)).settings.values, expected);
+  assert.deepEqual(driftSettingsOf(await settingsOf(b2)), expected);
+  // A field omitted by the panel keeps its stored value (no implicit false).
+  assert.equal((await settingsOf(b2)).queueSwitchHardReload, DEFAULT_DRIFT_SETTINGS.queueSwitchHardReload);
+});
+
+test("v1.9.2 two copies with equal times are combined the same way on every machine and written back as one", async () => {
+  const one = mockBookmarks();
+  const two = mockBookmarks();
+  const copyA = { schema: DRIFT_SETTINGS_VAULT_SCHEMA, settings: { values: OPERATOR, keySavedAtMs: stampsAll(5000) }, savedAtMs: 5000 };
+  const copyB = { schema: DRIFT_SETTINGS_VAULT_SCHEMA, settings: { values: SECOND, keySavedAtMs: stampsAll(5000) }, savedAtMs: 5000 };
+  await plantRaw(one, copyA); await plantRaw(one, copyB);
+  await plantRaw(two, copyB); await plantRaw(two, copyA);
+  const fromOne = await readVault(one);
+  assert.deepEqual(fromOne, await readVault(two), "same result whatever the copy order");
+  assert.equal(fromOne.copies, 2);
+  const h = await start({ bookmarks: one });
+  await h.mod.fleetStatusSnapshot();
+  assert.deepEqual(vaultFolder(one).children.filter((n) => n.title === "GFD1:ACTIVE").length, 1, "collapsed to one copy");
+  assert.deepEqual((await readVault(one)).settings.values, fromOne.settings.values);
+});
+
+test("v1.9.2 backup restore keeps, per setting, whichever of the installation and the backup was saved later", async () => {
+  const source = memory();
+  await saveOperatorSettings({ maxActiveSessions: 3, postDelaySeconds: 60 }, source, { ...OPTS, now: 1000 });
+  await saveOperatorSettings({ postDelaySeconds: 70 }, source, { ...OPTS, now: 3000 });
+  const backup = await createOperatorBackup(source, { version: "1.9.2", extensionId: "source-id", now: 4000 });
+  const target = memory();
+  await saveOperatorSettings({ maxActiveSessions: 4, postDelaySeconds: 50 }, target, { ...OPTS, now: 2000 });
+  await restoreOperatorBackup(backup, target, { now: 5000 });
+  const after = await loadOperatorSettings(target, OPTS);
+  assert.equal(after.maxActiveSessions, 4, "saved here at 2000, backup's at 1000");
+  assert.equal(after.postDelaySeconds, 70, "backup's at 3000, here at 2000");
+  assert.equal(after.workModeEnabled, false);
+});
+
+test("v1.9.2 a reconciliation that outlives its 8 s limit still finishes before the next one starts (round-2 review finding)", async () => {
+  // The startup run computes its merge (legacy values), then stalls in the
+  // vault write past the 8 s limit. The operator then saves Max parallella.
+  // If the queue moved on at the limit, the newer runs would commit first and
+  // the stalled run would commit its older record over them when released.
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  let stalled = false;
+  const profile = mockBookmarks();
+  const create = profile.create;
+  profile.create = async (args) => {
+    if (!stalled && String(args.title || "").startsWith("GFD1-STAGE")) { stalled = true; await held; }
+    return create(args);
+  };
+  const seed = memory({ [OPERATOR_SETTINGS_KEY]: { ...DEFAULT_DRIFT_SETTINGS, maxActiveSessions: 4, schema: "eic.greenfield.operator-settings.v3", savedMissions: [] } }).state;
+  const fired = new Set();
+  const fireTimeouts = async () => {
+    for (let i = 0; i < 300; i += 1) {
+      await new Promise((r) => setImmediate(r));
+      for (const t of globalThis.__gfHarnessTimers || []) if (t.ms === 8000 && !fired.has(t)) { fired.add(t); t.fn(); }
+    }
+  };
+  let resolved = false;
+  const starting = start({ seed, bookmarks: profile }).then((h) => { resolved = true; return h; });
+  while (!resolved) await fireTimeouts();
+  const h = await starting;
+  assert.equal(stalled, true, "the startup run is stalled in its vault write");
+  assert.equal((await h.mod.fleetStatusSnapshot()).driftSettingsVault.state, "ERROR");
+  let saved = null;
+  const saving = h.mod.setMaxActiveSessions({ windowId: 1, maxActiveSessions: 1 }).then((r) => { saved = r; });
+  while (!saved) await fireTimeouts(); // its vault steps wait behind the stalled run and time out for the caller
+  assert.equal(saved.operatorSettings.maxActiveSessions, 1, "the local save never waits on the vault");
+  release();
+  await saving;
+  for (let i = 0; i < 20; i += 1) { await fireTimeouts(); if (stalled && (await readVault(profile))?.settings.values.maxActiveSessions === 1) break; }
+  const finals = vaultFolder(profile)?.children.filter((n) => n.title === "GFD1:ACTIVE") || [];
+  assert.equal(finals.length, 1);
+  assert.equal((await readVault(profile)).settings.values.maxActiveSessions, 1, "the newer save is not overwritten by the stalled older run");
 });

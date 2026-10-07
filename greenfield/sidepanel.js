@@ -1500,6 +1500,11 @@ async function saveQueueSettings() {
     queueSwitchSettleSeconds: Number($("queueSwitchSettleSeconds").value),
     warmQueueResume: $("warmQueueResume").checked === true
   };
+  // v1.9.2: send only what the operator changed. A field the form still shows
+  // from before must not overwrite a newer value another installation saved
+  // (each setting has its own save time in the profile vault).
+  const stored = state.operatorSettings || {};
+  for (const key of Object.keys(patch)) if (patch[key] === stored[key]) delete patch[key];
   state.operatorSettingsBusy = true;
   renderOperatorSettings();
   try {

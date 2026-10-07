@@ -58,11 +58,13 @@ Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad 
 
 - **Driftinställningar i bokmärkesvalvet**:
   - **Valvet:** `lib/safety-policy-vault.mjs` har två oberoende sektioner, `policy` och `drift`, i mappen "EIC Greenfield · Run requirements v1". Driftsektionen lagras som `{values, keySavedAtMs}`, med en sparningstid per inställning. Möts två kopior via Chrome Sync slås de ihop inställning för inställning.
-  - **Lagringen:** i `lib/operator-settings.mjs` stämplar `saveOperatorSettings` bara de sparade inställningarna i `driftSettingsSavedAtMs`. `mergeDriftSettings` låter den senast sparade versionen vinna per inställning. `reconcileLocalDriftSettings` räknar fram sammanslagningen inne i skrivlåset.
+  - **Lagringen:** i `lib/operator-settings.mjs` stämplar `saveOperatorSettings` bara de inställningar vars värde ändras, i `driftSettingsSavedAtMs`. Tiden blir aldrig äldre än den kända tiden plus 1. `mergeDriftSettings` låter den senast sparade versionen vinna per inställning; värden utan tid räknas som 1 (aldrig sparat standardvärde) eller 2 (värde från före 1.9.2). `reconcileLocalDriftSettings` räknar fram sammanslagningen inne i skrivlåset.
   - **En skrivare åt gången:** `withOperatorSettingsLock` använder `navigator.locks`, som delas av sidopanel och bakgrund. Alla skrivare av inställningsposten läser om den inne i låset. Det gäller också synken av sparade uppdrag och säkerhetskopians återläsning.
-  - **Bakgrunden:** `background.js` kör alla driftsparningar genom `saveDriftSettings`: `setMaxActiveSessions`, `saveQueueSettingsFromPanel` och det nya `EIC_GF_SET_POST_DELAY`. Därefter körs `reconcileDriftSettings`, som är köad. Samma avstämning körs vid start (en gång per Chrome-session) och efter import. Status finns i `fleetStatus.driftSettingsVault`.
+  - **Bakgrunden:** `background.js` kör alla driftsparningar genom `saveDriftSettings`: `setMaxActiveSessions`, `saveQueueSettingsFromPanel` (bara skickade fält) och det nya `EIC_GF_SET_POST_DELAY`. Den stämmer av med `reconcileDriftSettings` före och efter sparningen. Kön väntar på varje körnings verkliga slut, även efter tidsgränsen på 8 s. Samma avstämning körs vid start (en gång per Chrome-session) och efter import. Status finns i `fleetStatus.driftSettingsVault`.
   - **Panelen:** två statusrader visar valvets läge.
-  - **Granskning:** första designen hade en enda sparningstid för hela gruppen och skrivning från panelen. Granskningen 2026-10-07 reproducerade dataförlust med den och ersatte den.
+  - **Granskning:** två granskningsrundor 2026-10-07, med mindre agenter som fick motbevisa fynden.
+    - Första designen hade en enda sparningstid för hela gruppen och skrivning från panelen. Granskningen reproducerade dataförlust med den, och den ersattes.
+    - Andra rundan fann sju fel, bland annat inaktuella formulärvärden, en klocka som går före och kön vid timeout. Alla är rättade och har regressionstester.
 
 ## Nytt i 1.9.1
 

@@ -9145,15 +9145,18 @@ async function setMaxActiveSessions({ windowId, maxActiveSessions }) {
 }
 
 // Spara grundparametrar (sidepanel.js saveQueueSettings).
+// v1.9.2: only the fields the panel sends are saved (it sends the ones the
+// operator changed), so a value the form still shows from before cannot
+// overwrite a newer one saved by another installation.
 async function saveQueueSettingsFromPanel(bound) {
-  const { settings, driftSettingsVault } = await saveDriftSettings({
-    defaultMissionQuantumInteractions: bound.defaultMissionQuantumInteractions,
-    queuePriorityAgingSeconds: bound.queuePriorityAgingSeconds,
-    queueSwitchHardReload: bound.queueSwitchHardReload === true,
-    queueSwitchDelaySeconds: bound.queueSwitchDelaySeconds,
-    queueSwitchSettleSeconds: bound.queueSwitchSettleSeconds,
-    ...(typeof bound.warmQueueResume === "boolean" ? { warmQueueResume: bound.warmQueueResume } : {})
-  });
+  const patch = {};
+  for (const key of ["defaultMissionQuantumInteractions", "queuePriorityAgingSeconds", "queueSwitchDelaySeconds", "queueSwitchSettleSeconds"]) {
+    if (bound[key] !== undefined && bound[key] !== null) patch[key] = bound[key];
+  }
+  for (const key of ["queueSwitchHardReload", "warmQueueResume"]) {
+    if (typeof bound[key] === "boolean") patch[key] = bound[key];
+  }
+  const { settings, driftSettingsVault } = await saveDriftSettings(patch);
   return { ok: true, operatorSettings: settings, driftSettingsVault };
 }
 
@@ -9714,47 +9717,49 @@ const readDriftVault=()=>loadDriftSettingsVault(chrome.bookmarks,{normalizeSetti
 // computed inside the settings write lock; the vault is written afterwards.
 // Values that a running turn has already taken (its prompt pause, its queue
 // switch) are not changed; the next turn and the scheduler read the new ones.
-async function reconcileDriftSettingsOnce(reason) {
+async function reconcileDriftSettingsWork(reason) {
   if (!chrome.bookmarks?.getTree) return setDriftVaultStatus("UNAVAILABLE",{error:"chrome.bookmarks saknas",reason});
-  try {
-    return await withSafetyVaultTimeout((async()=>{
-      const vault=await readDriftVault();
-      const {settings,merge}=await reconcileLocalDriftSettings(vault,chrome.storage.local);
-      if (merge.adoptedKeys.length) {
-        await recordIncident(null,"DRIFT_SETTINGS_RESTORED",reason,{vaultSavedAtMs:vault?.savedAtMs ?? null,vaultAppVersion:vault?.appVersion || "",changed:Object.fromEntries(merge.adoptedKeys.map(k=>[k,settings[k]]))});
-      }
-      let record=vault;
-      if (merge.vaultWrite) {
-        record=await writeDriftSettingsVault({settings:{values:merge.values,keySavedAtMs:merge.stamps},appVersion:APP_VERSION},{bookmarks:chrome.bookmarks,normalizeSettings:normalizeDriftVaultSettings});
-      }
-      const state=merge.adoptedKeys.length ? "RESTORED" : merge.vaultWrite ? "SAVED" : vault ? "IN_SYNC" : "EMPTY";
-      return setDriftVaultStatus(state,{savedAtMs:record?.savedAtMs ?? null,reason,adoptedKeys:merge.adoptedKeys});
-    })(),"DRIFT_SETTINGS_VAULT_TIMEOUT");
-  } catch(error) {
-    const operatorSave=reason==="OPERATOR_SAVE";
-    await setDriftVaultStatus(operatorSave ? "WRITE_FAILED" : "ERROR",{error:String(error?.message || error),reason});
-    if (operatorSave) await recordIncident(null,"DRIFT_SETTINGS_VAULT_WRITE_FAILED","OPERATOR",{error:driftVaultStatus.error});
-    return driftVaultStatus;
+  const vault=await readDriftVault();
+  const {settings,merge}=await reconcileLocalDriftSettings(vault,chrome.storage.local);
+  if (merge.adoptedKeys.length) {
+    await recordIncident(null,"DRIFT_SETTINGS_RESTORED",reason,{vaultSavedAtMs:vault?.savedAtMs ?? null,vaultAppVersion:vault?.appVersion || "",changed:Object.fromEntries(merge.adoptedKeys.map(k=>[k,settings[k]]))});
   }
+  let record=vault;
+  if (merge.vaultWrite) {
+    record=await writeDriftSettingsVault({settings:{values:merge.values,keySavedAtMs:merge.stamps},appVersion:APP_VERSION},{bookmarks:chrome.bookmarks,normalizeSettings:normalizeDriftVaultSettings});
+  }
+  const state=merge.adoptedKeys.length ? "RESTORED" : merge.vaultWrite ? "SAVED" : vault ? "IN_SYNC" : "EMPTY";
+  return setDriftVaultStatus(state,{savedAtMs:record?.savedAtMs ?? null,reason,adoptedKeys:merge.adoptedKeys});
 }
-// Serialized: one reconciliation at a time in this worker. At startup a result
-// already settled in this browser session is reused (no bookmark read).
+// Serialized: one reconciliation at a time in this worker. The queue waits for
+// the real end of each run (a bookmark call that outlives the 8 s limit is
+// still awaited), so an older run can never commit after a newer one; only the
+// caller's answer is bounded by the limit. At startup a result already settled
+// in this browser session is reused (no bookmark read).
 function reconcileDriftSettings(reason,{force=false}={}) {
-  const job=driftVaultQueue.catch(()=>undefined).then(async()=>{
+  const run=driftVaultQueue.catch(()=>undefined).then(async()=>{
     if (!force && chrome.bookmarks?.getTree) {
       const settled=await chrome.storage.session.get(DRIFT_VAULT_SESSION_KEY).then(r=>r?.[DRIFT_VAULT_SESSION_KEY]).catch(()=>null);
       if (SAFETY_VAULT_SETTLED.has(settled?.state)) return (driftVaultStatus={...settled,folder:SAFETY_POLICY_VAULT_FOLDER});
     }
-    return reconcileDriftSettingsOnce(reason);
+    return reconcileDriftSettingsWork(reason);
   });
-  driftVaultQueue=job;
-  return job.then(status=>({...status}));
+  driftVaultQueue=run;
+  return withSafetyVaultTimeout(run,"DRIFT_SETTINGS_VAULT_TIMEOUT").catch(async(error)=>{
+    const operatorSave=reason==="OPERATOR_SAVE";
+    await setDriftVaultStatus(operatorSave ? "WRITE_FAILED" : "ERROR",{error:String(error?.message || error),reason});
+    if (operatorSave) await recordIncident(null,"DRIFT_SETTINGS_VAULT_WRITE_FAILED","OPERATOR",{error:driftVaultStatus.error});
+    return driftVaultStatus;
+  }).then(status=>({...status}));
 }
 // Every operator save of a Drift setting goes through here (all in this
-// worker, under the settings write lock). The local save is committed first; a
-// vault failure is reported and retried at the next start without losing the
-// vault's other settings (per-setting merge).
+// worker, under the settings write lock). First this installation is brought
+// in line with the vault (newer values and save times from other
+// installations), then the change is saved, then the vault is updated. The
+// local save never waits on the vault; a vault failure is reported and retried
+// at the next start or save without losing the vault's other settings.
 async function saveDriftSettings(patch) {
+  await reconcileDriftSettings("BEFORE_OPERATOR_SAVE",{force:true});
   await saveOperatorSettings(patch,chrome.storage.local,{restoreSavedMissions:false,bookmarks:null});
   const driftSettingsVault=await reconcileDriftSettings("OPERATOR_SAVE",{force:true});
   const settings=await loadOperatorSettings(chrome.storage.local,{restoreSavedMissions:false,bookmarks:null});

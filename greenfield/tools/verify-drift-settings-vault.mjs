@@ -60,7 +60,7 @@ async function session(profile, ext, work) {
     const observe = async (page) => ({
       stored: await page.evaluate(async ({ key, keys }) => {
         const row = (await chrome.storage.local.get(key))[key] || {};
-        return { ...Object.fromEntries(keys.map((k) => [k, row[k] ?? null])), driftSettingsUpdatedAtMs: row.driftSettingsUpdatedAtMs ?? null, driftSettingsOrigin: row.driftSettingsOrigin ?? null };
+        return { ...Object.fromEntries(keys.map((k) => [k, row[k] ?? null])), driftSettingsSavedAtMs: row.driftSettingsSavedAtMs ?? null, driftSettingsOrigin: row.driftSettingsOrigin ?? null };
       }, { key: SETTINGS_KEY, keys: KEYS }),
       controls: await page.evaluate((keys) => Object.fromEntries(keys.map((k) => {
         const el = document.getElementById(k === "postDelaySeconds" ? "postDelay" : k);
@@ -151,7 +151,11 @@ if (baseline) {
   copyTree(root, x);
   const x2 = await session(up, x, reloadThenCheck);
   const y = await session(up, copyTree(root, path.join(work, "upgrade-Y")), check);
-  const seeded = x2.afterReload.background.driftSettingsVault?.state === "SAVED" && x2.afterReload.background.driftSettingsVault?.reason === "VAULT_EMPTY_LEGACY_LOCAL_SETTINGS";
+  // Values saved before 1.9.2 have no save time: a non-default one enters the
+  // vault with the legacy time 2, older than any real save
+  // (operator-settings.mjs DRIFT_STAMP_LEGACY). Every WANT value is non-default.
+  const legacyStamps = x2.afterReload.stored.driftSettingsSavedAtMs || {};
+  const seeded = x2.afterReload.background.driftSettingsVault?.state === "SAVED" && KEYS.every((k) => legacyStamps[k] === 2);
   out.scenarios.upgradeInPlace = {
     x1, x2, y,
     sameIdAfterCopy: x1.extensionId === x2.extensionId,

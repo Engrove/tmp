@@ -40,16 +40,20 @@ Version 1.9.2 lägger driftinställningarna i samma bokmärkesvalv som körkrave
 
 Driftinställningarna ligger i samma bokmärkesmapp som körkraven, **EIC Greenfield · Run requirements v1**. De har en egen post, så att spara det ena rör aldrig det andra.
 
-**Varje inställning har sin egen sparningstid.** För varje inställning gäller den senast sparade versionen i Chrome-profilen. Sparar du en enda inställning följer bara den med. De sju andra kan aldrig skrivas över med standardvärden eller äldre värden från denna installation.
+**Varje inställning har sin egen sparningstid.** För varje inställning gäller den senast sparade versionen i Chrome-profilen.
+- Bara en inställning du faktiskt ändrar räknas som sparad. Ett oförändrat värde som skickas med räknas inte.
+- Panelen skickar bara de grundparametrar du ändrat. Ett värde som formuläret fortfarande visar sedan tidigare kan därför inte skriva över ett nyare.
+- Sparar du en enda inställning kan de sju andra aldrig skrivas över med standardvärden eller äldre värden.
 
 **Spara.** Alla tre sparvägarna går via tilläggets bakgrund:
 - reglaget Paus mellan analys och post;
 - reglaget Max parallella;
 - knappen Spara grundparametrar.
 
-Bakgrunden gör en sparning i två steg:
-1. Den sparar värdena i installationen och stämplar bara de inställningar du sparade.
-2. Den stämmer av installationen mot valvet i båda riktningar, inställning för inställning:
+Bakgrunden gör en sparning i tre steg:
+1. Den stämmer av installationen mot valvet, så att nyare värden från andra installationer tas in.
+2. Den sparar ändringen i installationen och stämplar bara de inställningar du ändrade. Tiden blir aldrig äldre än den inställningens kända tid, även om en annan dators klocka gick före. Din senaste ändring vinner alltså alltid.
+3. Den stämmer av igen i båda riktningar, inställning för inställning:
    - nyare värden i valvet tas in i installationen;
    - nyare värden i installationen skrivs till valvet: först till en mellanmapp, sedan läses de tillbaka och jämförs, och först därefter ersätts den gamla posten.
 
@@ -61,10 +65,12 @@ Bakgrunden gör en sparning i två steg:
 | En inställning är nyare i valvet | Valvets värde tas i bruk för den inställningen. |
 | En inställning är nyare i installationen | Valvet uppdateras för den inställningen. |
 | Värden från 1.9.1 eller äldre och tomt valv | Värdena kopieras till valvet, om något skiljer sig från standard. De räknas som äldre än varje sparning i 1.9.2. |
-| Värden från 1.9.1 eller äldre och valvet har sparningar | Valvet gäller. |
+| Värden från 1.9.1 eller äldre och valvet har värden | För varje inställning gäller en sparning i 1.9.2 framför ett äldre värde. Ett äldre värde som skiljer sig från standard gäller framför ett standardvärde som en annan installation bara fört med sig. |
 | Standardvärden som aldrig sparats och tomt valv | Inget görs. |
 
-Avstämningarna körs en i taget. En pågående tur behåller det den redan har tagit, alltså dess promptpaus och dess köbyte, precis som när du sparar under drift. Nästa tur använder de nya värdena.
+Avstämningarna körs en i taget. Om bokmärkes-API:t inte svarar inom 8 s får anroparen ett fel, men nästa avstämning väntar ändå tills den förra verkligen har slutat. En äldre avstämning kan därför aldrig skriva över en nyare.
+
+En pågående tur behåller det den redan har tagit, alltså dess promptpaus och dess köbyte, precis som när du sparar under drift. Nästa tur använder de nya värdena.
 
 **Ett fel i bokmärkena stoppar aldrig Greenfield.**
 - Svarar bokmärkes-API:t inte inom 8 s, eller ger det fel, startar Greenfield med installationens egna värden. Raden visar felet.
@@ -78,30 +84,36 @@ Avstämningarna körs en i taget. En pågående tur behåller det den redan har 
 | Text | Betydelse |
 |---|---|
 | sparade … | Valvet har just skrivits. |
-| N värde(n) hämtade från valvet … | Installationen tog så många värden från valvet. |
-| hämtade från valvet och stämmer med det … | Som ovan, i en senare start i samma Chrome-session. |
+| N värde(n) hämtade från valvet … | Installationen tog så många värden från valvet. Raden står kvar så länge Chrome-sessionen varar. |
+| hämtade från valvet och stämmer med det … | Värdena kom från valvet vid en tidigare start, i en tidigare Chrome-session eller före **Läs in igen**, och installationen och valvet stämmer nu. Gäller tills du sparar en driftinställning. |
 | stämmer med valvet … | Installationen och valvet har samma värden. |
 | inget giltigt sparat värde … | Valvet saknar driftinställningar. Spara en gång. |
 | kunde inte läsas eller uppdateras … | Valvet kunde inte användas. Sparade värden gäller i installationen tills det lyckas. |
+| inte tillgängligt … | Bokmärkes-API:t saknas. Värdena gäller bara denna installation. |
+| kontrolleras vid start … | Bakgrunden har ännu inte stämt av i denna start. |
 
 ## 3. Gränser
 
 - **Driftinställningar sparade i 1.9.1 eller äldre, i en mapp du inte längre använder,** finns inte i valvet. Uppdatera den gamla mappen på plats (steg 2–3 ovan), eller ställ in värdena en gång och spara.
-- **Säkerhetskopia:** efter importen stäms inställningarna av mot valvet, inställning för inställning. Det som är nyare i valvet vinner, och importmeddelandet säger det.
+- **Säkerhetskopia:** varje driftinställning behåller det senast sparade av installationens och kopians värde. Därefter stäms de av mot valvet, och det som är nyare i valvet vinner. Importmeddelandet säger det.
 - **Samma Chrome-session:** startar en installation om sin bakgrund i samma Chrome-session används det redan avstämda resultatet, och bokmärkena läses inte igen. Har en annan installation sparat under tiden tas dess värden in vid nästa sparning eller nästa start av Chrome.
-- **Chrome Sync:** är bokmärkessynk påslagen följer mappen med till andra datorer i samma Chrome-konto. Möts två kopior tas varje inställning från den kopia som sparade den senast.
+- **Chrome Sync:** är bokmärkessynk påslagen följer mappen med till andra datorer i samma Chrome-konto.
+  - Möts två kopior tas varje inställning från den kopia som sparade den senast. Vid lika tid avgör värdet, så att alla datorer väljer samma.
+  - Kopiorna skrivs sedan tillbaka som en.
+  - En tid från en klocka som går mer än ett dygn före hålls vid den gränsen för just den inställningen.
 
 ## 4. Kontroller i leveransen
 
-- `node --test tests/v192-drift-settings-vault.test.mjs`: 18 tester. De täcker:
+- `node --test tests/v192-drift-settings-vault.test.mjs`: 24 tester. De täcker:
   - sektionerna och att de inte påverkar varandra;
   - avvisade poster;
   - sammanslagningen per inställning och stämplingen;
   - låset, både vid start och mot panelens synk av sparade uppdrag;
   - de tre sparvägarna;
   - ny mapp, uppgradering på plats, två mappar och skrivfel;
-  - de tre fall som granskningen reproducerade;
+  - de fall som två granskningsrundor reproducerade: ofullständig avstämning, nyare valv mitt i sessionen, panelens synk av sparade uppdrag, två äldre installationer, en klocka som går före, inaktuella formulärvärden och kön vid timeout;
   - två kopior via Chrome Sync;
+  - säkerhetskopia;
   - avsändarkontrollen och ett trasigt bokmärkes-API.
 - Hela sviten: `npm test`.
 - Chromium (Playwright, riktig Chrome-profil, oförändrat tillägg), `tools/verify-drift-settings-vault.mjs`. Alla åtta värden ställs in med panelens egna kontroller.
