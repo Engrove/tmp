@@ -1,0 +1,620 @@
+{
+  "schema": "eic.greenfield.v192-drift-settings-vault-browser.v1",
+  "generatedAt": "2026-10-07T05:45:33.950Z",
+  "tree": "1.9.2",
+  "baseline": "1.9.1",
+  "want": {
+    "postDelaySeconds": 45,
+    "maxActiveSessions": 4,
+    "defaultMissionQuantumInteractions": 12,
+    "queuePriorityAgingSeconds": 600,
+    "queueSwitchHardReload": false,
+    "queueSwitchDelaySeconds": 20,
+    "queueSwitchSettleSeconds": 9,
+    "warmQueueResume": false
+  },
+  "scenarios": {
+    "newFolder": {
+      "a": {
+        "extensionId": "okmgjnagojkbnjgemfecdihcbcmfnlja",
+        "before": {
+          "stored": {
+            "postDelaySeconds": 0,
+            "maxActiveSessions": 2,
+            "defaultMissionQuantumInteractions": 5,
+            "queuePriorityAgingSeconds": 180,
+            "queueSwitchHardReload": true,
+            "queueSwitchDelaySeconds": 5,
+            "queueSwitchSettleSeconds": 2,
+            "warmQueueResume": true,
+            "driftSettingsSavedAtMs": {
+              "defaultMissionQuantumInteractions": 0,
+              "maxActiveSessions": 0,
+              "postDelaySeconds": 0,
+              "queuePriorityAgingSeconds": 0,
+              "queueSwitchDelaySeconds": 0,
+              "queueSwitchHardReload": 0,
+              "queueSwitchSettleSeconds": 0,
+              "warmQueueResume": 0
+            },
+            "driftSettingsOrigin": ""
+          },
+          "controls": {
+            "postDelaySeconds": 0,
+            "maxActiveSessions": 2,
+            "defaultMissionQuantumInteractions": 5,
+            "queuePriorityAgingSeconds": 180,
+            "queueSwitchHardReload": true,
+            "queueSwitchDelaySeconds": 5,
+            "queueSwitchSettleSeconds": 2,
+            "warmQueueResume": true
+          },
+          "vaultText": {
+            "runtime": "Bokmärkesvalv (driftinställningar): inget giltigt sparat värde. Värdena gäller tills du sparar; inställningar sparade i en äldre version än 1.9.2 finns bara kvar i den gamla installationen.",
+            "missions": "Bokmärkesvalv (driftinställningar): inget giltigt sparat värde. Värdena gäller tills du sparar; inställningar sparade i en äldre version än 1.9.2 finns bara kvar i den gamla installationen."
+          },
+          "background": {
+            "appVersion": "1.9.2",
+            "runtimeFault": "",
+            "driftSettingsVault": {
+              "state": "EMPTY",
+              "atMs": 1791351934589,
+              "folder": "EIC Greenfield · Run requirements v1",
+              "savedAtMs": null,
+              "reason": "service-worker-evaluation",
+              "adoptedKeys": []
+            },
+            "safetyVault": "EMPTY",
+            "configuredCapacity": 2
+          },
+          "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+          "vaultBookmarks": [],
+          "manifestVersion": "1.9.2"
+        },
+        "after": {
+          "stored": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false,
+            "driftSettingsSavedAtMs": {
+              "defaultMissionQuantumInteractions": 1791351943972,
+              "maxActiveSessions": 1791351941227,
+              "postDelaySeconds": 1791351938707,
+              "queuePriorityAgingSeconds": 1791351943972,
+              "queueSwitchDelaySeconds": 1791351943972,
+              "queueSwitchHardReload": 1791351943972,
+              "queueSwitchSettleSeconds": 1791351943972,
+              "warmQueueResume": 1791351943972
+            },
+            "driftSettingsOrigin": "OPERATOR"
+          },
+          "controls": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false
+          },
+          "vaultText": {
+            "runtime": "Bokmärkesvalv (driftinställningar): sparade 2026-10-07 05:45:43. Följer med till nya installationsmappar i denna Chrome-profil.",
+            "missions": "Bokmärkesvalv (driftinställningar): sparade 2026-10-07 05:45:43. Följer med till nya installationsmappar i denna Chrome-profil."
+          },
+          "background": {
+            "appVersion": "1.9.2",
+            "runtimeFault": "",
+            "driftSettingsVault": {
+              "state": "SAVED",
+              "atMs": 1791351943987,
+              "folder": "EIC Greenfield · Run requirements v1",
+              "savedAtMs": 1791351943972,
+              "reason": "OPERATOR_SAVE",
+              "adoptedKeys": []
+            },
+            "safetyVault": "EMPTY",
+            "configuredCapacity": 4
+          },
+          "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+          "vaultBookmarks": [
+            {
+              "parentId": "2",
+              "children": [
+                {
+                  "title": "GFD1:ACTIVE",
+                  "chunks": 1
+                }
+              ]
+            }
+          ],
+          "manifestVersion": "1.9.2"
+        },
+        "pageErrors": []
+      },
+      "b": {
+        "extensionId": "hddilpcjbnkkoclmaodmbhoajjncbooi",
+        "observed": {
+          "stored": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false,
+            "driftSettingsSavedAtMs": {
+              "defaultMissionQuantumInteractions": 1791351943972,
+              "maxActiveSessions": 1791351941227,
+              "postDelaySeconds": 1791351938707,
+              "queuePriorityAgingSeconds": 1791351943972,
+              "queueSwitchDelaySeconds": 1791351943972,
+              "queueSwitchHardReload": 1791351943972,
+              "queueSwitchSettleSeconds": 1791351943972,
+              "warmQueueResume": 1791351943972
+            },
+            "driftSettingsOrigin": "VAULT"
+          },
+          "controls": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false
+          },
+          "vaultText": {
+            "runtime": "Bokmärkesvalv (driftinställningar): 8 värde(n) hämtade från valvet (senast sparat 2026-10-07 05:45:43).",
+            "missions": "Bokmärkesvalv (driftinställningar): 8 värde(n) hämtade från valvet (senast sparat 2026-10-07 05:45:43)."
+          },
+          "background": {
+            "appVersion": "1.9.2",
+            "runtimeFault": "",
+            "driftSettingsVault": {
+              "state": "RESTORED",
+              "atMs": 1791351950759,
+              "folder": "EIC Greenfield · Run requirements v1",
+              "savedAtMs": 1791351943972,
+              "reason": "service-worker-evaluation",
+              "adoptedKeys": [
+                "postDelaySeconds",
+                "maxActiveSessions",
+                "defaultMissionQuantumInteractions",
+                "queuePriorityAgingSeconds",
+                "queueSwitchHardReload",
+                "queueSwitchDelaySeconds",
+                "queueSwitchSettleSeconds",
+                "warmQueueResume"
+              ]
+            },
+            "safetyVault": "EMPTY",
+            "configuredCapacity": 4
+          },
+          "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+          "vaultBookmarks": [
+            {
+              "parentId": "2",
+              "children": [
+                {
+                  "title": "GFD1:ACTIVE",
+                  "chunks": 1
+                }
+              ]
+            }
+          ],
+          "manifestVersion": "1.9.2"
+        },
+        "pageErrors": []
+      },
+      "differentExtensionIds": true,
+      "savedInA": true,
+      "restoredInB": true,
+      "pass": true
+    },
+    "negativeControlBaseline": {
+      "a": {
+        "extensionId": "endfefbcmdbpccnkgppkppanocblphbd",
+        "before": {
+          "stored": {
+            "postDelaySeconds": 0,
+            "maxActiveSessions": 2,
+            "defaultMissionQuantumInteractions": 5,
+            "queuePriorityAgingSeconds": 180,
+            "queueSwitchHardReload": true,
+            "queueSwitchDelaySeconds": 5,
+            "queueSwitchSettleSeconds": 2,
+            "warmQueueResume": true,
+            "driftSettingsSavedAtMs": null,
+            "driftSettingsOrigin": null
+          },
+          "controls": {
+            "postDelaySeconds": 0,
+            "maxActiveSessions": 2,
+            "defaultMissionQuantumInteractions": 5,
+            "queuePriorityAgingSeconds": 180,
+            "queueSwitchHardReload": true,
+            "queueSwitchDelaySeconds": 5,
+            "queueSwitchSettleSeconds": 2,
+            "warmQueueResume": true
+          },
+          "vaultText": {
+            "runtime": null,
+            "missions": null
+          },
+          "background": {
+            "appVersion": "1.9.1",
+            "runtimeFault": "",
+            "driftSettingsVault": null,
+            "safetyVault": "EMPTY",
+            "configuredCapacity": 2
+          },
+          "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+          "vaultBookmarks": [],
+          "manifestVersion": "1.9.1"
+        },
+        "after": {
+          "stored": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false,
+            "driftSettingsSavedAtMs": null,
+            "driftSettingsOrigin": null
+          },
+          "controls": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false
+          },
+          "vaultText": {
+            "runtime": null,
+            "missions": null
+          },
+          "background": {
+            "appVersion": "1.9.1",
+            "runtimeFault": "",
+            "driftSettingsVault": null,
+            "safetyVault": "EMPTY",
+            "configuredCapacity": 4
+          },
+          "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+          "vaultBookmarks": [],
+          "manifestVersion": "1.9.1"
+        },
+        "pageErrors": []
+      },
+      "b": {
+        "extensionId": "doadphgjjlflhdnogdekipnglphjogoh",
+        "observed": {
+          "stored": {
+            "postDelaySeconds": 0,
+            "maxActiveSessions": 2,
+            "defaultMissionQuantumInteractions": 5,
+            "queuePriorityAgingSeconds": 180,
+            "queueSwitchHardReload": true,
+            "queueSwitchDelaySeconds": 5,
+            "queueSwitchSettleSeconds": 2,
+            "warmQueueResume": true,
+            "driftSettingsSavedAtMs": null,
+            "driftSettingsOrigin": null
+          },
+          "controls": {
+            "postDelaySeconds": 0,
+            "maxActiveSessions": 2,
+            "defaultMissionQuantumInteractions": 5,
+            "queuePriorityAgingSeconds": 180,
+            "queueSwitchHardReload": true,
+            "queueSwitchDelaySeconds": 5,
+            "queueSwitchSettleSeconds": 2,
+            "warmQueueResume": true
+          },
+          "vaultText": {
+            "runtime": null,
+            "missions": null
+          },
+          "background": {
+            "appVersion": "1.9.1",
+            "runtimeFault": "",
+            "driftSettingsVault": null,
+            "safetyVault": "EMPTY",
+            "configuredCapacity": 2
+          },
+          "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+          "vaultBookmarks": [],
+          "manifestVersion": "1.9.1"
+        },
+        "pageErrors": []
+      },
+      "savedInA": true,
+      "defaultsInB": true,
+      "pass": true
+    },
+    "upgradeInPlace": {
+      "x1": {
+        "extensionId": "ijgbikddpeakejlppihjbngfiinfmfah",
+        "before": {
+          "stored": {
+            "postDelaySeconds": 0,
+            "maxActiveSessions": 2,
+            "defaultMissionQuantumInteractions": 5,
+            "queuePriorityAgingSeconds": 180,
+            "queueSwitchHardReload": true,
+            "queueSwitchDelaySeconds": 5,
+            "queueSwitchSettleSeconds": 2,
+            "warmQueueResume": true,
+            "driftSettingsSavedAtMs": null,
+            "driftSettingsOrigin": null
+          },
+          "controls": {
+            "postDelaySeconds": 0,
+            "maxActiveSessions": 2,
+            "defaultMissionQuantumInteractions": 5,
+            "queuePriorityAgingSeconds": 180,
+            "queueSwitchHardReload": true,
+            "queueSwitchDelaySeconds": 5,
+            "queueSwitchSettleSeconds": 2,
+            "warmQueueResume": true
+          },
+          "vaultText": {
+            "runtime": null,
+            "missions": null
+          },
+          "background": {
+            "appVersion": "1.9.1",
+            "runtimeFault": "",
+            "driftSettingsVault": null,
+            "safetyVault": "EMPTY",
+            "configuredCapacity": 2
+          },
+          "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+          "vaultBookmarks": [],
+          "manifestVersion": "1.9.1"
+        },
+        "after": {
+          "stored": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false,
+            "driftSettingsSavedAtMs": null,
+            "driftSettingsOrigin": null
+          },
+          "controls": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false
+          },
+          "vaultText": {
+            "runtime": null,
+            "missions": null
+          },
+          "background": {
+            "appVersion": "1.9.1",
+            "runtimeFault": "",
+            "driftSettingsVault": null,
+            "safetyVault": "EMPTY",
+            "configuredCapacity": 4
+          },
+          "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+          "vaultBookmarks": [],
+          "manifestVersion": "1.9.1"
+        },
+        "pageErrors": []
+      },
+      "x2": {
+        "extensionId": "ijgbikddpeakejlppihjbngfiinfmfah",
+        "beforeReload": {
+          "stored": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false,
+            "driftSettingsSavedAtMs": null,
+            "driftSettingsOrigin": null
+          },
+          "controls": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false
+          },
+          "vaultText": {
+            "runtime": "Bokmärkesvalv (driftinställningar): kontrolleras vid start.",
+            "missions": "Bokmärkesvalv (driftinställningar): kontrolleras vid start."
+          },
+          "background": {
+            "appVersion": "1.9.1",
+            "runtimeFault": "",
+            "driftSettingsVault": null,
+            "safetyVault": "EMPTY",
+            "configuredCapacity": 4
+          },
+          "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+          "vaultBookmarks": [],
+          "manifestVersion": "1.9.2"
+        },
+        "afterReload": {
+          "stored": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false,
+            "driftSettingsSavedAtMs": {
+              "defaultMissionQuantumInteractions": 2,
+              "maxActiveSessions": 2,
+              "postDelaySeconds": 2,
+              "queuePriorityAgingSeconds": 2,
+              "queueSwitchDelaySeconds": 2,
+              "queueSwitchHardReload": 2,
+              "queueSwitchSettleSeconds": 2,
+              "warmQueueResume": 2
+            },
+            "driftSettingsOrigin": ""
+          },
+          "controls": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false
+          },
+          "vaultText": {
+            "runtime": "Bokmärkesvalv (driftinställningar): sparade 1970-01-01 00:00:00. Följer med till nya installationsmappar i denna Chrome-profil.",
+            "missions": "Bokmärkesvalv (driftinställningar): sparade 1970-01-01 00:00:00. Följer med till nya installationsmappar i denna Chrome-profil."
+          },
+          "background": {
+            "appVersion": "1.9.2",
+            "runtimeFault": "",
+            "driftSettingsVault": {
+              "state": "SAVED",
+              "atMs": 1791352004029,
+              "folder": "EIC Greenfield · Run requirements v1",
+              "savedAtMs": 2,
+              "reason": "service-worker-evaluation",
+              "adoptedKeys": []
+            },
+            "safetyVault": "EMPTY",
+            "configuredCapacity": 4
+          },
+          "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+          "vaultBookmarks": [
+            {
+              "parentId": "2",
+              "children": [
+                {
+                  "title": "GFD1:ACTIVE",
+                  "chunks": 1
+                }
+              ]
+            }
+          ],
+          "manifestVersion": "1.9.2"
+        },
+        "pageErrors": []
+      },
+      "y": {
+        "extensionId": "nhlfnkcicahbecajgmdifigcngpglfhp",
+        "observed": {
+          "stored": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false,
+            "driftSettingsSavedAtMs": {
+              "defaultMissionQuantumInteractions": 2,
+              "maxActiveSessions": 2,
+              "postDelaySeconds": 2,
+              "queuePriorityAgingSeconds": 2,
+              "queueSwitchDelaySeconds": 2,
+              "queueSwitchHardReload": 2,
+              "queueSwitchSettleSeconds": 2,
+              "warmQueueResume": 2
+            },
+            "driftSettingsOrigin": "VAULT"
+          },
+          "controls": {
+            "postDelaySeconds": 45,
+            "maxActiveSessions": 4,
+            "defaultMissionQuantumInteractions": 12,
+            "queuePriorityAgingSeconds": 600,
+            "queueSwitchHardReload": false,
+            "queueSwitchDelaySeconds": 20,
+            "queueSwitchSettleSeconds": 9,
+            "warmQueueResume": false
+          },
+          "vaultText": {
+            "runtime": "Bokmärkesvalv (driftinställningar): 8 värde(n) hämtade från valvet (senast sparat 1970-01-01 00:00:00).",
+            "missions": "Bokmärkesvalv (driftinställningar): 8 värde(n) hämtade från valvet (senast sparat 1970-01-01 00:00:00)."
+          },
+          "background": {
+            "appVersion": "1.9.2",
+            "runtimeFault": "",
+            "driftSettingsVault": {
+              "state": "RESTORED",
+              "atMs": 1791352012652,
+              "folder": "EIC Greenfield · Run requirements v1",
+              "savedAtMs": 2,
+              "reason": "service-worker-evaluation",
+              "adoptedKeys": [
+                "postDelaySeconds",
+                "maxActiveSessions",
+                "defaultMissionQuantumInteractions",
+                "queuePriorityAgingSeconds",
+                "queueSwitchHardReload",
+                "queueSwitchDelaySeconds",
+                "queueSwitchSettleSeconds",
+                "warmQueueResume"
+              ]
+            },
+            "safetyVault": "EMPTY",
+            "configuredCapacity": 4
+          },
+          "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+          "vaultBookmarks": [
+            {
+              "parentId": "2",
+              "children": [
+                {
+                  "title": "GFD1:ACTIVE",
+                  "chunks": 1
+                }
+              ]
+            }
+          ],
+          "manifestVersion": "1.9.2"
+        },
+        "pageErrors": []
+      },
+      "sameIdAfterCopy": true,
+      "seededAfterReload": true,
+      "restoredInNewFolder": true,
+      "pass": true
+    }
+  },
+  "pass": true
+}

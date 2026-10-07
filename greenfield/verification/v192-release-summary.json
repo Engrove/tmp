@@ -1,9 +1,8 @@
 {
-  "schema": "eic.greenfield.build-verification.v7",
-  "appVersion": "1.9.2",
-  "releaseChannel": "1.9.2",
+  "schema": "eic.greenfield.v192-release-summary.v1",
+  "version": "1.9.2",
   "generatedAt": "2026-10-07T05:47:13.283128+00:00",
-  "sourceBaseline": {
+  "source": {
     "file": "EIC_Autonom_Agent_Greenfield_v1.9.1.zip",
     "version": "1.9.1",
     "origin": "this repository, commit 3e2f9e6",
@@ -64,6 +63,18 @@
         "verification/release-tests.tap"
       ]
     }
+  },
+  "gates": {
+    "DRIFT_VAULT_UNIT_PASS": true,
+    "POLICY_VAULT_UNIT_PASS": true,
+    "DRIFT_NEW_FOLDER_RESTORE_BROWSER_PASS": true,
+    "DRIFT_NEGATIVE_CONTROL_V191_BROWSER_SHOWS_DEFAULTS_PASS": true,
+    "DRIFT_UPGRADE_IN_PLACE_SEEDS_VAULT_BROWSER_PASS": true,
+    "POLICY_VAULT_BROWSER_REGRESSION_PASS": true,
+    "NEGATIVE_CONTROL_V191_TESTS_FAIL_PASS": true,
+    "PANEL_TOOL_REGRESSIONS_PASS": true,
+    "FULL_REGRESSION_PASS": true,
+    "SYNTAX_PASS": true
   },
   "verification": {
     "environment": {
