@@ -1,0 +1,25 @@
+Greenfield v1.9.2 regression: tools/verify-saved-mission-admin.mjs (v1.8.5 tool, Chromium via Playwright, real panel code).
+Derived from the tool's JSON output: check names and results only. The raw output is not packaged because the tool's built-in
+fixtures carry project labels; no fixture text is reproduced here.
+
+PASS legacy missions migrate and show the duplicate count
+PASS preview enables apply; editing the text disables it again
+PASS import applied with durable readback
+PASS import notifies the background (queue sets / queue) once with the merge map
+PASS no duplicate GF key remains after import
+PASS editor loads the selected mission; 'Spara ändring' only after a change
+PASS 'Spara ändring' keeps the same id
+PASS 'Spara som nytt' with an existing GF key is refused
+PASS delete needs a second click
+PASS export downloads every saved mission
+PASS runtime block shows the count and flags duplicate/no-key cleanup candidates
+PASS full vault: count shows 64/64 · fullt in red
+PASS full vault: a new mission is refused with a visible error and nothing is deleted
+PASS full vault: updating an existing GF key still works
+PASS cleanup flags exactly the older duplicate and the mission without key
+PASS cleanup needs confirmation and moves the duplicate's references to the newer record
+PASS after cleanup the new mission fits: 64/64
+PASS no page errors
+PASS built-in import preview: 2 new, 1 changed, 1 duplicate merged, prose ignored
+PASS built-in import result: 4 saved missions
+checks 20/20

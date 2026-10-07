@@ -167,11 +167,16 @@ export function equalDriftSettings(a, b) {
   return DRIFT_SETTINGS_KEYS.every((key) => a?.[key] === b?.[key]);
 }
 
+// Save times work as a logical clock: a save is stamped later than any time
+// already seen for that setting (saveOperatorSettings), so a time from a clock
+// that ran fast is outranked, never clamped (a moving clamp would let the vault
+// win again right after the save). Only an absurd time is refused.
+export const DRIFT_STAMP_MAX = Date.UTC(3000, 0, 1);
 function normalizeDriftStamps(value) {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   return Object.fromEntries(DRIFT_SETTINGS_KEYS.map((key) => {
     const n = Number(source[key]);
-    return [key, Number.isSafeInteger(n) && n > 0 ? n : 0];
+    return [key, Number.isSafeInteger(n) && n > 0 && n <= DRIFT_STAMP_MAX ? n : 0];
   }));
 }
 
@@ -189,20 +194,18 @@ export function normalizeDriftSettingsStrict(value) {
 
 // The Drift section of the profile vault: { values, keySavedAtMs }, one save
 // time per setting. Refused when any value or time is missing or out of range.
-const MAX_CLOCK_SKEW_MS = 86400000;
 export function normalizeDriftVaultSettings(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("DRIFT_SETTINGS_INVALID");
   const values = normalizeDriftSettingsStrict(value.values);
   const source = value.keySavedAtMs;
   if (!source || typeof source !== "object" || Array.isArray(source)) throw new Error("DRIFT_SETTINGS_INVALID:keySavedAtMs");
-  // A time from a clock that runs more than a day fast is held at that limit
-  // for this setting only; one bad time never discards the other settings.
-  const limit = Date.now() + MAX_CLOCK_SKEW_MS;
+  // Kept as written (see DRIFT_STAMP_MAX): a later save outranks a time from a
+  // clock that ran fast; clamping on read would move with the reading clock.
   const keySavedAtMs = {};
   for (const key of DRIFT_SETTINGS_KEYS) {
     const n = source[key];
-    if (!Number.isSafeInteger(n) || n < 1) throw new Error(`DRIFT_SETTINGS_INVALID:keySavedAtMs.${key}`);
-    keySavedAtMs[key] = Math.min(n, limit);
+    if (!Number.isSafeInteger(n) || n < 1 || n > DRIFT_STAMP_MAX) throw new Error(`DRIFT_SETTINGS_INVALID:keySavedAtMs.${key}`);
+    keySavedAtMs[key] = n;
   }
   return { values, keySavedAtMs };
 }

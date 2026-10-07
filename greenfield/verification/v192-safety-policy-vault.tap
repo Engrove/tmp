@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: v1.9.1 vault: write/load round trip in its own profile folder, one committed copy, no stage left
+ok 1 - v1.9.1 vault: write/load round trip in its own profile folder, one committed copy, no stage left
+  ---
+  duration_ms: 10.646557
+  type: 'test'
+  ...
+# Subtest: v1.9.1 vault: damaged, foreign or out-of-range content reads as absent, never as a policy
+ok 2 - v1.9.1 vault: damaged, foreign or out-of-range content reads as absent, never as a policy
+  ---
+  duration_ms: 2.327454
+  type: 'test'
+  ...
+# Subtest: v1.9.1 vault: a failed write removes its stage and keeps the previous committed copy
+ok 3 - v1.9.1 vault: a failed write removes its stage and keeps the previous committed copy
+  ---
+  duration_ms: 1.501637
+  type: 'test'
+  ...
+# Subtest: v1.9.1 plan: the newest operator save in the profile wins; defaults never seed the vault
+ok 4 - v1.9.1 plan: the newest operator save in the profile wins; defaults never seed the vault
+  ---
+  duration_ms: 1.588945
+  type: 'test'
+  ...
+# Subtest: v1.9.1 governor: an operator save is stamped; adoption is re-checked inside the journal lock
+ok 5 - v1.9.1 governor: an operator save is stamped; adoption is re-checked inside the journal lock
+  ---
+  duration_ms: 22.668747
+  type: 'test'
+  ...
+# Subtest: v1.9.1 reported bug: körkrav saved in one folder are restored when Greenfield is loaded from a new folder
+ok 6 - v1.9.1 reported bug: körkrav saved in one folder are restored when Greenfield is loaded from a new folder
+  ---
+  duration_ms: 344.239266
+  type: 'test'
+  ...
+# Subtest: v1.9.1 negative control: a new folder without the profile vault starts from the defaults (the v1.9.0 symptom)
+ok 7 - v1.9.1 negative control: a new folder without the profile vault starts from the defaults (the v1.9.0 symptom)
+  ---
+  duration_ms: 270.958293
+  type: 'test'
+  ...
+# Subtest: v1.9.1 upgrade in place: v1.9.0 values without a save time seed the vault and then follow to a new folder
+ok 8 - v1.9.1 upgrade in place: v1.9.0 values without a save time seed the vault and then follow to a new folder
+  ---
+  duration_ms: 273.682612
+  type: 'test'
+  ...
+# Subtest: v1.9.1 newest save wins across two installation folders in the same profile
+ok 9 - v1.9.1 newest save wins across two installation folders in the same profile
+  ---
+  duration_ms: 585.604446
+  type: 'test'
+  ...
+# Subtest: v1.9.1 a failed vault write keeps the local save, is reported, and is retried at the next start
+ok 10 - v1.9.1 a failed vault write keeps the local save, is reported, and is retried at the next start
+  ---
+  duration_ms: 382.588782
+  type: 'test'
+  ...
+# Subtest: v1.9.1 an unreadable bookmark store never blocks startup or the local save
+ok 11 - v1.9.1 an unreadable bookmark store never blocks startup or the local save
+  ---
+  duration_ms: 347.738158
+  type: 'test'
+  ...
+# Subtest: v1.9.1 vault: a readback failure after the commit keeps the new copy; an interrupted stage is purged
+ok 12 - v1.9.1 vault: a readback failure after the commit keeps the new copy; an interrupted stage is purged
+  ---
+  duration_ms: 1.435754
+  type: 'test'
+  ...
+# Subtest: v1.9.1 vault: incomplete or far-future records are rejected; the newest of two committed copies wins
+ok 13 - v1.9.1 vault: incomplete or far-future records are rejected; the newest of two committed copies wins
+  ---
+  duration_ms: 0.895955
+  type: 'test'
+  ...
+# Subtest: v1.9.1 a settled sync is reused for the browser session; a worker restart does not reread bookmarks
+ok 14 - v1.9.1 a settled sync is reused for the browser session; a worker restart does not reread bookmarks
+  ---
+  duration_ms: 394.757455
+  type: 'test'
+  ...
+# Subtest: v1.9.1 a hanging bookmark store times out instead of blocking startup
+ok 15 - v1.9.1 a hanging bookmark store times out instead of blocking startup
+  ---
+  duration_ms: 131.790024
+  type: 'test'
+  ...
+# Subtest: v1.9.1 a save stamped ahead of the corrected clock still seeds the vault (clamped to now)
+ok 16 - v1.9.1 a save stamped ahead of the corrected clock still seeds the vault (clamped to now)
+  ---
+  duration_ms: 274.595651
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3157.321318

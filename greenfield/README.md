@@ -64,7 +64,7 @@ Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad 
   - **Panelen:** två statusrader visar valvets läge.
   - **Granskning:** två granskningsrundor 2026-10-07, med mindre agenter som fick motbevisa fynden.
     - Första designen hade en enda sparningstid för hela gruppen och skrivning från panelen. Granskningen reproducerade dataförlust med den, och den ersattes.
-    - Andra rundan fann sju fel, bland annat inaktuella formulärvärden, en klocka som går före och kön vid timeout. Alla är rättade och har regressionstester.
+    - Andra rundan fann sju fel, bland annat inaktuella formulärvärden, en klocka som går före och kön vid timeout. En sista kontroll fann att klampningen av framtida tider kunde återställa en sparning. Sparningstiderna är nu en logisk klocka. Alla fel är rättade och har regressionstester.
 
 ## Nytt i 1.9.1
 

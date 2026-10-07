@@ -26,6 +26,7 @@ import {
   DEFAULT_DRIFT_SETTINGS,
   DRIFT_STAMP_DEFAULT,
   DRIFT_STAMP_LEGACY,
+  DRIFT_STAMP_MAX,
   driftSettingsOf,
   mergeDriftSettings,
   normalizeDriftSettingsStrict,
@@ -193,10 +194,44 @@ test("v1.9.2 settings: a save never goes behind a known save time from a clock t
   assert.equal(s.driftSettingsSavedAtMs.maxActiveSessions, fast + 1);
   const m = mergeDriftSettings(s, vaultRecord({ ...DEFAULT_DRIFT_SETTINGS, maxActiveSessions: 4 }, { ...stampsAll(DRIFT_STAMP_DEFAULT), maxActiveSessions: fast }));
   assert.equal(m.values.maxActiveSessions, 1, "the operator's later change wins");
-  // A time more than a day ahead is held at that limit for that setting only; the record stays readable.
-  const held = normalizeDriftVaultSettings({ values: OPERATOR, keySavedAtMs: { ...stampsAll(1000), postDelaySeconds: Date.now() + 9 * 86_400_000 } });
-  assert.ok(held.keySavedAtMs.postDelaySeconds <= Date.now() + 86_400_000);
-  assert.equal(held.keySavedAtMs.maxActiveSessions, 1000);
+  // A time from a clock days ahead is kept as written (a later save outranks
+  // it); only an absurd time is refused.
+  const far = Date.now() + 9 * 86_400_000;
+  const kept = normalizeDriftVaultSettings({ values: OPERATOR, keySavedAtMs: { ...stampsAll(1000), postDelaySeconds: far } });
+  assert.equal(kept.keySavedAtMs.postDelaySeconds, far);
+  assert.throws(() => normalizeDriftVaultSettings({ values: OPERATOR, keySavedAtMs: { ...stampsAll(1000), postDelaySeconds: DRIFT_STAMP_MAX + 1 } }), /DRIFT_SETTINGS_INVALID/);
+});
+
+test("v1.9.2 a vault time days ahead of this clock never reverts the operator's save (final review finding, reproduced)", async () => {
+  // Another installation whose clock ran 5 days fast saved Max parallella = 4.
+  const profile = mockBookmarks();
+  const far = Date.now() + 5 * 86_400_000;
+  await plantRaw(profile, { schema: DRIFT_SETTINGS_VAULT_SCHEMA, settings: { values: { ...DEFAULT_DRIFT_SETTINGS, maxActiveSessions: 4 }, keySavedAtMs: { ...stampsAll(DRIFT_STAMP_DEFAULT), maxActiveSessions: far } }, savedAtMs: far, appVersion: "1.9.2" });
+  const h = await start({ bookmarks: profile });
+  assert.equal((await settingsOf(h)).maxActiveSessions, 4, "the record is readable and adopted");
+  await tick();
+  const r = await h.mod.setMaxActiveSessions({ windowId: 1, maxActiveSessions: 1 });
+  assert.equal(r.operatorSettings.maxActiveSessions, 1);
+  assert.equal(r.driftSettingsVault.state, "SAVED");
+  assert.equal((await readVault(profile)).settings.values.maxActiveSessions, 1);
+});
+
+test("v1.9.2 a save made under a clock 10 days fast is outranked by a later save once the clock is corrected (final review finding, reproduced)", async () => {
+  const profile = mockBookmarks();
+  const A = memory();
+  const B = memory();
+  const reconcile = async (store) => {
+    const { merge } = await reconcileLocalDriftSettings(await readVault(profile), store);
+    if (merge.vaultWrite) await writeDriftSettingsVault({ settings: { values: merge.values, keySavedAtMs: merge.stamps }, appVersion: "1.9.2" }, { bookmarks: profile, normalizeSettings });
+  };
+  const save = async (store, patch, now) => { await reconcile(store); await saveOperatorSettings(patch, store, { ...OPTS, now }); await reconcile(store); };
+  await save(A, { maxActiveSessions: 4 }, Date.now() + 10 * 86_400_000); // A's clock 10 days fast
+  await save(B, { maxActiveSessions: 1 }, Date.now());                   // B saves later, correct clock
+  await reconcile(A);                                                    // A's next start (clock corrected)
+  await reconcile(B);
+  assert.equal((await loadOperatorSettings(A, OPTS)).maxActiveSessions, 1);
+  assert.equal((await loadOperatorSettings(B, OPTS)).maxActiveSessions, 1);
+  assert.equal((await readVault(profile)).settings.values.maxActiveSessions, 1);
 });
 
 test("v1.9.2 settings: the local reconciliation changes only the Drift settings and merges a save made meanwhile", async () => {
@@ -485,15 +520,18 @@ test("v1.9.2 a reconciliation that outlives its 8 s limit still finishes before 
       for (const t of globalThis.__gfHarnessTimers || []) if (t.ms === 8000 && !fired.has(t)) { fired.add(t); t.fn(); }
     }
   };
+  // Bounded waits: a test must never hang, also against an older tree.
   let resolved = false;
-  const starting = start({ seed, bookmarks: profile }).then((h) => { resolved = true; return h; });
-  while (!resolved) await fireTimeouts();
+  const starting = start({ seed, bookmarks: profile }).finally(() => { resolved = true; });
+  for (let i = 0; i < 40 && !resolved; i += 1) await fireTimeouts();
   const h = await starting;
   assert.equal(stalled, true, "the startup run is stalled in its vault write");
   assert.equal((await h.mod.fleetStatusSnapshot()).driftSettingsVault.state, "ERROR");
   let saved = null;
-  const saving = h.mod.setMaxActiveSessions({ windowId: 1, maxActiveSessions: 1 }).then((r) => { saved = r; });
-  while (!saved) await fireTimeouts(); // its vault steps wait behind the stalled run and time out for the caller
+  let settled = false;
+  const saving = h.mod.setMaxActiveSessions({ windowId: 1, maxActiveSessions: 1 }).then((r) => { saved = r; }).finally(() => { settled = true; });
+  for (let i = 0; i < 40 && !settled; i += 1) await fireTimeouts(); // its vault steps wait behind the stalled run and time out for the caller
+  assert.ok(saved, "the save answered while the vault was stalled");
   assert.equal(saved.operatorSettings.maxActiveSessions, 1, "the local save never waits on the vault");
   release();
   await saving;

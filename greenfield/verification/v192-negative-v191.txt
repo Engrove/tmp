@@ -1,0 +1,35 @@
+Greenfield v1.9.2 negative control: tests/v192-drift-settings-vault.test.mjs against v1.9.1 (git archive of commit 3e2f9e6, APP_VERSION 1.9.1).
+Copied in so the test file loads: lib/safety-policy-vault.mjs and lib/operator-settings.mjs (1.9.2), tests/helpers/mock-bookmarks.mjs and
+tests/helpers/background-harness.mjs. Not copied: lib/operator-backup.mjs (1.9.1 kept). None of them is wired into v1.9.1's background.js,
+sidepanel.js or sidepanel.html: 1.9.1 has no Drift vault and none of its entry points, which is the requested change.
+
+== node --test tests/v192-drift-settings-vault.test.mjs
+ok 1 - v1.9.2 vault: Drift settings are a second, independent section in the run-requirements folder
+ok 2 - v1.9.2 vault: a clamped, mistyped or incomplete value, or a missing save time, is refused
+ok 3 - v1.9.2 merge: per setting, the newest save wins; never-saved defaults never seed
+ok 4 - v1.9.2 settings: an operator save stamps exactly the changed settings; the stamp cannot be injected
+ok 5 - v1.9.2 settings: a save never goes behind a known save time from a clock that ran fast (round-2 review finding)
+not ok 6 - v1.9.2 a vault time days ahead of this clock never reverts the operator's save (final review finding, reproduced)
+ok 7 - v1.9.2 a save made under a clock 10 days fast is outranked by a later save once the clock is corrected (final review finding, reproduced)
+ok 8 - v1.9.2 settings: the local reconciliation changes only the Drift settings and merges a save made meanwhile
+ok 9 - v1.9.2 lock: startup's work-mode write and the vault reconciliation never lose each other's fields
+ok 10 - v1.9.2 lock: the panel's saved-mission sync no longer writes back stale Drift settings over an adoption (review finding, reproduced)
+not ok 11 - v1.9.2 reported case: Drift settings saved in one folder are restored when Greenfield is loaded from a new folder
+not ok 12 - v1.9.2 negative control: a new folder in another profile starts from the defaults
+not ok 13 - v1.9.2 upgrade in place: values saved before 1.9.2 seed the vault, then follow to a new folder
+not ok 14 - v1.9.2 per-setting newest save wins across two installation folders
+not ok 15 - v1.9.2 a failed startup read followed by a one-setting save keeps the vault's other settings (review finding, reproduced)
+not ok 16 - v1.9.2 a vault updated by another installation mid-session is not reverted by a one-setting save (review finding, reproduced)
+not ok 17 - v1.9.2 a failed vault write keeps the local save, is reported, and is retried at the next start
+not ok 18 - v1.9.2 the pause is saved by the background, only on request of the side panel
+not ok 19 - v1.9.2 the two sections restore independently and a broken store never blocks startup
+not ok 20 - v1.9.2 a worker restart in the same browser session reuses the settled result (no bookmark read)
+ok 21 - v1.9.2 two committed copies (Chrome Sync) are combined setting by setting
+not ok 22 - v1.9.2 two legacy installations: a real old value is never replaced by the other's carried default (round-2 review finding)
+not ok 23 - v1.9.2 a form that resends unchanged fields cannot overwrite a newer value from another installation
+not ok 24 - v1.9.2 two copies with equal times are combined the same way on every machine and written back as one
+not ok 25 - v1.9.2 backup restore keeps, per setting, whichever of the installation and the backup was saved later
+not ok 26 - v1.9.2 a reconciliation that outlives its 8 s limit still finishes before the next one starts (round-2 review finding)
+# tests 26
+# pass 10
+# fail 16

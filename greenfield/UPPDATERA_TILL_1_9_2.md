@@ -100,18 +100,18 @@ En pågående tur behåller det den redan har tagit, alltså dess promptpaus och
 - **Chrome Sync:** är bokmärkessynk påslagen följer mappen med till andra datorer i samma Chrome-konto.
   - Möts två kopior tas varje inställning från den kopia som sparade den senast. Vid lika tid avgör värdet, så att alla datorer väljer samma.
   - Kopiorna skrivs sedan tillbaka som en.
-  - En tid från en klocka som går mer än ett dygn före hålls vid den gränsen för just den inställningen.
+  - Sparningstiderna fungerar som en logisk klocka. En sparning blir alltid senare än den senaste tid installationen har sett för inställningen, även om en annan dators klocka gick dagar före. En klocka som går fel kan alltså aldrig låsa ett värde.
 
 ## 4. Kontroller i leveransen
 
-- `node --test tests/v192-drift-settings-vault.test.mjs`: 24 tester. De täcker:
+- `node --test tests/v192-drift-settings-vault.test.mjs`: 26 tester. De täcker:
   - sektionerna och att de inte påverkar varandra;
   - avvisade poster;
   - sammanslagningen per inställning och stämplingen;
   - låset, både vid start och mot panelens synk av sparade uppdrag;
   - de tre sparvägarna;
   - ny mapp, uppgradering på plats, två mappar och skrivfel;
-  - de fall som två granskningsrundor reproducerade: ofullständig avstämning, nyare valv mitt i sessionen, panelens synk av sparade uppdrag, två äldre installationer, en klocka som går före, inaktuella formulärvärden och kön vid timeout;
+  - de fall som granskningen reproducerade: ofullständig avstämning, nyare valv mitt i sessionen, panelens synk av sparade uppdrag, två äldre installationer, en klocka som går före (också dagar före), inaktuella formulärvärden och kön vid timeout;
   - två kopior via Chrome Sync;
   - säkerhetskopia;
   - avsändarkontrollen och ett trasigt bokmärkes-API.
