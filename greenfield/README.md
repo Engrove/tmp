@@ -1,6 +1,26 @@
-# EIC Autonom Agent Greenfield 1.9.2
+# EIC Autonom Agent Greenfield 1.9.3
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.9.3 har sex delar. De bygger på operatörens rapporter 2026-10-07 och styrkontraktet `GFW_EIC_CONTROL_A2A_v1`.
+
+- **En avgränsad slice per interaktion.** Promptarna säger nu uttryckligen vad varje interaktion ska omfatta, för varje position i kvanten:
+  - en avgränsad, sammanhängande slice;
+  - senare interaktioner är djup;
+  - sista interaktionen är en checkpoint, inte ett avslut.
+
+  Nästa slice krymper när svarstiderna stiger eller när ChatGPT:s bearbetningsnotis eller avbrottsbanner har synts. Ingen tidsgräns hos ChatGPT antas. EIC:s egen handoff skickas vidare ordagrant.
+- **Bearbetningsnotis och "Anslutningen bröts".** Ingen prompt postas och inget halvfärdigt svar fångas medan de syns. Uppdateringsstegen väntar inom respiten på 4 h.
+- **Ny kvant i ny chatt.** En köplats som börjar en ny kvant öppnar alltid en ny chatt. Varm återupptagning gäller bara en ofärdig kvant.
+- **Delegerat arbete i samma fönster.** `missionDelegations` hamnar sist i det delegerande fönstrets egen kö.
+- **Kööversikt i varje prompt.** Alla GF-platser i fönstrets kö listas med status, kvant och schema.
+- **Kontraktskontroll och telemetri:**
+  - linter för C01–C20 före varje post;
+  - hot-reload-referens till EIC:s always-fetch-metod;
+  - en lokal DONE eller en saknad Nano stoppar aldrig ett uppdrag;
+  - en incidentrad per tur.
+
+Se [UPPDATERA_TILL_1_9_3.md](UPPDATERA_TILL_1_9_3.md).
 
 Version 1.9.2 lägger **driftinställningarna** i samma bokmärkesvalv som körkraven: Paus mellan analys och post, Max parallella Greenfield och Grundparametrar för uppdragskö. De följer nu med när Greenfield laddas från en ny mapp; senast sparade version i Chrome-profilen gäller. Se [UPPDATERA_TILL_1_9_2.md](UPPDATERA_TILL_1_9_2.md).
 
@@ -53,6 +73,56 @@ Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfiel
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.9.3
+
+- **Interaction slicing** (`lib/interaction-slicing.mjs`, den enda ägaren av storlekstexten):
+  - `interactionPosition` sätter rollen (FIRST, MIDDLE, FINAL_CHECKPOINT, SCHEDULE_CHECKPOINT, ONLY_INTERACTION, UNQUEUED) från de exakta köräknarna, aldrig från `process.turn`.
+  - `planningHint` följer kontraktets mall, med en klausul per roll.
+  - `slicePressure` ger SHRINK vid relativa svarstidssignaler eller transporthändelser.
+  - `objectiveGuard` lägger till en vaktmening för uppdrag med flera faser. Det är en heuristik och blockerar aldrig.
+  - `methodControl` innehåller FULL-promptens hot-reload-referens.
+  - Prompten bär `control.interactionSlicing`, även i COMPACT.
+- **Promptkontraktet** (`lib/a2a.mjs`):
+  - nytt startuppdrag;
+  - `STALE_SESSION_SEMANTICS`, härledd ur `lib/waiting-refresh.mjs` och märkt som Greenfields watchdog;
+  - `UNKNOWN_EFFECT_RULE` efter varje obesvarad tur;
+  - sanna texter om ny chatt (`checkpointInstruction`, `quantumRule`, schemaregeln, profilnoten);
+  - alla "fully in force" underordnade aktuell always-fetch-metod;
+  - `sender.presentation` märker den lokala analysen som valfri och rådgivande.
+- **Linter** (`lib/prompt-lint.mjs`):
+  - `lintA2AEnvelope` kontrollerar Greenfield-författad text och struktur mot C01–C20.
+  - `composeA2APrompt` vägrar posta vid fynd (`A2A_PROMPT_LINT_FAILED`) och returnerar `metrics`: promptChars, objectiveChars, overpackGuardFired, slicePressure, interactionRole.
+- **Sessionshälsa** (`lib/session-health.mjs`):
+  - nya signaler: `COMPLETION_HIGH_RELATIVE`/`COMPLETION_RISING` (mot sessionens egen median, minst 2 tidigare rena turer), `PROVIDER_BACKGROUND_PROCESSING` och `TRANSPORT_INTERRUPTED`;
+  - transporthändelserna gäller i de 3 senaste turerna, följer med över `resetSessionHealthForRotation` och räknas även för en obesvarad tur;
+  - proven har `promptChars`, `processingNotice`, `processingNoticeMs` och `connectionInterrupted`.
+- **Fortsättningskedjan:**
+  - `lib/greenfield-control.mjs`:
+    - `EIC_HANDOFF_FORWARDED`: EIC:s strukturerade CONTINUE-handoff ordagrant, utan NANO_TASK-rad.
+    - `ADVISORY_DONE_WITHOUT_EIC_TERMINAL`/`ADVISORY_DONE_TARGET_BLOCKED`: en lokal DONE avslutar aldrig.
+    - Hårt stopp vid `NANO_TASK_UNKNOWN_EFFECT` är borttaget.
+  - `lib/hjalmar-d2.mjs`: `NEXT_INTERACTION`, regel 16 och en ny DONE-definition. Ett okänt Nano-resultat fortsätter utan omspelning.
+  - `lib/continuation-guard.mjs`: utgång utan förändring.
+  - `offscreen.js`: deterministisk reserv när den lokala modellen saknas.
+  - `sidepanel.js`: `prepareLocalAnalyzerOptional`.
+- **Ny kvant i ny chatt** (`warmResumeDecision` med `interactionInQuantum`):
+  - koden `NEW_QUANTUM_FRESH_CHAT`;
+  - `QUEUE_ITEM_ACTIVATED.interactionInQuantum`;
+  - `freshChat` speglar det verkliga valet.
+- **Delegering i samma fönster.**
+  - `claimPendingMissionDelegationForWorker` tar bara sin egen kös förfrågningar (`sourceQueueId`).
+  - Den delegerande workern väcker sig själv.
+  - Promptens `missionDelegationControl.target` är `SAME_WINDOW_GREENFIELD_QUEUE`.
+- **Kööversikt** (`lib/window-queue-overview.mjs`; `windowQueueForPrompt` i `background.js`): `control.windowQueue` i varje prompt. Vid aktivering byggs den från kön i minnet.
+- **Transportnotiser** (`providerTransportNotices` i `content.js`; `providerTransportPending` i `lib/waiting-refresh.mjs`):
+  - `observeProviderTransportNotices` registrerar notiserna i sessionshälsan och i incidentloggen.
+  - Fångst spärras med `AUTONOMOUS_RESPONSE_PROVIDER_NOTICE`, utom när ett komplett A2A-svar redan syns.
+  - Postning spärras med `PROMPT_DISPATCH_HELD_PROVIDER_NOTICE`, högst `WAITING_GENERATION_LIMIT_MS`.
+  - Uppdateringsstegen, kapacitetsåterlämningen, varm sidkontroll, keepalive och återhämtning efter avbruten tur respekterar notiserna.
+  - `INCIDENT_DETAIL_MAX_KEYS` är höjd till 28.
+- **Telemetri:** `TURN_METRICS` per fångat svar. Utkastet har `pendingPrompt.metrics` och den postade prompten `lastPrompt.metrics`.
+- **Granskning:** se `BUILD_VERIFICATION.json` och `verification/v193-*`.
 
 ## Nytt i 1.9.2
 
@@ -312,6 +382,8 @@ Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.8, 
 
 ```sh
 npm test
+node --test tests/v193-gfw-contract-conformance.test.mjs tests/v193-transport-notices.test.mjs tests/v193-same-window-delegation.test.mjs tests/v190-warm-resume.test.mjs
+NODE_PATH="$(npm root -g)" node tools/verify-transport-notices.mjs   # kräver Playwright + Chromium
 node --test tests/v192-drift-settings-vault.test.mjs
 NODE_PATH="$(npm root -g)" node tools/verify-drift-settings-vault.mjs   # kräver Playwright + Chromium
 node --test tests/v191-safety-policy-vault.test.mjs
