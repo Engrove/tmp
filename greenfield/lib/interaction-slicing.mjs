@@ -114,9 +114,9 @@ export function planningHint(position) {
     case INTERACTION_ROLES.ONLY:
       return `${where} Read fresh owner state, execute one bounded coherent slice that fits this interaction and close it with owner readback; do not force the whole semantic WORK_QUANTUM/progression envelope into this response. ${CHECKPOINT} ${ENVELOPE} ${HANDOFF}`;
     case INTERACTION_ROLES.FINAL:
-      return `${where} ${CHECKPOINT} ${ENVELOPE} ${HANDOFF}`;
+      return `${where} ${SLICE}. ${CHECKPOINT} ${ENVELOPE} ${HANDOFF}`;
     case INTERACTION_ROLES.WINDOW_CHECKPOINT:
-      return `${where} The slot's run window likely closes after this response. ${CHECKPOINT} ${ENVELOPE} ${HANDOFF}`;
+      return `${where} The slot's run window likely closes after this response. ${SLICE}. ${CHECKPOINT} ${ENVELOPE} ${HANDOFF}`;
     case INTERACTION_ROLES.FIRST:
       return `${where} ${SLICE}: read fresh owner state and execute the first real bounded effect/readback slice; do not front-load later test/repair/package/readback work. ${DEPTH} ${ENVELOPE} ${NEXT_SLICE}`;
     default:

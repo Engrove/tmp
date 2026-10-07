@@ -770,6 +770,67 @@
     return null;
   }
 
+  // v1.9.3: ChatGPT transport notices as page state, never as text. The
+  // processing notice lives in the last assistant turn (real DOM 2026-09-25)
+  // and counts only while that turn has no substantive answer yet. The
+  // connection-lost banner ("Anslutningen bröts. Väntar på hela svaret",
+  // operator screenshot 2026-10-07; English wording assumed) is searched in
+  // short visible elements outside user messages, earlier assistant turns,
+  // answer prose, code and Greenfield's own UI, so a quoted sentence in an
+  // answer or prompt is never mistaken for the banner.
+  // Short status line that starts with the banner text (it may carry a
+  // trailing "Väntar på hela svaret" and a retry control).
+  const PROVIDER_CONNECTION_NOTICE = /^(?:Anslutningen bröts|Connection (?:lost|interrupted|was lost|dropped))(?![\p{L}\p{N}])/iu;
+  const PROVIDER_CONNECTION_NOTICE_PROBE = /Anslutningen bröts|Connection (?:lost|interrupted|was lost|dropped)/iu;
+  const PROVIDER_CONNECTION_NOTICE_MAX_CHARS = 160;
+  const NOTICE_EXCLUDED_ANCESTORS = "pre, code, blockquote, .markdown, [class*='markdown'], .prose, [data-message-author-role='user'], [data-eic-gf-ui='true'], #" + OVERLAY_ID + ", form";
+
+  function providerTransportNotices(lastAssistantEntry, lastAssistantText) {
+    const root = document.querySelector("main") || document.body;
+    const all = String(root?.textContent || "");
+    let processingNotice = false;
+    let connectionInterrupted = false;
+    const owner = lastAssistantEntry?.owner || null;
+    if (owner && (all.includes("Våra system bearbetar") || all.includes("Our systems are")) &&
+        String(lastAssistantText || "").trim().length <= 80) {
+      for (const element of owner.querySelectorAll("div, p, span, section")) {
+        if (element.closest("pre, code")) continue;
+        if (providerProcessingNoticeText(element.textContent)) {
+          processingNotice = true;
+          break;
+        }
+      }
+    }
+    // The banner may also be a toast outside <main>.
+    const body = document.body;
+    if (body && PROVIDER_CONNECTION_NOTICE_PROBE.test(String(body.textContent || ""))) {
+      const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => PROVIDER_CONNECTION_NOTICE_PROBE.test(String(node.nodeValue || ""))
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_SKIP
+      });
+      for (let node = walker.nextNode(); node && !connectionInterrupted; node = walker.nextNode()) {
+        const start = node.parentElement;
+        if (!start || start.closest(NOTICE_EXCLUDED_ANCESTORS) || !visible(start)) continue;
+        // Inside a message turn only the last assistant turn may carry it.
+        const turn = start.closest(MESSAGE_TURN_SELECTOR);
+        if (turn && !(owner && (owner === turn || owner.contains(start)))) continue;
+        let element = start;
+        for (let i = 0; i < 4 && element; i += 1) {
+          const value = String(element.textContent || "").replace(/\s+/g, " ").trim();
+          if (value.length > PROVIDER_CONNECTION_NOTICE_MAX_CHARS) break;
+          if (PROVIDER_CONNECTION_NOTICE.test(value)) {
+            connectionInterrupted = true;
+            break;
+          }
+          if (element === owner || element.parentElement === body) break;
+          element = element.parentElement;
+        }
+      }
+    }
+    return { processingNotice, connectionInterrupted };
+  }
+
   function pageHealthState(entries, anchorEntry) {
     const now = Date.now();
     return {
@@ -828,6 +889,7 @@
       composerReady: Boolean(composer),
       composerEmpty: !composerText,
       composerTextHash: composerText ? await sha256Hex(composerText) : "",
+      providerNotices: providerTransportNotices(lastAssistant, assistantText),
       rateLimitWarning,
       modelEvidence: globalThis.GreenfieldModelObservation?.observe() || null,
       pageHealth: pageHealthState(entries, autonomous.userEntry || lastUser),

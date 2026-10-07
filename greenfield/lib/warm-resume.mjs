@@ -141,6 +141,10 @@ export function warmResumePageVerdict({ warm = null, page = {}, tabUrl = "", nav
   }
   if (Number(page.userCount || 0) === 0 && Number(page.assistantCount || 0) === 0) return wait("THREAD_LOADING");
   if (page.generating === true) return wait("CONVERSATION_GENERATING");
+  // v1.9.3: the provider still processes an earlier answer in this chat.
+  if (page.providerNotices?.processingNotice === true || page.providerNotices?.connectionInterrupted === true) {
+    return wait("CONVERSATION_PROVIDER_NOTICE");
+  }
   if (page.composerReady !== true) return wait("COMPOSER_NOT_READY");
   if (page.composerEmpty !== true) return wait("COMPOSER_HAS_DRAFT");
   // Someone wrote in this conversation after the GFW's last prompt.

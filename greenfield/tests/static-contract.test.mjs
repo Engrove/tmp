@@ -450,7 +450,8 @@ test("v1.3.2 Session Health is wired from post boundary through response capture
   assert.match(background, /markSessionHealthRecovery/);
   assert.match(a2a, /sessionHealthControl/);
   assert.match(a2a, /ADVISORY_PROXY_NOT_TOKEN_COUNT/);
-  assert.match(a2a, /text: JSON\.stringify\(envelope\)/);
+  // v1.9.3 serializes once for the lint metrics; still compact JSON.
+  assert.match(a2a, /(text: |const text = )JSON\.stringify\(envelope\)/);
   assert.doesNotMatch(a2a, /JSON\.stringify\(envelope,\s*null,\s*2\)/);
   assert.match(health, /pressureBand/);
   assert.doesNotMatch(health, /ROTATE_SESSION_NOW/);

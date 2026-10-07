@@ -47,6 +47,7 @@ import {
   WAITING_GENERATION_LIMIT_MS,
   WAITING_STALE_INTERVAL_MS
 } from "./waiting-refresh.mjs";
+import { lintA2AEnvelope } from "./prompt-lint.mjs";
 
 export const A2A_MESSAGE_TYPES = Object.freeze([
   "MISSION_START",
@@ -169,6 +170,12 @@ function compactEnvelope(full, profile) {
 }
 
 const minutes = (ms) => Math.round(Number(ms) / 60000);
+const UNKNOWN_EFFECT_SOURCE_STATES = new Set([
+  "PROMPT_ACKNOWLEDGED_NO_COMPLETED_RESPONSE",
+  "PROMPT_EFFECT_UNKNOWN",
+  "PROMPT_BLOCKED_BY_PROVIDER"
+]);
+export const UNKNOWN_EFFECT_RULE = "The previous prompt has no completed response, so its effects are unknown: before retrying or repeating any mutation it may have performed, read the exact effect owner; never blind-replay and never assume it completed or failed.";
 // v1.9.3: derived from the waiting-refresh owner constants. This describes
 // Greenfield's own client recovery watchdog; it is not a provider limit and
 // not a response-time budget (contract C16).
@@ -498,7 +505,12 @@ export function buildA2AEnvelope({
         sourceResponseState: text(sessionRotation.sourceResponseState, 100),
         resumeFromOwners: true,
         replayCompletedWork: false,
-        newChatContinuation: true
+        newChatContinuation: true,
+        // v1.9.3 (contract C07, ownerStateContract.unknownEffect): in every
+        // prompt after an unanswered or effect-unknown prompt, queue or not.
+        ...(UNKNOWN_EFFECT_SOURCE_STATES.has(String(sessionRotation.sourceResponseState || ""))
+          ? { unknownEffectRule: UNKNOWN_EFFECT_RULE }
+          : {})
       } : null,
       pauseResume: pauseResume && typeof pauseResume === "object" ? {
         pauseId: text(pauseResume.pauseId, 200),
@@ -707,9 +719,27 @@ export function composeA2APrompt(args) {
     error.validation = validation;
     throw error;
   }
+  // v1.9.3: contradiction lint of Greenfield-authored text before posting.
+  const lint = lintA2AEnvelope(envelope);
+  if (!lint.ok) {
+    const error = new Error(`A2A_PROMPT_LINT_FAILED:${lint.findings.map((item) => `${item.rule}:${item.code}`).join(",")}`);
+    error.code = "A2A_PROMPT_LINT_FAILED";
+    error.lint = lint;
+    throw error;
+  }
+  const text = JSON.stringify(envelope);
   return {
     envelope,
     validation,
-    text: JSON.stringify(envelope)
+    lint,
+    text,
+    // v1.9.3 telemetry (contract observabilityRecommendations).
+    metrics: {
+      promptChars: text.length,
+      objectiveChars: String(envelope.objective || "").length,
+      overpackGuardFired: lint.overpackGuardFired,
+      slicePressure: String(envelope.control?.interactionSlicing?.slicePressure?.level || ""),
+      interactionRole: String(envelope.control?.interactionSlicing?.role || "")
+    }
   };
 }

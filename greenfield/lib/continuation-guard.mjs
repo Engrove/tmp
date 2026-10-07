@@ -20,7 +20,8 @@ function alternativeContinuationPrompt(currentObjective) {
     "Do not repeat the current objective or the previous nextSuggestedAction.",
     "Priority: (1) the next unmet dependency or acceptance criterion; (2) one discriminating owner read or test that can change the plan; (3) a non-conflicting parallel item.",
     "Preserve verified completed work and avoid replaying already-consumed effects.",
-    "If no authorized alternative exists, return a concrete real blocker or DONE with evidence instead of repeating the prompt."
+    // v1.9.3 (contract C20/F18): no-delta work is status, not progress.
+    "If no authorized alternative exists, do not repeat the prompt: return a truthful no-delta status (with sessionAction YIELD_TO_QUEUE or BACKGROUND_SLEEP, or runtimeControl SET_SCHEDULE when time is the dependency), a concrete real blocker, or status=DONE only with supported terminal closure."
   ].join(" ");
 }
 

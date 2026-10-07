@@ -132,6 +132,8 @@ import {
 } from "./lib/turn-causality.mjs";
 import {
   hasCurrentGenerationEvidence,
+  providerTransportPending,
+  WAITING_GENERATION_LIMIT_MS,
   createWaitingRefreshState,
   evaluateWaitingRefresh,
   resetWaitingRefreshOnAssistantResponse,
@@ -293,7 +295,9 @@ import {
   completeSessionHealthTurn,
   markSessionHealthFirstResponse,
   markSessionHealthPromptPosted,
+  markSessionHealthProviderNotice,
   markSessionHealthRecovery,
+  PROVIDER_NOTICE_KINDS,
   resetSessionHealthForRotation,
   sessionHealthCapsule
 } from "./lib/session-health.mjs";
@@ -1398,9 +1402,53 @@ function incidentPageEvidence(page) {
     assistantGenerating: auto.assistantGenerating === true,
     responseSlotClosed: auto.responseSlotClosed === true,
     providerNotice: String(health.providerNotice?.kind || ""),
+    // v1.9.3: ChatGPT background processing / connection-lost banner.
+    processingNotice: page?.providerNotices?.processingNotice === true,
+    connectionInterrupted: page?.providerNotices?.connectionInterrupted === true,
     rateLimitWarning: page?.rateLimitWarning?.active === true,
     quotaNotice: page?.modelEvidence?.quota?.active === true
   };
+}
+
+// v1.9.3: record ChatGPT's background-processing notice and its
+// connection-lost banner for the waiting turn: session-health pressure for
+// the next slice (contract adaptiveRule) and one incident per kind and turn.
+// Observation only; the ladder, capture and send gates read the page flags.
+const PROVIDER_NOTICE_REFRESH_MS = 30 * 1000;
+async function observeProviderTransportNotices(process, page) {
+  const notices = page?.providerNotices || {};
+  const kinds = [];
+  if (notices.processingNotice === true) kinds.push([PROVIDER_NOTICE_KINDS.PROCESSING, "processingNotice"]);
+  if (notices.connectionInterrupted === true) kinds.push([PROVIDER_NOTICE_KINDS.CONNECTION_INTERRUPTED, "connectionInterrupted"]);
+  const active = process.sessionHealth?.activeTurn || null;
+  if (!kinds.length || !active) return process;
+  const now = Date.now();
+  let health = process.sessionHealth;
+  const first = [];
+  let refresh = false;
+  for (const [kind, key] of kinds) {
+    const prior = health.activeTurn?.[key] || null;
+    if (!prior) first.push(kind);
+    if (!prior || now - Number(prior.lastSeenAtMs || 0) >= PROVIDER_NOTICE_REFRESH_MS) refresh = true;
+    health = markSessionHealthProviderNotice(health, { kind, observedAtMs: now });
+  }
+  if (!refresh) return process;
+  const saved = await saveObserved(process, { sessionHealth: health },
+    first.length ? "PROVIDER_TRANSPORT_NOTICE_OBSERVED" : "PROVIDER_TRANSPORT_NOTICE_STILL_SHOWN", {
+      kinds: kinds.map(([kind]) => kind),
+      firstSighting: first,
+      promptHash: process.lastPrompt?.hash || ""
+    });
+  for (const kind of first) {
+    const postedAtMs = Number(process.lastPrompt?.postedAtMs || 0);
+    await recordIncident(saved, "PROVIDER_TRANSPORT_NOTICE", kind, {
+      ...incidentPageEvidence(page),
+      waitMin: postedAtMs ? Math.round((now - postedAtMs) / 60000) : null,
+      promptChars: Number(process.lastPrompt?.metrics?.promptChars || String(process.lastPrompt?.text || "").length),
+      interactionInQuantum: Number(process.lastPrompt?.a2a?.control?.workQueue?.interactionInQuantum || 0) || null
+    });
+  }
+  return saved;
 }
 
 // v1.8.2 durable response-observation trace (lib/response-observation.mjs).
@@ -2320,7 +2368,8 @@ async function buildPendingA2A(process, {
       text: fallback.text,
       hash: await sha256Hex(fallback.text),
       a2a: fallback.envelope,
-      promptProfile: fallbackProfile
+      promptProfile: fallbackProfile,
+      metrics: fallback.metrics
     };
   }
   const operatorSettings = await loadOperatorSettings(chrome.storage.local, { restoreSavedMissions: false, bookmarks: null }).catch(() => ({ postDelaySeconds: 0 }));
@@ -2335,6 +2384,8 @@ async function buildPendingA2A(process, {
     dispatch: null,
     a2a: composed.envelope,
     promptProfile,
+    // v1.9.3: per-prompt sizing telemetry (role, pressure, overpack guard).
+    metrics: composed.metrics,
     fullFallback,
     oneShotInstruction: operatorInstruction ? {
       instructionId: operatorInstruction.instructionId,
@@ -4916,7 +4967,7 @@ async function tickRotating(process) {
     return process;
   }
 
-  if (page.composerReady !== true || page.composerEmpty !== true || page.generating === true) {
+  if (page.composerReady !== true || page.composerEmpty !== true || page.generating === true || providerTransportPending(page)) {
     scheduleFast(process.processId, 900);
     return process;
   }
@@ -5029,6 +5080,7 @@ async function upgradeCompactPendingPrompt(process, page) {
       hash: fallback.hash,
       a2a: fallback.a2a,
       promptProfile: fallback.promptProfile || upgradedFullProfile(pending.promptProfile),
+      metrics: fallback.metrics || pending.metrics || null,
       fullFallback: null,
       promptPause: null
     },
@@ -5212,6 +5264,8 @@ async function tickSending(process) {
         operatorOverride: pending.dispatch?.operatorOverride || null,
         oneShotInstruction: pending.oneShotInstruction || null,
         a2a: pending.a2a || null,
+        // v1.9.3: sizing telemetry of the prompt actually posted.
+        metrics: { ...(pending.metrics || {}), promptChars: String(pending.text || "").length },
         promptProfile: pending.promptProfile || null
       },
       sessionHealth: markSessionHealthPromptPosted(process.sessionHealth, {
@@ -5283,6 +5337,34 @@ async function tickSending(process) {
     });
     scheduleFast(process.processId, 1200);
     return process;
+  }
+
+  // v1.9.3: never post while ChatGPT still shows its background-processing
+  // notice or its connection-lost banner (operator screenshot 2026-10-07:
+  // SENDING while "Anslutningen bröts. Väntar på hela svaret" was shown).
+  // Bounded like generation evidence: after WAITING_GENERATION_LIMIT_MS of
+  // continuous hold the prompt is posted.
+  if (providerTransportPending(page)) {
+    const heldSinceMs = Number(pending.providerNoticeHoldSinceMs || 0) || Date.now();
+    if (Date.now() - heldSinceMs < WAITING_GENERATION_LIMIT_MS) {
+      if (pending.providerNoticeHoldSinceMs) {
+        scheduleFast(process.processId, 5000);
+        return process;
+      }
+      const held = { ...process, pendingPrompt: { ...pending, providerNoticeHoldSinceMs: heldSinceMs }, updatedAt: nowIso() };
+      await saveProcess(held);
+      await audit(held, "PROMPT_DISPATCH_HELD_PROVIDER_NOTICE", "prompt", {
+        promptHash: pending.hash,
+        providerNotices: page.providerNotices || {}
+      });
+      await recordIncident(held, "PROMPT_DISPATCH_HELD_PROVIDER_NOTICE", "", incidentPageEvidence(page));
+      scheduleFast(held.processId, 5000);
+      return held;
+    }
+    await audit(process, "PROMPT_DISPATCH_PROVIDER_NOTICE_HOLD_EXPIRED", "prompt", {
+      promptHash: pending.hash,
+      heldMs: Date.now() - heldSinceMs
+    });
   }
 
   const gateSafety = await sendingSafetyDecision(process, page, pending);
@@ -5840,6 +5922,7 @@ async function tickWaiting(process) {
   if (providerNotice.handled) return providerNotice.process;
   process = providerNotice.process;
   process = await maybeReadoptStaleTurnCapacity(process, page);
+  process = await observeProviderTransportNotices(process, page);
 
   if (!process.lastPrompt?.modelProof && !process.safety?.turnProof) {
     process.safety = {...process.safety,qualityIncident:{code:"IN_FLIGHT_MODEL_UNVERIFIED",atMs:Date.now(),turn:process.turn}};
@@ -5968,7 +6051,8 @@ async function tickWaiting(process) {
   if (!causal.ready &&
       causal.reason === "AUTONOMOUS_RESPONSE_PRODUCER_LOST" &&
       process.lastPrompt?.acknowledged === true &&
-      page.generating !== true) {
+      page.generating !== true &&
+      !providerTransportPending(page)) {
     const nextTurn = Number(process.turn || 0) + 1;
     const seq = Number(process.interruptedContinuationSeq || 0) + 1;
     const nextObjectiveId = randomId("objective");
@@ -6110,6 +6194,7 @@ async function tickWaiting(process) {
     if (keepaliveDue &&
         process.lastPrompt?.acknowledged === true &&
         page.generating !== true &&
+        !providerTransportPending(page) &&
         !process.responseCandidate) {
       const nextTurn = Number(process.turn || 0) + 1;
       const seq = Number(process.idleKeepaliveSeq || 0) + 1;
@@ -6162,10 +6247,15 @@ async function tickWaiting(process) {
   }
 
   const responsePage = causal.observation;
+  // v1.9.3: while ChatGPT shows its background-processing notice or the
+  // connection-lost banner the visible text may be partial; nothing is
+  // admitted until the provider has finished.
+  const providerPending = providerTransportPending(page);
   const noNewAssistant = !responsePage.assistantHash ||
     responsePage.assistantHash === baselineHash ||
     responsePage.assistantHash === lastResponseHash ||
-    responsePage.generating === true;
+    responsePage.generating === true ||
+    providerPending;
 
   if (noNewAssistant) {
     if (process.responseCandidate) {
@@ -6179,7 +6269,9 @@ async function tickWaiting(process) {
     }
     const notNewReason = responsePage.generating === true
       ? "AUTONOMOUS_RESPONSE_STILL_GENERATING"
-      : "AUTONOMOUS_RESPONSE_NOT_NEW";
+      : providerPending
+        ? "AUTONOMOUS_RESPONSE_PROVIDER_NOTICE"
+        : "AUTONOMOUS_RESPONSE_NOT_NEW";
     process = await recordResponseObservation(process, notNewReason, page);
     const refreshEscalation = await maybeEscalateWaitingRefresh(process, page, {
       reason: notNewReason
@@ -6437,12 +6529,48 @@ async function tickWaiting(process) {
       sessionHealthSample: completedSessionHealth.samples?.at?.(-1) || null
     }
   });
+  await recordTurnMetrics(next, response);
   await releaseSchedulerTurn(next, {
     promptHash: next.lastPrompt?.hash || "",
     reason: "RESPONSE_CAPTURED"
   }).catch(() => undefined);
   scheduleFast(next.processId, 100);
   return next;
+}
+
+// v1.9.3 (contract observabilityRecommendations): one privacy-safe row per
+// completed turn, enough to compare background-processing frequency against
+// prompt size, interaction position and observed pressure. No text is stored.
+async function recordTurnMetrics(process, response) {
+  const sample = process.sessionHealth?.samples?.at?.(-1) || null;
+  const metrics = process.lastPrompt?.metrics || {};
+  const workQueue = process.lastPrompt?.a2a?.control?.workQueue || null;
+  const capsule = sessionHealthCapsule(process.sessionHealth, {
+    turn: process.turn,
+    sessionSeq: process.sessionSeq,
+    sessionStartTurn: process.turn
+  });
+  await recordIncident(process, "TURN_METRICS", String(process.lastPrompt?.promptProfile?.profile || ""), {
+    itemId: String(process.queueContext?.itemId || ""),
+    interactionInQuantum: workQueue ? Number(workQueue.interactionInQuantum || 0) : null,
+    maxInteractions: workQueue ? Number(workQueue.maxInteractions || 0) : null,
+    interactionRole: String(metrics.interactionRole || ""),
+    promptChars: Number(metrics.promptChars || String(process.lastPrompt?.text || "").length),
+    objectiveChars: Number(metrics.objectiveChars || 0),
+    overpackGuardFired: metrics.overpackGuardFired === true,
+    slicePressure: String(metrics.slicePressure || ""),
+    responseChars: sample ? Number(sample.responseChars || 0) : null,
+    ttfrMs: sample?.ttfrMs ?? null,
+    completionMs: sample?.completionMs ?? null,
+    roundTripMs: sample?.totalMs ?? null,
+    clean: sample ? sample.clean === true : null,
+    processingNotice: sample ? sample.processingNotice === true : null,
+    processingNoticeMs: sample?.processingNoticeMs ?? null,
+    connectionInterrupted: sample ? sample.connectionInterrupted === true : null,
+    sessionAction: String(response?.contract?.control?.sessionAction || response?.contract?.value?.sessionAction || ""),
+    pressureBand: String(capsule.pressureBand || ""),
+    signals: (capsule.signals || []).join(",")
+  });
 }
 
 async function ensureOffscreenAnalyzer() {
