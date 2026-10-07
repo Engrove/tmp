@@ -3,7 +3,7 @@ import { canonicalJson, jsonEqual } from "./canonical-json.mjs";
 import { CHECKPOINT_PREFIX, readCheckpoint, writeCheckpoint, storageLock } from "./durable-checkpoint.mjs";
 import { SAFETY_KEY, readSafety } from "./usage-governor.mjs";
 import { validateProcess } from "./state.mjs";
-import { normalizeOperatorSettings, OPERATOR_SETTINGS_KEY } from "./operator-settings.mjs";
+import { normalizeOperatorSettings, OPERATOR_SETTINGS_KEY, withOperatorSettingsLock } from "./operator-settings.mjs";
 import { normalizeMissionWorkQueue, MISSION_WORK_QUEUE_SCHEMA, MISSION_WORK_QUEUE_REGISTRY_KEY, MISSION_WORK_QUEUE_REGISTRY_SCHEMA } from "./mission-work-queue.mjs";
 import { normalizeMissionQueueSet, MISSION_QUEUE_SET_STORE_KEY, MISSION_QUEUE_SET_STORE_SCHEMA } from "./mission-queue-sets.mjs";
 import { loadMissionQueueSetVault, writeMissionQueueSetVault } from "./mission-queue-set-vault.mjs";
@@ -101,8 +101,12 @@ export async function restoreOperatorBackup(backup,storage,{now=Date.now(),bookm
         await writeCheckpoint(key,value,storage);queues++;
       } else {
         const row=key===OPERATOR_SETTINGS_KEY ? {...normalizeOperatorSettings(value),workModeEnabled:false,workModeSupervisorWorkerId:""} : value;
-        await storage.set({[key]:row});
-        if (!jsonEqual((await storage.get(key))[key],row)) throw Error("BACKUP_RESTORE_READBACK_FAILED");
+        // v1.9.2: the settings record has one writer at a time (side panel and worker alike).
+        const write=async()=>{
+          await storage.set({[key]:row});
+          if (!jsonEqual((await storage.get(key))[key],row)) throw Error("BACKUP_RESTORE_READBACK_FAILED");
+        };
+        await (key===OPERATOR_SETTINGS_KEY ? withOperatorSettingsLock(storage,write) : write());
       }
     }
     // The queue registry is rebuilt from the restored queues, not trusted input.

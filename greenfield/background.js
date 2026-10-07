@@ -1,6 +1,6 @@
 import "./lib/safety-policy.js";
 import { readSafety, usageSummary, budgetDecision, reserveUsage, authorizeUsageSend, recordUsageOutput, usageIdentity, observeProviderQuota, probeProviderRecovery, updateSafetyPolicy, pauseAdmission, adoptSafetyPolicyFromVault, equalSafetyPolicy } from "./lib/usage-governor.mjs";
-import { loadSafetyPolicyVault, writeSafetyPolicyVault, safetyPolicyVaultPlan, SAFETY_POLICY_VAULT_FOLDER } from "./lib/safety-policy-vault.mjs";
+import { loadSafetyPolicyVault, writeSafetyPolicyVault, safetyPolicyVaultPlan, SAFETY_POLICY_VAULT_FOLDER, loadDriftSettingsVault, writeDriftSettingsVault } from "./lib/safety-policy-vault.mjs";
 import { conversationKey, reconcileRestart } from "./lib/restart-recovery.mjs";
 import { conversationRecoveryUrl, shouldRememberManagedUrl, expectedThreadMissing } from "./lib/conversation-recovery.mjs";
 import { reconcileRecoveryReportWithLiveObservation } from "./lib/recovery-report.mjs";
@@ -28,6 +28,11 @@ const SAFETY_VAULT_TIMEOUT_MS = 8000;
 // restart and on "Läs in igen"), so the bookmark tree is read once per session.
 const SAFETY_VAULT_SESSION_KEY = "eic.gf.safety-vault-status.v1";
 const SAFETY_VAULT_SETTLED = new Set(["RESTORED","SAVED","IN_SYNC","EMPTY"]);
+// v1.9.2: the Drift settings (operator-settings.mjs DRIFT_SETTINGS_KEYS) are a
+// second, independent section of the same vault, with its own status.
+let driftVaultStatus = {state:"NOT_CHECKED",atMs:0,folder:SAFETY_POLICY_VAULT_FOLDER};
+const DRIFT_VAULT_SESSION_KEY = "eic.gf.drift-vault-status.v1";
+let driftVaultQueue = Promise.resolve();
 let storageRetentionStatus = null;
 const RECOVERY_SCAN_ALARM = "eic.gf.recovery-scan.v1";
 
@@ -146,7 +151,9 @@ import {
 } from "./lib/session-rotation.mjs";
 import {
   loadOperatorSettings,
-  saveOperatorSettings
+  saveOperatorSettings,
+  reconcileLocalDriftSettings,
+  normalizeDriftVaultSettings
 } from "./lib/operator-settings.mjs";
 import {
   claimGlobalPromptSend,
@@ -8907,6 +8914,7 @@ async function fleetStatusSnapshot() {
     recovery: restartReport,
     safety: await readSafety().then(v=>usageSummary(v)).catch(error=>({error:String(error.message)})),
     safetyVault: {...safetyVaultStatus},
+    driftSettingsVault: {...driftVaultStatus},
     storage: await storageHealth().catch(error=>({known:false,error:String(error.message)})),
     storageRetention: storageRetentionStatus || await readStorageRetentionStatus(chrome.storage.local).catch(() => null),
     usedCapacity: Number(schedulerView.scheduler?.activeCount || 0),
@@ -9099,11 +9107,7 @@ async function setReservedSlot({ windowId, workerId, enabled }) {
 
 async function setMaxActiveSessions({ windowId, maxActiveSessions }) {
   const value = Number(maxActiveSessions);
-  const settings = await saveOperatorSettings(
-    { maxActiveSessions: value },
-    chrome.storage.local,
-    { restoreSavedMissions: false, bookmarks: null }
-  );
+  const { settings, driftSettingsVault } = await saveDriftSettings({ maxActiveSessions: value });
   const gate = await readGlobalPromptGate().catch(() => null);
   const context = await schedulerCapacityContext({ gate, settings });
   const scheduler = await readGlobalCapacityScheduler(chrome.storage.local, {
@@ -9135,8 +9139,22 @@ async function setMaxActiveSessions({ windowId, maxActiveSessions }) {
   return {
     ok: true,
     operatorSettings: settings,
-    globalCapacityScheduler: scheduler
+    globalCapacityScheduler: scheduler,
+    driftSettingsVault
   };
+}
+
+// Spara grundparametrar (sidepanel.js saveQueueSettings).
+async function saveQueueSettingsFromPanel(bound) {
+  const { settings, driftSettingsVault } = await saveDriftSettings({
+    defaultMissionQuantumInteractions: bound.defaultMissionQuantumInteractions,
+    queuePriorityAgingSeconds: bound.queuePriorityAgingSeconds,
+    queueSwitchHardReload: bound.queueSwitchHardReload === true,
+    queueSwitchDelaySeconds: bound.queueSwitchDelaySeconds,
+    queueSwitchSettleSeconds: bound.queueSwitchSettleSeconds,
+    ...(typeof bound.warmQueueResume === "boolean" ? { warmQueueResume: bound.warmQueueResume } : {})
+  });
+  return { ok: true, operatorSettings: settings, driftSettingsVault };
 }
 
 async function setNextInstruction({ windowId, instruction = "" }) {
@@ -9633,9 +9651,9 @@ async function authorizeDispatch(message,sender) {
   return {ok:true,policy:admission.policy,gptRoot:process.gptRoot};
 }
 
-function withSafetyVaultTimeout(work) {
+function withSafetyVaultTimeout(work,code="SAFETY_POLICY_VAULT_TIMEOUT") {
   let timer;
-  return Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("SAFETY_POLICY_VAULT_TIMEOUT")),SAFETY_VAULT_TIMEOUT_MS);})]).finally(()=>clearTimeout(timer));
+  return Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(code)),SAFETY_VAULT_TIMEOUT_MS);})]).finally(()=>clearTimeout(timer));
 }
 async function setSafetyVaultStatus(state,extra={}) {
   safetyVaultStatus={state,atMs:Date.now(),folder:SAFETY_POLICY_VAULT_FOLDER,...extra};
@@ -9681,6 +9699,74 @@ async function syncSafetyPolicyVault(reason,{force=false}={}) {
   }
 }
 
+async function setDriftVaultStatus(state,extra={}) {
+  driftVaultStatus={state,atMs:Date.now(),folder:SAFETY_POLICY_VAULT_FOLDER,...extra};
+  try {
+    if (SAFETY_VAULT_SETTLED.has(state)) await chrome.storage.session.set({[DRIFT_VAULT_SESSION_KEY]:driftVaultStatus});
+    else await chrome.storage.session.remove(DRIFT_VAULT_SESSION_KEY); // retried at the next worker start
+  } catch {}
+  return driftVaultStatus;
+}
+const readDriftVault=()=>loadDriftSettingsVault(chrome.bookmarks,{normalizeSettings:normalizeDriftVaultSettings});
+// One step for every occasion (start, after an operator save, after a backup
+// import): a per-setting merge of this installation and the vault, newest save
+// of each setting wins (operator-settings.mjs mergeDriftSettings). The merge is
+// computed inside the settings write lock; the vault is written afterwards.
+// Values that a running turn has already taken (its prompt pause, its queue
+// switch) are not changed; the next turn and the scheduler read the new ones.
+async function reconcileDriftSettingsOnce(reason) {
+  if (!chrome.bookmarks?.getTree) return setDriftVaultStatus("UNAVAILABLE",{error:"chrome.bookmarks saknas",reason});
+  try {
+    return await withSafetyVaultTimeout((async()=>{
+      const vault=await readDriftVault();
+      const {settings,merge}=await reconcileLocalDriftSettings(vault,chrome.storage.local);
+      if (merge.adoptedKeys.length) {
+        await recordIncident(null,"DRIFT_SETTINGS_RESTORED",reason,{vaultSavedAtMs:vault?.savedAtMs ?? null,vaultAppVersion:vault?.appVersion || "",changed:Object.fromEntries(merge.adoptedKeys.map(k=>[k,settings[k]]))});
+      }
+      let record=vault;
+      if (merge.vaultWrite) {
+        record=await writeDriftSettingsVault({settings:{values:merge.values,keySavedAtMs:merge.stamps},appVersion:APP_VERSION},{bookmarks:chrome.bookmarks,normalizeSettings:normalizeDriftVaultSettings});
+      }
+      const state=merge.adoptedKeys.length ? "RESTORED" : merge.vaultWrite ? "SAVED" : vault ? "IN_SYNC" : "EMPTY";
+      return setDriftVaultStatus(state,{savedAtMs:record?.savedAtMs ?? null,reason,adoptedKeys:merge.adoptedKeys});
+    })(),"DRIFT_SETTINGS_VAULT_TIMEOUT");
+  } catch(error) {
+    const operatorSave=reason==="OPERATOR_SAVE";
+    await setDriftVaultStatus(operatorSave ? "WRITE_FAILED" : "ERROR",{error:String(error?.message || error),reason});
+    if (operatorSave) await recordIncident(null,"DRIFT_SETTINGS_VAULT_WRITE_FAILED","OPERATOR",{error:driftVaultStatus.error});
+    return driftVaultStatus;
+  }
+}
+// Serialized: one reconciliation at a time in this worker. At startup a result
+// already settled in this browser session is reused (no bookmark read).
+function reconcileDriftSettings(reason,{force=false}={}) {
+  const job=driftVaultQueue.catch(()=>undefined).then(async()=>{
+    if (!force && chrome.bookmarks?.getTree) {
+      const settled=await chrome.storage.session.get(DRIFT_VAULT_SESSION_KEY).then(r=>r?.[DRIFT_VAULT_SESSION_KEY]).catch(()=>null);
+      if (SAFETY_VAULT_SETTLED.has(settled?.state)) return (driftVaultStatus={...settled,folder:SAFETY_POLICY_VAULT_FOLDER});
+    }
+    return reconcileDriftSettingsOnce(reason);
+  });
+  driftVaultQueue=job;
+  return job.then(status=>({...status}));
+}
+// Every operator save of a Drift setting goes through here (all in this
+// worker, under the settings write lock). The local save is committed first; a
+// vault failure is reported and retried at the next start without losing the
+// vault's other settings (per-setting merge).
+async function saveDriftSettings(patch) {
+  await saveOperatorSettings(patch,chrome.storage.local,{restoreSavedMissions:false,bookmarks:null});
+  const driftSettingsVault=await reconcileDriftSettings("OPERATOR_SAVE",{force:true});
+  const settings=await loadOperatorSettings(chrome.storage.local,{restoreSavedMissions:false,bookmarks:null});
+  return {settings,driftSettingsVault};
+}
+// Paus mellan analys och post (sidepanel.js updatePostDelay). Panel pages only.
+async function savePostDelayFromPanel(message,sender) {
+  if (sender?.id!==chrome.runtime.id || !String(sender?.url || "").startsWith(chrome.runtime.getURL("sidepanel.html"))) throw new Error("POST_DELAY_PANEL_SENDER_REQUIRED");
+  const {settings,driftSettingsVault}=await saveDriftSettings({postDelaySeconds:Number(message?.postDelaySeconds)});
+  return {ok:true,operatorSettings:settings,driftSettingsVault};
+}
+
 async function hydrateProcesses(reason) {
   if (hydrationInFlight) return hydrationInFlight;
   hydrationInFlight=(async()=>{
@@ -9691,6 +9777,7 @@ async function hydrateProcesses(reason) {
       if (!safetyVaultSynced) {
         safetyVaultSynced=true;
         await syncSafetyPolicyVault(reason || "startup");
+        await reconcileDriftSettings(reason || "startup");
       }
       const report=await reconcileRestart({local:chrome.storage.local,session:chrome.storage.session,tabs:chrome.tabs,ensureBridge:ensureContentBridgeVersion});
       // v1.8.13: restored rows accumulate for the service worker's lifetime;
@@ -9744,6 +9831,7 @@ async function panelSafetyAction(message,sender) {
     const restored=await restoreOperatorBackup(typeof message.backupJson==="string" ? JSON.parse(message.backupJson) : message.backup,chrome.storage.local,{bookmarks:chrome.bookmarks || null});
     // v1.9.1: settle imported run requirements against the vault now (newest save wins), not at an arbitrary later restart.
     await syncSafetyPolicyVault("backup-import",{force:true});
+    await reconcileDriftSettings("backup-import",{force:true});
     await hydrateProcesses();
     return {ok:true,restored,fleetStatus:await fleetStatusSnapshot()};
   }
@@ -10242,17 +10330,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return syncWorkModeForWorker(process, { force: true });
       }));
     case "EIC_GF_SET_QUEUE_SETTINGS":
-      return respond(withVerifiedWorkerMessage(message, sender, async (bound) => {
-        const settings = await saveOperatorSettings({
-          defaultMissionQuantumInteractions: bound.defaultMissionQuantumInteractions,
-          queuePriorityAgingSeconds: bound.queuePriorityAgingSeconds,
-          queueSwitchHardReload: bound.queueSwitchHardReload === true,
-          queueSwitchDelaySeconds: bound.queueSwitchDelaySeconds,
-          queueSwitchSettleSeconds: bound.queueSwitchSettleSeconds,
-          ...(typeof bound.warmQueueResume === "boolean" ? { warmQueueResume: bound.warmQueueResume } : {})
-        }, chrome.storage.local, { restoreSavedMissions: false, bookmarks: null });
-        return { ok: true, operatorSettings: settings };
-      }));
+      return respond(withVerifiedWorkerMessage(message, sender, saveQueueSettingsFromPanel));
+    case "EIC_GF_SET_POST_DELAY":
+      return respond(savePostDelayFromPanel(message, sender));
     case "EIC_GF_OPERATOR_READ_RESPONSE":
       return respond(withVerifiedWorkerMessage(message, sender, (bound) => operatorReadResponse({
         windowId: bound.windowId,

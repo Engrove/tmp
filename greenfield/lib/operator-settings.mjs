@@ -1,4 +1,5 @@
 import { DEFAULT_WORK_MODE_ENDPOINT, normalizeWorkModeEndpoint } from "./work-mode.mjs";
+import { storageLock } from "./durable-checkpoint.mjs";
 import {
   deleteSavedMissionVault,
   loadSavedMissionVault,
@@ -117,8 +118,145 @@ export function normalizeOperatorSettings(value = {}) {
     workModeEnabled: value.workModeEnabled === true,
     workModeSupervisorWorkerId: String(value.workModeSupervisorWorkerId || "").trim().slice(0, 200),
     workModeEndpoint: normalizeWorkModeEndpoint(value.workModeEndpoint ?? DEFAULT_WORK_MODE_ENDPOINT),
+    // v1.9.2: when an operator last saved each of DRIFT_SETTINGS_KEYS (0 =
+    // never), and whether the latest change came from a save or the vault.
+    driftSettingsSavedAtMs: normalizeDriftStamps(value.driftSettingsSavedAtMs),
+    driftSettingsOrigin: DRIFT_SETTINGS_ORIGINS.has(value.driftSettingsOrigin) ? value.driftSettingsOrigin : "",
     savedMissions: deduped
   };
+}
+
+const DRIFT_SETTINGS_ORIGINS = new Set(["OPERATOR", "VAULT"]);
+// v1.9.2: one writer of the record at a time. The side panel and the service
+// worker are separate JS contexts with the same chrome-extension:// origin;
+// Web Locks (navigator.locks) is shared by both (verified in Chromium 141), so
+// a panel write can no longer land between the worker's read and write (or
+// the reverse). Where Web Locks is missing (Node tests) the per-context
+// storageLock serializes writers of the same storage object.
+const SETTINGS_WRITE_LOCK = `${OPERATOR_SETTINGS_KEY}.write`;
+export function withOperatorSettingsLock(storage, work) {
+  const locks = globalThis.navigator?.locks;
+  if (typeof locks?.request === "function") return locks.request(SETTINGS_WRITE_LOCK, () => work());
+  return storageLock(requireStorage(storage), SETTINGS_WRITE_LOCK, work);
+}
+
+// v1.9.2: the Drift settings that follow the operator to a new installation
+// folder through the profile bookmark vault (lib/safety-policy-vault.mjs).
+// Not included: reservedWorkerId and workModeSupervisorWorkerId name Chrome
+// window bindings of this installation; workModeEnabled is switched on at
+// every start (v1.9.0); savedMissions have their own vault (v1.2.2).
+export const DRIFT_SETTINGS_KEYS = Object.freeze([
+  "postDelaySeconds",
+  "maxActiveSessions",
+  "defaultMissionQuantumInteractions",
+  "queuePriorityAgingSeconds",
+  "queueSwitchHardReload",
+  "queueSwitchDelaySeconds",
+  "queueSwitchSettleSeconds",
+  "warmQueueResume"
+]);
+
+export function driftSettingsOf(settings = {}) {
+  const normalized = normalizeOperatorSettings(settings);
+  return Object.fromEntries(DRIFT_SETTINGS_KEYS.map((key) => [key, normalized[key]]));
+}
+
+export const DEFAULT_DRIFT_SETTINGS = Object.freeze(driftSettingsOf({}));
+
+export function equalDriftSettings(a, b) {
+  return DRIFT_SETTINGS_KEYS.every((key) => a?.[key] === b?.[key]);
+}
+
+function normalizeDriftStamps(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return Object.fromEntries(DRIFT_SETTINGS_KEYS.map((key) => {
+    const n = Number(source[key]);
+    return [key, Number.isSafeInteger(n) && n > 0 ? n : 0];
+  }));
+}
+
+// For vault records: every key present with exactly the value storage keeps.
+// normalizeOperatorSettings clamps and defaults silently; a clamped or
+// defaulted value in a vault record means damage, so it is refused.
+export function normalizeDriftSettingsStrict(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("DRIFT_SETTINGS_INVALID");
+  const normalized = driftSettingsOf(value);
+  for (const key of DRIFT_SETTINGS_KEYS) {
+    if (!Object.hasOwn(value, key) || value[key] !== normalized[key]) throw new Error(`DRIFT_SETTINGS_INVALID:${key}`);
+  }
+  return normalized;
+}
+
+// The Drift section of the profile vault: { values, keySavedAtMs }, one save
+// time per setting. Refused when any value or time is missing or out of range.
+const MAX_CLOCK_SKEW_MS = 86400000;
+export function normalizeDriftVaultSettings(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("DRIFT_SETTINGS_INVALID");
+  const values = normalizeDriftSettingsStrict(value.values);
+  const source = value.keySavedAtMs;
+  if (!source || typeof source !== "object" || Array.isArray(source)) throw new Error("DRIFT_SETTINGS_INVALID:keySavedAtMs");
+  const limit = Date.now() + MAX_CLOCK_SKEW_MS;
+  const keySavedAtMs = {};
+  for (const key of DRIFT_SETTINGS_KEYS) {
+    const n = source[key];
+    if (!Number.isSafeInteger(n) || n < 1 || n > limit) throw new Error(`DRIFT_SETTINGS_INVALID:keySavedAtMs.${key}`);
+    keySavedAtMs[key] = n;
+  }
+  return { values, keySavedAtMs };
+}
+
+// A value never saved by an operator, or saved before v1.9.2 (no save time),
+// enters the vault with this time: older than any real save anywhere, newer
+// than "never saved" in another installation.
+export const LEGACY_DRIFT_STAMP = 1;
+
+/**
+ * v1.9.2: per-setting merge of this installation and the vault. For each
+ * setting the newer save wins (a tie with different values goes to the vault,
+ * so every installation converges). A save of one setting therefore never
+ * carries the other seven with it. Pure.
+ *   values/stamps   the merged state for both sides
+ *   adoptedKeys     settings whose value this installation takes from the vault
+ *   localChanged    this installation's record must be rewritten
+ *   vaultWrite      the vault must be (re)written
+ * Without a vault, nothing is seeded while every setting is still a never-saved
+ * default. Save times ahead of `now` (a clock that ran fast) are pulled back.
+ */
+export function mergeDriftSettings(local, vault = null, { now = Date.now() } = {}) {
+  const localValues = driftSettingsOf(local || {});
+  const savedAt = normalizeDriftStamps(local?.driftSettingsSavedAtMs);
+  const values = {};
+  const stamps = {};
+  const adoptedKeys = [];
+  let localChanged = false;
+  let vaultWrite = false;
+  for (const key of DRIFT_SETTINGS_KEYS) {
+    if (savedAt[key] > now) { savedAt[key] = now; localChanged = true; }
+  }
+  if (!vault) {
+    const seed = DRIFT_SETTINGS_KEYS.some((key) => savedAt[key] > 0 || localValues[key] !== DEFAULT_DRIFT_SETTINGS[key]);
+    for (const key of DRIFT_SETTINGS_KEYS) {
+      values[key] = localValues[key];
+      stamps[key] = savedAt[key] || (seed ? LEGACY_DRIFT_STAMP : 0);
+      if (stamps[key] !== savedAt[key]) localChanged = true;
+    }
+    return { values, stamps, adoptedKeys, localChanged, vaultWrite: seed };
+  }
+  for (const key of DRIFT_SETTINGS_KEYS) {
+    const vaultValue = vault.settings.values[key];
+    const vaultAt = vault.settings.keySavedAtMs[key];
+    if (vaultAt > savedAt[key] || (vaultAt === savedAt[key] && vaultValue !== localValues[key])) {
+      values[key] = vaultValue;
+      stamps[key] = vaultAt;
+      if (vaultValue !== localValues[key]) adoptedKeys.push(key);
+      if (vaultValue !== localValues[key] || vaultAt !== savedAt[key]) localChanged = true;
+    } else {
+      values[key] = localValues[key];
+      stamps[key] = savedAt[key];
+      if (localValues[key] !== vaultValue || savedAt[key] !== vaultAt) vaultWrite = true;
+    }
+  }
+  return { values, stamps, adoptedKeys, localChanged, vaultWrite };
 }
 
 async function readLocalOperatorSettings(storage) {
@@ -161,9 +299,20 @@ export async function loadOperatorSettings(
     savedMissions: durable
   });
   if (JSON.stringify(next) !== JSON.stringify(local)) {
-    return writeLocalOperatorSettings(next, storage);
+    return writeSavedMissionsInto(durable, storage);
   }
   return next;
+}
+
+// v1.9.2: the saved-mission paths read the record, then spend time on the
+// bookmark vault. Their write therefore re-reads the record under the write
+// lock and replaces only savedMissions, so a Drift change (an operator save in
+// the other context, a vault adoption) made meanwhile is kept.
+async function writeSavedMissionsInto(savedMissions, storage) {
+  return withOperatorSettingsLock(storage, async () => {
+    const fresh = await readLocalOperatorSettings(storage);
+    return writeLocalOperatorSettings({ ...fresh, savedMissions }, storage);
+  });
 }
 
 export async function saveOperatorSettings(
@@ -171,12 +320,44 @@ export async function saveOperatorSettings(
   storage = defaultStorage(),
   {
     bookmarks = defaultBookmarks(),
-    restoreSavedMissions = true
+    restoreSavedMissions = true,
+    now = Date.now()
   } = {}
 ) {
-  const current = await loadOperatorSettings(storage, { bookmarks, restoreSavedMissions });
-  const next = normalizeOperatorSettings({ ...current, ...patch });
-  return writeLocalOperatorSettings(next, storage);
+  const { driftSettingsSavedAtMs, driftSettingsOrigin, ...operatorPatch } = patch || {};
+  // The saved-mission sync (bookmarks) runs first and takes the lock itself.
+  if (restoreSavedMissions && bookmarks) await loadOperatorSettings(storage, { bookmarks, restoreSavedMissions });
+  return withOperatorSettingsLock(storage, async () => {
+    const current = await readLocalOperatorSettings(requireStorage(storage));
+    const next = normalizeOperatorSettings({ ...current, ...operatorPatch });
+    // v1.9.2: each Drift setting in an operator save gets its own save time,
+    // so the newest save of that setting in the Chrome profile wins.
+    const savedKeys = DRIFT_SETTINGS_KEYS.filter((key) => Object.hasOwn(operatorPatch, key));
+    if (savedKeys.length) {
+      for (const key of savedKeys) next.driftSettingsSavedAtMs[key] = now;
+      next.driftSettingsOrigin = "OPERATOR";
+    }
+    return writeLocalOperatorSettings(next, storage);
+  });
+}
+
+// v1.9.2: bring this installation in line with the vault (mergeDriftSettings),
+// computed inside the write lock on the stored record, so a save that landed
+// after the vault was read is merged, never overwritten. Only the Drift
+// settings, their save times and the origin change.
+export async function reconcileLocalDriftSettings(vault, storage = defaultStorage(), { now = Date.now() } = {}) {
+  return withOperatorSettingsLock(storage, async () => {
+    const local = await readLocalOperatorSettings(requireStorage(storage));
+    const merge = mergeDriftSettings(local, vault, { now });
+    if (!merge.localChanged) return { settings: local, merge };
+    const settings = await writeLocalOperatorSettings({
+      ...local,
+      ...merge.values,
+      driftSettingsSavedAtMs: merge.stamps,
+      driftSettingsOrigin: merge.adoptedKeys.length ? "VAULT" : local.driftSettingsOrigin
+    }, storage);
+    return { settings, merge };
+  });
 }
 
 function savedMissionError(code) {
@@ -256,7 +437,7 @@ export async function saveSavedMission(goal, {
     updatedAt: timestamp
   };
   const durable = await writeSavedMissionRecord(missions, record, { storage, bookmarks });
-  const settings = await writeLocalOperatorSettings({ ...current, savedMissions: durable }, storage);
+  const settings = await writeSavedMissionsInto(durable, storage);
   const saved = settings.savedMissions.find((item) => item.id === missionId);
   if (!saved || saved.goal !== normalizedGoal) throw savedMissionError("SAVED_MISSION_READBACK_MISMATCH");
   return {
@@ -334,7 +515,7 @@ export async function applySavedMissionImport(importedMissions, {
     changes.push({ id: record.id, key: row.key, action: "CREATED", label: record.label });
   }
 
-  const settings = await writeLocalOperatorSettings({ ...current, savedMissions: missions }, storage);
+  const settings = await writeSavedMissionsInto(missions, storage);
   const byKey = savedMissionsByKey(settings.savedMissions);
   for (const row of plan.rows) {
     const saved = byKey.get(row.key) || [];
@@ -354,7 +535,7 @@ export async function deleteMissionPreset(
 ) {
   const current = await loadOperatorSettings(storage, { bookmarks });
   const savedMissions = await removeSavedMissionRecord(current.savedMissions, id, { bookmarks });
-  return writeLocalOperatorSettings({ ...current, savedMissions }, storage);
+  return writeSavedMissionsInto(savedMissions, storage);
 }
 
 export function savedMissionDurabilityContract() {

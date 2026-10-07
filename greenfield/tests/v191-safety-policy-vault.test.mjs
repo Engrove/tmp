@@ -310,14 +310,18 @@ test("v1.9.1 a settled sync is reused for the browser session; a worker restart 
 test("v1.9.1 a hanging bookmark store times out instead of blocking startup", async () => {
   const hanging = mockBookmarks();
   hanging.getTree = () => new Promise(() => {});
-  const starting = harness({ bookmarks: hanging });
-  let timer = null;
-  for (let i = 0; i < 2000 && !timer; i += 1) {
+  let resolved = false;
+  const starting = harness({ bookmarks: hanging }).then((h) => { resolved = true; return h; });
+  // v1.9.2: startup syncs two vault sections (run requirements, Drift
+  // settings); each arms its own 8 s timeout. Fire every armed timeout.
+  const fired = new Set();
+  for (let i = 0; i < 5000 && !resolved; i += 1) {
     await new Promise((resolve) => setImmediate(resolve));
-    timer = (globalThis.__gfHarnessTimers || []).find((t) => t.ms === 8000);
+    for (const timer of globalThis.__gfHarnessTimers || []) {
+      if (timer.ms === 8000 && !fired.has(timer)) { fired.add(timer); timer.fn(); }
+    }
   }
-  assert.ok(timer, "startup armed the vault timeout");
-  timer.fn();
+  assert.ok(fired.size >= 1, "startup armed the vault timeout");
   const h = await starting;
   const fleet = await h.mod.fleetStatusSnapshot();
   assert.equal(fleet.runtimeFault, "");

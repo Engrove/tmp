@@ -46,7 +46,8 @@ export const REASONS = Object.freeze({
   SEND_CONTROL_UNAVAILABLE:"Skicka-knappen är inte tillgänglig",
   NO_FRESH_APPROVED_MODEL_UI:"Ingen öppen worker visar godkänd modell och tänkenivå",
   SAFETY_POLICY_UPDATED:"Körkrav sparade",
-  SAFETY_POLICY_RESTORED:"Körkrav återställda från bokmärkesvalvet"
+  SAFETY_POLICY_RESTORED:"Körkrav återställda från bokmärkesvalvet",
+  DRIFT_SETTINGS_RESTORED:"Driftinställningar återställda från bokmärkesvalvet"
 });
 export function reasonLabel(code) {
   const value=String(code||"");

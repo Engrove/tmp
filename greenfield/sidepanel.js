@@ -12,7 +12,6 @@ import {
   applySavedMissionImport,
   deleteMissionPreset,
   loadOperatorSettings,
-  saveOperatorSettings,
   saveSavedMission
 } from "./lib/operator-settings.mjs";
 import {
@@ -435,7 +434,12 @@ async function updatePostDelay() {
   state.operatorSettingsBusy = true;
   try {
     const postDelaySeconds = Number($("postDelay").value || 0);
-    state.operatorSettings = await saveOperatorSettings({ postDelaySeconds });
+    // v1.9.2: saved by the background like the other Drift settings, so one
+    // context writes them and the profile vault is reconciled in the same step.
+    const result = await chrome.runtime.sendMessage({ type: "EIC_GF_SET_POST_DELAY", postDelaySeconds });
+    if (!result?.ok) throw new Error(result?.error || result?.code || "Pausen kunde inte sparas.");
+    state.operatorSettings = result.operatorSettings || state.operatorSettings;
+    noteDriftVaultResult(result.driftSettingsVault);
     await appendAudit({
       kind: "OPERATOR_POST_DELAY_UPDATED",
       component: "sidepanel-settings",
@@ -470,6 +474,7 @@ async function updateMaxActiveSessions() {
     if (result.globalCapacityScheduler) {
       state.globalCapacityScheduler = result.globalCapacityScheduler;
     }
+    noteDriftVaultResult(result.driftSettingsVault);
   } catch (error) {
     $("statusDetail").textContent = error?.message || String(error);
   } finally {
@@ -1111,6 +1116,36 @@ function renderFleetStatus() {
     for (const [key,value] of Object.entries(policy)) if ($(key)) $(key).value=String(value);
   }
   $("safetyVaultStatus").textContent=safetyVaultText(fleet.safetyVault,u);
+  renderDriftVaultStatus();
+}
+
+// v1.9.2: where the Drift settings survive a new installation folder.
+function driftVaultText(vault,settings={}) {
+  const at=ms=>Number(ms) > 0 ? new Date(Number(ms)).toLocaleString("sv-SE") : "–";
+  const head="Bokmärkesvalv (driftinställningar):";
+  switch (vault?.state) {
+    case "RESTORED": return `${head} ${(vault.adoptedKeys || []).length} värde(n) hämtade från valvet (senast sparat ${at(vault.savedAtMs)}).`;
+    case "SAVED": return `${head} sparade ${at(vault.savedAtMs)}. Följer med till nya installationsmappar i denna Chrome-profil.`;
+    case "IN_SYNC": return settings.driftSettingsOrigin==="VAULT"
+      ? `${head} hämtade från valvet och stämmer med det (senast sparat ${at(vault.savedAtMs)}).`
+      : `${head} stämmer med valvet (senast sparat ${at(vault.savedAtMs)}).`;
+    case "EMPTY": return `${head} inget giltigt sparat värde. Värdena gäller tills du sparar; inställningar sparade i en äldre version än 1.9.2 finns bara kvar i den gamla installationen.`;
+    case "WRITE_FAILED":
+    case "ERROR": return `${head} kunde inte läsas eller uppdateras (${vault.error || "okänt fel"}). Sparade värden gäller i denna installation; valvet stäms av vid nästa start eller sparning, inställning för inställning, så inget av valvets andra värden går förlorat.`;
+    case "UNAVAILABLE": return `${head} inte tillgängligt. Värdena gäller bara denna installation.`;
+    default: return `${head} kontrolleras vid start.`;
+  }
+}
+function renderDriftVaultStatus() {
+  const text=driftVaultText(state.fleetStatus?.driftSettingsVault,state.operatorSettings || {});
+  for (const id of ["driftVaultStatus","driftVaultStatusRuntime"]) if ($(id)) $(id).textContent=text;
+}
+// After a save: show the vault outcome in the two status lines now, not at the
+// next status poll (statusDetail is rewritten on every render).
+function noteDriftVaultResult(vault) {
+  if (!vault) return;
+  state.fleetStatus={...(state.fleetStatus || {}),driftSettingsVault:vault};
+  renderDriftVaultStatus();
 }
 
 // v1.9.1: where the run requirements survive a new installation folder.
@@ -1479,6 +1514,7 @@ async function saveQueueSettings() {
     // Saved: show the stored (normalised) values again. A failed save keeps
     // the edits on screen, marked unsaved.
     for (const id of QUEUE_SETTING_CONTROLS) releaseControl($(id));
+    noteDriftVaultResult(result.driftSettingsVault);
   } catch (error) {
     $("statusDetail").textContent = error?.message || String(error);
   } finally {
@@ -2396,7 +2432,7 @@ $("importRecoveryFile").addEventListener("change",async event=>{
     if(file.size>32*1024*1024)throw Error("BACKUP_SIZE_INVALID");
     const backupJson=await file.text();JSON.parse(backupJson);
     const result=await safetyAction("EIC_GF_IMPORT_RECOVERY",{backupJson});
-    $("backupResult").textContent=`Återläst pausat: ${result.restored.processes} processer och ${result.restored.queues} köer. Kontrollera tidigare effekter i EIC innan du startar nytt arbete.${result.fleetStatus?.safetyVault?.state==="RESTORED" ? " Körkraven togs från bokmärkesvalvet, som har en senare sparning än kopian." : ""}`;
+    $("backupResult").textContent=`Återläst pausat: ${result.restored.processes} processer och ${result.restored.queues} köer. Kontrollera tidigare effekter i EIC innan du startar nytt arbete.${result.fleetStatus?.safetyVault?.state==="RESTORED" ? " Körkraven togs från bokmärkesvalvet, som har en senare sparning än kopian." : ""}${result.fleetStatus?.driftSettingsVault?.state==="RESTORED" ? " Driftinställningarna togs från bokmärkesvalvet, som har en senare sparning än kopian." : ""}`;
   }catch(error){$("backupResult").textContent=reasonLabel(error.message);}
 });
 
@@ -2441,7 +2477,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.9.1" }
+      payload: { appVersion: "1.9.2" }
     });
     await snapshot();
   } catch (error) {
