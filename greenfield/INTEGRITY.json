@@ -1,16 +1,16 @@
 {
   "schema": "eic.greenfield.integrity.v1",
   "appVersion": "1.9.1",
-  "generatedAt": "2026-10-07T04:25:41.561886+00:00",
+  "generatedAt": "2026-10-07T04:34:44.166629+00:00",
   "algorithm": "SHA-256",
   "fileCount": 432,
-  "rootDigest": "09cddae638c6feede5acf9e8a303b8f30eda92699a596d33a010746e7013829e",
+  "rootDigest": "e522abfeb60b1515011b4eeeaf191c21fb0bfb6eeaa8909b16e2e03523ac8c5c",
   "scope": "all package files except INTEGRITY.json",
   "rootDigestCanonicalization": "sorted relative path + NUL + sizeBytes + NUL + sha256 + LF",
   "files": {
     "BUILD_VERIFICATION.json": {
       "sizeBytes": 8674,
-      "sha256": "458201d37f26337295c712e717e4b25ca5e0c32f5ee9f44f88bd35d62382ca4f"
+      "sha256": "322aee48a93d2875499fc1d1d66547401cb5d609f3278b42a4b1687c8e88cc9a"
     },
     "README.md": {
       "sizeBytes": 40177,
@@ -129,16 +129,16 @@
       "sha256": "717e021d61b0175a21a0c9e769f0717f8bd6475db15302fd90499ed5d9a95bf2"
     },
     "UPPDATERA_TILL_1_9_1.md": {
-      "sizeBytes": 6275,
-      "sha256": "98096490fc62564dd266edfb4ea01ad7f83eed514af3b3d5d2efa7a2d0263655"
+      "sizeBytes": 6325,
+      "sha256": "7486144d8d586c1e166103c71fc82efb071eadf2e6937de8f2002e684a06e13a"
     },
     "VERSION": {
       "sizeBytes": 6,
       "sha256": "0ab4fa190ca1b1d1f630ac87cf34672bfbaf1395d0148c7568d38e58335b8d68"
     },
     "background.js": {
-      "sizeBytes": 413415,
-      "sha256": "2fcdcce0d6f1b63445cab7f4c2d3091e9d356baa6607087f130f57b4a40f1579"
+      "sizeBytes": 413616,
+      "sha256": "d14707928e9ffab9d75c2d3de176daa6a76f901bab517da74349daa332245c71"
     },
     "content.js": {
       "sizeBytes": 61681,
@@ -1133,8 +1133,8 @@
       "sha256": "9f8899067c4809951ae712508ddde48574dc022c1ac619923217f153914126d7"
     },
     "tests/v191-safety-policy-vault.test.mjs": {
-      "sizeBytes": 20354,
-      "sha256": "8daaca077fb9c6ff3417040df83b310e4f71d85757a79a41a5a9a54a16c53eeb"
+      "sizeBytes": 21169,
+      "sha256": "6d01625ca8e4b88550a6a0e82e13edf4c440d36bf7796dae21e6cdece70d12cf"
     },
     "tools/replay-dispatch-audit.mjs": {
       "sizeBytes": 4500,
@@ -1217,8 +1217,8 @@
       "sha256": "dbf6c545172798a49115dffea3345a4fc47cae93297a86ce4707db89bb054137"
     },
     "verification/release-tests.tap": {
-      "sizeBytes": 176794,
-      "sha256": "c045558ee4b607bc8b7c41d28a7d459ea8578f78c339e8b28b1f69d365d214d1"
+      "sizeBytes": 177056,
+      "sha256": "519fb42afbfce6296420b6a1f9c8f1e10125c1f8bb66bddccec48a4f83c3254c"
     },
     "verification/static-verification.json": {
       "sizeBytes": 210,
@@ -1689,8 +1689,8 @@
       "sha256": "aba6ca82cba7a7bbbd10fbf202d40daa356351cb8d09bc32de196a5533167142"
     },
     "verification/v191-negative-v190.txt": {
-      "sizeBytes": 2176,
-      "sha256": "2c9ce2f6500924009a4747b55d52419c1355827d07de48a13806e68885850869"
+      "sizeBytes": 2278,
+      "sha256": "7f9b33f122cebae06378687c53c8cedde116012cc013f25726f46a230a19390c"
     },
     "verification/v191-panel-edit-guard-regression.json": {
       "sizeBytes": 3139,
@@ -1702,7 +1702,7 @@
     },
     "verification/v191-release-summary.json": {
       "sizeBytes": 8996,
-      "sha256": "86b841b9ee4f3c971deb0a6e9ad78c68a7eb69792b12b06bfb1235d3c7e677a4"
+      "sha256": "64e91c3c143ca9616f8d70205b4a8853da4988fb5e3eb222301da11115adda73"
     },
     "verification/v191-reserved-slot-panel-regression.json": {
       "sizeBytes": 2609,
@@ -1710,11 +1710,11 @@
     },
     "verification/v191-safety-policy-vault-browser.json": {
       "sizeBytes": 13723,
-      "sha256": "8cac3a47510f508856e87878628e7e7e2cee96de3ef472e0eb828b72c82f0324"
+      "sha256": "409ce5d1800189215672ca7020df7d702523271a6609eef713175e1162e64311"
     },
     "verification/v191-safety-policy-vault.tap": {
-      "sizeBytes": 3971,
-      "sha256": "f4ebdb26b82985e791ebfe4f49b67a4307ee5039e327ac06a4e64526ae948fbe"
+      "sizeBytes": 4224,
+      "sha256": "c23cd245755d79fdae1435f07f01b1abef410484f367bb39927de989c0f816b9"
     },
     "verification/v191-saved-mission-admin-regression.txt": {
       "sizeBytes": 1504,

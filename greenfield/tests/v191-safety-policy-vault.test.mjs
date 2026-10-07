@@ -325,3 +325,16 @@ test("v1.9.1 a hanging bookmark store times out instead of blocking startup", as
   assert.match(fleet.safetyVault.error, /SAFETY_POLICY_VAULT_TIMEOUT/);
   assert.equal(await h.chrome.storage.session.get("eic.gf.safety-vault-status.v1").then((r) => r["eic.gf.safety-vault-status.v1"]), undefined, "a failed sync is retried at the next worker start");
 });
+
+test("v1.9.1 a save stamped ahead of the corrected clock still seeds the vault (clamped to now)", async () => {
+  // Saved while the system clock ran 3 days fast; the clock has since been corrected.
+  const skewed = memory();
+  await writeCheckpoint(SAFETY_KEY, { ...legacyRecord(OPERATOR), policyUpdatedAtMs: Date.now() + 3 * 86400000, policyOrigin: "OPERATOR" }, skewed);
+  const profile = mockBookmarks();
+  const a = await harness({ seed: skewed.state, bookmarks: profile });
+  const fleet = await a.mod.fleetStatusSnapshot();
+  assert.equal(fleet.safetyVault.state, "SAVED", JSON.stringify(fleet.safetyVault));
+  assert.ok(fleet.safetyVault.savedAtMs <= Date.now());
+  const b = await harness({ bookmarks: profile });
+  assert.deepEqual(pick((await b.mod.fleetStatusSnapshot()).safety.policy), OPERATOR);
+});

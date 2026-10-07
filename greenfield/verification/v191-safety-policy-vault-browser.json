@@ -1,12 +1,12 @@
 {
   "schema": "eic.greenfield.v191-safety-policy-vault-browser.v1",
-  "generatedAt": "2026-10-07T04:19:12.618Z",
+  "generatedAt": "2026-10-07T04:32:18.742Z",
   "tree": "1.9.1",
   "baseline": "1.9.0",
   "scenarios": {
     "newFolder": {
       "a": {
-        "extensionId": "gbgjfjjcipnjgfkpejknikammdlikibh",
+        "extensionId": "mnkdfeongpgipndjfnpddhebjepfhgkf",
         "before": {
           "form": {
             "requiredModel": "GPT-5.6",
@@ -25,7 +25,7 @@
             "runtimeFault": "",
             "safetyVault": {
               "state": "EMPTY",
-              "atMs": 1791346753266,
+              "atMs": 1791347539427,
               "folder": "EIC Greenfield · Run requirements v1",
               "savedAtMs": null,
               "reason": "DEFAULTS_NO_VAULT"
@@ -49,20 +49,20 @@
             "maxPromptTokens": "30000",
             "outputReserveTokens": "8192"
           },
-          "vaultText": "Bokmärkesvalv: sparat 2026-10-07 04:19:17. Följer med till nya installationsmappar i denna Chrome-profil.",
+          "vaultText": "Bokmärkesvalv: sparat 2026-10-07 04:32:23. Följer med till nya installationsmappar i denna Chrome-profil.",
           "background": {
             "appVersion": "1.9.1",
             "runtimeFault": "",
             "safetyVault": {
               "state": "SAVED",
-              "atMs": 1791346757534,
+              "atMs": 1791347543722,
               "folder": "EIC Greenfield · Run requirements v1",
-              "savedAtMs": 1791346757512,
+              "savedAtMs": 1791347543697,
               "reason": "OPERATOR_SAVE"
             },
             "policyOrigin": "OPERATOR",
             "lastSafetyEvent": {
-              "atMs": 1791346757512,
+              "atMs": 1791347543697,
               "code": "SAFETY_POLICY_UPDATED",
               "detail": "messages3h 24→48, messages24h 96→256, messages7d 400→1024, tokens24h 800000→3600000, maxPromptTokens 24000→30000"
             }
@@ -83,7 +83,7 @@
         "pageErrors": []
       },
       "b": {
-        "extensionId": "ddbedhagokobldobbjjhanmapjmfjnkj",
+        "extensionId": "hiiipdimjknolgdjkpjhelplmcecomfm",
         "observed": {
           "form": {
             "requiredModel": "GPT-5.6",
@@ -96,22 +96,22 @@
             "maxPromptTokens": "30000",
             "outputReserveTokens": "8192"
           },
-          "vaultText": "Bokmärkesvalv: körkraven återställdes från valvet (sparade 2026-10-07 04:19:17).",
+          "vaultText": "Bokmärkesvalv: körkraven återställdes från valvet (sparade 2026-10-07 04:32:23).",
           "background": {
             "appVersion": "1.9.1",
             "runtimeFault": "",
             "safetyVault": {
               "state": "RESTORED",
-              "atMs": 1791346764386,
+              "atMs": 1791347550484,
               "folder": "EIC Greenfield · Run requirements v1",
-              "savedAtMs": 1791346757512,
+              "savedAtMs": 1791347543697,
               "reason": "LOCAL_HAS_NO_SAVE_TIME"
             },
             "policyOrigin": "VAULT",
             "lastSafetyEvent": {
-              "atMs": 1791346764378,
+              "atMs": 1791347550464,
               "code": "SAFETY_POLICY_RESTORED",
-              "detail": "bookmark vault 2026-10-07T04:19:17.512Z: messages3h 24→48, messages24h 96→256, messages7d 400→1024, tokens24h 800000→3600000, maxPromptTokens 24000→30000"
+              "detail": "bookmark vault 2026-10-07T04:32:23.697Z: messages3h 24→48, messages24h 96→256, messages7d 400→1024, tokens24h 800000→3600000, maxPromptTokens 24000→30000"
             }
           },
           "vaultBookmarks": [
@@ -136,7 +136,7 @@
     },
     "negativeControlBaseline": {
       "a": {
-        "extensionId": "eddndefllkfddocmdilnaeifpmpdhnml",
+        "extensionId": "nnddimmmlknjbkagjmdbdhfbhacoindo",
         "before": {
           "form": {
             "requiredModel": "GPT-5.6",
@@ -180,7 +180,7 @@
             "safetyVault": null,
             "policyOrigin": null,
             "lastSafetyEvent": {
-              "atMs": 1791346774100,
+              "atMs": 1791347560103,
               "code": "SAFETY_POLICY_UPDATED",
               "detail": "messages3h 24→48, messages24h 96→256, messages7d 400→1024, tokens24h 800000→3600000, maxPromptTokens 24000→30000"
             }
@@ -191,7 +191,7 @@
         "pageErrors": []
       },
       "b": {
-        "extensionId": "aecncmgcnfejbkjjecbbmhcmfgknognd",
+        "extensionId": "dmefjfpkgigbhdmjmhlfcedlcigmkbnl",
         "observed": {
           "form": {
             "requiredModel": "GPT-5.6",
@@ -223,7 +223,7 @@
     },
     "upgradeInPlace": {
       "x1": {
-        "extensionId": "ljalfpklcpebebhiolnpkoijfbjmaaol",
+        "extensionId": "oojnafbnbpalodmlpkehhfononlpnpbm",
         "before": {
           "form": {
             "requiredModel": "GPT-5.6",
@@ -267,7 +267,7 @@
             "safetyVault": null,
             "policyOrigin": null,
             "lastSafetyEvent": {
-              "atMs": 1791346791413,
+              "atMs": 1791347577369,
               "code": "SAFETY_POLICY_UPDATED",
               "detail": "messages3h 24→48, messages24h 96→256, messages7d 400→1024, tokens24h 800000→3600000, maxPromptTokens 24000→30000"
             }
@@ -278,7 +278,7 @@
         "pageErrors": []
       },
       "x2": {
-        "extensionId": "ljalfpklcpebebhiolnpkoijfbjmaaol",
+        "extensionId": "oojnafbnbpalodmlpkehhfononlpnpbm",
         "beforeReload": {
           "form": {
             "requiredModel": "GPT-5.6",
@@ -298,7 +298,7 @@
             "safetyVault": null,
             "policyOrigin": null,
             "lastSafetyEvent": {
-              "atMs": 1791346791413,
+              "atMs": 1791347577369,
               "code": "SAFETY_POLICY_UPDATED",
               "detail": "messages3h 24→48, messages24h 96→256, messages7d 400→1024, tokens24h 800000→3600000, maxPromptTokens 24000→30000"
             }
@@ -318,20 +318,20 @@
             "maxPromptTokens": "30000",
             "outputReserveTokens": "8192"
           },
-          "vaultText": "Bokmärkesvalv: sparat 2026-10-07 04:20:05. Följer med till nya installationsmappar i denna Chrome-profil.",
+          "vaultText": "Bokmärkesvalv: sparat 2026-10-07 04:33:11. Följer med till nya installationsmappar i denna Chrome-profil.",
           "background": {
             "appVersion": "1.9.1",
             "runtimeFault": "",
             "safetyVault": {
               "state": "SAVED",
-              "atMs": 1791346805785,
+              "atMs": 1791347591622,
               "folder": "EIC Greenfield · Run requirements v1",
-              "savedAtMs": 1791346805777,
+              "savedAtMs": 1791347591613,
               "reason": "VAULT_EMPTY_LEGACY_LOCAL_POLICY"
             },
             "policyOrigin": "",
             "lastSafetyEvent": {
-              "atMs": 1791346791413,
+              "atMs": 1791347577369,
               "code": "SAFETY_POLICY_UPDATED",
               "detail": "messages3h 24→48, messages24h 96→256, messages7d 400→1024, tokens24h 800000→3600000, maxPromptTokens 24000→30000"
             }
@@ -352,7 +352,7 @@
         "pageErrors": []
       },
       "y": {
-        "extensionId": "jkjmkffmhiekgogfhaboilnfllmghdfa",
+        "extensionId": "ichjaipdpieldlhngapokpioejkgdbbb",
         "observed": {
           "form": {
             "requiredModel": "GPT-5.6",
@@ -365,22 +365,22 @@
             "maxPromptTokens": "30000",
             "outputReserveTokens": "8192"
           },
-          "vaultText": "Bokmärkesvalv: körkraven återställdes från valvet (sparade 2026-10-07 04:20:05).",
+          "vaultText": "Bokmärkesvalv: körkraven återställdes från valvet (sparade 2026-10-07 04:33:11).",
           "background": {
             "appVersion": "1.9.1",
             "runtimeFault": "",
             "safetyVault": {
               "state": "RESTORED",
-              "atMs": 1791346814589,
+              "atMs": 1791347600352,
               "folder": "EIC Greenfield · Run requirements v1",
-              "savedAtMs": 1791346805777,
+              "savedAtMs": 1791347591613,
               "reason": "LOCAL_HAS_NO_SAVE_TIME"
             },
             "policyOrigin": "VAULT",
             "lastSafetyEvent": {
-              "atMs": 1791346814580,
+              "atMs": 1791347600338,
               "code": "SAFETY_POLICY_RESTORED",
-              "detail": "bookmark vault 2026-10-07T04:20:05.777Z: messages3h 24→48, messages24h 96→256, messages7d 400→1024, tokens24h 800000→3600000, maxPromptTokens 24000→30000"
+              "detail": "bookmark vault 2026-10-07T04:33:11.613Z: messages3h 24→48, messages24h 96→256, messages7d 400→1024, tokens24h 800000→3600000, maxPromptTokens 24000→30000"
             }
           },
           "vaultBookmarks": [

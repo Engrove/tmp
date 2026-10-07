@@ -75,7 +75,7 @@ Sparade uppdrag och kö-set överlevde redan ett nytt ID, eftersom de sedan tidi
 
 ## 4. Kontroller i leveransen
 
-- `node --test tests/v191-safety-policy-vault.test.mjs`: 15 tester. De täcker valvets skrivning, läsning och felvägar, regeln om senaste sparning, uppgradering på plats, ny mapp, skrivfel, ett låst bokmärkes-API och tidsgränsen.
+- `node --test tests/v191-safety-policy-vault.test.mjs`: 16 tester. De täcker valvets skrivning, läsning och felvägar, regeln om senaste sparning, uppgradering på plats, ny mapp, skrivfel, ett låst bokmärkes-API, tidsgränsen och en sparning gjord när datorns klocka gick före.
 - Hela sviten: `npm test`.
 - Chromium (Playwright, riktig Chrome-profil):
   - spara i mapp A, ladda mapp B → återställt;

@@ -9646,7 +9646,10 @@ async function setSafetyVaultStatus(state,extra={}) {
   return safetyVaultStatus;
 }
 async function writeSafetyPolicyToVault(v) {
-  return withSafetyVaultTimeout(writeSafetyPolicyVault({policy:v.policy,savedAtMs:Number(v.policyUpdatedAtMs || 0) || Date.now(),appVersion:APP_VERSION},{bookmarks:chrome.bookmarks,normalizePolicy:Safety.normalizePolicy}));
+  // Never stamp the vault ahead of the clock: a save made while the clock ran
+  // fast would otherwise be rejected as far-future after the clock is corrected.
+  const savedAtMs=Math.min(Number(v.policyUpdatedAtMs || 0) || Date.now(),Date.now());
+  return withSafetyVaultTimeout(writeSafetyPolicyVault({policy:v.policy,savedAtMs,appVersion:APP_VERSION},{bookmarks:chrome.bookmarks,normalizePolicy:Safety.normalizePolicy}));
 }
 async function syncSafetyPolicyVault(reason,{force=false}={}) {
   if (!chrome.bookmarks?.getTree) return setSafetyVaultStatus("UNAVAILABLE",{error:"chrome.bookmarks saknas"});

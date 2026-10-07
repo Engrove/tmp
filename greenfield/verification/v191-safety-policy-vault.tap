@@ -2,99 +2,105 @@ TAP version 13
 # Subtest: v1.9.1 vault: write/load round trip in its own profile folder, one committed copy, no stage left
 ok 1 - v1.9.1 vault: write/load round trip in its own profile folder, one committed copy, no stage left
   ---
-  duration_ms: 11.283936
+  duration_ms: 12.66868
   type: 'test'
   ...
 # Subtest: v1.9.1 vault: damaged, foreign or out-of-range content reads as absent, never as a policy
 ok 2 - v1.9.1 vault: damaged, foreign or out-of-range content reads as absent, never as a policy
   ---
-  duration_ms: 2.42582
+  duration_ms: 3.54324
   type: 'test'
   ...
 # Subtest: v1.9.1 vault: a failed write removes its stage and keeps the previous committed copy
 ok 3 - v1.9.1 vault: a failed write removes its stage and keeps the previous committed copy
   ---
-  duration_ms: 1.354117
+  duration_ms: 2.009929
   type: 'test'
   ...
 # Subtest: v1.9.1 plan: the newest operator save in the profile wins; defaults never seed the vault
 ok 4 - v1.9.1 plan: the newest operator save in the profile wins; defaults never seed the vault
   ---
-  duration_ms: 1.575233
+  duration_ms: 2.159726
   type: 'test'
   ...
 # Subtest: v1.9.1 governor: an operator save is stamped; adoption is re-checked inside the journal lock
 ok 5 - v1.9.1 governor: an operator save is stamped; adoption is re-checked inside the journal lock
   ---
-  duration_ms: 19.697201
+  duration_ms: 27.753712
   type: 'test'
   ...
 # Subtest: v1.9.1 reported bug: körkrav saved in one folder are restored when Greenfield is loaded from a new folder
 ok 6 - v1.9.1 reported bug: körkrav saved in one folder are restored when Greenfield is loaded from a new folder
   ---
-  duration_ms: 409.542803
+  duration_ms: 318.629192
   type: 'test'
   ...
 # Subtest: v1.9.1 negative control: a new folder without the profile vault starts from the defaults (the v1.9.0 symptom)
 ok 7 - v1.9.1 negative control: a new folder without the profile vault starts from the defaults (the v1.9.0 symptom)
   ---
-  duration_ms: 279.095971
+  duration_ms: 267.765458
   type: 'test'
   ...
 # Subtest: v1.9.1 upgrade in place: v1.9.0 values without a save time seed the vault and then follow to a new folder
 ok 8 - v1.9.1 upgrade in place: v1.9.0 values without a save time seed the vault and then follow to a new folder
   ---
-  duration_ms: 295.421605
+  duration_ms: 312.900176
   type: 'test'
   ...
 # Subtest: v1.9.1 newest save wins across two installation folders in the same profile
 ok 9 - v1.9.1 newest save wins across two installation folders in the same profile
   ---
-  duration_ms: 663.22003
+  duration_ms: 586.671789
   type: 'test'
   ...
 # Subtest: v1.9.1 a failed vault write keeps the local save, is reported, and is retried at the next start
 ok 10 - v1.9.1 a failed vault write keeps the local save, is reported, and is retried at the next start
   ---
-  duration_ms: 413.420216
+  duration_ms: 380.128595
   type: 'test'
   ...
 # Subtest: v1.9.1 an unreadable bookmark store never blocks startup or the local save
 ok 11 - v1.9.1 an unreadable bookmark store never blocks startup or the local save
   ---
-  duration_ms: 338.275084
+  duration_ms: 256.045407
   type: 'test'
   ...
 # Subtest: v1.9.1 vault: a readback failure after the commit keeps the new copy; an interrupted stage is purged
 ok 12 - v1.9.1 vault: a readback failure after the commit keeps the new copy; an interrupted stage is purged
   ---
-  duration_ms: 1.375187
+  duration_ms: 1.374162
   type: 'test'
   ...
 # Subtest: v1.9.1 vault: incomplete or far-future records are rejected; the newest of two committed copies wins
 ok 13 - v1.9.1 vault: incomplete or far-future records are rejected; the newest of two committed copies wins
   ---
-  duration_ms: 0.94405
+  duration_ms: 0.850415
   type: 'test'
   ...
 # Subtest: v1.9.1 a settled sync is reused for the browser session; a worker restart does not reread bookmarks
 ok 14 - v1.9.1 a settled sync is reused for the browser session; a worker restart does not reread bookmarks
   ---
-  duration_ms: 488.350901
+  duration_ms: 412.853928
   type: 'test'
   ...
 # Subtest: v1.9.1 a hanging bookmark store times out instead of blocking startup
 ok 15 - v1.9.1 a hanging bookmark store times out instead of blocking startup
   ---
-  duration_ms: 160.842517
+  duration_ms: 203.412903
   type: 'test'
   ...
-1..15
-# tests 15
+# Subtest: v1.9.1 a save stamped ahead of the corrected clock still seeds the vault (clamped to now)
+ok 16 - v1.9.1 a save stamped ahead of the corrected clock still seeds the vault (clamped to now)
+  ---
+  duration_ms: 334.349713
+  type: 'test'
+  ...
+1..16
+# tests 16
 # suites 0
-# pass 15
+# pass 16
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 3195.617409
+# duration_ms 3256.054435

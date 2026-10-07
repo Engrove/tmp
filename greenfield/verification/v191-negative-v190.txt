@@ -19,6 +19,7 @@ ok 12 - v1.9.1 vault: a readback failure after the commit keeps the new copy; an
 ok 13 - v1.9.1 vault: incomplete or far-future records are rejected; the newest of two committed copies wins
 not ok 14 - v1.9.1 a settled sync is reused for the browser session; a worker restart does not reread bookmarks
 not ok 15 - v1.9.1 a hanging bookmark store times out instead of blocking startup
-# tests 15
+not ok 16 - v1.9.1 a save stamped ahead of the corrected clock still seeds the vault (clamped to now)
+# tests 16
 # pass 7
-# fail 8
+# fail 9
