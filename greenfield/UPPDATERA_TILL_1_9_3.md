@@ -108,7 +108,7 @@ Id:n (`itemId`) finns bara för den aktuella platsen, och COMPACT hänvisar till
   - **Metod-id:t är en konstant, inte en inställning.** EIC-ägarens aktuella metod vinner oavsett vilket id prompten anger, så en panelinställning skulle inte ge någon styrning.
 - **Linter för C01–C20.** Den kontrollerar varje prompt innan den postas. Bara text som Greenfield själv skriver granskas; uppdrag, mission och operatörsinstruktioner är data. Ett fynd stoppar posten (`A2A_PROMPT_LINT_FAILED`). Alla meddelandetyper, kvantpositioner och profiler passerar.
 - **Lokal analys.**
-  - **Lokal DONE.** Hjalmar D2 kan inte längre avsluta ett uppdrag på egen hand. Bara EIC:s status DONE, STOP_PROCESS eller ett godkänt COMPLETE_MISSION avslutar.
+  - **Lokal DONE.** Hjalmar D2 kan inte längre avsluta ett uppdrag på egen hand. Bara EIC:s status DONE, STOP_PROCESS eller ett godkänt COMPLETE_MISSION avslutar. Säger den lokala analysen DONE två gånger i rad utan att EIC har lämnat varken terminalstatus eller handoff, blir uppdraget BLOCKED och operatören avgör. Greenfield fortsätter då inte i en evig slinga.
   - **Nano blockerar aldrig.** Ett okänt Nano-resultat, en saknad lokal modell eller en Nano som inte svarar blockerar inte uppdraget och stoppar inte starten (C14/F16). Nano-uppgiften spelas aldrig upp igen.
   - **Etikett i prompten.** Greenfields lokala analys beskrivs nu som valfri och rådgivande, aldrig som ägarbevis.
   - **Hjalmars input.** Hjalmar får nästa interaktions position.

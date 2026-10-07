@@ -208,11 +208,19 @@ test("F18 repeated no-delta: the replanned continuation offers a truthful no-del
 test("v1.9.3 local advisory DONE never closes a mission without an EIC terminal status", () => {
   const cont = resolveGreenfieldControl({ targetDisposition: "CONTINUE", targetNextSuggestedAction: "Next slice.", decision: { disposition: "DONE" } });
   assert.equal(cont.state, "ACTIVE");
+  assert.equal(cont.reason, "ADVISORY_DONE_EIC_CONTINUES");
   assert.equal(cont.effectiveDisposition, "CONTINUE");
   assert.equal(cont.effectiveNextPrompt, "Next slice.");
   const unknown = resolveGreenfieldControl({ targetDisposition: "UNKNOWN", decision: { disposition: "DONE" } });
   assert.equal(unknown.state, "ACTIVE");
   assert.match(unknown.effectiveNextPrompt, /Return status=DONE only with supported owner-verified terminal closure/);
+  // No unbounded generic loop: a second advisory DONE without any EIC
+  // terminal status or handoff goes to the operator.
+  const again = resolveGreenfieldControl({ targetDisposition: "UNKNOWN", decision: { disposition: "DONE" }, previousReason: unknown.reason });
+  assert.equal(again.reason, "ADVISORY_DONE_REPEATED_WITHOUT_EIC_TERMINAL");
+  assert.equal(again.effectiveDisposition, "BLOCKED");
+  const afterEicHandoff = resolveGreenfieldControl({ targetDisposition: "UNKNOWN", decision: { disposition: "DONE" }, previousReason: "ADVISORY_DONE_EIC_CONTINUES" });
+  assert.equal(afterEicHandoff.reason, "ADVISORY_DONE_WITHOUT_EIC_TERMINAL");
   const blocked = resolveGreenfieldControl({ targetDisposition: "BLOCKED", decision: { disposition: "DONE" } });
   assert.equal(blocked.effectiveDisposition, "BLOCKED");
   const eicDone = resolveGreenfieldControl({ targetDisposition: "DONE", decision: { disposition: "CONTINUE", nextPrompt: "x" } });

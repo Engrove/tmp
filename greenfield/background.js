@@ -7415,7 +7415,8 @@ async function tickAnalyzing(process) {
       decision: modelControllerDecision,
       nanoTask: result.nanoTask,
       sessionAction: result.targetResponse?.sessionAction || "KEEP",
-      terminalControl: runtimeControl.terminal
+      terminalControl: runtimeControl.terminal,
+      previousReason: current.greenfieldControl?.reason || ""
     });
     const d = applyGreenfieldControlToDecision(modelControllerDecision, greenfieldControl);
     const controllerValidation = validateHjalmarDecision(d);

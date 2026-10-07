@@ -56,7 +56,9 @@ export function resolveGreenfieldControl({
   decision = null,
   nanoTask = null,
   sessionAction = "KEEP",
-  terminalControl = null
+  terminalControl = null,
+  // v1.9.3: reason of the previous turn's control decision.
+  previousReason = ""
 } = {}) {
   const target = upper(targetDisposition, "UNKNOWN");
   const nextSuggestedAction = trim(targetNextSuggestedAction);
@@ -158,6 +160,31 @@ export function resolveGreenfieldControl({
         state: GREENFIELD_STATES.ACTIVE,
         action: GREENFIELD_ACTIONS.BLOCK,
         reason: "ADVISORY_DONE_TARGET_BLOCKED",
+        hardStop: true,
+        effectiveDisposition: "BLOCKED",
+        effectiveNextPrompt: "",
+        controllerOverride: true
+      };
+    }
+    if (handoff && target === "CONTINUE") {
+      return {
+        state: GREENFIELD_STATES.ACTIVE,
+        action: GREENFIELD_ACTIONS.NEXT,
+        reason: "ADVISORY_DONE_EIC_CONTINUES",
+        hardStop: false,
+        effectiveDisposition: "CONTINUE",
+        effectiveNextPrompt: handoff,
+        controllerOverride: true
+      };
+    }
+    // Twice in a row without any EIC terminal status or handoff: the EIC is
+    // not closing the mission and gives no next step; an operator decides
+    // instead of an unbounded generic loop.
+    if (upper(previousReason) === "ADVISORY_DONE_WITHOUT_EIC_TERMINAL") {
+      return {
+        state: GREENFIELD_STATES.ACTIVE,
+        action: GREENFIELD_ACTIONS.BLOCK,
+        reason: "ADVISORY_DONE_REPEATED_WITHOUT_EIC_TERMINAL",
         hardStop: true,
         effectiveDisposition: "BLOCKED",
         effectiveNextPrompt: "",
