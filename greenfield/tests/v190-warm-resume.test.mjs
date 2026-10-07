@@ -83,11 +83,13 @@ async function tickUntil(h, t, predicate, max = 80) {
 }
 
 // Parks the active slot with a captured CONTINUE answer in `conversation`
-// (v1.8.14 queue boundary, quantum 1/1) and returns the activated next slot.
-async function answerAndPark(h, p, conversation, text = answer()) {
+// (v1.8.14 queue boundary) and returns the activated next slot.
+// completedBefore overrides the slot's completed interactions before this one.
+async function answerAndPark(h, p, conversation, text = answer(), { completedBefore = null } = {}) {
   const hash = await sha256Hex(text);
   await saveProcess({
     ...p,
+    ...(completedBefore === null ? {} : { queueContext: { ...p.queueContext, interactionCount: completedBefore } }),
     phase: "ANALYZING",
     lastManagedUrl: conversation,
     lastResponse: {
@@ -99,16 +101,20 @@ async function answerAndPark(h, p, conversation, text = answer()) {
   return h.mod.tickAnalyzing(await loadProcessForWindow(1));
 }
 
-async function queueOfTwo({ settings = {} } = {}) {
+// v1.9.3: warm resume applies only to an unfinished quantum, so by default A
+// (max 5) yields early at interaction 1/5 and comes back at 2/5; B has max 1.
+const EARLY_YIELD = answer({ sessionAction: "YIELD_TO_QUEUE", sessionReason: "Queue turn." });
+
+async function queueOfTwo({ settings = {}, maxA = 5, maxB = 1, aAnswer = EARLY_YIELD, aCompletedBefore = null } = {}) {
   const t = clock();
   const seed = Object.keys(settings).length ? { [OPERATOR_SETTINGS_KEY]: normalizeOperatorSettings(settings) } : {};
   const h = await harness({ seed, extraExports: ["startMissionQueue", "tickRotating"] });
   h.chrome.offscreen = { createDocument: async () => {}, hasDocument: async () => true };
   followNavigation(h);
   const worker = await ensureWorkerBinding(1);
-  for (const gf of ["GF-901", "GF-902"]) {
+  for (const [gf, maxInteractions] of [["GF-901", maxA], ["GF-902", maxB]]) {
     await addMissionWorkItem(1, `Projekt: 900 - Syntetiskt testprojekt - Gf: ${gf}.`, {
-      storage: h.chrome.storage.local, workerId: worker.workerId, maxInteractions: 1
+      storage: h.chrome.storage.local, workerId: worker.workerId, maxInteractions
     });
   }
   showFreshChat(h);
@@ -119,7 +125,7 @@ async function queueOfTwo({ settings = {} } = {}) {
   assert.equal(a.lastPrompt.promptProfile.profile, "FULL");
   const aUserId = h.page.lastUserId;
   // A answers in its conversation; the queue moves on to B (cold, first start).
-  const b0 = await answerAndPark(h, a, CONV_A);
+  const b0 = await answerAndPark(h, a, CONV_A, aAnswer, { completedBefore: aCompletedBefore });
   assert.notEqual(b0.processId, a.processId);
   showFreshChat(h);
   let b = await tickUntil(h, t, (p) => p.phase === "WAITING");
@@ -134,12 +140,16 @@ test("v1.9.0 policy: warm only after an answered turn in a known conversation, i
     lastPrompt: { hash: "p", dispatchedUserTurnId: "user-1", promptProfile: { schema: "eic.greenfield.prompt-profile.v1", ordinal: 1 } },
     lastResponse: { hash: "r", observation: { conversationKey: conversationKey(CONV_A) } }
   };
-  const item = { lastOutcome: "QUANTUM_EXHAUSTED", lastLeftAtMs: now - 60_000, resume: {} };
-  const warm = warmResumeDecision({ item, parked, now });
+  const item = { lastOutcome: "EIC_YIELD_TO_QUEUE", lastLeftAtMs: now - 60_000, resume: {} };
+  // v1.9.3: warm only inside an unfinished quantum (interaction 2 or later).
+  const warm = warmResumeDecision({ item, parked, now, interactionInQuantum: 2 });
   assert.equal(warm.warm, true);
   assert.equal(warm.conversationKey, conversationKey(CONV_A));
   assert.equal(warm.expectedLastUserTurnId, "user-1");
-  const cold = (patch) => warmResumeDecision({ now, item, parked, ...patch }).code;
+  const cold = (patch) => warmResumeDecision({ now, item, parked, interactionInQuantum: 2, ...patch }).code;
+  assert.equal(cold({ interactionInQuantum: 1 }), "NEW_QUANTUM_FRESH_CHAT");
+  assert.equal(cold({ interactionInQuantum: null }), "NEW_QUANTUM_FRESH_CHAT", "unknown position fails safe to a fresh chat");
+  assert.equal(cold({ interactionInQuantum: 1, enabled: false }), "WARM_RESUME_DISABLED");
   assert.equal(cold({ enabled: false }), "WARM_RESUME_DISABLED");
   assert.equal(cold({ parked: { ...parked, phase: "WAITING" } }), "LAST_TURN_NOT_ANSWERED");
   assert.equal(cold({ item: { ...item, lastOutcome: "STALE_SESSION_120M_QUEUE_ROTATION" } }), "PARK_OUTCOME_NEEDS_FRESH_CHAT");
@@ -151,7 +161,7 @@ test("v1.9.0 policy: warm only after an answered turn in a known conversation, i
   assert.equal(cold({ parked: { ...parked, lastPrompt: { ...parked.lastPrompt, promptProfile: { schema: "x", ordinal: WARM_RESUME_MAX_CHAT_PROMPTS } } } }), "CHAT_PROMPT_CAP_REACHED");
   assert.equal(cold({ item: { ...item, lastLeftAtMs: now - 25 * 3600_000 } }), "CHAT_IDLE_TOO_LONG");
   assert.equal(cold({ otherConversationKeys: [CONV_A] }), "CONVERSATION_USED_BY_OTHER_GFW");
-  assert.equal(warmResumeDecision({ item, parked, now, otherConversationKeys: [CONV_B] }).warm, true);
+  assert.equal(warmResumeDecision({ item, parked, now, interactionInQuantum: 2, otherConversationKeys: [CONV_B] }).warm, true);
   assert.match(warmResumeObjective({ objective: "Do X.", outcome: "QUANTUM_EXHAUSTED", idleMinutes: 12.4 }),
     /^Queue resume in this same conversation: .*QUANTUM_EXHAUSTED.* 12 min ago.*re-read fresh owner state.*Next step: Do X\.$/);
 });
@@ -175,6 +185,7 @@ test("v1.9.0 E2E: a parked GFW comes back to its own conversation with a COMPACT
     const fullLength = a.lastPrompt.text.length;
     const back = await answerAndPark(h, b, CONV_B);
     assert.equal(back.processId, a.processId, "A is active again");
+    assert.equal(back.queueContext.interactionCount, 1, "A resumes its unfinished quantum at 2/5");
     assert.equal(back.sessionRotation.warmResume.state, "PLANNED");
     assert.equal(back.sessionRotation.reasonCode, "QUEUE_MISSION_WARM_RESUME");
     assert.equal(back.sessionSeq, a.sessionSeq, "same ChatGPT session");
@@ -299,5 +310,68 @@ test("v1.9.0 E2E: another GFW answered in A's conversation -> A's thread is no l
     assert.equal(back.sessionRotation.warmResume.code, "CONVERSATION_USED_BY_OTHER_GFW");
     assert.equal(back.pendingPrompt.promptProfile.profile, "FULL");
     assert.equal(back.pendingPrompt.a2a.messageType, "SESSION_ROTATION");
+  } finally { t.restore(); }
+});
+
+// v1.9.3 operator report 2026-10-07: GF-007 came back at interaction 1/5 and
+// re-entered its old conversation. A new quantum always starts in a fresh chat.
+async function assertFreshChatAtNewQuantum({ h, t, a, back, code = "NEW_QUANTUM_FRESH_CHAT" }) {
+  assert.equal(back.processId, a.processId, "A is active again");
+  assert.equal(back.queueContext.interactionCount, 0, "A starts a new quantum");
+  assert.equal(back.sessionRotation.warmResume.state, "COLD");
+  assert.equal(back.sessionRotation.warmResume.code, code);
+  assert.equal(back.sessionRotation.reasonCode, "QUEUE_MISSION_RESUME");
+  assert.equal(back.sessionSeq, a.sessionSeq + 1, "a fresh chat is a new session");
+  assert.equal(back.pendingPrompt.promptProfile.profile, "FULL");
+  assert.equal(back.pendingPrompt.a2a.messageType, "SESSION_ROTATION");
+  assert.match(back.pendingPrompt.a2a.control.workQueue.planningHint, /^This is interaction 1 of /);
+  const before = h.navigations.length;
+  showConversation(h, CONV_B, { userCount: 1, assistantCount: 1 });
+  await tickUntil(h, t, () => h.navigations.length > before);
+  assert.equal(h.navigations.at(-1), ROOT, "a fresh chat is opened, not A's old conversation");
+  assert.equal(h.navigations.includes(CONV_A), false);
+  showFreshChat(h);
+  const p = await tickUntil(h, t, (row) => row.phase === "WAITING");
+  assert.equal(p.phase, "WAITING");
+  assert.equal(JSON.parse(h.sent.at(-1).prompt).messageType, "SESSION_ROTATION");
+  const rows = (await readIncidentLog(h.chrome.storage.local)).rows;
+  const activated = rows.filter((row) => row.kind === "QUEUE_ITEM_ACTIVATED" && row.processId === a.processId).at(-1);
+  assert.equal(activated.detail.freshChat, true);
+  assert.equal(activated.detail.interactionInQuantum, 1);
+}
+
+test("v1.9.3 E2E: a completed quantum (5/5) comes back at interaction 1/5 in a fresh chat with FULL", async () => {
+  const { h, t, a, b } = await queueOfTwo({ aAnswer: answer(), aCompletedBefore: 4 });
+  try {
+    const back = await answerAndPark(h, b, CONV_B);
+    await assertFreshChatAtNewQuantum({ h, t, a, back });
+  } finally { t.restore(); }
+});
+
+test("v1.9.3 E2E: YIELD_TO_QUEUE on the final interaction (5/5) also starts the next quantum in a fresh chat", async () => {
+  const { h, t, a, b } = await queueOfTwo({ aCompletedBefore: 4 });
+  try {
+    const back = await answerAndPark(h, b, CONV_B);
+    await assertFreshChatAtNewQuantum({ h, t, a, back });
+  } finally { t.restore(); }
+});
+
+test("v1.9.3 E2E: a slot with maxInteractions 1 starts every activation in a fresh chat", async () => {
+  const { h, t, a, b } = await queueOfTwo({ maxA: 1, aAnswer: answer() });
+  try {
+    const back = await answerAndPark(h, b, CONV_B);
+    await assertFreshChatAtNewQuantum({ h, t, a, back });
+  } finally { t.restore(); }
+});
+
+test("v1.9.3 E2E: a warm resume of an unfinished quantum is recorded as not a fresh chat", async () => {
+  const { h, t, a, b } = await queueOfTwo();
+  try {
+    const back = await answerAndPark(h, b, CONV_B);
+    assert.equal(back.sessionRotation.warmResume.state, "PLANNED");
+    const rows = (await readIncidentLog(h.chrome.storage.local)).rows;
+    const activated = rows.filter((row) => row.kind === "QUEUE_ITEM_ACTIVATED" && row.processId === a.processId).at(-1);
+    assert.equal(activated.detail.freshChat, false);
+    assert.equal(activated.detail.interactionInQuantum, 2);
   } finally { t.restore(); }
 });

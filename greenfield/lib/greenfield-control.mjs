@@ -18,6 +18,22 @@ function trim(value) {
   return String(value || "").trim();
 }
 
+// The EIC's own continuation handoff without a NANO_TASK directive line (the
+// directive ends at its newline and is consumed locally, never re-sent).
+export function eicHandoffWithoutNanoTask(value) {
+  return String(value || "")
+    .split("\n")
+    .filter((line) => !/^\s*NANO_TASK\s*:/i.test(line))
+    .join("\n")
+    .trim();
+}
+
+// v1.9.3: the local advisory model judged the current objective satisfied but
+// the EIC returned no terminal status. A satisfied slice is not a closed
+// mission (contract terminalProgressContract: DONE requires supported
+// terminal closure), so Greenfield continues and asks for the EIC's verdict.
+export const ADVISORY_DONE_CONTINUATION = "Greenfield's local advisory analysis judged the previous objective satisfied, but your response carried no terminal status, so the mission continues. Re-read fresh owner state and continue with the next single bounded slice. Return status=DONE only with supported owner-verified terminal closure; if no executable slice remains, return a truthful no-delta status with a restart-safe nextSuggestedAction or a real blocker.";
+
 /**
  * Resolve the browser-side Greenfield control action from structured runtime facts.
  *
@@ -44,6 +60,7 @@ export function resolveGreenfieldControl({
 } = {}) {
   const target = upper(targetDisposition, "UNKNOWN");
   const nextSuggestedAction = trim(targetNextSuggestedAction);
+  const handoff = eicHandoffWithoutNanoTask(targetNextSuggestedAction);
   const disposition = upper(decision?.disposition);
   const humanAuthorityRequired = decision?.humanAuthorityRequired === true;
   const nanoStatus = upper(nanoTask?.status);
@@ -115,16 +132,11 @@ export function resolveGreenfieldControl({
     };
   }
 
-  if (nanoTask?.requested === true && nanoStatus === "UNKNOWN_EFFECT") {
-    return {
-      state: GREENFIELD_STATES.ACTIVE,
-      action: GREENFIELD_ACTIONS.BLOCK,
-      reason: "NANO_TASK_UNKNOWN_EFFECT",
-      hardStop: true,
-      effectiveDisposition: "BLOCKED",
-      effectiveNextPrompt: ""
-    };
-  }
+  // v1.9.3 (contract C14/F16): a prompt-only Nano task has no external
+  // effect, so an unknown result is a missing advisory result, not a mission
+  // blocker. It is never replayed (continuation-guard keeps NANO_TASK_REISSUE)
+  // and the EIC continues from its own handoff.
+  void nanoStatus;
 
   if (humanAuthorityRequired) {
     return {
@@ -137,26 +149,42 @@ export function resolveGreenfieldControl({
     };
   }
 
+  // v1.9.3: only the EIC closes a mission (status=DONE, STOP_PROCESS or an
+  // accepted COMPLETE_MISSION, all handled above). The local advisory DONE
+  // follows the EIC status instead.
   if (disposition === "DONE") {
+    if (target === "BLOCKED") {
+      return {
+        state: GREENFIELD_STATES.ACTIVE,
+        action: GREENFIELD_ACTIONS.BLOCK,
+        reason: "ADVISORY_DONE_TARGET_BLOCKED",
+        hardStop: true,
+        effectiveDisposition: "BLOCKED",
+        effectiveNextPrompt: "",
+        controllerOverride: true
+      };
+    }
     return {
-      state: GREENFIELD_STATES.DONE,
-      action: GREENFIELD_ACTIONS.NONE,
-      reason: "HJALMAR_OBJECTIVE_DONE",
+      state: GREENFIELD_STATES.ACTIVE,
+      action: GREENFIELD_ACTIONS.NEXT,
+      reason: "ADVISORY_DONE_WITHOUT_EIC_TERMINAL",
       hardStop: false,
-      effectiveDisposition: "DONE",
-      effectiveNextPrompt: ""
+      effectiveDisposition: "CONTINUE",
+      effectiveNextPrompt: handoff || ADVISORY_DONE_CONTINUATION,
+      controllerOverride: true
     };
   }
 
   if (disposition === "BLOCKED") {
-    if (target === "CONTINUE" && nextSuggestedAction) {
+    if (target === "CONTINUE" && (handoff || nextSuggestedAction)) {
       return {
         state: GREENFIELD_STATES.ACTIVE,
         action: GREENFIELD_ACTIONS.NEXT,
         reason: "TARGET_CONTINUE_EXECUTABLE_NEXT_RECOVERY",
         hardStop: false,
         effectiveDisposition: "CONTINUE",
-        effectiveNextPrompt: nextSuggestedAction,
+        // v1.9.3: a consumed NANO_TASK line is never sent back to the EIC.
+        effectiveNextPrompt: handoff || nextSuggestedAction,
         controllerOverride: true
       };
     }
@@ -167,6 +195,23 @@ export function resolveGreenfieldControl({
       hardStop: true,
       effectiveDisposition: "BLOCKED",
       effectiveNextPrompt: ""
+    };
+  }
+
+  // v1.9.3 (point 2): when the EIC answered with a structured CONTINUE and an
+  // executable handoff, that handoff is the next objective verbatim. The local
+  // model only previews 260 characters of it and may not rewrite the EIC's
+  // slice plan (contract: the prompt engine is not a second semantic owner).
+  // A requested Nano task keeps the local text, which carries its result.
+  if (disposition === "CONTINUE" && target === "CONTINUE" && handoff && nanoTask?.requested !== true) {
+    return {
+      state: GREENFIELD_STATES.ACTIVE,
+      action: GREENFIELD_ACTIONS.NEXT,
+      reason: "EIC_HANDOFF_FORWARDED",
+      hardStop: false,
+      effectiveDisposition: "CONTINUE",
+      effectiveNextPrompt: handoff,
+      handoffForwarded: true
     };
   }
 
@@ -202,6 +247,18 @@ function overriddenObjectiveStatus(decision, effectiveDisposition) {
 
 export function applyGreenfieldControlToDecision(decision, control) {
   const d = decision && typeof decision === "object" ? { ...decision } : {};
+  if (control?.handoffForwarded === true && !control.controllerOverride) {
+    const forwarded = trim(control.effectiveNextPrompt);
+    if (!forwarded || forwarded === trim(d.nextPrompt)) return d;
+    return {
+      ...d,
+      nextPrompt: forwarded,
+      greenfieldHandoff: {
+        reason: control.reason,
+        advisoryNextPrompt: trim(d.nextPrompt).slice(0, 4000)
+      }
+    };
+  }
   if (!control?.controllerOverride) return d;
   return {
     ...d,

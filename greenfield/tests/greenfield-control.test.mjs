@@ -60,15 +60,17 @@ test("v1.2.2 keeps human authority distinct as OPERATOR", () => {
   assert.equal(control.reason, "HUMAN_AUTHORITY_REQUIRED");
 });
 
-test("v1.2.2 keeps exact-once unknown effect as hard BLOCK", () => {
+test("v1.9.3 an unknown Nano result is not a mission blocker; the EIC handoff continues (C14/F16)", () => {
   const control = resolveGreenfieldControl({
     targetDisposition: "CONTINUE",
-    targetNextSuggestedAction: "Try again",
+    targetNextSuggestedAction: "Try again\nNANO_TASK: Calculate 2 + 2",
     decision: blockedDecision(),
     nanoTask: { requested: true, status: "UNKNOWN_EFFECT" }
   });
-  assert.equal(control.action, GREENFIELD_ACTIONS.BLOCK);
-  assert.equal(control.reason, "NANO_TASK_UNKNOWN_EFFECT");
+  assert.equal(control.action, GREENFIELD_ACTIONS.NEXT);
+  assert.equal(control.reason, "TARGET_CONTINUE_EXECUTABLE_NEXT_RECOVERY");
+  // The consumed NANO_TASK line is never sent back.
+  assert.equal(control.effectiveNextPrompt, "Try again");
 });
 
 test("v1.2.2 does not invent NEXT when both controller and target have no executable continuation", () => {
@@ -93,7 +95,20 @@ test("v1.2.2 carries normal CONTINUE and DONE without remapping", () => {
     })
   });
   assert.equal(next.action, GREENFIELD_ACTIONS.NEXT);
-  assert.equal(next.effectiveNextPrompt, "controller prompt");
+  // v1.9.3: a structured EIC CONTINUE handoff is forwarded verbatim.
+  assert.equal(next.reason, "EIC_HANDOFF_FORWARDED");
+  assert.equal(next.effectiveNextPrompt, "target candidate");
+  const unstructured = resolveGreenfieldControl({
+    targetDisposition: "UNKNOWN",
+    targetNextSuggestedAction: "",
+    decision: blockedDecision({
+      disposition: "CONTINUE",
+      objectiveStatus: "PENDING",
+      nextPrompt: "controller prompt"
+    })
+  });
+  assert.equal(unstructured.reason, "HJALMAR_CONTINUE");
+  assert.equal(unstructured.effectiveNextPrompt, "controller prompt");
 
   const done = resolveGreenfieldControl({
     targetDisposition: "DONE",

@@ -1,5 +1,6 @@
 import { text } from "./common.mjs";
 import { trimResponseTrace } from "./response-observation.mjs";
+import { interactionPosition, planningHint } from "./interaction-slicing.mjs";
 
 const PRIORITY_DISPLAY_SV = Object.freeze({
   LOW: "Låg",
@@ -29,14 +30,24 @@ export function queuePlanningFields(queueContext = {}) {
   const priority = String(queueContext.priority || "NORMAL").trim().toUpperCase() || "NORMAL";
   const priorityDisplay = PRIORITY_DISPLAY_SV[priority] || priority;
   const plural = "interaktioner";
+  const finalInteractionInQuantum = interactionInQuantum >= maxInteractions;
   return {
     completedInteractions,
     interactionInQuantum,
     maxInteractions,
     remainingInteractionsIncludingCurrent,
-    finalInteractionInQuantum: interactionInQuantum >= maxInteractions,
+    finalInteractionInQuantum,
     operatorDisplay: `${priorityDisplay} · ${maxInteractions} ${plural}/kvant · ${completedInteractions}/${maxInteractions} slutförda i kvanten`,
-    planningHint: `This is interaction ${interactionInQuantum} of ${maxInteractions} in the current queue-slot quantum. Plan a bounded slice that fits this interaction and preserve a restart-safe handoff before the quantum ends.`,
+    // v1.9.3: one owner for sizing text (lib/interaction-slicing.mjs). Without
+    // a schedule the checkpoint interaction is the final one; queueTurnControl
+    // rebuilds the hint once the schedule's window checkpoint is known.
+    planningHint: planningHint(interactionPosition({
+      interactionInQuantum,
+      maxInteractions,
+      remainingInteractionsIncludingCurrent,
+      finalInteractionInQuantum,
+      checkpointRequired: finalInteractionInQuantum
+    })),
     responseRoundTripApproxMs: finiteNonNegative(queueContext.responseRoundTripApproxMs),
     loopRoundTripApproxMs: finiteNonNegative(queueContext.loopRoundTripApproxMs),
     activationCount: Math.max(0, Math.floor(Number(queueContext.activationCount || 0)))

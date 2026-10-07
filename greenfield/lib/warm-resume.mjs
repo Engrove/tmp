@@ -10,6 +10,13 @@
 //
 // A warm resume is planned only when the parked GFW's last turn was answered
 // and captured in a known conversation and nothing asks for a fresh chat.
+//
+// v1.9.3: and only when the activation continues an UNFINISHED quantum. An
+// activation that starts a new quantum (interaction 1) always opens a fresh
+// chat with a FULL prompt (operator report 2026-10-07: GF-007 at interaction
+// 1/5 re-entered its old conversation; its own handoff asked for a fresh
+// session segment). This also holds for maxInteractions=1 slots, where every
+// activation starts a new quantum.
 // Every other case is the unchanged cold path (fresh chat + FULL), and the
 // rotation tick falls back to it whenever the conversation cannot be proven
 // on the page. Pure.
@@ -56,6 +63,9 @@ export function warmResumeDecision({
   enabled = DEFAULT_WARM_QUEUE_RESUME,
   item = null,
   parked = null,
+  // Position of the coming prompt in the activated slot's quantum
+  // (queueContext.interactionCount + 1). Unknown counts as a new quantum.
+  interactionInQuantum = null,
   lastSessionAction = "KEEP",
   // Conversations last used by other GFWs (other queue slots' snapshots and
   // the process that just parked). A conversation belongs to one GFW.
@@ -68,6 +78,10 @@ export function warmResumeDecision({
   if (!parked?.processId) return cold("NO_PARKED_SNAPSHOT");
   if (String(parked.phase || "") !== "ANALYZING" || !parked.lastResponse?.hash || !parked.lastPrompt?.hash) {
     return cold("LAST_TURN_NOT_ANSWERED");
+  }
+  const position = Math.floor(Number(interactionInQuantum));
+  if (!Number.isFinite(position) || position <= 1) {
+    return cold("NEW_QUANTUM_FRESH_CHAT", { interactionInQuantum: Number.isFinite(position) ? position : null });
   }
   const outcome = String(item?.lastOutcome || "");
   if (!WARM_RESUME_PARK_OUTCOMES.includes(outcome)) return cold("PARK_OUTCOME_NEEDS_FRESH_CHAT", { outcome });

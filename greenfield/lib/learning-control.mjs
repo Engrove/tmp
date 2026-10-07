@@ -1,5 +1,6 @@
 import { text } from "./common.mjs";
 import { providerBlockChainLength } from "./provider-notice.mjs";
+import { METHOD_PRECEDENCE_CLAUSE } from "./interaction-slicing.mjs";
 
 // v1.8.0 EIC Learning & Continuity Control.
 //
@@ -580,4 +581,4 @@ export function buildLearningControlContext({
   };
 }
 
-export const LEARNING_CONTROL_COMPACT_REMINDER = "The EIC Learning & Continuity Control Contract from the most recent FULL prompt remains fully in force. control.learningControl lists this prompt's REQUIRED checks; execute them (or report the scoped unavailable outcome), report results in learningControl, and never let retained learning replace fresh factual-owner truth.";
+export const LEARNING_CONTROL_COMPACT_REMINDER = `The EIC Learning & Continuity Control Contract from the most recent FULL prompt remains fully in force ${METHOD_PRECEDENCE_CLAUSE}. control.learningControl lists this prompt's REQUIRED checks; execute them (or report the scoped unavailable outcome), report results in learningControl, and never let retained learning replace fresh factual-owner truth.`;

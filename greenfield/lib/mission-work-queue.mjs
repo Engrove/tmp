@@ -6,6 +6,7 @@ import {
   normalizeGreenfieldPriority
 } from "./global-capacity-scheduler.mjs";
 import { queuePlanningFields } from "./queue-planning.mjs";
+import { interactionPosition, planningHint } from "./interaction-slicing.mjs";
 import {
   nextScheduleOpenAtMs,
   normalizeQueueSchedule,
@@ -409,6 +410,9 @@ export function queueTurnControl(process, { now = Date.now() } = {}) {
     now,
     estimatedTurnMs: planning.responseRoundTripApproxMs
   });
+  // v1.8.1: a response that will likely arrive after the run window closes is
+  // the last one used before the slot parks, exactly like quantum end.
+  const checkpointRequired = planning.finalInteractionInQuantum || schedule.likelyLastTurnInWindow;
   return {
     schema: "eic.greenfield.queue-turn-control.v2",
     managed: true,
@@ -422,12 +426,16 @@ export function queueTurnControl(process, { now = Date.now() } = {}) {
     maxInteractions: planning.maxInteractions,
     remainingInteractionsIncludingCurrent: planning.remainingInteractionsIncludingCurrent,
     finalInteractionInQuantum: planning.finalInteractionInQuantum,
-    // v1.8.1: a response that will likely arrive after the run window closes is
-    // the last one used before the slot parks, exactly like quantum end.
-    checkpointRequired: planning.finalInteractionInQuantum || schedule.likelyLastTurnInWindow,
+    checkpointRequired,
     schedule,
     operatorDisplay: planning.operatorDisplay,
-    planningHint: planning.planningHint,
+    planningHint: planningHint(interactionPosition({
+      interactionInQuantum: planning.interactionInQuantum,
+      maxInteractions: planning.maxInteractions,
+      remainingInteractionsIncludingCurrent: planning.remainingInteractionsIncludingCurrent,
+      finalInteractionInQuantum: planning.finalInteractionInQuantum,
+      checkpointRequired
+    })),
     responseRoundTripApproxMs: planning.responseRoundTripApproxMs,
     loopRoundTripApproxMs: planning.loopRoundTripApproxMs,
     activationCount: planning.activationCount

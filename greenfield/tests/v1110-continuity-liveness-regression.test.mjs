@@ -74,7 +74,7 @@ test("repeated prior decision is replanned even when target offers no newer guid
   assert.notEqual(r.effectiveNextPrompt.toLowerCase(), "repeat old task.");
 });
 
-test("recoverable repetition never masks a real unknown-effect Nano boundary", () => {
+test("v1.9.3 an unknown Nano result no longer blocks; repetition is replanned (C14/F16)", () => {
   const currentObjective = "Continue exact owner reconciliation.";
   const r = evaluateContinuationAdmission({
     targetDisposition: "CONTINUE",
@@ -86,8 +86,8 @@ test("recoverable repetition never masks a real unknown-effect Nano boundary", (
       result: ""
     }
   });
-  assert.equal(r.ok, false);
-  assert.equal(r.code, "NANO_TASK_EFFECT_UNKNOWN");
+  assert.equal(r.ok, true);
+  assert.equal(r.code, "REPLANNED_STALE_OBJECTIVE_REPEAT");
 });
 
 test("closed autonomous response slot is classified as producer loss, not indefinite waiting", () => {

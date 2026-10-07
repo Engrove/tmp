@@ -1,0 +1,95 @@
+// v1.9.3 window queue overview (operator request 2026-10-07): every
+// Greenfield prompt lists the GF missions in this Chrome window's queue, their
+// order, state, quantum and schedule, so the receiving EIC sees what runs and
+// what waits. Read-only transport facts at prompt build time. Pure.
+
+import { text } from "./common.mjs";
+import {
+  localIso,
+  nextScheduleOpenAtMs,
+  normalizeQueueSchedule,
+  queueItemNextRunnableAtMs,
+  scheduleBlockReason,
+  scheduleSummaryEn
+} from "./queue-schedule.mjs";
+
+export const WINDOW_QUEUE_OVERVIEW_SCHEMA = "eic.greenfield.window-queue-overview.v1";
+export const WINDOW_QUEUE_OVERVIEW_MAX_SLOTS = 24;
+
+export const WINDOW_QUEUE_OVERVIEW_RULE = "Read-only overview of every slot in this Chrome window's Greenfield queue when this prompt was built, in explicit queue order. For awareness only; it changes nothing. Only the slot marked current is yours: change it only through runtimeControl (SET_SCHEDULE, SET_QUANTUM, SET_PRIORITY) and add durable work only through missionDelegations, which Greenfield appends to this same queue.";
+
+/** First GF id in the slot label or mission text, e.g. "GF-061". */
+export function gfIdOf(item = {}) {
+  for (const source of [item.label, item.goal]) {
+    const match = String(source || "").match(/\bGF-\d{1,6}\b/i);
+    if (match) return match[0].toUpperCase();
+  }
+  return "";
+}
+
+function scheduleOverview(item, now) {
+  const schedule = normalizeQueueSchedule(item?.schedule || null, { now });
+  if (!schedule) return { windows: "ALWAYS_OPEN", openNow: true };
+  const block = scheduleBlockReason(schedule, now);
+  const nextOpen = block ? nextScheduleOpenAtMs(schedule, now) : null;
+  return {
+    windows: scheduleSummaryEn(schedule) || "ALWAYS_OPEN",
+    ...(schedule.pauseUntilMs ? { pauseUntil: localIso(schedule.pauseUntilMs) } : {}),
+    openNow: !block,
+    ...(nextOpen ? { nextOpenAt: localIso(nextOpen) } : {})
+  };
+}
+
+function slotOverview(item, index, { now, currentItemId }) {
+  const current = Boolean(currentItemId) && String(item?.itemId || "") === currentItemId;
+  // The slot this prompt is built for is the running one, even while the
+  // activation that marks it ACTIVE has not been persisted yet.
+  const status = current ? "ACTIVE" : String(item?.status || "").toUpperCase();
+  const nextRunnable = ["PAUSED", "BLOCKED"].includes(status) ? queueItemNextRunnableAtMs(item, now) : null;
+  const slot = {
+    position: index + 1,
+    gf: gfIdOf(item),
+    label: text(item?.label || "", 120),
+    itemId: String(item?.itemId || ""),
+    status,
+    current,
+    priority: String(item?.priority || "NORMAL").toUpperCase(),
+    maxInteractions: Math.max(1, Math.floor(Number(item?.maxInteractions || 1))),
+    completedInteractions: Math.max(0, Math.floor(Number(item?.quantumProgress || 0))),
+    schedule: scheduleOverview(item, now)
+  };
+  if (item?.savedMissionId) slot.savedMissionId = String(item.savedMissionId);
+  if (nextRunnable) slot.nextRunnableAt = localIso(nextRunnable);
+  if (item?.delegation?.requestId) {
+    slot.delegatedBy = {
+      requestId: text(item.delegation.requestId, 200),
+      sourceItemId: String(item.delegation.sourceItemId || "")
+    };
+  }
+  return slot;
+}
+
+/**
+ * Overview of one window's queue. queue: the worker's mission work queue;
+ * currentItemId: the slot this prompt belongs to (empty for a non-queue run).
+ * Returns null when the window has no queue slots.
+ */
+export function windowQueueOverview(queue = null, { now = Date.now(), currentItemId = "" } = {}) {
+  const items = Array.isArray(queue?.items) ? queue.items : [];
+  if (!items.length) return null;
+  const ordered = items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => (Number(a.item?.order ?? a.index) - Number(b.item?.order ?? b.index)) || (a.index - b.index));
+  const shown = ordered.slice(0, WINDOW_QUEUE_OVERVIEW_MAX_SLOTS);
+  const current = String(currentItemId || "");
+  return {
+    schema: WINDOW_QUEUE_OVERVIEW_SCHEMA,
+    queueId: String(queue?.queueId || ""),
+    enabled: queue?.enabled !== false,
+    slotCount: items.length,
+    ...(ordered.length > shown.length ? { omittedSlots: ordered.length - shown.length } : {}),
+    builtAt: localIso(now),
+    rule: WINDOW_QUEUE_OVERVIEW_RULE,
+    slots: shown.map(({ item }, index) => slotOverview(item, index, { now, currentItemId: current }))
+  };
+}

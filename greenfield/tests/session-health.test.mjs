@@ -195,6 +195,13 @@ test("v1.8.0 preserves the v1.3.1 A2A contract apart from additive health, owner
   });
   const currentResponseContract = { ...envelope.responseContract };
   delete currentResponseContract.sessionHealthControl;
+  // v1.9.3 adds the always-fetch method reference (contract hot reload) and
+  // one interaction-sizing sentence to the non-queue note.
+  delete currentResponseContract.methodControl;
+  currentResponseContract.note = currentResponseContract.note.replace(
+    " control.interactionSlicing.planningHint sizes this interaction: one bounded coherent slice; later interactions are execution depth.",
+    ""
+  );
   // v1.7.7 adds the additive AI runtime-control contract/schema and the
   // FULL/COMPACT prompt-profile note without changing the baseline contract.
   delete currentResponseContract.runtimeControlContract;
@@ -234,12 +241,19 @@ test("v1.8.0 preserves the v1.3.1 A2A contract apart from additive health, owner
   const baselineSender = { ...baseline.sender };
   delete currentSender.version;
   delete baselineSender.version;
+  // v1.9.3 (contract C12/C14) relabels the local analysis as optional
+  // advisory; authorityBoundary is unchanged.
+  assert.equal(currentSender.presentation.authorityBoundary, baselineSender.presentation.authorityBoundary);
+  assert.deepEqual(currentSender.presentation.loop, ["SEND", "WAIT", "CAPTURE", "LOCAL_ADVISORY_ANALYSIS", "CONTINUE"]);
+  currentSender.presentation = baselineSender.presentation;
   assert.deepEqual(currentSender, baselineSender);
   assert.deepEqual(envelope.recipient, baseline.recipient);
   const currentControl = { ...envelope.control };
   delete currentControl.ownerState;
   delete currentControl.runtimeControl;
   delete currentControl.learningControl;
+  // v1.9.3 adds the per-interaction slicing capsule.
+  delete currentControl.interactionSlicing;
   assert.deepEqual(currentControl, baseline.control);
   const expectedResponseContract = JSON.parse(
     JSON.stringify(baseline.responseContract).replaceAll("0-90", "0-300")

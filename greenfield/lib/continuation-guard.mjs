@@ -95,24 +95,10 @@ export function evaluateContinuationAdmission({
     };
   }
 
-  if (nanoTask?.requested === true &&
-      ["PENDING", "RUNNING"].includes(String(nanoTask.status || "").toUpperCase()) &&
-      disposition === "CONTINUE") {
-    return {
-      ok: false,
-      code: "NANO_TASK_INCOMPLETE",
-      detail: "A requested Nano task is still in progress and has no terminal result."
-    };
-  }
-
-  if (nanoTask?.requested === true &&
-      String(nanoTask.status || "").toUpperCase() === "UNKNOWN_EFFECT") {
-    return {
-      ok: false,
-      code: "NANO_TASK_EFFECT_UNKNOWN",
-      detail: "Exact-once Nano task effect is unknown; continuation is not safe without new local evidence."
-    };
-  }
+  // v1.9.3 (contract C14/F16): a Nano task without a terminal or known result
+  // (PENDING, RUNNING, UNKNOWN_EFFECT) is an absent prompt-only advisory
+  // result. It is never replayed (NANO_TASK_REISSUE above) and never blocks
+  // the mission.
 
   if (decision?.nanoTaskAssessment === "SATISFIED" &&
       (!nanoTask || nanoTask.requested !== true || nanoTask.status !== "COMPLETED")) {

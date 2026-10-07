@@ -1433,7 +1433,7 @@ async function startMissionQueue() {
   $("statusDetail").textContent = "Förbereder arbetskö, Nano och Hjalmar D2…";
   renderMissionQueue();
   try {
-    await ensureAnalyzerReadyFromGesture();
+    await prepareLocalAnalyzerOptional();
     const result = await chrome.runtime.sendMessage({
       type: "EIC_GF_QUEUE_START",
       windowId: state.windowId,
@@ -1844,6 +1844,20 @@ async function snapshot() {
   await render();
 }
 
+// v1.9.3 (contract C14/F16): the local Nano/Hjalmar D2 analysis is optional
+// advisory. A missing or failing Chrome LanguageModel is recorded and shown,
+// but never stops a mission from starting; continuation then follows the
+// EIC's own handoff through the runtime fallback.
+async function prepareLocalAnalyzerOptional() {
+  try {
+    await ensureAnalyzerReadyFromGesture();
+    return true;
+  } catch (error) {
+    $("statusDetail").textContent = `Lokal analys (Nano/Hjalmar D2) är inte tillgänglig: ${String(error?.message || error).slice(0, 160)} Greenfield startar ändå och följer EIC:s egen handoff.`;
+    return false;
+  }
+}
+
 async function ensureAnalyzerReadyFromGesture() {
   if (!globalThis.LanguageModel?.create) {
     const error = new Error("Chrome local LanguageModel saknas. Greenfield kräver Chrome med Prompt API/LanguageModel.");
@@ -1964,7 +1978,7 @@ async function start() {
   $("start").disabled = true;
   $("statusDetail").textContent = "Förbereder forensisk Audit, Nano och Hjalmar D2…";
   try {
-    await ensureAnalyzerReadyFromGesture();
+    await prepareLocalAnalyzerOptional();
     const result = await chrome.runtime.sendMessage({
       type: "EIC_GF_START",
       windowId: state.windowId,

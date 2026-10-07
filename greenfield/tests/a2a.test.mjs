@@ -16,7 +16,11 @@ test("A2A envelope carries standard Agent presentation and response schema", () 
   assert.equal(e.schema, A2A_MESSAGE_SCHEMA);
   assert.equal(e.protocol, A2A_PROTOCOL);
   assert.equal(e.sender.actor, "AGENT");
-  assert.equal(e.sender.presentation.loop.includes("NANO"), true);
+  // v1.9.3 (contract C12/C14): local analysis is labelled optional advisory.
+  assert.equal(e.sender.presentation.loop.includes("LOCAL_ADVISORY_ANALYSIS"), true);
+  assert.equal(e.sender.presentation.loop.includes("HJALMAR_D2"), false);
+  assert.match(e.sender.presentation.policy, /optional and advisory/);
+  assert.match(e.sender.presentation.policy, /never the EIC's same-session Mental Hjalmar/);
   assert.equal(e.responseContract.schema, A2A_RESPONSE_SCHEMA);
   assert.equal(e.responseContract.jsonSchema, A2A_RESPONSE_JSON_SCHEMA);
   assert.equal(e.control.ownerState.currentFocus.role, "STEERING_POINTER_NOT_FACT_OWNER");

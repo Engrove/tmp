@@ -261,21 +261,26 @@ export async function claimPendingMissionDelegationForWorker(worker, storage = n
   const liveQueues = Array.isArray(liveTargetQueueIds)
     ? new Set(liveTargetQueueIds.map((item) => String(item || "")).filter(Boolean))
     : null;
+  // v1.9.3 (operator rule 2026-10-07): work a GFW delegates lands in the queue
+  // of the same Chrome window as the delegating GFW. The stable source queue
+  // id is the key (a window id can change after a Chrome restart). Insertion
+  // still happens on a later worker tick, never inside the delegating answer.
+  const ownedBySource = (item) => String(item.sourceQueueId || "") === targetQueueId;
+  // An assignment this queue already holds (including a pre-1.9.3 one made to
+  // another window) is reconciled here, never duplicated elsewhere.
   const assignedToThisWorker = registry.items
     .filter((item) => item.state === MISSION_DELEGATION_STATE.ASSIGNED)
     .filter((item) => String(item.targetQueueId || "") === targetQueueId)
-    .filter((item) => String(item.sourceQueueId || "") !== targetQueueId)
     .sort((a, b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0))[0] || null;
   const pending = registry.items
     .filter((item) => item.state === MISSION_DELEGATION_STATE.PENDING)
-    .filter((item) => Number(item.sourceWindowId) !== targetWindowId)
-    .filter((item) => String(item.sourceQueueId || "") !== targetQueueId)
+    .filter(ownedBySource)
     .sort((a, b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0))[0] || null;
   const orphanedAssignment = liveQueues
     ? registry.items
         .filter((item) => item.state === MISSION_DELEGATION_STATE.ASSIGNED)
         .filter((item) => !liveQueues.has(String(item.targetQueueId || "")))
-        .filter((item) => String(item.sourceQueueId || "") !== targetQueueId)
+        .filter(ownedBySource)
         .sort((a, b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0))[0] || null
     : null;
   const candidate = assignedToThisWorker || pending || orphanedAssignment;

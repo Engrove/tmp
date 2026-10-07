@@ -331,7 +331,7 @@ export function scheduleSummarySv(schedule, { now = Date.now() } = {}) {
   return parts.join(" · ");
 }
 
-function scheduleSummaryEn(schedule) {
+export function scheduleSummaryEn(schedule) {
   return (schedule?.windows || []).map((window) =>
     `${dayRange(window.days, DAY_NAMES_EN)} ${window.start}-${window.end}`).join("; ");
 }

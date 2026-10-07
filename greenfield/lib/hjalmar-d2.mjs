@@ -167,6 +167,13 @@ function consumedNanoContinuation(nanoTask) {
       "Do not replay the same missing-context Nano directive."
     ].join(" ");
   }
+  if (status === "UNKNOWN_EFFECT") {
+    return [
+      "The local Nano task requested by the previous target response has no recoverable result and will not be replayed.",
+      "Continue the current objective in EIC without that Nano result.",
+      "Do not request the same Nano task again."
+    ].join(" ");
+  }
   if (status === "FAILED") {
     return [
       "The local Nano task requested by the previous target response was consumed and failed.",
@@ -249,17 +256,26 @@ export function reconcileHjalmarRuntimeFacts(decision, {
     d.nextPrompt = replacement;
   }
 
-  // UNKNOWN_EFFECT is a real exact-once ambiguity. It cannot be repaired by
-  // sending the task back to the target or asking Hjalmar to guess.
+  // v1.9.3 (contract C14/F16): UNKNOWN_EFFECT means the prompt-only Nano
+  // result is lost. Nano has no external effect, so this is an absent advisory
+  // result, not a mission blocker. It is never replayed: the EIC continues
+  // without it. Only a real owner/human/safety boundary may still block.
   if (nanoTask?.requested === true && taskStatus === "UNKNOWN_EFFECT") {
-    if (d.disposition !== DISPOSITIONS.BLOCKED ||
-        d.objectiveStatus !== "BLOCKED" ||
-        String(d.nextPrompt || "").trim()) {
-      corrections.push({ code: "NANO_TASK_UNKNOWN_EFFECT_RUNTIME_OVERRIDE" });
+    const usable = String(d.nextPrompt || "").trim() && !containsNanoTaskDirective(d.nextPrompt);
+    const replacement = usable ? String(d.nextPrompt).trim() : consumedNanoContinuation(nanoTask);
+    const blockedByBoundary = d.disposition === DISPOSITIONS.BLOCKED && d.humanAuthorityRequired === true;
+    if (!blockedByBoundary &&
+        (d.disposition !== DISPOSITIONS.CONTINUE || d.objectiveStatus === "BLOCKED" || d.nextPrompt !== replacement)) {
+      corrections.push({
+        code: "NANO_TASK_UNKNOWN_EFFECT_CONTINUATION_OVERRIDE",
+        from: { disposition: d.disposition, objectiveStatus: d.objectiveStatus },
+        to: { disposition: DISPOSITIONS.CONTINUE, objectiveStatus: "PENDING" }
+      });
+      d.disposition = DISPOSITIONS.CONTINUE;
+      d.objectiveStatus = "PENDING";
+      d.nextPrompt = replacement;
+      d.materialAmbiguity = "NONE";
     }
-    d.disposition = DISPOSITIONS.BLOCKED;
-    d.objectiveStatus = "BLOCKED";
-    d.nextPrompt = "";
   }
 
   return {
@@ -384,9 +400,18 @@ export function buildHjalmarPrompt({
   previousDecision = null,
   operatorInstruction = "",
   nanoObservation = null,
-  nanoTask = null
+  nanoTask = null,
+  nextInteraction = null
 }) {
   const target = String(targetDisposition || "UNKNOWN").toUpperCase();
+  const next = nextInteraction && typeof nextInteraction === "object"
+    ? {
+        interaction: Number(nextInteraction.interaction || 1),
+        of: Number(nextInteraction.of || 1),
+        newQuantum: nextInteraction.newQuantum === true,
+        final: nextInteraction.final === true
+      }
+    : null;
   const compactTarget = compactHjalmarTarget(targetResponse);
   const compactTask = compactHjalmarNanoTask(nanoTask);
   const compactNano = compactNanoObservation(nanoObservation);
@@ -394,9 +419,9 @@ export function buildHjalmarPrompt({
 
   return `EIC Hjalmar D2. Advisory only; runtime owns hard invariants.
 Return English JSON matching ${ANALYSIS_SCHEMA}.\nMixed-language context: English, Swedish and Finnish may coexist in supplied evidence. Preserve raw labels and resolve structural/local-language context before lexical meaning.\n\nDecision:
-- CONTINUE = grounded new step, mission incomplete.
+- CONTINUE = grounded next bounded slice, mission incomplete.
 - READ_REQUIRED = one focused safe read.
-- DONE = current objective is satisfied by supplied evidence.
+- DONE = TARGET_DISPOSITION is DONE with supported terminal closure. A satisfied CURRENT_OBJECTIVE alone is CONTINUE with objectiveStatus=SATISFIED.
 - BLOCKED = a real owner/human/safety boundary stops autonomy.
 
 Hard rules:
@@ -415,8 +440,10 @@ Hard rules:
 13. progressEvidence cites concrete supplied evidence.
 14. TARGET_PROTOCOL_METADATA.blockers are scoped evidence only; blocker text alone never stops Greenfield.
 15. target status=CONTINUE + non-empty nextSuggestedAction continues unless a separate owner/human/safety boundary prevents it.
+16. nextPrompt is exactly one bounded dependency-ordered slice for NEXT_INTERACTION, never the whole remaining plan; when NEXT_INTERACTION.final=true it is a readback/handoff slice.
 MISSION=${text(goal, 180)}
 TURN=${Number(turn || 0)}
+NEXT_INTERACTION=${next ? JSON.stringify(next) : "NOT_QUEUED"}
 CURRENT_OBJECTIVE=${text(currentObjective, 280) || "NONE"}
 TARGET_DISPOSITION=${target}
 TARGET_PROTOCOL_METADATA=${compactTarget ? JSON.stringify(compactTarget) : "NONE"}

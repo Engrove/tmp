@@ -134,7 +134,7 @@ export function workerActionMessage(action, result = {}) {
     }
     return result.outcome === "QUEUE_WOKEN"
       ? "Nästa uppgift i kön startar."
-      : "Nästa uppgift startar i en ny chatt. Uppdraget parkerades med sin checkpoint.";
+      : "Nästa uppgift startar i en ny chatt, eller fortsätter sin ofärdiga kvant i sin egen chatt. Uppdraget parkerades med sin checkpoint.";
   }
   const code = String(result?.code || result?.error || "");
   if (code === "READ_RESPONSE_SAFETY_HOLD") return `En annan spärr gäller: ${reasonLabel(result.holdCode)}. Läs svar ändrar den inte.`;
@@ -152,7 +152,7 @@ export function workerActionConfirmText(action, process = {}) {
   const unread = phase === "SENDING" || phase === "WAITING"
     ? " Svaret på den senaste prompten har inte lästs; vill du ha med det, välj Läs svar först."
     : "";
-  return `Gå till nästa uppgift i kön: nuvarande uppdrag parkeras med sin checkpoint och nästa uppgift startar i en ny chatt.${unread} Inget skickas om. Fortsätta?`;
+  return `Gå till nästa uppgift i kön: nuvarande uppdrag parkeras med sin checkpoint och nästa uppgift startar i en ny chatt (eller fortsätter sin ofärdiga kvant i sin egen chatt).${unread} Inget skickas om. Fortsätta?`;
 }
 
 // v1.8.12 reserved slot: what the card and the panel say and offer.

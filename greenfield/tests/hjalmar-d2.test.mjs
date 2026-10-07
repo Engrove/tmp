@@ -280,7 +280,7 @@ test("runtime repairs a false Hjalmar BLOCKED caused only by Nano missing prompt
   assert.ok(r.corrections.some((item) => item.code === "NANO_TASK_CONTEXT_REQUIRED_CONTINUATION_OVERRIDE"));
 });
 
-test("unknown Nano effect cannot be normalized into ordinary CONTINUE", () => {
+test("v1.9.3 an unknown Nano result continues without replay instead of blocking (C14/F16)", () => {
   const nanoTask = {
     requested: true,
     status: "UNKNOWN_EFFECT",
@@ -296,10 +296,18 @@ test("unknown Nano effect cannot be normalized into ordinary CONTINUE", () => {
     targetDisposition: "CONTINUE",
     nanoTask
   });
-  assert.equal(r.decision.disposition, "BLOCKED");
-  assert.equal(r.decision.objectiveStatus, "BLOCKED");
-  assert.equal(r.decision.nextPrompt, "");
-  assert.ok(r.corrections.some((item) => item.code === "NANO_TASK_UNKNOWN_EFFECT_RUNTIME_OVERRIDE"));
+  assert.equal(r.decision.disposition, "CONTINUE");
+  assert.equal(r.decision.objectiveStatus, "PENDING");
+  assert.equal(r.decision.nextPrompt, "Continue anyway.");
+  const directive = reconcileHjalmarRuntimeFacts(base({
+    disposition: "BLOCKED",
+    objectiveStatus: "BLOCKED",
+    nanoTaskAssessment: "UNVERIFIED",
+    nextPrompt: ""
+  }), { targetDisposition: "CONTINUE", nanoTask });
+  assert.equal(directive.decision.disposition, "CONTINUE");
+  assert.match(directive.decision.nextPrompt, /will not be replayed/);
+  assert.ok(directive.corrections.some((item) => item.code === "NANO_TASK_UNKNOWN_EFFECT_CONTINUATION_OVERRIDE"));
 });
 
 

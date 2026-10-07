@@ -442,9 +442,10 @@ function runtimeHjalmarFallback(input, nanoObservation, nanoTask, error) {
   let nextPrompt = String(input.targetContinuationInstruction || "").trim();
 
   if (taskStatus === NANO_TASK_STATUS.UNKNOWN_EFFECT) {
-    disposition = "BLOCKED";
-    objectiveStatus = "BLOCKED";
-    nextPrompt = "";
+    // v1.9.3 (contract C14/F16): a lost prompt-only Nano result is not a
+    // mission blocker; continue without it and never replay the task.
+    nextPrompt = nextPrompt ||
+      "The local Nano task requested by the previous target response has no recoverable result and will not be replayed. Continue the current objective in EIC without that Nano result. Do not request the same Nano task again.";
   } else if (taskStatus === NANO_TASK_STATUS.CONTEXT_REQUIRED) {
     disposition = "CONTINUE";
     objectiveStatus = "PENDING";
@@ -529,13 +530,53 @@ async function runStructuredWithFallback(args, fallbackFactory, fallbackKind) {
   }
 }
 
+// v1.9.3 (contract C14/F16): Nano is optional prompt-only advisory transport.
+// Without a local LanguageModel a requested Nano task ends FAILED (it was
+// never executed, so it has no effect) and the analysis falls back to the
+// deterministic runtime decision; neither stalls the mission in recovery.
+function localModelMissing(availability) {
+  return availability === "unavailable" || !globalThis.LanguageModel?.create;
+}
+
+function localModelUnavailableError(availability) {
+  const error = new Error("Chrome local LanguageModel is unavailable.");
+  error.code = "ANALYZER_UNAVAILABLE";
+  error.availability = availability;
+  return error;
+}
+
 async function runNanoTaskOnly(input, token) {
   const availability = await languageModelAvailability(token);
-  if (availability === "unavailable" || !globalThis.LanguageModel?.create) {
-    const error = new Error("Chrome local LanguageModel is unavailable.");
-    error.code = "ANALYZER_UNAVAILABLE";
-    forensic(token, "NANO_TASK_EXECUTION_BLOCKED", { error: serializeError(error), availability }, "ERROR");
-    throw error;
+  if (localModelMissing(availability)) {
+    const error = localModelUnavailableError(availability);
+    const task = input.nanoTask || null;
+    if (!task?.requested || !String(task.task || "").trim()) {
+      return { ok: true, nanoTask: null, modelAvailability: availability, localModelUnavailable: true };
+    }
+    // Terminal evidence is reused and an interrupted task stays UNKNOWN_EFFECT
+    // (runNanoTask without execute never touches the model). Only a task this
+    // call was asked to start is reported as not executed.
+    if (input.executeNanoTask !== true) {
+      const reused = await runNanoTask(task, token, false);
+      return { ok: true, nanoTask: reused, modelAvailability: availability, localModelUnavailable: true };
+    }
+    const failed = {
+      ...task,
+      requested: true,
+      status: NANO_TASK_STATUS.FAILED,
+      semanticStatus: "UNVERIFIED",
+      result: "",
+      error: "LOCAL_LANGUAGE_MODEL_UNAVAILABLE: the Nano task was not executed.",
+      promptCalls: 0,
+      completedAt: new Date().toISOString(),
+      durationMs: 0
+    };
+    forensic(token, "NANO_TASK_NOT_EXECUTED_MODEL_UNAVAILABLE", {
+      requestId: task.requestId || "",
+      availability,
+      error: serializeError(error)
+    }, "WARN");
+    return { ok: true, nanoTask: failed, modelAvailability: availability, localModelUnavailable: true };
   }
   const nanoTask = await runNanoTask(input.nanoTask || null, token, input.executeNanoTask === true);
   return {
@@ -547,11 +588,37 @@ async function runNanoTaskOnly(input, token) {
 
 async function analyzePipeline(input, token) {
   const availability = await languageModelAvailability(token);
-  if (availability === "unavailable" || !globalThis.LanguageModel?.create) {
-    const error = new Error("Chrome local LanguageModel is unavailable.");
-    error.code = "ANALYZER_UNAVAILABLE";
-    forensic(token, "ANALYSIS_PIPELINE_BLOCKED", { error: serializeError(error), availability }, "ERROR");
-    throw error;
+  if (localModelMissing(availability)) {
+    const error = localModelUnavailableError(availability);
+    const nanoTask = await runNanoTask(input.nanoTask || null, token, false);
+    const nanoObservation = {
+      ...runtimeNanoObserverFallback(input, nanoTask, error),
+      knowledgeBoundary: NANO_KNOWLEDGE_BOUNDARY,
+      inputScope: "BOUNDED_PROMPT_FIELDS_ONLY"
+    };
+    const decision = runtimeHjalmarFallback(input, nanoObservation, nanoTask, error);
+    const validation = validateHjalmarDecision(decision);
+    forensic(token, "ANALYSIS_PIPELINE_MODEL_UNAVAILABLE_FALLBACK", {
+      error: serializeError(error),
+      availability,
+      decision,
+      validation
+    }, validation.ok ? "WARN" : "ERROR");
+    if (!validation.ok) throw error;
+    return {
+      ok: true,
+      nanoTask,
+      nano: nanoObservation,
+      nanoRawOutput: "",
+      nanoDurationMs: 0,
+      nanoFallbackApplied: true,
+      decision,
+      rawOutput: "",
+      durationMs: 0,
+      hjalmarFallbackApplied: true,
+      localModelUnavailable: true,
+      modelAvailability: availability
+    };
   }
 
   // v1.1.5: Nano Task side effects are executed and durably committed by

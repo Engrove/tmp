@@ -1,6 +1,15 @@
 export const SESSION_HEALTH_SCHEMA = "eic.greenfield.session-health.v1";
 export const SESSION_HEALTH_SAMPLE_LIMIT = 8;
 export const SESSION_HEALTH_BASELINE_MIN_SAMPLES = 3;
+// v1.9.3: completion-time baseline (clean samples before the latest one) and
+// the window of recent turns whose provider/transport notices count as
+// current pressure. Both are relative or event based; no wall-clock limit.
+export const SESSION_HEALTH_COMPLETION_BASELINE_MIN_SAMPLES = 2;
+export const SESSION_HEALTH_TRANSPORT_WINDOW = 3;
+export const PROVIDER_NOTICE_KINDS = Object.freeze({
+  PROCESSING: "PROVIDER_PROCESSING",
+  CONNECTION_INTERRUPTED: "CONNECTION_INTERRUPTED"
+});
 
 function finiteMs(value) {
   if (value === null || value === undefined || value === "") return null;
@@ -26,6 +35,32 @@ function boundedSamples(samples) {
     : [];
 }
 
+function transportFlags(value) {
+  return {
+    turn: finiteCount(value?.turn),
+    processingNotice: value?.processingNotice === true,
+    connectionInterrupted: value?.connectionInterrupted === true
+  };
+}
+
+function boundedTransport(rows) {
+  return Array.isArray(rows)
+    ? rows.slice(-SESSION_HEALTH_TRANSPORT_WINDOW).map(transportFlags)
+    : [];
+}
+
+function normalizeActiveNotice(value) {
+  if (!value || typeof value !== "object") return null;
+  const first = finiteMs(value.firstSeenAtMs);
+  const last = finiteMs(value.lastSeenAtMs);
+  if (first == null) return null;
+  return { firstSeenAtMs: first, lastSeenAtMs: last ?? first };
+}
+
+function noticeDurationMs(notice) {
+  return notice ? Math.max(0, Number(notice.lastSeenAtMs) - Number(notice.firstSeenAtMs)) : null;
+}
+
 export function createSessionHealthState({
   sessionSeq = 1,
   sessionStartTurn = 1,
@@ -41,7 +76,8 @@ export function createSessionHealthState({
     capturedResponseChars: 0,
     recoveryChurn: 0,
     activeTurn: null,
-    samples: []
+    samples: [],
+    carriedTransport: []
   };
 }
 
@@ -69,11 +105,34 @@ export function normalizeSessionHealthState(value, {
           postedAtMs: finiteMs(value.activeTurn.postedAtMs),
           firstResponseObservedAtMs: finiteMs(value.activeTurn.firstResponseObservedAtMs),
           recoveryChurnAtPost: finiteCount(value.activeTurn.recoveryChurnAtPost),
-          timingEligible: value.activeTurn.timingEligible !== false
+          timingEligible: value.activeTurn.timingEligible !== false,
+          promptChars: finiteCount(value.activeTurn.promptChars),
+          processingNotice: normalizeActiveNotice(value.activeTurn.processingNotice),
+          connectionInterrupted: normalizeActiveNotice(value.activeTurn.connectionInterrupted)
         }
       : null,
-    samples: boundedSamples(value.samples)
+    samples: boundedSamples(value.samples),
+    carriedTransport: boundedTransport(value.carriedTransport)
   };
+}
+
+// Provider/transport notices of the latest completed turns plus an unanswered
+// active turn. A turn abandoned on a broken connection is the strongest
+// pressure evidence, so it is kept even though it never completed.
+function recentTransport(state) {
+  const rows = [
+    ...state.carriedTransport,
+    ...state.samples.map(transportFlags)
+  ];
+  const active = state.activeTurn;
+  if (active && (active.processingNotice || active.connectionInterrupted)) {
+    rows.push({
+      turn: finiteCount(active.turn),
+      processingNotice: Boolean(active.processingNotice),
+      connectionInterrupted: Boolean(active.connectionInterrupted)
+    });
+  }
+  return rows.slice(-SESSION_HEALTH_TRANSPORT_WINDOW);
 }
 
 export function resetSessionHealthForRotation(value, {
@@ -81,11 +140,19 @@ export function resetSessionHealthForRotation(value, {
   sessionStartTurn,
   now = Date.now()
 } = {}) {
-  return createSessionHealthState({
-    sessionSeq: Math.max(1, finiteCount(sessionSeq)),
-    sessionStartTurn: Math.max(1, finiteCount(sessionStartTurn)),
-    now
-  });
+  // v1.9.3: a new chat starts a new timing baseline, but provider/transport
+  // notices of the last turns still describe current pressure.
+  const previous = value && value.schema === SESSION_HEALTH_SCHEMA
+    ? normalizeSessionHealthState(value)
+    : null;
+  return {
+    ...createSessionHealthState({
+      sessionSeq: Math.max(1, finiteCount(sessionSeq)),
+      sessionStartTurn: Math.max(1, finiteCount(sessionStartTurn)),
+      now
+    }),
+    carriedTransport: previous ? boundedTransport(recentTransport(previous)) : []
+  };
 }
 
 export function markSessionHealthPromptPosted(value, {
@@ -110,7 +177,38 @@ export function markSessionHealthPromptPosted(value, {
       postedAtMs: finiteMs(postedAtMs),
       firstResponseObservedAtMs: null,
       recoveryChurnAtPost: state.recoveryChurn,
-      timingEligible: timingEligible === true
+      timingEligible: timingEligible === true,
+      promptChars: finiteCount(promptChars),
+      processingNotice: null,
+      connectionInterrupted: null
+    }
+  };
+}
+
+/**
+ * v1.9.3: record a provider notice seen on the page while this turn waits
+ * (ChatGPT's background-processing notice or its connection-lost banner).
+ * First and last sighting are kept per turn; the duration is observed page
+ * time, not a provider limit.
+ */
+export function markSessionHealthProviderNotice(value, {
+  kind = PROVIDER_NOTICE_KINDS.PROCESSING,
+  observedAtMs = Date.now()
+} = {}) {
+  const state = normalizeSessionHealthState(value);
+  const active = state.activeTurn;
+  if (!active) return state;
+  const key = kind === PROVIDER_NOTICE_KINDS.CONNECTION_INTERRUPTED ? "connectionInterrupted" : "processingNotice";
+  const at = finiteMs(observedAtMs);
+  if (at == null) return state;
+  const prior = active[key];
+  return {
+    ...state,
+    activeTurn: {
+      ...active,
+      [key]: prior
+        ? { firstSeenAtMs: prior.firstSeenAtMs, lastSeenAtMs: Math.max(prior.lastSeenAtMs, at) }
+        : { firstSeenAtMs: at, lastSeenAtMs: at }
     }
   };
 }
@@ -170,6 +268,10 @@ export function completeSessionHealthTurn(value, {
     completionMs,
     totalMs,
     responseChars: finiteCount(responseChars),
+    promptChars: finiteCount(active.promptChars),
+    processingNotice: Boolean(active.processingNotice),
+    processingNoticeMs: noticeDurationMs(active.processingNotice),
+    connectionInterrupted: Boolean(active.connectionInterrupted),
     clean
   };
 
@@ -220,6 +322,23 @@ export function sessionHealthCapsule(value, {
     else latencyTrend = "STABLE";
   }
 
+  // v1.9.3: completion time relative to this session's own earlier clean
+  // turns (contract adaptiveSizingInputs sessionHealth.completionMs).
+  const cleanCompletion = state.samples
+    .filter((sample) => sample?.clean === true && Number.isFinite(sample?.completionMs))
+    .map((sample) => Number(sample.completionMs));
+  const latestCompletionMs = latest?.clean === true && Number.isFinite(latest?.completionMs)
+    ? Number(latest.completionMs)
+    : null;
+  const completionBaselineSource = latestCompletionMs != null ? cleanCompletion.slice(0, -1) : [];
+  const completionBaselineMs = completionBaselineSource.length >= SESSION_HEALTH_COMPLETION_BASELINE_MIN_SAMPLES
+    ? median(completionBaselineSource)
+    : null;
+  const completionRatio = completionBaselineMs && latestCompletionMs != null
+    ? Math.round((latestCompletionMs / completionBaselineMs) * 100) / 100
+    : null;
+  const transport = recentTransport(state);
+
   const managedContextChars = state.managedPromptChars + state.capturedResponseChars;
   const signals = [];
   if (state.promptsPosted >= 20) signals.push("LONG_SESSION");
@@ -227,6 +346,10 @@ export function sessionHealthCapsule(value, {
   if (ttfrRatio != null && ttfrRatio >= 2.5) signals.push("TTFR_HIGH_RELATIVE");
   else if (ttfrRatio != null && ttfrRatio >= 1.75) signals.push("TTFR_RISING");
   if (state.recoveryChurn >= 2) signals.push("RECOVERY_CHURN");
+  if (completionRatio != null && completionRatio >= 2.5) signals.push("COMPLETION_HIGH_RELATIVE");
+  else if (completionRatio != null && completionRatio >= 1.75) signals.push("COMPLETION_RISING");
+  if (transport.some((row) => row.processingNotice)) signals.push("PROVIDER_BACKGROUND_PROCESSING");
+  if (transport.some((row) => row.connectionInterrupted)) signals.push("TRANSPORT_INTERRUPTED");
 
   let pressureBand = "LOW";
   if (signals.length === 1) pressureBand = "WATCH";
@@ -247,9 +370,13 @@ export function sessionHealthCapsule(value, {
     ttfrBaselineMs: baselineMs,
     ttfrRatio,
     completionMs: Number.isFinite(latest?.completionMs) ? Number(latest.completionMs) : null,
+    completionBaselineMs,
+    completionRatio,
     responseRoundTripMs: Number.isFinite(latest?.totalMs) ? Number(latest.totalMs) : null,
     latencyTrend,
     recoveryChurn: state.recoveryChurn,
+    providerNoticeTurns: transport.filter((row) => row.processingNotice).length,
+    interruptedTurns: transport.filter((row) => row.connectionInterrupted).length,
     pressureBand,
     signals
   };

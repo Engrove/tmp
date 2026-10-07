@@ -108,7 +108,7 @@ test("v1.4.0 mission delegation response contract is bounded, explicit and not c
   assert.ok(tooMany.errors.includes("MISSION_DELEGATIONS_MAX_ITEMS"));
 });
 
-test("v1.4.0 queued A2A advertises delegation to another live worker while ordinary A2A does not", () => {
+test("v1.9.3 queued A2A advertises delegation into the same window's queue while ordinary A2A does not", () => {
   const baseProcess = {
     processId: "source-process",
     runId: "source-run",
@@ -127,12 +127,13 @@ test("v1.4.0 queued A2A advertises delegation to another live worker while ordin
   };
   const queued = buildA2AEnvelope({ process: baseProcess, objective: "Continue supervising" });
   assert.ok(queued.responseContract.jsonSchema.properties.missionDelegations);
-  assert.equal(queued.responseContract.missionDelegationControl.target, "ANOTHER_LIVE_QUEUE_MANAGED_GREENFIELD_WORKER");
-  assert.equal(queued.responseContract.missionDelegationControl.supervisorSelfCreation, false);
+  // v1.9.3 operator rule: delegated work lands in the delegating window's queue.
+  assert.equal(queued.responseContract.missionDelegationControl.target, "SAME_WINDOW_GREENFIELD_QUEUE");
+  assert.match(queued.responseContract.missionDelegationControl.insertion, /LATER_WORKER_TICK_NEVER_INSIDE_THIS_RESPONSE/);
   assert.equal(queued.responseContract.missionDelegationControl.sourceContinuesByDefault, true);
   assert.match(queued.responseContract.missionDelegationControl.temporaryWorkRule, /Temporary bounded work/i);
-  assert.match(queued.responseContract.note, /never create that delegated mission in the supervising Chrome queue/i);
-  assert.match(queued.responseContract.note, /another already-running queue-managed Greenfield worker/i);
+  assert.match(queued.responseContract.note, /appends it as a new slot to this same Chrome window's queue/i);
+  assert.doesNotMatch(queued.responseContract.note, /another already-running queue-managed Greenfield worker/i);
 
   const ordinary = buildA2AEnvelope({
     process: { ...baseProcess, queueContext: null },
@@ -142,7 +143,7 @@ test("v1.4.0 queued A2A advertises delegation to another live worker while ordin
   assert.equal("missionDelegationControl" in ordinary.responseContract, false);
 });
 
-test("v1.4.0 delegation registry never assigns a request back to the supervising window", async () => {
+test("v1.9.3 delegation registry assigns a request only to the delegating window's queue", async () => {
   const storage = storageMock();
   const registered = await registerMissionDelegationRequests([delegation], {
     sourceWindowId: 10,
@@ -158,37 +159,32 @@ test("v1.4.0 delegation registry never assigns a request back to the supervising
   assert.equal(registered.accepted[0].priority, "HIGH");
   assert.equal(clampDelegatedPriority("URGENT", "HIGH"), "HIGH");
 
-  const selfClaim = await claimPendingMissionDelegationForWorker({
-    targetWindowId: 10,
-    targetQueueId: "source-q"
+  // Another window's worker never takes it.
+  const otherWindow = await claimPendingMissionDelegationForWorker({
+    targetWindowId: 20,
+    targetQueueId: "worker-q"
   }, storage);
-  assert.equal(selfClaim.delegation, null);
+  assert.equal(otherWindow.delegation, null);
 
-  // A Chrome window id can change after restart/rebind. The stable source
-  // queue identity must still prevent the supervising queue from consuming
-  // its own delegation.
+  // A Chrome window id can change after restart/rebind; the stable source
+  // queue identity still routes the request home.
   const reboundSelfClaim = await claimPendingMissionDelegationForWorker({
     targetWindowId: 11,
     targetQueueId: "source-q"
   }, storage);
-  assert.equal(reboundSelfClaim.delegation, null);
+  assert.equal(reboundSelfClaim.delegation.requestId, delegation.requestId);
+  assert.equal(reboundSelfClaim.delegation.state, MISSION_DELEGATION_STATE.ASSIGNED);
+  assert.equal(reboundSelfClaim.delegation.targetQueueId, "source-q");
+  assert.equal(reboundSelfClaim.delegation.targetWindowId, 11);
 
-  const workerClaim = await claimPendingMissionDelegationForWorker({
-    targetWindowId: 20,
-    targetQueueId: "worker-q"
+  // Unknown-effect recovery: the same queue reconciles its ASSIGNED request
+  // instead of anyone duplicating it.
+  const sameQueueReconcile = await claimPendingMissionDelegationForWorker({
+    targetWindowId: 11,
+    targetQueueId: "source-q"
   }, storage);
-  assert.equal(workerClaim.delegation.requestId, delegation.requestId);
-  assert.equal(workerClaim.delegation.state, MISSION_DELEGATION_STATE.ASSIGNED);
-  assert.equal(workerClaim.delegation.targetWindowId, 20);
-
-  // Unknown-effect recovery: the same target worker can reconcile an ASSIGNED
-  // request instead of another worker duplicating it.
-  const sameWorkerReconcile = await claimPendingMissionDelegationForWorker({
-    targetWindowId: 20,
-    targetQueueId: "worker-q"
-  }, storage);
-  assert.equal(sameWorkerReconcile.delegation.requestId, delegation.requestId);
-  assert.equal(sameWorkerReconcile.delegation.attempts, 1);
+  assert.equal(sameQueueReconcile.delegation.requestId, delegation.requestId);
+  assert.equal(sameQueueReconcile.delegation.attempts, 1);
 
   const otherWorker = await claimPendingMissionDelegationForWorker({
     targetWindowId: 30,
@@ -284,7 +280,7 @@ test("v1.4.0 delegated mission is created in worker queue with provenance and de
   assert.equal(deduped.history.some((item) => item.delegation?.requestId === delegation.requestId), true);
 });
 
-test("v1.4.0 orphaned assignment can be reclaimed only after its target queue is no longer live", async () => {
+test("v1.9.3 an orphaned assignment returns only to the delegating queue after its target queue is no longer live", async () => {
   const storage = storageMock();
   await registerMissionDelegationRequests([delegation], {
     sourceWindowId: 10,
@@ -296,24 +292,30 @@ test("v1.4.0 orphaned assignment can be reclaimed only after its target queue is
     sourcePriority: "HIGH"
   }, storage);
 
-  const first = await claimPendingMissionDelegationForWorker({
-    targetWindowId: 20,
-    targetQueueId: "worker-q"
-  }, storage, { liveTargetQueueIds: ["source-q", "worker-q", "worker-q-2"] });
-  assert.equal(first.delegation.targetQueueId, "worker-q");
+  // A pre-1.9.3 assignment to another window's queue (simulated).
+  const registry = await loadMissionDelegationRegistry(storage);
+  registry.items[0] = { ...registry.items[0], state: MISSION_DELEGATION_STATE.ASSIGNED, targetWindowId: 20, targetQueueId: "worker-q", attempts: 1 };
+  const { saveMissionDelegationRegistry } = await import("../lib/mission-delegation.mjs");
+  await saveMissionDelegationRegistry(registry, storage);
 
   const stillLive = await claimPendingMissionDelegationForWorker({
-    targetWindowId: 30,
-    targetQueueId: "worker-q-2"
+    targetWindowId: 10,
+    targetQueueId: "source-q"
   }, storage, { liveTargetQueueIds: ["source-q", "worker-q", "worker-q-2"] });
   assert.equal(stillLive.delegation, null);
 
-  const reclaimed = await claimPendingMissionDelegationForWorker({
+  const notOwner = await claimPendingMissionDelegationForWorker({
     targetWindowId: 30,
     targetQueueId: "worker-q-2"
   }, storage, { liveTargetQueueIds: ["source-q", "worker-q-2"] });
+  assert.equal(notOwner.delegation, null);
+
+  const reclaimed = await claimPendingMissionDelegationForWorker({
+    targetWindowId: 10,
+    targetQueueId: "source-q"
+  }, storage, { liveTargetQueueIds: ["source-q", "worker-q-2"] });
   assert.equal(reclaimed.delegation.requestId, delegation.requestId);
-  assert.equal(reclaimed.delegation.targetQueueId, "worker-q-2");
+  assert.equal(reclaimed.delegation.targetQueueId, "source-q");
   assert.equal(reclaimed.delegation.attempts, 2);
 });
 
@@ -333,8 +335,8 @@ test("v1.4.0 delegation lifecycle can recover, apply and complete durably", asyn
   }, storage);
 
   const claim = await claimPendingMissionDelegationForWorker({
-    targetWindowId: 20,
-    targetQueueId: "worker-q"
+    targetWindowId: 10,
+    targetQueueId: "source-q"
   }, storage);
   assert.equal(claim.delegation.state, MISSION_DELEGATION_STATE.ASSIGNED);
 
@@ -344,8 +346,8 @@ test("v1.4.0 delegation lifecycle can recover, apply and complete durably", asyn
   assert.equal(registry.items[0].lastError.code, "QUEUE_FULL");
 
   await claimPendingMissionDelegationForWorker({
-    targetWindowId: 30,
-    targetQueueId: "worker-q-2"
+    targetWindowId: 10,
+    targetQueueId: "source-q"
   }, storage);
   await markMissionDelegationApplied(delegation.requestId, "target-item-1", storage);
   registry = await loadMissionDelegationRegistry(storage);

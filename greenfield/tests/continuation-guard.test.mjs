@@ -79,15 +79,15 @@ test("stale previous Hjalmar prompt yields to newer target guidance", () => {
   assert.equal(r.effectiveNextPrompt, "Inspect the actual Nano result.");
 });
 
-test("running Nano task must reach a terminal state before normal CONTINUE", () => {
+test("v1.9.3 a Nano task without a terminal result is an absent advisory result and never blocks (C14/F16)", () => {
   const r = evaluateContinuationAdmission({
     targetDisposition: "CONTINUE",
     currentObjective: "Current",
     decision: decision("Continue with result."),
     nanoTask: { requested: true, status: "RUNNING", result: "" }
   });
-  assert.equal(r.ok, false);
-  assert.equal(r.code, "NANO_TASK_INCOMPLETE");
+  assert.equal(r.ok, true);
+  assert.equal(r.code, "ADMISSIBLE");
 });
 
 test("terminal Nano task failure may continue with failure evidence instead of blocking the whole run", () => {
@@ -121,15 +121,23 @@ test("Nano CONTEXT_REQUIRED may continue in EIC without replaying the impossible
   assert.equal(r.code, "ADMISSIBLE");
 });
 
-test("unknown Nano task effect remains a hard exact-once boundary", () => {
+test("v1.9.3 an unknown Nano result continues without replay (C14/F16)", () => {
   const r = evaluateContinuationAdmission({
     targetDisposition: "CONTINUE",
     currentObjective: "Current",
     decision: decision("Continue"),
     nanoTask: { requested: true, status: "UNKNOWN_EFFECT", result: "" }
   });
-  assert.equal(r.ok, false);
-  assert.equal(r.code, "NANO_TASK_EFFECT_UNKNOWN");
+  assert.equal(r.ok, true);
+  // The directive itself is still never sent back to the EIC.
+  const reissue = evaluateContinuationAdmission({
+    targetDisposition: "CONTINUE",
+    currentObjective: "Current",
+    decision: decision("NANO_TASK: Calculate 2 + 2"),
+    nanoTask: { requested: true, status: "UNKNOWN_EFFECT", result: "" }
+  });
+  assert.equal(reissue.ok, false);
+  assert.equal(reissue.code, "NANO_TASK_REISSUE");
 });
 
 

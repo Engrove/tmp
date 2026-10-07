@@ -429,7 +429,9 @@ test("v1.7.7 a normal v1.7.6 response without runtimeControl keeps working and i
     decision: { ...hjalmarContinue(), targetDisposition: "CONTINUE" },
     terminalControl: evaluation.terminal
   });
-  assert.equal(control.reason, "HJALMAR_CONTINUE");
+  // v1.9.3: the structured CONTINUE handoff is forwarded verbatim.
+  assert.equal(control.reason, "EIC_HANDOFF_FORWARDED");
+  assert.equal(control.effectiveNextPrompt, "Continue with the next bounded package.");
   assert.equal(control.controllerOverride, undefined);
   assert.equal(parseRuntimeControlRequest(null), null, "explicit null is treated as absent");
 });

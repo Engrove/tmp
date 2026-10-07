@@ -2,6 +2,8 @@ import "./lib/safety-policy.js";
 import { readSafety, usageSummary, budgetDecision, reserveUsage, authorizeUsageSend, recordUsageOutput, usageIdentity, observeProviderQuota, probeProviderRecovery, updateSafetyPolicy, pauseAdmission, adoptSafetyPolicyFromVault, equalSafetyPolicy } from "./lib/usage-governor.mjs";
 import { loadSafetyPolicyVault, writeSafetyPolicyVault, safetyPolicyVaultPlan, SAFETY_POLICY_VAULT_FOLDER, loadDriftSettingsVault, writeDriftSettingsVault } from "./lib/safety-policy-vault.mjs";
 import { conversationKey, reconcileRestart } from "./lib/restart-recovery.mjs";
+import { nextInteractionAfterResponse } from "./lib/interaction-slicing.mjs";
+import { windowQueueOverview } from "./lib/window-queue-overview.mjs";
 import { conversationRecoveryUrl, shouldRememberManagedUrl, expectedThreadMissing } from "./lib/conversation-recovery.mjs";
 import { reconcileRecoveryReportWithLiveObservation } from "./lib/recovery-report.mjs";
 import { createOperatorBackup, restoreOperatorBackup } from "./lib/operator-backup.mjs";
@@ -2244,6 +2246,22 @@ async function contentSend(process, pending, operationId) {
   return result || { ok: false, effectPossible: true, code: "PROMPT_SEND_EFFECT_UNKNOWN" };
 }
 
+// v1.9.3: the window queue overview carried in every prompt. A read failure
+// leaves it out of this one prompt; it never blocks the prompt.
+async function windowQueueForPrompt(process, source = null) {
+  try {
+    const queue = source && Array.isArray(source.items)
+      ? source
+      : (await missionQueueForWindow(Number(process.windowId))).queue;
+    return windowQueueOverview(queue, {
+      now: Date.now(),
+      currentItemId: String(process.queueContext?.itemId || "")
+    });
+  } catch {
+    return null;
+  }
+}
+
 async function buildPendingA2A(process, {
   objective,
   objectiveId = "",
@@ -2256,9 +2274,12 @@ async function buildPendingA2A(process, {
   pauseResume = null,
   processStatusMode = "",
   baselineAssistantHash = "",
-  turn = process.turn
+  turn = process.turn,
+  // v1.9.3: the in-memory queue when the caller is mid-activation.
+  windowQueueSource = null
 }) {
   const virtual = { ...process, turn };
+  const windowQueue = await windowQueueForPrompt(process, windowQueueSource);
   const processStatus = String(processStatusMode || "").toUpperCase() === PROCESS_STATUS_REQUEST
     ? buildFullProcessStatus(virtual, { at: Date.now() })
     : null;
@@ -2286,7 +2307,8 @@ async function buildPendingA2A(process, {
     analysisEvidence,
     processStatus,
     sessionRotation,
-    pauseResume
+    pauseResume,
+    windowQueue
   };
   const composed = composeA2APrompt({ ...composeArgs, promptProfile });
   const hash = await sha256Hex(composed.text);
@@ -2520,6 +2542,8 @@ async function buildQueueActivationProcess({
       enabled: settings?.warmQueueResume == null ? DEFAULT_WARM_QUEUE_RESUME : settings.warmQueueResume === true,
       item,
       parked,
+      // v1.9.3: a new quantum (interaction 1) always starts in a fresh chat.
+      interactionInQuantum: Number(queueContext?.interactionCount || 0) + 1,
       lastSessionAction: capturedTargetResponse(parked).targetResponse?.sessionAction || "KEEP",
       otherConversationKeys: conversationsOfOtherGfws(queue, priorProcess, parked.processId),
       now: activationAtMs
@@ -2658,7 +2682,8 @@ async function buildQueueActivationProcess({
       sourceResponseState: rotation.sourceResponseState
     } : null,
     baselineAssistantHash: "",
-    turn
+    turn,
+    windowQueueSource: queue
   });
   process.pendingPrompt = pendingPrompt;
   process.objectiveState = {
@@ -2814,7 +2839,9 @@ async function activateQueueItem({
       priority: item.priority,
       maxInteractions: item.maxInteractions,
       resumed: Boolean(item.processSnapshot),
-      freshChatRequired: true,
+      // v1.9.3: true only when this activation opens a fresh chat.
+      freshChatRequired: process.sessionRotation?.warmResume?.warm !== true,
+      interactionInQuantum: Number(process.queueContext?.interactionCount || 0) + 1,
       hardReloadBeforeResume: settings.queueSwitchHardReload === true,
       switchDelaySeconds: priorProcess?.queueContext?.itemId
         ? settings.queueSwitchDelaySeconds
@@ -2842,7 +2869,8 @@ async function activateQueueItem({
     resumed: Boolean(item.processSnapshot),
     activationCount: Number(process.queueContext?.activationCount || 0),
     maxInteractions: Number(item.maxInteractions || 0),
-    freshChat: true
+    interactionInQuantum: Number(process.queueContext?.interactionCount || 0) + 1,
+    freshChat: process.sessionRotation?.warmResume?.warm !== true
   });
   await setWatchdog(process);
   await broadcast(process, "mission-queue-activated");
@@ -3251,19 +3279,12 @@ async function registerResponseMissionDelegations(process, targetResponse) {
       })),
       duplicates: result.duplicates.map((item) => item.requestId),
       supervisorContinues: true,
+      // v1.9.3: the request is appended to this same window's queue on a
+      // later tick of this worker, never inside the delegating answer.
+      targetQueue: "SAME_WINDOW_QUEUE",
       selfQueueMutation: false
     }).catch(() => undefined);
-
-    // The supervising worker never inserts into its own queue. It only wakes
-    // already-running queue-managed workers so one of them can accept the
-    // durable request inside that worker's own queue context.
-    const workers = await loadAllProcesses().catch(() => []);
-    for (const worker of workers) {
-      if (!worker?.processId || worker.processId === process.processId) continue;
-      if (Number(worker.windowId) === Number(process.windowId)) continue;
-      if (!worker.queueContext?.itemId || TERMINAL_PHASES.has(worker.phase)) continue;
-      scheduleFast(worker.processId, 100);
-    }
+    scheduleFast(process.processId, 100);
     return result;
   } catch (error) {
     await audit(process, "MISSION_DELEGATION_REQUEST_PERSIST_FAILED", "mission-delegation", {
@@ -3356,7 +3377,7 @@ async function acceptPendingMissionDelegationForWorker(process) {
       targetQueueId: savedQueue.queueId,
       targetItemId: targetItem.itemId,
       targetStatus: targetItem.status,
-      supervisorSelfCreation: false
+      sameWindowAsSource: String(delegation.sourceQueueId || "") === String(savedQueue.queueId || "")
     }).catch(() => undefined);
   } catch (error) {
     await missionDelegationQueues.enqueue("registry", () =>
@@ -6715,6 +6736,11 @@ async function runAnalysis(process) {
     targetContinuationInstruction,
     previousDecision: process.lastDecision,
     operatorInstruction: instructionSnapshot?.text || "",
+    // v1.9.3: the advisory controller sizes its nextPrompt for this position.
+    nextInteraction: nextInteractionAfterResponse(process.queueContext?.itemId ? {
+      ...process.queueContext,
+      maxInteractions: normalizeMissionQuantumInteractions(process.queueContext.maxInteractions)
+    } : null),
     nanoTask,
     // Side effect already checkpointed above. The advisory pipeline may only
     // reuse terminal Nano Task evidence.
@@ -8175,9 +8201,10 @@ async function tickProcess(processId, reason = "manual") {
   if (Number(process.safety?.hold?.retryAtMs || 0) > Date.now()) return process;
   if (!localSafety.admissionPaused && !localSafety.providerHold) await syncWorkModeForWorker(process).catch(() => undefined);
 
-  // A worker accepts at most one pending delegation per tick. This is the
-  // ownership boundary that keeps the supervising Greenfield from creating
-  // new queue work in its own Chrome session.
+  // A worker accepts at most one pending delegation per tick. v1.9.3: it
+  // accepts the delegations its own GFWs requested, so delegated work stays in
+  // the delegating window's queue; the insertion is a separate tick, never
+  // part of the delegating answer.
   process = await acceptPendingMissionDelegationForWorker(process);
 
   try {
