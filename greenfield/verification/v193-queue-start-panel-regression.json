@@ -1,0 +1,41 @@
+{
+  "tool": "tools/verify-queue-start-panel.mjs",
+  "rejected": {
+    "statusDetail": "Arbetskön startade inte: EIC-adressen kunde inte fastställas: välj EIC under Fästa på ChatGPT:s startsida (eller öppna en EIC-konversation) och starta kön igen",
+    "queueStartStatus": "Arbetskön startade inte: EIC-adressen kunde inte fastställas: välj EIC under Fästa på ChatGPT:s startsida (eller öppna en EIC-konversation) och starta kön igen",
+    "queueStartStatusVisible": true,
+    "queueStartDisabled": false,
+    "pageErrors": []
+  },
+  "accepted": {
+    "statusDetail": "Ingen aktiv process i detta Chrome-fönster.",
+    "queueStartStatus": "",
+    "queueStartStatusVisible": false,
+    "queueStartDisabled": true,
+    "pageErrors": []
+  },
+  "checks": [
+    {
+      "name": "rejected start: the reason stays in the top status line after the re-render",
+      "pass": true
+    },
+    {
+      "name": "rejected start: the reason is shown under the queue buttons",
+      "pass": true
+    },
+    {
+      "name": "rejected start: the button is usable again",
+      "pass": true
+    },
+    {
+      "name": "accepted start: no error line",
+      "pass": true
+    },
+    {
+      "name": "no page errors",
+      "pass": true
+    }
+  ],
+  "passed": 5,
+  "total": 5
+}

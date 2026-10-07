@@ -1,0 +1,39 @@
+{
+  "schema": "eic.greenfield.v193-prompt-sizes.v1",
+  "generatedAt": "2026-10-07T11:25:20.741Z",
+  "note": "Characters of real composed prompts with identical synthetic inputs; scratchpad prompts/gen.mjs variants do not carry a window queue, withOverview adds a 5-slot control.windowQueue.",
+  "sizes": {
+    "01-mission-start-FULL-noqueue": {
+      "v192": 35895,
+      "v193": 38577,
+      "deltaPct": 7.5
+    },
+    "02-queue-activation-FULL-1of5": {
+      "v192": 50102,
+      "v193": 53528,
+      "deltaPct": 6.8
+    },
+    "03-continuation-COMPACT-3of5": {
+      "v192": 7897,
+      "v193": 9580,
+      "deltaPct": 21.3
+    },
+    "04-continuation-COMPACT-5of5-final": {
+      "v192": 8766,
+      "v193": 10560,
+      "deltaPct": 20.5
+    }
+  },
+  "withOverview": {
+    "queue-FULL-1of5": {
+      "withoutWindowQueue": 52843,
+      "with5SlotWindowQueue": 54650,
+      "overviewChars": 1807
+    },
+    "queue-COMPACT-3of5": {
+      "withoutWindowQueue": 8723,
+      "with5SlotWindowQueue": 10177,
+      "overviewChars": 1454
+    }
+  }
+}
