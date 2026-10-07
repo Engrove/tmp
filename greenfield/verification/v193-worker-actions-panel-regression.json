@@ -1,0 +1,74 @@
+{
+  "tool": "tools/verify-worker-actions-panel.mjs",
+  "buttons": [
+    {
+      "action": "read-response",
+      "text": "Läs svar",
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "action": "next-queue-item",
+      "text": "Gå till nästa uppgift i kön",
+      "disabled": false,
+      "visible": true
+    }
+  ],
+  "dialogs": [
+    "Läs svar: Greenfield läser nu svaret i workerns flik. Hittas prompten inte automatiskt, kopplas ChatGPT:s senaste användartur efter föregående Greenfield-tur till prompten. Inget skickas om. Fortsätta?",
+    "Gå till nästa uppgift i kön: nuvarande uppdrag parkeras med sin checkpoint och nästa uppgift startar i en ny chatt (eller fortsätter sin ofärdiga kvant i sin egen chatt). Svaret på den senaste prompten har inte lästs; vill du ha med det, välj Läs svar först. Inget skickas om. Fortsätta?"
+  ],
+  "sent": [
+    {
+      "type": "EIC_GF_OPERATOR_READ_RESPONSE",
+      "windowId": 7,
+      "workerId": "worker-test",
+      "processId": "process-00000000-0000-4000-8000-0000000000c1"
+    },
+    {
+      "type": "EIC_GF_OPERATOR_NEXT_QUEUE_ITEM",
+      "windowId": 7,
+      "workerId": "worker-test",
+      "processId": "process-00000000-0000-4000-8000-0000000000c1"
+    }
+  ],
+  "afterRead": "Prompten kopplades till ChatGPT:s senaste användartur (ditt beslut). Prompten hittades i konversationen. Svaret läses nu.",
+  "afterNext": "Ingen annan uppgift i kön är redo att köras nu. Inget ändrades.",
+  "pageErrors": [],
+  "checks": [
+    {
+      "name": "the card shows 'Läs svar' and 'Gå till nästa uppgift i kön', enabled and visible",
+      "pass": true
+    },
+    {
+      "name": "Läs svar asks first (SENDING: it may bind the newest user turn) and says nothing is resent",
+      "pass": true
+    },
+    {
+      "name": "Läs svar is sent with the card's window, worker and process",
+      "pass": true
+    },
+    {
+      "name": "the result is written on the card",
+      "pass": true
+    },
+    {
+      "name": "Gå till nästa uppgift i kön asks first and points to Läs svar",
+      "pass": true
+    },
+    {
+      "name": "Gå till nästa uppgift i kön is sent with the card's window, worker and process",
+      "pass": true
+    },
+    {
+      "name": "a refusal is written on the card and survives the next rebuilds",
+      "pass": true
+    },
+    {
+      "name": "no page errors",
+      "pass": true
+    }
+  ],
+  "passed": 8,
+  "total": 8
+}

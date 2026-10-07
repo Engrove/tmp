@@ -1,0 +1,44 @@
+{
+  "tool": "tools/verify-stale-slot-panel.mjs",
+  "root": "this tree",
+  "cards": [
+    {
+      "title": "Projekt: 900 - Syntetiskt projekt A - Gf: GF-900.",
+      "phase": "WAITING",
+      "note": "Platsen lämnad tillbaka 11:19:18 AM: ingen generering efter omladdningen. Svaret läses ändå om det kommer.",
+      "noteVisible": true
+    },
+    {
+      "title": "Projekt: 901 - Syntetiskt projekt B - Gf: GF-901.",
+      "phase": "WAITING",
+      "note": "",
+      "noteVisible": false
+    }
+  ],
+  "slotLine": "1/1 platser · 0 väntar",
+  "pageErrors": [],
+  "checks": [
+    {
+      "name": "both workers are shown, the dead turn still WAITING",
+      "pass": true
+    },
+    {
+      "name": "the dead turn's card says the slot was given back, when, and that the answer is still read",
+      "pass": true
+    },
+    {
+      "name": "a worker that holds its slot has no note",
+      "pass": true
+    },
+    {
+      "name": "the slot line counts the slot the other worker now holds",
+      "pass": true
+    },
+    {
+      "name": "no page errors",
+      "pass": true
+    }
+  ],
+  "passed": 5,
+  "total": 5
+}

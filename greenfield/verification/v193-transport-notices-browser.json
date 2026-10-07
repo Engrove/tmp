@@ -1,0 +1,270 @@
+{
+  "tool": "tools/verify-transport-notices.mjs",
+  "contentVersion": "1.9.3",
+  "rows": {
+    "A_processingWithStop": {
+      "providerNotices": {
+        "processingNotice": true,
+        "connectionInterrupted": false
+      },
+      "generating": true,
+      "assistantText": ""
+    },
+    "B_processingNoStopButton": {
+      "providerNotices": {
+        "processingNotice": true,
+        "connectionInterrupted": false
+      },
+      "generating": false,
+      "assistantText": ""
+    },
+    "E_baselineNoNotice": {
+      "providerNotices": {
+        "processingNotice": false,
+        "connectionInterrupted": false
+      },
+      "generating": true,
+      "assistantText": ""
+    },
+    "F_processingInsideRoleNode": {
+      "providerNotices": {
+        "processingNotice": true,
+        "connectionInterrupted": false
+      },
+      "generating": false,
+      "assistantText": ""
+    },
+    "G_shortPartialAnswerAndNotice": {
+      "providerNotices": {
+        "processingNotice": true,
+        "connectionInterrupted": false
+      },
+      "generating": false,
+      "assistantText": "{\"ok\":true}"
+    },
+    "H_userMessageQuotesBoth": {
+      "providerNotices": {
+        "processingNotice": false,
+        "connectionInterrupted": false
+      },
+      "generating": false,
+      "assistantText": ""
+    },
+    "I_longAnswerQuotesBothInProse": {
+      "providerNotices": {
+        "processingNotice": false,
+        "connectionInterrupted": false
+      },
+      "generating": false,
+      "assistantText": "Status: CONTINUE — owner-verified readback complete. Status: CONTINUE — owner-verified readback complete. Status: CONTIN"
+    },
+    "J_connectionToastOutsideMain": {
+      "providerNotices": {
+        "processingNotice": false,
+        "connectionInterrupted": true
+      },
+      "generating": false,
+      "assistantText": "Delvis svar …"
+    },
+    "K_connectionBannerInCurrentTurn": {
+      "providerNotices": {
+        "processingNotice": false,
+        "connectionInterrupted": true
+      },
+      "generating": false,
+      "assistantText": "Delvis svar …Anslutningen bröts. Väntar på hela svaret"
+    },
+    "L_bannerInEarlierTurnOnly": {
+      "providerNotices": {
+        "processingNotice": false,
+        "connectionInterrupted": false
+      },
+      "generating": false,
+      "assistantText": ""
+    },
+    "M_greenfieldOverlayQuotesBoth": {
+      "providerNotices": {
+        "processingNotice": false,
+        "connectionInterrupted": false
+      },
+      "generating": false,
+      "assistantText": ""
+    },
+    "N_codeBlockQuotesBoth": {
+      "providerNotices": {
+        "processingNotice": false,
+        "connectionInterrupted": false
+      },
+      "generating": false,
+      "assistantText": "Anslutningen bröts. Väntar på hela svaret"
+    },
+    "O_englishBanner": {
+      "providerNotices": {
+        "processingNotice": false,
+        "connectionInterrupted": true
+      },
+      "generating": false,
+      "assistantText": ""
+    }
+  },
+  "checks": [
+    {
+      "name": "A_processingWithStop: processingNotice=true",
+      "pass": true
+    },
+    {
+      "name": "A_processingWithStop: connectionInterrupted=false",
+      "pass": true
+    },
+    {
+      "name": "A_processingWithStop: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "B_processingNoStopButton: processingNotice=true",
+      "pass": true
+    },
+    {
+      "name": "B_processingNoStopButton: connectionInterrupted=false",
+      "pass": true
+    },
+    {
+      "name": "B_processingNoStopButton: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "E_baselineNoNotice: processingNotice=false",
+      "pass": true
+    },
+    {
+      "name": "E_baselineNoNotice: connectionInterrupted=false",
+      "pass": true
+    },
+    {
+      "name": "E_baselineNoNotice: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "F_processingInsideRoleNode: processingNotice=true",
+      "pass": true
+    },
+    {
+      "name": "F_processingInsideRoleNode: connectionInterrupted=false",
+      "pass": true
+    },
+    {
+      "name": "F_processingInsideRoleNode: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "G_shortPartialAnswerAndNotice: processingNotice=true",
+      "pass": true
+    },
+    {
+      "name": "G_shortPartialAnswerAndNotice: connectionInterrupted=false",
+      "pass": true
+    },
+    {
+      "name": "G_shortPartialAnswerAndNotice: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "H_userMessageQuotesBoth: processingNotice=false",
+      "pass": true
+    },
+    {
+      "name": "H_userMessageQuotesBoth: connectionInterrupted=false",
+      "pass": true
+    },
+    {
+      "name": "H_userMessageQuotesBoth: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "I_longAnswerQuotesBothInProse: processingNotice=false",
+      "pass": true
+    },
+    {
+      "name": "I_longAnswerQuotesBothInProse: connectionInterrupted=false",
+      "pass": true
+    },
+    {
+      "name": "I_longAnswerQuotesBothInProse: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "J_connectionToastOutsideMain: processingNotice=false",
+      "pass": true
+    },
+    {
+      "name": "J_connectionToastOutsideMain: connectionInterrupted=true",
+      "pass": true
+    },
+    {
+      "name": "J_connectionToastOutsideMain: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "K_connectionBannerInCurrentTurn: processingNotice=false",
+      "pass": true
+    },
+    {
+      "name": "K_connectionBannerInCurrentTurn: connectionInterrupted=true",
+      "pass": true
+    },
+    {
+      "name": "K_connectionBannerInCurrentTurn: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "L_bannerInEarlierTurnOnly: processingNotice=false",
+      "pass": true
+    },
+    {
+      "name": "L_bannerInEarlierTurnOnly: connectionInterrupted=false",
+      "pass": true
+    },
+    {
+      "name": "L_bannerInEarlierTurnOnly: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "M_greenfieldOverlayQuotesBoth: processingNotice=false",
+      "pass": true
+    },
+    {
+      "name": "M_greenfieldOverlayQuotesBoth: connectionInterrupted=false",
+      "pass": true
+    },
+    {
+      "name": "M_greenfieldOverlayQuotesBoth: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "N_codeBlockQuotesBoth: processingNotice=false",
+      "pass": true
+    },
+    {
+      "name": "N_codeBlockQuotesBoth: connectionInterrupted=false",
+      "pass": true
+    },
+    {
+      "name": "N_codeBlockQuotesBoth: notice text never in assistant text",
+      "pass": true
+    },
+    {
+      "name": "O_englishBanner: processingNotice=false",
+      "pass": true
+    },
+    {
+      "name": "O_englishBanner: connectionInterrupted=true",
+      "pass": true
+    },
+    {
+      "name": "O_englishBanner: notice text never in assistant text",
+      "pass": true
+    }
+  ],
+  "passed": 39,
+  "total": 39
+}
