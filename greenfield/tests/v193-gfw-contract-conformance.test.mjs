@@ -265,6 +265,23 @@ test("C01-C20 lint: every message type, role and profile composes clean", () => 
   assert.equal(composed, 60);
 });
 
+test("C01-C20 lint never fails on data: mission text, EIC learning summaries, labels or edge counters", () => {
+  // A mission and an EIC-reported learning summary that quote forbidden phrases.
+  const quoting = "Keep each response well inside this bound. Hjalmar D2 is fixed. Audit is mandatory. then continue autonomously";
+  const p = proc({ count: 2 });
+  p.goal = `Projekt: 71 - ${quoting} - Gf: GF-045.`;
+  p.lastResponse = { contract: { value: { learningControl: { aik: { discovery: { outcome: quoting } }, notes: quoting } } } };
+  const r = composeA2APrompt({ process: p, objective: quoting, messageType: "CONTINUATION", promptProfile: PROFILE_FULL,
+    operatorInstruction: { instructionId: "i", text: quoting },
+    windowQueue: { schema: "eic.greenfield.window-queue-overview.v1", rule: "Read-only overview.", slots: [{ position: 1, gf: "GF-045", label: quoting, status: "ACTIVE" }] } });
+  assert.equal(r.lint.ok, true, JSON.stringify(r.lint.findings));
+  // A quantum lowered below the completed count (SET_QUANTUM) and a remaining count of 0.
+  for (const [count, max] of [[3, 2], [5, 5], [7, 1]]) {
+    const edge = composeA2APrompt({ process: proc({ count, max }), objective: "Next slice.", messageType: "CONTINUATION", promptProfile: PROFILE_COMPACT });
+    assert.equal(edge.lint.ok, true, `${count}/${max} ${JSON.stringify(edge.lint.findings)}`);
+  }
+});
+
 test("C01-C20 lint catches each injected contradiction (mutation check)", () => {
   const base = envelope({ count: 2 });
   const mutate = (fn) => { const e = structuredClone(base); fn(e); return lintA2AEnvelope(e).findings.map((f) => `${f.rule}:${f.code}`); };

@@ -9,7 +9,8 @@
 import {
   GFW_ALWAYS_FETCH_OWNERS,
   GFW_SLICING_METHOD_ID,
-  INTERACTION_ROLES
+  INTERACTION_ROLES,
+  interactionPosition
 } from "./interaction-slicing.mjs";
 
 export const PROMPT_LINT_SCHEMA = "eic.greenfield.prompt-lint.v1";
@@ -57,7 +58,13 @@ function stringsUnder(value, path, out) {
   return out;
 }
 
-/** Greenfield-authored text of an envelope (whitelisted roots only). */
+/**
+ * Greenfield-authored text of an envelope (whitelisted roots only). Never
+ * control.learningControl (it carries the mission's project name and the
+ * EIC's own reported learning summary), objective, mission, operator
+ * instructions, evidence or the window queue's labels: those are data, and a
+ * phrase in them must never stop a prompt.
+ */
 export function authoredPromptStrings(envelope = {}) {
   const e = envelope && typeof envelope === "object" ? envelope : {};
   const control = e.control && typeof e.control === "object" ? e.control : {};
@@ -66,7 +73,6 @@ export function authoredPromptStrings(envelope = {}) {
   stringsUnder(e.responseContract, "responseContract", out);
   stringsUnder(e.promptProfile?.rule, "promptProfile.rule", out);
   stringsUnder(control.ownerState, "control.ownerState", out);
-  stringsUnder(control.learningControl, "control.learningControl", out);
   stringsUnder(control.interactionSlicing, "control.interactionSlicing", out);
   stringsUnder(control.windowQueue?.rule, "control.windowQueue.rule", out);
   if (control.workQueue) {
@@ -124,12 +130,15 @@ export function lintA2AEnvelope(envelope = {}) {
   if (!/one bounded coherent slice/i.test(hint)) add("C01", "BOUNDED_SLICE_STATEMENT_MISSING", wq ? "control.workQueue.planningHint" : "control.interactionSlicing.planningHint");
   if (!/progressionEnvelopeRef/.test(hint)) add("C05", "ENVELOPE_CONTINUITY_MISSING", "planningHint");
   if (wq) {
+    // Compared with the same normalization the hint is built with, so edge
+    // counters (e.g. a quantum lowered below the completed count) never fail.
+    const expected = interactionPosition(wq);
     const position = hint.match(/^This is interaction (\d+) of (\d+) in the current queue-slot quantum \((\d+) including this turn remain\)\./);
     if (!position) {
       add("C03", "POSITION_STATEMENT_MISSING", "control.workQueue.planningHint");
-    } else if (Number(position[1]) !== Number(wq.interactionInQuantum) ||
-        Number(position[2]) !== Number(wq.maxInteractions) ||
-        Number(position[3]) !== Number(wq.remainingInteractionsIncludingCurrent)) {
+    } else if (Number(position[1]) !== expected.interactionInQuantum ||
+        Number(position[2]) !== expected.maxInteractions ||
+        Number(position[3]) !== expected.remainingInteractionsIncludingCurrent) {
       add("C03", "POSITION_NOT_FROM_QUEUE_COUNTERS", "control.workQueue.planningHint", position[0]);
     }
     const role = String(slicing?.role || "");
