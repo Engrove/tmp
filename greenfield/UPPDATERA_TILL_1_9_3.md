@@ -94,7 +94,9 @@ Varje prompt, FULL och COMPACT, har `control.windowQueue`. Den listar alla plats
 - kvant (`completedInteractions`/`maxInteractions`);
 - schema: fönster, paus, öppen nu och nästa öppning;
 - nästa körbara tid för pausade och blockerade platser;
-- för delegerade platser, vilken GFW som delegerade dem.
+- för delegerade platser, delegeringens `requestId`.
+
+Id:n (`itemId`) finns bara för den aktuella platsen, och COMPACT hänvisar till FULL-promptens regeltext. Med fem platser är översikten cirka 2 000 tecken.
 
 Översikten är skrivskyddad. EIC påverkar bara sin egen plats, via runtimeControl.
 

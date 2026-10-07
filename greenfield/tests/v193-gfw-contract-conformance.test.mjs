@@ -376,7 +376,9 @@ test("window queue overview lists every GF slot with state, quantum and schedule
   assert.equal(paused.schedule.windows, "Mon-Fri 22:00-06:00");
   assert.ok(paused.schedule.pauseUntil);
   assert.ok(paused.nextRunnableAt);
-  assert.equal(paused.delegatedBy.requestId, "gf045-gf007-p0e");
+  assert.equal(paused.delegatedBy, "gf045-gf007-p0e");
+  assert.equal("itemId" in overview.slots[0], false, "ids only for the current slot");
+  assert.equal("current" in overview.slots[0], false);
   assert.equal(overview.slots[0].schedule.windows, "ALWAYS_OPEN");
   assert.match(overview.rule, /Only the slot marked current is yours/);
   assert.equal(gfIdOf({ label: "", goal: "Gf: gf-12" }), "GF-12");
@@ -384,7 +386,8 @@ test("window queue overview lists every GF slot with state, quantum and schedule
   // Carried in FULL and COMPACT prompts and lint-clean.
   for (const profile of [PROFILE_FULL, PROFILE_COMPACT]) {
     const e = envelope({ count: 2, profile, windowQueue: overview });
-    assert.deepEqual(e.control.windowQueue, overview);
+    assert.deepEqual(e.control.windowQueue.slots, overview.slots);
+    assert.equal(e.control.windowQueue.rule, profile === PROFILE_FULL ? overview.rule : "UNCHANGED_FROM_LAST_FULL_PROMPT");
     assert.equal(lintA2AEnvelope(e).ok, true);
   }
 });

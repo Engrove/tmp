@@ -46,26 +46,21 @@ function slotOverview(item, index, { now, currentItemId }) {
   // activation that marks it ACTIVE has not been persisted yet.
   const status = current ? "ACTIVE" : String(item?.status || "").toUpperCase();
   const nextRunnable = ["PAUSED", "BLOCKED"].includes(status) ? queueItemNextRunnableAtMs(item, now) : null;
+  // Compact on purpose: this list is in every prompt. Ids are kept only for
+  // the current slot (the one runtimeControl may target).
   const slot = {
     position: index + 1,
     gf: gfIdOf(item),
-    label: text(item?.label || "", 120),
-    itemId: String(item?.itemId || ""),
+    label: text(item?.label || "", 80),
     status,
-    current,
+    ...(current ? { current: true, itemId: String(item?.itemId || "") } : {}),
     priority: String(item?.priority || "NORMAL").toUpperCase(),
     maxInteractions: Math.max(1, Math.floor(Number(item?.maxInteractions || 1))),
     completedInteractions: Math.max(0, Math.floor(Number(item?.quantumProgress || 0))),
     schedule: scheduleOverview(item, now)
   };
-  if (item?.savedMissionId) slot.savedMissionId = String(item.savedMissionId);
   if (nextRunnable) slot.nextRunnableAt = localIso(nextRunnable);
-  if (item?.delegation?.requestId) {
-    slot.delegatedBy = {
-      requestId: text(item.delegation.requestId, 200),
-      sourceItemId: String(item.delegation.sourceItemId || "")
-    };
-  }
+  if (item?.delegation?.requestId) slot.delegatedBy = text(item.delegation.requestId, 120);
   return slot;
 }
 

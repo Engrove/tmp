@@ -151,7 +151,8 @@ function compactEnvelope(full, profile) {
       ownerState: full.control.ownerState,
       ...(workQueue ? { workQueue } : {}),
       interactionSlicing: full.control.interactionSlicing,
-      ...(full.control.windowQueue ? { windowQueue: full.control.windowQueue } : {}),
+      // The slot list is per-turn state; its static rule is in the FULL prompt.
+      ...(full.control.windowQueue ? { windowQueue: { ...full.control.windowQueue, rule: "UNCHANGED_FROM_LAST_FULL_PROMPT" } } : {}),
       runtimeControl: full.control.runtimeControl,
       learningControl: full.control.learningControl
     },
