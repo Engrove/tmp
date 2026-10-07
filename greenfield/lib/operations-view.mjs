@@ -44,7 +44,9 @@ export const REASONS = Object.freeze({
   AMBIGUOUS_CONVERSATION:"Flera flikar eller processer matchar samma konversation",
   RECOVERY_USER_TURN_UNPROVEN:"Tidigare prompt kan inte verifieras i konversationen",
   SEND_CONTROL_UNAVAILABLE:"Skicka-knappen är inte tillgänglig",
-  NO_FRESH_APPROVED_MODEL_UI:"Ingen öppen worker visar godkänd modell och tänkenivå"
+  NO_FRESH_APPROVED_MODEL_UI:"Ingen öppen worker visar godkänd modell och tänkenivå",
+  SAFETY_POLICY_UPDATED:"Körkrav sparade",
+  SAFETY_POLICY_RESTORED:"Körkrav återställda från bokmärkesvalvet"
 });
 export function reasonLabel(code) {
   const value=String(code||"");

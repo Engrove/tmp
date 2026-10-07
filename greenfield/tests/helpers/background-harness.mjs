@@ -6,7 +6,7 @@ export function memory(seed={}){
  return {state,async get(keys){if(keys==null)return structuredClone(state);const list=typeof keys==='string'?[keys]:Array.isArray(keys)?keys:Object.keys(keys);return Object.fromEntries(list.filter(k=>Object.hasOwn(state,k)).map(k=>[k,structuredClone(state[k])]));},async set(rows){Object.assign(state,structuredClone(rows));},async remove(keys){for(const k of typeof keys==='string'?[keys]:keys)delete state[k];}};
 }
 let seq=0;
-export async function harness({seed={},sessionSeed={},submitMode='success',storageFactory=memory,extraExports=[]}={}){
+export async function harness({seed={},sessionSeed={},submitMode='success',storageFactory=memory,extraExports=[],bookmarks=null}={}){
  const root='https://chatgpt.com/g/g-test-eic',url=root+'/c/abc-123';
  const listeners=()=>({addListener(){}});
  const tab={id:11,windowId:1,url,status:'complete',active:true};
@@ -54,6 +54,7 @@ export async function harness({seed={},sessionSeed={},submitMode='success',stora
   }},
   windows:{getAll:async()=>[{id:tab.windowId,tabs:[tab]}],get:async()=>({id:tab.windowId}),onRemoved:listeners()},
  };
+ if(bookmarks)chrome.bookmarks=bookmarks; // v1.9.1: shared profile bookmark store (survives a new extension id)
  globalThis.chrome=chrome;
  globalThis.__gfHarnessTimers=timers;
  let source=await readFile(new URL('../../background.js',import.meta.url),'utf8');

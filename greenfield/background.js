@@ -1,5 +1,6 @@
 import "./lib/safety-policy.js";
-import { readSafety, usageSummary, budgetDecision, reserveUsage, authorizeUsageSend, recordUsageOutput, usageIdentity, observeProviderQuota, probeProviderRecovery, updateSafetyPolicy, pauseAdmission } from "./lib/usage-governor.mjs";
+import { readSafety, usageSummary, budgetDecision, reserveUsage, authorizeUsageSend, recordUsageOutput, usageIdentity, observeProviderQuota, probeProviderRecovery, updateSafetyPolicy, pauseAdmission, adoptSafetyPolicyFromVault, equalSafetyPolicy } from "./lib/usage-governor.mjs";
+import { loadSafetyPolicyVault, writeSafetyPolicyVault, safetyPolicyVaultPlan, SAFETY_POLICY_VAULT_FOLDER } from "./lib/safety-policy-vault.mjs";
 import { conversationKey, reconcileRestart } from "./lib/restart-recovery.mjs";
 import { conversationRecoveryUrl, shouldRememberManagedUrl, expectedThreadMissing } from "./lib/conversation-recovery.mjs";
 import { reconcileRecoveryReportWithLiveObservation } from "./lib/recovery-report.mjs";
@@ -15,6 +16,18 @@ let restartReport = {atMs:0,restored:[],unresolved:[],errors:[]};
 let runtimeFault = "";
 let hydrationInFlight = null;
 let storageContractProof = null;
+// v1.9.1: run requirements (Körkrav) also live in the Chrome profile bookmark
+// store, so a new extension id (a release loaded from a new folder) restores
+// them instead of starting from the defaults. Synced once per service worker
+// lifetime; a vault failure never blocks startup or the local save.
+let safetyVaultStatus = {state:"NOT_CHECKED",atMs:0,folder:SAFETY_POLICY_VAULT_FOLDER};
+let safetyVaultSynced = false;
+const SAFETY_VAULT_TIMEOUT_MS = 8000;
+// The recovery alarm wakes the worker every minute; a settled result is kept
+// for the browser session (chrome.storage.session is cleared on browser
+// restart and on "Läs in igen"), so the bookmark tree is read once per session.
+const SAFETY_VAULT_SESSION_KEY = "eic.gf.safety-vault-status.v1";
+const SAFETY_VAULT_SETTLED = new Set(["RESTORED","SAVED","IN_SYNC","EMPTY"]);
 let storageRetentionStatus = null;
 const RECOVERY_SCAN_ALARM = "eic.gf.recovery-scan.v1";
 
@@ -8893,6 +8906,7 @@ async function fleetStatusSnapshot() {
     storageContract:storageContractProof,
     recovery: restartReport,
     safety: await readSafety().then(v=>usageSummary(v)).catch(error=>({error:String(error.message)})),
+    safetyVault: {...safetyVaultStatus},
     storage: await storageHealth().catch(error=>({known:false,error:String(error.message)})),
     storageRetention: storageRetentionStatus || await readStorageRetentionStatus(chrome.storage.local).catch(() => null),
     usedCapacity: Number(schedulerView.scheduler?.activeCount || 0),
@@ -9619,6 +9633,51 @@ async function authorizeDispatch(message,sender) {
   return {ok:true,policy:admission.policy,gptRoot:process.gptRoot};
 }
 
+function withSafetyVaultTimeout(work) {
+  let timer;
+  return Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("SAFETY_POLICY_VAULT_TIMEOUT")),SAFETY_VAULT_TIMEOUT_MS);})]).finally(()=>clearTimeout(timer));
+}
+async function setSafetyVaultStatus(state,extra={}) {
+  safetyVaultStatus={state,atMs:Date.now(),folder:SAFETY_POLICY_VAULT_FOLDER,...extra};
+  try {
+    if (SAFETY_VAULT_SETTLED.has(state)) await chrome.storage.session.set({[SAFETY_VAULT_SESSION_KEY]:safetyVaultStatus});
+    else await chrome.storage.session.remove(SAFETY_VAULT_SESSION_KEY); // retried at the next worker start
+  } catch {}
+  return safetyVaultStatus;
+}
+async function writeSafetyPolicyToVault(v) {
+  return withSafetyVaultTimeout(writeSafetyPolicyVault({policy:v.policy,savedAtMs:Number(v.policyUpdatedAtMs || 0) || Date.now(),appVersion:APP_VERSION},{bookmarks:chrome.bookmarks,normalizePolicy:Safety.normalizePolicy}));
+}
+async function syncSafetyPolicyVault(reason,{force=false}={}) {
+  if (!chrome.bookmarks?.getTree) return setSafetyVaultStatus("UNAVAILABLE",{error:"chrome.bookmarks saknas"});
+  if (!force) {
+    const settled=await chrome.storage.session.get(SAFETY_VAULT_SESSION_KEY).then(r=>r?.[SAFETY_VAULT_SESSION_KEY]).catch(()=>null);
+    if (SAFETY_VAULT_SETTLED.has(settled?.state)) return (safetyVaultStatus={...settled,folder:SAFETY_POLICY_VAULT_FOLDER});
+  }
+  try {
+    return await withSafetyVaultTimeout((async()=>{
+      const local=await readSafety();
+      const vault=await loadSafetyPolicyVault(chrome.bookmarks,{normalizePolicy:Safety.normalizePolicy});
+      const plan=safetyPolicyVaultPlan({local,vault,defaults:Safety.defaults,equalPolicy:equalSafetyPolicy});
+      if (plan.action==="ADOPT_VAULT") {
+        const after=await adoptSafetyPolicyFromVault(vault);
+        if (after.policyOrigin==="VAULT" && after.policyUpdatedAtMs===vault.savedAtMs) {
+          await recordIncident(null,"SAFETY_POLICY_RESTORED",plan.reason,{reason,vaultSavedAtMs:vault.savedAtMs,vaultAppVersion:vault.appVersion});
+          return setSafetyVaultStatus("RESTORED",{savedAtMs:vault.savedAtMs,reason:plan.reason});
+        }
+        return setSafetyVaultStatus("IN_SYNC",{savedAtMs:Number(after.policyUpdatedAtMs || 0) || null,reason:"LOCAL_SAVED_DURING_SYNC"});
+      }
+      if (plan.action==="SEED_VAULT") {
+        const record=await writeSafetyPolicyToVault(local);
+        return setSafetyVaultStatus("SAVED",{savedAtMs:record.savedAtMs,reason:plan.reason});
+      }
+      return setSafetyVaultStatus(vault ? "IN_SYNC" : "EMPTY",{savedAtMs:vault?.savedAtMs || null,reason:plan.reason});
+    })());
+  } catch(error) {
+    return setSafetyVaultStatus("ERROR",{error:String(error?.message || error),reason});
+  }
+}
+
 async function hydrateProcesses(reason) {
   if (hydrationInFlight) return hydrationInFlight;
   hydrationInFlight=(async()=>{
@@ -9626,6 +9685,10 @@ async function hydrateProcesses(reason) {
       storageContractProof ||= await probeStorageContract(chrome.storage.local);
       const repaired=await recoverRc1Checkpoints(chrome.storage.local);
       await readSafety();
+      if (!safetyVaultSynced) {
+        safetyVaultSynced=true;
+        await syncSafetyPolicyVault(reason || "startup");
+      }
       const report=await reconcileRestart({local:chrome.storage.local,session:chrome.storage.session,tabs:chrome.tabs,ensureBridge:ensureContentBridgeVersion});
       // v1.8.13: restored rows accumulate for the service worker's lifetime;
       // each row carries its own time (diagnostics 2026-10-05 showed a days-old
@@ -9676,6 +9739,8 @@ async function panelSafetyAction(message,sender) {
   }
   if (message.type==="EIC_GF_IMPORT_RECOVERY") {
     const restored=await restoreOperatorBackup(typeof message.backupJson==="string" ? JSON.parse(message.backupJson) : message.backup,chrome.storage.local,{bookmarks:chrome.bookmarks || null});
+    // v1.9.1: settle imported run requirements against the vault now (newest save wins), not at an arbitrary later restart.
+    await syncSafetyPolicyVault("backup-import",{force:true});
     await hydrateProcesses();
     return {ok:true,restored,fleetStatus:await fleetStatusSnapshot()};
   }
@@ -9691,8 +9756,21 @@ async function panelSafetyAction(message,sender) {
   }
   if (message.type==="EIC_GF_SAFETY_UPDATE") {
     const before=(await readSafety()).policy;
-    const after=(await updateSafetyPolicy(message.policy || {})).policy;
+    const saved=await updateSafetyPolicy(message.policy || {});
+    const after=saved.policy;
     await recordIncident(null,"SAFETY_POLICY_UPDATED","OPERATOR",Object.fromEntries(Object.keys(after||{}).filter(k=>before?.[k]!==after[k]).map(k=>[k,after[k]])));
+    // The local journal is already committed. A failed vault write is reported
+    // to the panel and retried at the next start (local is then the newer save).
+    if (!chrome.bookmarks?.getTree) await setSafetyVaultStatus("UNAVAILABLE",{error:"chrome.bookmarks saknas"});
+    else {
+      try {
+        const record=await writeSafetyPolicyToVault(saved);
+        await setSafetyVaultStatus("SAVED",{savedAtMs:record.savedAtMs,reason:"OPERATOR_SAVE"});
+      } catch(error) {
+        await setSafetyVaultStatus("WRITE_FAILED",{error:String(error?.message || error),reason:"OPERATOR_SAVE"});
+        await recordIncident(null,"SAFETY_POLICY_VAULT_WRITE_FAILED","OPERATOR",{error:safetyVaultStatus.error});
+      }
+    }
   }
   if (message.type==="EIC_GF_SAFETY_PAUSE") await pauseAdmission(message.paused===true);
   if (message.type==="EIC_GF_RECOVERY_SCAN") await hydrateProcesses("operator-recovery-scan");

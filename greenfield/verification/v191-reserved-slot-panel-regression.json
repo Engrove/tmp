@@ -1,0 +1,84 @@
+{
+  "tool": "tools/verify-reserved-slot-panel.mjs",
+  "cards": [
+    {
+      "reserved": true,
+      "badge": "Reserverad plats",
+      "slotButton": "Släpp reserverad plats",
+      "slotAction": "release"
+    },
+    {
+      "reserved": false,
+      "badge": "",
+      "slotButton": "Reservera plats",
+      "slotAction": "reserve"
+    }
+  ],
+  "capacityLine": "1/2 platser · 0 väntar · 1 plats reserverad",
+  "drift": {
+    "state": "Detta fönster",
+    "toggle": "Ta bort reservationen",
+    "detail": "1 plats är låst för detta fönster. Övriga fönster delar på 1 plats.",
+    "visible": true
+  },
+  "driftAfterMove": {
+    "state": "Ett annat fönster",
+    "toggle": "Reservera en plats för detta fönster",
+    "detail": "Fönstret har nu en reserverad plats. Övriga fönster delar på resten. 1 plats är låst för det reserverade fönstret. Övriga fönster delar på 1 plats."
+  },
+  "dialogs": [
+    "Reservera en plats för det här fönstret: en av platserna låses för det, även när det inte kör, och övriga fönster delar på resten. Reservationen flyttas från ett annat fönster. Pågående svar avbryts inte. Fortsätta?",
+    "Reservera en plats för det här fönstret: en av platserna låses för det, även när det inte kör, och övriga fönster delar på resten. Reservationen flyttas från ett annat fönster. Pågående svar avbryts inte. Fortsätta?"
+  ],
+  "sent": [
+    {
+      "type": "EIC_GF_SET_RESERVED_SLOT",
+      "windowId": 8,
+      "workerId": "worker-other",
+      "enabled": true
+    },
+    {
+      "type": "EIC_GF_SET_RESERVED_SLOT",
+      "windowId": 7,
+      "workerId": "worker-test",
+      "enabled": true
+    }
+  ],
+  "pageErrors": [],
+  "checks": [
+    {
+      "name": "the reserved window's card carries the badge and 'Släpp reserverad plats'; the other card offers 'Reservera plats'",
+      "pass": true
+    },
+    {
+      "name": "the capacity line says one slot is reserved",
+      "pass": true
+    },
+    {
+      "name": "Drift shows 'Detta fönster', the lock and the release button",
+      "pass": true
+    },
+    {
+      "name": "reserving another window asks first and says the reservation moves",
+      "pass": true
+    },
+    {
+      "name": "the card button sends that window's binding",
+      "pass": true
+    },
+    {
+      "name": "after the move this window shows 'Ett annat fönster' and offers to reserve",
+      "pass": true
+    },
+    {
+      "name": "the Drift toggle reserves this window again",
+      "pass": true
+    },
+    {
+      "name": "no page errors",
+      "pass": true
+    }
+  ],
+  "passed": 8,
+  "total": 8
+}

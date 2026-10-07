@@ -1110,6 +1110,24 @@ function renderFleetStatus() {
   if (!$("safetyPolicyForm").contains(document.activeElement) && !state.safetyPolicyDirty && policy.requiredModel) {
     for (const [key,value] of Object.entries(policy)) if ($(key)) $(key).value=String(value);
   }
+  $("safetyVaultStatus").textContent=safetyVaultText(fleet.safetyVault,u);
+}
+
+// v1.9.1: where the run requirements survive a new installation folder.
+function safetyVaultText(vault,safety={}) {
+  const at=ms=>Number(ms) > 0 ? new Date(Number(ms)).toLocaleString("sv-SE") : "–";
+  switch (vault?.state) {
+    case "RESTORED": return `Bokmärkesvalv: körkraven återställdes från valvet (sparade ${at(vault.savedAtMs)}).`;
+    case "SAVED": return `Bokmärkesvalv: sparat ${at(vault.savedAtMs)}. Följer med till nya installationsmappar i denna Chrome-profil.`;
+    case "IN_SYNC": return safety.policyOrigin==="VAULT"
+      ? `Bokmärkesvalv: körkraven hämtades från valvet och stämmer med senaste sparning (${at(safety.policyUpdatedAtMs || vault.savedAtMs)}).`
+      : `Bokmärkesvalv: stämmer med senaste sparning (${at(vault.savedAtMs)}).`;
+    case "EMPTY": return "Bokmärkesvalv: inget giltigt sparat värde. Värdena nedan gäller tills du sparar körkrav; körkrav sparade i en äldre version än 1.9.1 finns bara kvar i den gamla installationen.";
+    case "WRITE_FAILED":
+    case "ERROR": return `Bokmärkesvalv: kunde inte läsas eller uppdateras (${vault.error || "okänt fel"}). Körkraven gäller bara denna installation tills det lyckas; nytt försök vid nästa start.`;
+    case "UNAVAILABLE": return "Bokmärkesvalv: inte tillgängligt. Körkraven gäller bara denna installation.";
+    default: return "Bokmärkesvalv: kontrolleras vid start.";
+  }
 }
 
 function renderMissionQueueSets() {
@@ -2322,6 +2340,10 @@ async function safetyAction(type,extra={}) {
       const modelText=result.inspection.model || (result.inspection.allowed ? "Modellnamn ej exponerat" : "Modell okänd");
       const effortText=result.inspection.effort || (result.inspection.allowed ? "Reasoning-kontroll verifierad" : "Tänkenivå okänd");
       $("safetyActionResult").textContent=`${reasonLabel(result.inspection.code)} · ${modelText} · ${effortText}`;
+    } else if (type==="EIC_GF_SAFETY_UPDATE" && ["WRITE_FAILED","UNAVAILABLE","ERROR"].includes(result.fleetStatus?.safetyVault?.state)) {
+      $("safetyActionResult").textContent=`Körkraven är sparade i denna installation, men bokmärkesvalvet kunde inte uppdateras (${result.fleetStatus.safetyVault.error || "okänt fel"}). De gäller bara denna installationsmapp tills valvet har uppdaterats; nytt försök vid nästa start.`;
+    } else if (type==="EIC_GF_SAFETY_UPDATE") {
+      $("safetyActionResult").textContent="Körkraven är sparade, även i bokmärkesvalvet.";
     } else {
       $("safetyActionResult").textContent="Ändringen är sparad.";
     }
@@ -2374,7 +2396,7 @@ $("importRecoveryFile").addEventListener("change",async event=>{
     if(file.size>32*1024*1024)throw Error("BACKUP_SIZE_INVALID");
     const backupJson=await file.text();JSON.parse(backupJson);
     const result=await safetyAction("EIC_GF_IMPORT_RECOVERY",{backupJson});
-    $("backupResult").textContent=`Återläst pausat: ${result.restored.processes} processer och ${result.restored.queues} köer. Kontrollera tidigare effekter i EIC innan du startar nytt arbete.`;
+    $("backupResult").textContent=`Återläst pausat: ${result.restored.processes} processer och ${result.restored.queues} köer. Kontrollera tidigare effekter i EIC innan du startar nytt arbete.${result.fleetStatus?.safetyVault?.state==="RESTORED" ? " Körkraven togs från bokmärkesvalvet, som har en senare sparning än kopian." : ""}`;
   }catch(error){$("backupResult").textContent=reasonLabel(error.message);}
 });
 
@@ -2419,7 +2441,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.9.0" }
+      payload: { appVersion: "1.9.1" }
     });
     await snapshot();
   } catch (error) {

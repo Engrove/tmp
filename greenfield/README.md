@@ -1,6 +1,12 @@
-# EIC Autonom Agent Greenfield 1.9.0
+# EIC Autonom Agent Greenfield 1.9.1
 
 Chrome MV3-tillägg för EIC GPT i vanligt Chat-läge.
+
+Version 1.9.1 rättar att sparade **körkrav** gick tillbaka till standardvärdena när Greenfield laddades från en ny mapp.
+- Orsak: körkraven låg bara i `chrome.storage.local`, som tillhör extension-ID:t. Varje uppackad release-mapp ger ett nytt ID.
+- Rättelse: körkraven sparas nu också i Chrome-profilens bokmärken (mappen "EIC Greenfield · Run requirements v1"), och den senast sparade versionen gäller vid start.
+
+Se [UPPDATERA_TILL_1_9_1.md](UPPDATERA_TILL_1_9_1.md).
 
 Version 1.9.0 har tre delar:
 
@@ -45,6 +51,16 @@ Version 1.7.9 ändrar vad som händer när ett svar aldrig blir klart. Greenfiel
 Version 1.7.8 rättar FULL/COMPACT-promptprofilen från 1.7.7. En omladdning av samma ChatGPT-konversation räknas inte längre som sessionsgräns. Det gäller både Greenfields egen stale-ladder-F5/Ctrl-F5 efter 30/60/90 min och en manuell F5. I den live-körda 1.7.7-sessionen gjorde Greenfields egen 30-minuters-F5 att tur 2 skickades som FULL. Modellens kontext ligger i konversationen (`/c/<id>`) och påverkas inte av en omladdning. FULL skickas vid ny chatt, byte av konversation, rotation, köaktivering, nytt fönster eller ny process, var tionde prompt och på AI-begäran.
 
 Version 1.7.7 gör **AI-begärd runtime-control** till en validerad, avgränsad kontrollpunkt. När EIC-AI:n svarar `status=DONE` eller `sessionAction=STOP_PROCESS` (eller strukturerat `runtimeControl` `COMPLETE_MISSION`) avslutar Greenfield nu faktiskt den logiska GFW:n och pensionerar alla dess köplatser. I 1.7.6 kunde Hjalmars lokala `CONTINUE` tyst köra över den terminala signalen. AI:n kan också begära ändrad kvant (`SET_QUANTUM`) och prioritet (`SET_PRIORITY`) för aktuell köplats. Greenfield validerar target, gränser och operatörsföreträde och återrapporterar kvitton i nästa prompt. Följdprompter i samma ChatGPT-konversation kan skickas som COMPACT. FULL-prompten skickas vid sessionsgräns (ny chatt, rotation, köaktivering, konversationsbyte) och var tionde prompt.
+
+## Nytt i 1.9.1
+
+- **Körkrav i bokmärkesvalv** (`lib/safety-policy-vault.mjs`; `syncSafetyPolicyVault` och `EIC_GF_SAFETY_UPDATE` i `background.js`; `updateSafetyPolicy`/`adoptSafetyPolicyFromVault` i `lib/usage-governor.mjs`):
+  - **Spara körkrav** stämplar `policyUpdatedAtMs` i säkerhetsjournalen och skriver sedan valvet: mellanmapp, readback, commit.
+  - **Start:** `safetyPolicyVaultPlan` väljer `ADOPT_VAULT`, `SEED_VAULT` eller `NONE`. Senast sparade version i profilen gäller. Värden från 1.9.0 saknar sparningstid och räknas som äldre än valvet.
+  - **Valet görs om inne i journalens lås**, så en sparning som kommer under starten skrivs aldrig över.
+  - **Synk en gång per Chrome-session.** Resultatet hålls i `chrome.storage.session`, och tidsgränsen är 8 s. Ett valvfel blockerar aldrig start eller sparning.
+  - **Panelen** visar valvets status under Drift → Körkrav. `fleetStatus.safetyVault` och `safety.policyOrigin` exponeras.
+  - **Händelseloggen** visar `SAFETY_POLICY_RESTORED`. Incidentloggen visar `SAFETY_POLICY_RESTORED` och `SAFETY_POLICY_VAULT_WRITE_FAILED`.
 
 ## Nytt i 1.9.0
 
@@ -282,6 +298,7 @@ Börja med [START_HERE_SV.md](START_HERE_SV.md). För uppgradering från 1.8.8, 
 
 ```sh
 npm test
+node --test tests/v191-safety-policy-vault.test.mjs
 node --test tests/v190-warm-resume.test.mjs tests/v190-panel-edit-guard.test.mjs tests/v190-work-mode-startup.test.mjs
 NODE_PATH="$(npm root -g)" node tools/verify-panel-edit-guard.mjs   # kräver Playwright + Chromium
 node --test tests/v189-queue-start-discovery.test.mjs
@@ -310,4 +327,4 @@ node --test tests/v173-language-model-safety.test.mjs
 node --test tests/v170-model-compatibility.test.mjs
 ```
 
-Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.9.0.
+Ingen ny produktionsdependency och ingen ny Chrome-behörighet har lagts till i 1.7.7–1.9.1. Valvet använder den befintliga behörigheten `bookmarks`.

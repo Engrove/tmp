@@ -1,0 +1,24 @@
+Greenfield v1.9.1 negative control: tests/v191-safety-policy-vault.test.mjs against v1.9.0 (git archive of commit 51b4687, APP_VERSION 1.9.0).
+Copied in so the test file loads: lib/safety-policy-vault.mjs (new, pure), lib/usage-governor.mjs (1.9.1: save time + adoptSafetyPolicyFromVault),
+tests/helpers/mock-bookmarks.mjs and tests/helpers/background-harness.mjs (1.9.1: optional chrome.bookmarks). None of them is wired into v1.9.0's background.js,
+sidepanel.js or sidepanel.html: 1.9.0 never reads or writes the vault, which is the reported defect.
+
+== node --test tests/v191-safety-policy-vault.test.mjs
+ok 1 - v1.9.1 vault: write/load round trip in its own profile folder, one committed copy, no stage left
+ok 2 - v1.9.1 vault: damaged, foreign or out-of-range content reads as absent, never as a policy
+ok 3 - v1.9.1 vault: a failed write removes its stage and keeps the previous committed copy
+ok 4 - v1.9.1 plan: the newest operator save in the profile wins; defaults never seed the vault
+ok 5 - v1.9.1 governor: an operator save is stamped; adoption is re-checked inside the journal lock
+not ok 6 - v1.9.1 reported bug: körkrav saved in one folder are restored when Greenfield is loaded from a new folder
+not ok 7 - v1.9.1 negative control: a new folder without the profile vault starts from the defaults (the v1.9.0 symptom)
+not ok 8 - v1.9.1 upgrade in place: v1.9.0 values without a save time seed the vault and then follow to a new folder
+not ok 9 - v1.9.1 newest save wins across two installation folders in the same profile
+not ok 10 - v1.9.1 a failed vault write keeps the local save, is reported, and is retried at the next start
+not ok 11 - v1.9.1 an unreadable bookmark store never blocks startup or the local save
+ok 12 - v1.9.1 vault: a readback failure after the commit keeps the new copy; an interrupted stage is purged
+ok 13 - v1.9.1 vault: incomplete or far-future records are rejected; the newest of two committed copies wins
+not ok 14 - v1.9.1 a settled sync is reused for the browser session; a worker restart does not reread bookmarks
+not ok 15 - v1.9.1 a hanging bookmark store times out instead of blocking startup
+# tests 15
+# pass 7
+# fail 8
