@@ -1,0 +1,392 @@
+export const WAITING_STALE_INTERVAL_MS = 30 * 60 * 1000;
+// v1.8.8: a current generation signal may defer disruptive recovery, but a
+// stuck stop-button must not hold the slot forever. This is a client recovery
+// budget, not a claim about provider response time or model eligibility.
+export const WAITING_GENERATION_LIMIT_MS = 4 * 60 * 60 * 1000;
+export const WAITING_RECOVERY_SETTLE_MS = 60 * 1000;
+
+// v1.9.3: ChatGPT's background-processing notice or its connection-lost
+// banner on the page means the provider still owes this turn's answer.
+export function providerTransportPending(page) {
+  return page?.providerNotices?.processingNotice === true ||
+    page?.providerNotices?.connectionInterrupted === true;
+}
+
+// A busy/disabled composer alone also occurs during loading and UI holds.
+// Deferral needs the bridge's current positive stop/streaming observation, or
+// (v1.9.3) a provider notice that the answer is still being processed.
+export function hasCurrentGenerationEvidence(page) {
+  return (page?.generating === true &&
+    (page?.signals?.stopVisible === true || page?.signals?.streaming === true)) ||
+    providerTransportPending(page);
+}
+
+// Backward-compatible aliases retained for older deterministic imports. In v1.1.11
+// the entire stale-session ladder advances on one 30-minute cadence; there is no
+// separate 90-second refresh grace window anymore.
+export const WAITING_REFRESH_AFTER_MS = WAITING_STALE_INTERVAL_MS;
+export const WAITING_REFRESH_GRACE_MS = WAITING_STALE_INTERVAL_MS;
+
+export const WAITING_REFRESH_ACTIONS = Object.freeze({
+  WAIT: "WAIT",
+  F5: "F5",
+  CTRL_F5: "CTRL_F5",
+  ROTATE: "ROTATE"
+});
+
+export const WAITING_REFRESH_STAGES = Object.freeze({
+  NONE: "",
+  F5_30: "F5_30",
+  CTRL_F5_60: "CTRL_F5_60",
+  CTRL_F5_90: "CTRL_F5_90"
+});
+
+function parseTime(value) {
+  const parsed = Date.parse(String(value || ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizedCount(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+export function normalizeWaitingRefreshStage(value) {
+  const stage = String(value || "").trim().toUpperCase();
+  if (!stage) return WAITING_REFRESH_STAGES.NONE;
+
+  // v1.1.10 compatibility for persisted in-flight processes after extension update.
+  if (stage === "F5") return WAITING_REFRESH_STAGES.F5_30;
+  if (stage === "CTRL_F5") return WAITING_REFRESH_STAGES.CTRL_F5_60;
+
+  if (Object.values(WAITING_REFRESH_STAGES).includes(stage)) return stage;
+  return stage;
+}
+
+export function waitingAssistantMarker(page = {}) {
+  return {
+    lastAssistantId: String(page.lastAssistantId || ""),
+    assistantHash: String(page.assistantHash || ""),
+    assistantCount: normalizedCount(page.assistantCount)
+  };
+}
+
+export function hasNewCompletedAssistantResponse({
+  page = {},
+  marker = {}
+} = {}) {
+  if (page.generating === true) return false;
+
+  const current = waitingAssistantMarker(page);
+  const prior = {
+    lastAssistantId: String(marker.lastAssistantId || ""),
+    assistantHash: String(marker.assistantHash || ""),
+    assistantCount: normalizedCount(marker.assistantCount)
+  };
+
+  if (!current.lastAssistantId && !current.assistantHash) return false;
+
+  // Count is the strongest cheap signal and also recognizes an identical-text reply.
+  if (current.assistantCount != null &&
+      prior.assistantCount != null &&
+      current.assistantCount > prior.assistantCount) {
+    return true;
+  }
+
+  // Message-id change is useful when counts are unavailable, but require a content
+  // change as well so a pure DOM/reload identity rewrite does not reset stale time.
+  if (current.lastAssistantId &&
+      prior.lastAssistantId &&
+      current.lastAssistantId !== prior.lastAssistantId &&
+      current.assistantHash &&
+      current.assistantHash !== prior.assistantHash) {
+    return true;
+  }
+
+  // Final fallback for surfaces where message id/count are unavailable.
+  if ((current.assistantCount == null || prior.assistantCount == null) &&
+      (!current.lastAssistantId || !prior.lastAssistantId) &&
+      current.assistantHash &&
+      current.assistantHash !== prior.assistantHash) {
+    return true;
+  }
+
+  return false;
+}
+
+export function createWaitingRefreshState({
+  now = Date.now(),
+  page = {},
+  promptHash = "",
+  turn = 0,
+  staleSince = ""
+} = {}) {
+  const marker = waitingAssistantMarker(page);
+  return {
+    stage: WAITING_REFRESH_STAGES.NONE,
+    requestedAt: "",
+    requestId: "",
+    staleSince: staleSince || new Date(now).toISOString(),
+    resetCount: 0,
+    lastAssistantObservedAt: "",
+    generationHoldUntilMs: 0,
+    ...marker,
+    promptHash: String(promptHash || ""),
+    turn: Number(turn || 0),
+    bypassCache: false
+  };
+}
+
+export function resetWaitingRefreshOnAssistantResponse({
+  current = null,
+  page = {},
+  now = Date.now(),
+  promptHash = "",
+  turn = 0
+} = {}) {
+  const base = current && typeof current === "object"
+    ? current
+    : createWaitingRefreshState({ now, page, promptHash, turn });
+
+  if (!hasNewCompletedAssistantResponse({
+    page,
+    marker: {
+      lastAssistantId: base.lastAssistantId,
+      assistantHash: base.assistantHash,
+      assistantCount: base.assistantCount
+    }
+  })) {
+    return { reset: false, state: base };
+  }
+
+  const marker = waitingAssistantMarker(page);
+  return {
+    reset: true,
+    state: {
+      ...base,
+      stage: WAITING_REFRESH_STAGES.NONE,
+      requestedAt: "",
+      requestId: "",
+      staleSince: new Date(now).toISOString(),
+      resetCount: Number(base.resetCount || 0) + 1,
+      lastAssistantObservedAt: new Date(now).toISOString(),
+      generationHoldUntilMs: 0,
+      ...marker,
+      promptHash: String(promptHash || base.promptHash || ""),
+      turn: Number(turn || base.turn || 0),
+      bypassCache: false,
+      triggerCode: ""
+    }
+  };
+}
+
+export function evaluateWaitingRefresh({
+  now = Date.now(),
+  staleSince = "",
+  waitingSince = "",
+  acknowledged = false,
+  responseComplete = false,
+  stage = "",
+  generating = false,
+  requestedAt = ""
+} = {}) {
+  if (acknowledged !== true || responseComplete === true) {
+    return {
+      action: WAITING_REFRESH_ACTIONS.WAIT,
+      code: responseComplete ? "RESPONSE_READY" : "PROMPT_NOT_ACKNOWLEDGED",
+      waitMs: 0,
+      stage: WAITING_REFRESH_STAGES.NONE
+    };
+  }
+
+  const startedAt = parseTime(staleSince || waitingSince);
+  const waitMs = startedAt == null ? 0 : Math.max(0, Number(now) - startedAt);
+  const normalizedStage = normalizeWaitingRefreshStage(stage);
+
+  if (startedAt == null) {
+    return {
+      action: WAITING_REFRESH_ACTIONS.WAIT,
+      code: "STALE_SESSION_ANCHOR_MISSING",
+      waitMs: 0,
+      stage: normalizedStage
+    };
+  }
+
+  const promptStartedAt = parseTime(waitingSince) ?? startedAt;
+  const generationHoldUntilMs = promptStartedAt + WAITING_GENERATION_LIMIT_MS;
+  if (generating === true && Number(now) < generationHoldUntilMs) {
+    return {
+      action: WAITING_REFRESH_ACTIONS.WAIT,
+      code: "WAITING_ACTIVE_GENERATION",
+      waitMs,
+      stage: normalizedStage,
+      generationHoldUntilMs
+    };
+  }
+
+  // After a suspended worker or a generation deferral, several wall-clock
+  // milestones can already be overdue. Let each actual reload settle before
+  // the next one instead of exhausting all remaining steps in seconds.
+  const requestedAtMs = parseTime(requestedAt);
+  if (normalizedStage && requestedAtMs != null &&
+      Number(now) < requestedAtMs + WAITING_RECOVERY_SETTLE_MS) {
+    return {
+      action: WAITING_REFRESH_ACTIONS.WAIT,
+      code: "WAITING_RECOVERY_SETTLING",
+      waitMs,
+      stage: normalizedStage
+    };
+  }
+
+  if (!normalizedStage) {
+    if (waitMs >= WAITING_STALE_INTERVAL_MS) {
+      return {
+        action: WAITING_REFRESH_ACTIONS.F5,
+        code: "STALE_SESSION_30M_F5",
+        waitMs,
+        stage: WAITING_REFRESH_STAGES.F5_30
+      };
+    }
+    return {
+      action: WAITING_REFRESH_ACTIONS.WAIT,
+      code: "STALE_SESSION_WITHIN_30M",
+      waitMs,
+      stage: WAITING_REFRESH_STAGES.NONE
+    };
+  }
+
+  if (normalizedStage === WAITING_REFRESH_STAGES.F5_30) {
+    if (waitMs >= 2 * WAITING_STALE_INTERVAL_MS) {
+      return {
+        action: WAITING_REFRESH_ACTIONS.CTRL_F5,
+        code: "STALE_SESSION_60M_CTRL_F5",
+        waitMs,
+        stage: WAITING_REFRESH_STAGES.CTRL_F5_60
+      };
+    }
+    return {
+      action: WAITING_REFRESH_ACTIONS.WAIT,
+      code: "STALE_SESSION_30_TO_60M",
+      waitMs,
+      stage: WAITING_REFRESH_STAGES.F5_30
+    };
+  }
+
+  if (normalizedStage === WAITING_REFRESH_STAGES.CTRL_F5_60) {
+    if (waitMs >= 3 * WAITING_STALE_INTERVAL_MS) {
+      return {
+        action: WAITING_REFRESH_ACTIONS.CTRL_F5,
+        code: "STALE_SESSION_90M_CTRL_F5",
+        waitMs,
+        stage: WAITING_REFRESH_STAGES.CTRL_F5_90
+      };
+    }
+    return {
+      action: WAITING_REFRESH_ACTIONS.WAIT,
+      code: "STALE_SESSION_60_TO_90M",
+      waitMs,
+      stage: WAITING_REFRESH_STAGES.CTRL_F5_60
+    };
+  }
+
+  if (normalizedStage === WAITING_REFRESH_STAGES.CTRL_F5_90) {
+    if (waitMs >= 4 * WAITING_STALE_INTERVAL_MS) {
+      return {
+        action: WAITING_REFRESH_ACTIONS.ROTATE,
+        code: "STALE_SESSION_120M_ROTATE",
+        waitMs,
+        stage: WAITING_REFRESH_STAGES.CTRL_F5_90
+      };
+    }
+    return {
+      action: WAITING_REFRESH_ACTIONS.WAIT,
+      code: "STALE_SESSION_90_TO_120M",
+      waitMs,
+      stage: WAITING_REFRESH_STAGES.CTRL_F5_90
+    };
+  }
+
+  return {
+    action: WAITING_REFRESH_ACTIONS.WAIT,
+    code: "WAITING_REFRESH_STAGE_UNKNOWN",
+    waitMs,
+    stage: normalizedStage
+  };
+}
+
+// v1.7.9 operator overview: the absolute times of the next stale-ladder action
+// and of the final 120-minute rotation, derived from the same thresholds as
+// evaluateWaitingRefresh. Returns null when no anchor/stage is known.
+const WAITING_REFRESH_NEXT_STEP = Object.freeze({
+  [WAITING_REFRESH_STAGES.NONE]: Object.freeze({ action: WAITING_REFRESH_ACTIONS.F5, intervals: 1 }),
+  [WAITING_REFRESH_STAGES.F5_30]: Object.freeze({ action: WAITING_REFRESH_ACTIONS.CTRL_F5, intervals: 2 }),
+  [WAITING_REFRESH_STAGES.CTRL_F5_60]: Object.freeze({ action: WAITING_REFRESH_ACTIONS.CTRL_F5, intervals: 3 }),
+  [WAITING_REFRESH_STAGES.CTRL_F5_90]: Object.freeze({ action: WAITING_REFRESH_ACTIONS.ROTATE, intervals: 4 })
+});
+
+export function waitingRefreshSchedule({ staleSince = "", stage = "", requestedAt = "" } = {}) {
+  const anchorMs = parseTime(staleSince);
+  if (anchorMs == null) return null;
+  const normalizedStage = normalizeWaitingRefreshStage(stage);
+  const step = Object.prototype.hasOwnProperty.call(WAITING_REFRESH_NEXT_STEP, normalizedStage)
+    ? WAITING_REFRESH_NEXT_STEP[normalizedStage]
+    : null;
+  if (!step) return null;
+  const requestedAtMs = parseTime(requestedAt);
+  const nextAtMs = Math.max(
+    anchorMs + step.intervals * WAITING_STALE_INTERVAL_MS,
+    normalizedStage && requestedAtMs != null ? requestedAtMs + WAITING_RECOVERY_SETTLE_MS : 0
+  );
+  let rotateAtMs = nextAtMs;
+  for (let interval = step.intervals + 1; interval <= 4; interval += 1) {
+    rotateAtMs = Math.max(anchorMs + interval * WAITING_STALE_INTERVAL_MS,
+      rotateAtMs + WAITING_RECOVERY_SETTLE_MS);
+  }
+  return { anchorMs, stage: normalizedStage, nextAction: step.action, nextAtMs, rotateAtMs };
+}
+
+// v1.8.13: when a stale turn gives its capacity slot back. Only after the
+// ladder's first reload (F5 at 30 min) has settled, while the readable,
+// loaded page shows no generation signal at all (stop button, streaming or a
+// busy composer) and no answer has been admitted for this prompt. A turn that
+// took its slot back because it generated again is not released before the
+// next reload stage. Pure.
+export function staleTurnCapacityDecision({
+  now = Date.now(),
+  refreshState = null,
+  promptHash = "",
+  turn = 0,
+  acknowledged = false,
+  page = null
+} = {}) {
+  const hold = (code) => ({ action: "HOLD", code, stage: normalizeWaitingRefreshStage(refreshState?.stage) });
+  if (acknowledged !== true) return hold("PROMPT_NOT_ACKNOWLEDGED");
+  if (!refreshState || !promptHash || refreshState.promptHash !== promptHash ||
+      Number(refreshState.turn || 0) !== Number(turn || 0)) {
+    return hold("STALE_STATE_NOT_FOR_THIS_PROMPT");
+  }
+  const stage = normalizeWaitingRefreshStage(refreshState.stage);
+  if (![WAITING_REFRESH_STAGES.F5_30, WAITING_REFRESH_STAGES.CTRL_F5_60, WAITING_REFRESH_STAGES.CTRL_F5_90].includes(stage)) {
+    return hold("NO_RELOAD_YET");
+  }
+  const released = refreshState.capacityReleased;
+  if (released && released.promptHash === promptHash && Number(released.turn) === Number(turn || 0)) {
+    return hold("ALREADY_RELEASED");
+  }
+  const readopted = refreshState.capacityReadopted;
+  if (readopted && readopted.promptHash === promptHash && Number(readopted.turn) === Number(turn || 0) &&
+      normalizeWaitingRefreshStage(readopted.stage) === stage) {
+    return hold("READOPTED_IN_THIS_STAGE");
+  }
+  const requestedAtMs = parseTime(refreshState.requestedAt);
+  if (requestedAtMs == null || Number(now) < requestedAtMs + WAITING_RECOVERY_SETTLE_MS) {
+    return hold("RELOAD_SETTLING");
+  }
+  if (!page || page.pageHealth?.readyState !== "complete") return hold("PAGE_NOT_LOADED");
+  if (page.generating === true || page.signals?.stopVisible === true ||
+      page.signals?.streaming === true || page.signals?.composerBusy === true) {
+    return hold("GENERATION_SIGNAL");
+  }
+  if (providerTransportPending(page)) return hold("PROVIDER_NOTICE");
+  return { action: "RELEASE", code: "STALE_TURN_NO_GENERATION_AFTER_RELOAD", stage };
+}

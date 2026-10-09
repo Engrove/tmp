@@ -1,0 +1,410 @@
+{
+  "schema": "eic.greenfield.import-provenance.v1",
+  "importedAt": "2026-10-09T08:00:19.034200+00:00",
+  "source": {
+    "file": "EIC_Autonom_Agent_Greenfield_v1.9.5_RC1.zip",
+    "providedBy": "operator upload 2026-10-09",
+    "producedBy": "another assistant (not built in this repository)",
+    "sha256": "e594730194322276d42e8646fa7e46f0ffff68792a355426b3ce2d3d64c76c35",
+    "zipEntries": 95,
+    "topFolder": "greenfield"
+  },
+  "extracted": {
+    "path": "imports/v1.9.5-RC1/greenfield",
+    "files": {
+      "README.md": {
+        "sizeBytes": 1897,
+        "sha256": "3c0986e4d6da965db9621fba34660299064b217cb36cc394d9831ded7b44a369"
+      },
+      "UPPDATERA_TILL_1_9_5.md": {
+        "sizeBytes": 2939,
+        "sha256": "7a5a9033de429dcd725a178e13047a0ef57e409b4a460c59f0173864e2595e19"
+      },
+      "VERSION": {
+        "sizeBytes": 6,
+        "sha256": "a088ad5a0a611ce244da2409dbde8a63860d183d64ec0d099b8fb71fa7981967"
+      },
+      "background.js": {
+        "sizeBytes": 505472,
+        "sha256": "497861e9665b7130cb4868dc0ec1a3ba8f9b6f5c26fef46061a05970ccc1efb3"
+      },
+      "content.js": {
+        "sizeBytes": 68024,
+        "sha256": "56de2908ddb58e6972b2111d43377d77ac202bab4756c8a39a9e8a53b375c365"
+      },
+      "icons/icon128.png": {
+        "sizeBytes": 857,
+        "sha256": "b33d73054382bcff173e71f3c2cb0995f512cf88a6bef88a20b43664f78cacd1"
+      },
+      "icons/icon16.png": {
+        "sizeBytes": 207,
+        "sha256": "f9937c6a46b6fb8e80d2598a4ac496abe84759e2fed2b3b41f6315fb21cefb1c"
+      },
+      "icons/icon32.png": {
+        "sizeBytes": 275,
+        "sha256": "ef426b6eab5ab5a8a290ec50175f732b43d967fbcedf5ce154eb4fd923ddbe6d"
+      },
+      "icons/icon48.png": {
+        "sizeBytes": 351,
+        "sha256": "cde635c57d1b947abfe28e90d55b2116c4358c0a3d6f4de5e05306f50125b176"
+      },
+      "lib/a2a.mjs": {
+        "sizeBytes": 51652,
+        "sha256": "37484adfd0697e0af33cc9a493fdab9236ac2f7f46cb8b51d5b1e7f9e30c04ea"
+      },
+      "lib/analysis-deadline.mjs": {
+        "sizeBytes": 1808,
+        "sha256": "0a0cd67ff4ae6d1b9e8cca8e6b31b5cb09d9e7779d0e7ce82b62bb2fda0f647b"
+      },
+      "lib/audit-store.mjs": {
+        "sizeBytes": 10364,
+        "sha256": "5280b4d687410b5d38f7848af4a5f50807856fac21f55d6882c97b0f0c838a42"
+      },
+      "lib/canonical-json.mjs": {
+        "sizeBytes": 655,
+        "sha256": "5d347cd9573bd98afd6e080a1cc6acd55047638ce0b5089555be1c437a5485fe"
+      },
+      "lib/common.mjs": {
+        "sizeBytes": 1833,
+        "sha256": "74747b0b1299b78b8a680137efd9dab54c0529e2d802994d614d842d984f98ec"
+      },
+      "lib/continuation-guard.mjs": {
+        "sizeBytes": 9034,
+        "sha256": "d8c94e7c69aec8a7ddd04ec13bcf94ee8cac0974d9f5e01634c100c24d4e61da"
+      },
+      "lib/contracts.mjs": {
+        "sizeBytes": 2509,
+        "sha256": "cc369ad004cbd4123ee154476b2831a9843939011353e4c31b748d8324aed2ca"
+      },
+      "lib/conversation-recovery.mjs": {
+        "sizeBytes": 1911,
+        "sha256": "1174a67a26ef9ffbfc4731d8195e8d8283205f35ce9ba84f40d37aebe4511a72"
+      },
+      "lib/dispatch-reconciliation.mjs": {
+        "sizeBytes": 1974,
+        "sha256": "cd83d051adced90ce81a16f5c85c176d51ee8ff7b9ddd0a67cb706d5ab3d61c9"
+      },
+      "lib/durable-checkpoint.mjs": {
+        "sizeBytes": 10375,
+        "sha256": "59ebdee2a25d367c38d7394f70b7cbbf1d33216d09d2c5513c59a129d3db1bfb"
+      },
+      "lib/gfw-identity.mjs": {
+        "sizeBytes": 742,
+        "sha256": "ccb2946e05370ce24f904adbdd1e382f16d5425de26be3accbd0dc9e931686eb"
+      },
+      "lib/global-capacity-scheduler.mjs": {
+        "sizeBytes": 25242,
+        "sha256": "f3ca88ed27e5b7aafcec0897c09e4f5762a251d55cc1659b4c70fe91b4e461c2"
+      },
+      "lib/global-prompt-gate.mjs": {
+        "sizeBytes": 21178,
+        "sha256": "a4774796416646c11d544419aadc786436d44e433e5947ac98946df8890c28c3"
+      },
+      "lib/greenfield-control.mjs": {
+        "sizeBytes": 21019,
+        "sha256": "73b7b8bccb114c332bda417849c084c95b0e750ce5998e1dde29404ca354ead5"
+      },
+      "lib/hjalmar-d2.mjs": {
+        "sizeBytes": 19715,
+        "sha256": "a02cdcbb9edeecd855a1883a36907fcad28e80c443b02bc6c9b5ef2e106807c3"
+      },
+      "lib/incident-log.mjs": {
+        "sizeBytes": 3877,
+        "sha256": "778e8d80750154c5132b49f87dd96f151ad8d1362611adc6ca628e8787877e6d"
+      },
+      "lib/instruction-store.mjs": {
+        "sizeBytes": 1780,
+        "sha256": "45a7f6480902a30b36b3b762fafb07bafe6aee3f4a53ee1e44c94390e090f837"
+      },
+      "lib/interaction-slicing.mjs": {
+        "sizeBytes": 15063,
+        "sha256": "09b6661c0b24bc98ee981713335f8e88334826ee122ced68162b319ea3c872c5"
+      },
+      "lib/keyed-queue.mjs": {
+        "sizeBytes": 426,
+        "sha256": "64443c6a32e5012cf8104744d7888fcf1f1d5285e3958c5d6b72b6bf12191240"
+      },
+      "lib/language-contract.mjs": {
+        "sizeBytes": 1581,
+        "sha256": "4de1ffd5e69501b8be5058c6943ffa88685131ae36274f7977a7aac1c9832210"
+      },
+      "lib/learning-control.mjs": {
+        "sizeBytes": 34423,
+        "sha256": "719dcc0d2d6a6b341398709a272c2889720651cb1549400aabb1896678078146"
+      },
+      "lib/managed-eic-surface.mjs": {
+        "sizeBytes": 4504,
+        "sha256": "e70ec8cd2a9347dd3c83e92788ade5b53bc14e84796c5634ce10a93cdf0e4fa3"
+      },
+      "lib/managed-surface-liveness.mjs": {
+        "sizeBytes": 1219,
+        "sha256": "187a4ee6afb92df9c8d84ada670c80dd8b7f69e3d936790259342bbeb69e2ef4"
+      },
+      "lib/mission-delegation.mjs": {
+        "sizeBytes": 19769,
+        "sha256": "37ba1813bf49c09b0a875553316e9571e1e88a69cb94816b9de67759d187fdd2"
+      },
+      "lib/mission-pause.mjs": {
+        "sizeBytes": 3924,
+        "sha256": "54a814a55ac47491436f90cca3034ca95e9ea276bc3b5e796d63c9141b457184"
+      },
+      "lib/mission-queue-set-vault.mjs": {
+        "sizeBytes": 5281,
+        "sha256": "64179dd1ad9cb1d43c4e841a2cbeb5cbfb60215dfed59ed4ef09143b87292aac"
+      },
+      "lib/mission-queue-sets.mjs": {
+        "sizeBytes": 11784,
+        "sha256": "db400e7a94c4be5114a795a9604773abed8b05a657402333706e0336bd1d8b94"
+      },
+      "lib/mission-work-queue.mjs": {
+        "sizeBytes": 36680,
+        "sha256": "11765682914fbea1daa1293299ab8c244317ac70f6b9be18946ff14264c00d63"
+      },
+      "lib/model-config.mjs": {
+        "sizeBytes": 1055,
+        "sha256": "f0457c96d3e67c35107b52c7880d2be65d9a21dfbde7c528ec730134e1a0d024"
+      },
+      "lib/model-observation.js": {
+        "sizeBytes": 12344,
+        "sha256": "97f02c835110863ef1deb12310695951aafd8146fb8dc4c888e8b0c741d39bd0"
+      },
+      "lib/nano-task.mjs": {
+        "sizeBytes": 12185,
+        "sha256": "b0e9f9141a54522cfc35c15b4d3dfec1dc3bacdf6e8d15aaf0d9e843745f19d4"
+      },
+      "lib/nano.mjs": {
+        "sizeBytes": 6207,
+        "sha256": "33527645e530d0e7fc25263e7eb469607d2ef2c49e31731e2ceb0a3aba69de65"
+      },
+      "lib/no-delta.mjs": {
+        "sizeBytes": 2568,
+        "sha256": "1a6f2de1a2a2510f6f657adcf7dffb324d10db97be3057753b256d9354d316bc"
+      },
+      "lib/operations-view.mjs": {
+        "sizeBytes": 15711,
+        "sha256": "9ef8fdcbdc9747e59ad7142184a231f79f0a78c64e566e6e093d1721f4256e93"
+      },
+      "lib/operator-backup.mjs": {
+        "sizeBytes": 9543,
+        "sha256": "2aebab4eec61442d1f138616f3432ff0925ab1c84b8aa2d5dbfa0ee206bb3c91"
+      },
+      "lib/operator-settings.mjs": {
+        "sizeBytes": 24698,
+        "sha256": "a3798cb5359b1063c279e1f4045bf789381288ade3bf548069f40031cbb30ca3"
+      },
+      "lib/overlay-summary.mjs": {
+        "sizeBytes": 7928,
+        "sha256": "30e7d85e93a3f4a2f237af0d05cbf64365f5ef7023f83bd164ddee199515e49a"
+      },
+      "lib/panel-details-state.mjs": {
+        "sizeBytes": 604,
+        "sha256": "41092eb3cc3dc5b2bf63ad836ff34a1b8513f68d86d45336d5b3e1f8472ca3d8"
+      },
+      "lib/panel-edit-guard.mjs": {
+        "sizeBytes": 4833,
+        "sha256": "20d7c9530a335db60845f72593d3b8735b4f8b02779d16ec2768d0fc824de7b9"
+      },
+      "lib/process-status.mjs": {
+        "sizeBytes": 6294,
+        "sha256": "6ef69475d29349e97b3c4a9174d6c44f5bb0d8e235fd204fe2b6cea5c21c6f58"
+      },
+      "lib/process-store.mjs": {
+        "sizeBytes": 5816,
+        "sha256": "e551d8c68283004ab38061fed1ea172b5fe5633ba67da98acb2fbe961fde7bee"
+      },
+      "lib/prompt-lint.mjs": {
+        "sizeBytes": 13641,
+        "sha256": "c2806aee46abe4c57f07e65cef70db939166d8237833d60f2884046af4dad28f"
+      },
+      "lib/prompt-profile.mjs": {
+        "sizeBytes": 6155,
+        "sha256": "eb5dea06d33db6c844046cf31ed9fc8a48f15bfb47e3ca4dce38026418f979c6"
+      },
+      "lib/provider-notice.mjs": {
+        "sizeBytes": 4581,
+        "sha256": "2aa93ea39faa5fabb369f518c19fbd72d14c13e663772694d7a3420fef0442ad"
+      },
+      "lib/queue-boundary.mjs": {
+        "sizeBytes": 4924,
+        "sha256": "08da1a70dfe1e21c1adc753e42990b0ef448978edcc13c650c7ef082f3cc741a"
+      },
+      "lib/queue-control-policy.mjs": {
+        "sizeBytes": 1391,
+        "sha256": "21d5511a24ae03356d372e683431e6823d0cd63ac8b5d5d7738089a80ffb6313"
+      },
+      "lib/queue-planning.mjs": {
+        "sizeBytes": 6882,
+        "sha256": "095230a083817364238e71c1dc66cc00b550581c32251ff290e6acac3019333b"
+      },
+      "lib/queue-schedule.mjs": {
+        "sizeBytes": 15224,
+        "sha256": "909e416bc26f4f9c65303e4c8aa5fc5cc34587f216115c68e734c7cbe4538a04"
+      },
+      "lib/rc1-checkpoint-migration.mjs": {
+        "sizeBytes": 1761,
+        "sha256": "7942b230a5988cf52fade444e006e4a4e59f25d546942bed5c269760d53379d9"
+      },
+      "lib/recovery-report.mjs": {
+        "sizeBytes": 2897,
+        "sha256": "b59cb32c0ceb5b5697115fa399a345c388f2e8661115496bbe24af7f3e346182"
+      },
+      "lib/response-contract.mjs": {
+        "sizeBytes": 25232,
+        "sha256": "f07402869d276290dc8687dbe2041866062f7f951f83ac8ec29173177049e52b"
+      },
+      "lib/response-observation.mjs": {
+        "sizeBytes": 8018,
+        "sha256": "d25656a9edc2d72680b85af91fef34e4c14a406797c939a1ccf47fdb9bbd5256"
+      },
+      "lib/response-stability.mjs": {
+        "sizeBytes": 9899,
+        "sha256": "20b120ca361a1917313213f11aaeb573cf767221c604572d11d8a541db17d116"
+      },
+      "lib/restart-recovery.mjs": {
+        "sizeBytes": 15540,
+        "sha256": "ffa2d6806421fc97361574e445058d7a89a137c00b80212794e2c86ef8a2b194"
+      },
+      "lib/runtime-control.mjs": {
+        "sizeBytes": 37377,
+        "sha256": "8ad0b440ce42b92f0fb984a965209a23a90d4c10956e5d8e7387d33329f0dc37"
+      },
+      "lib/safety-hold-reconciliation.mjs": {
+        "sizeBytes": 576,
+        "sha256": "64ee8ca31e6157f20c93374e969ef73b57f381eb49e8251acbad297e39ef40e9"
+      },
+      "lib/safety-policy-vault.mjs": {
+        "sizeBytes": 13915,
+        "sha256": "a92bd8c2a559ed6c016a5f9dba081b30fefc95f426b9268e8bf70e2d36a7f930"
+      },
+      "lib/safety-policy.js": {
+        "sizeBytes": 14200,
+        "sha256": "fd8841edb7da24d18605a220c4d1c294600a03e5344a1c5b870117fe16d469da"
+      },
+      "lib/saved-mission-catalog.mjs": {
+        "sizeBytes": 13236,
+        "sha256": "0ea14aeb07bcf29eb373cf813060c986a1a24a93fb170bec13b8d8678f0f6c1c"
+      },
+      "lib/saved-mission-launcher.mjs": {
+        "sizeBytes": 3611,
+        "sha256": "0bd08129f22450c2730c15ce6941aaed378fa77150eb46c42b489c50b8d0fd07"
+      },
+      "lib/saved-mission-vault.mjs": {
+        "sizeBytes": 11281,
+        "sha256": "38efe42818b259f64ea36067d6790f5e1e093f0ee57d8b26d1029ca82c27a297"
+      },
+      "lib/send-fence.mjs": {
+        "sizeBytes": 3630,
+        "sha256": "6fa5dda6e2295acb161a446541ce48b0e541bbe77537ddcf869f5f8fc75c8953"
+      },
+      "lib/session-health.mjs": {
+        "sizeBytes": 16117,
+        "sha256": "66da941007ddf78d576901e96218819fee717d8e425a0484e5f72fc697576016"
+      },
+      "lib/session-rotation.mjs": {
+        "sizeBytes": 3639,
+        "sha256": "3dbf5d2698c50528f78713209ec02775fa889e2d120376fd7d88e69910adc503"
+      },
+      "lib/session-transport.mjs": {
+        "sizeBytes": 4959,
+        "sha256": "53e01d7c8c1a5168346769c3a65ca644899593d16a3fbe6216e817d26a75441c"
+      },
+      "lib/startup-diagnostics.mjs": {
+        "sizeBytes": 3289,
+        "sha256": "9527b65163453700cdc0b35d5d43ef4b776578125896cc178656685549f27524"
+      },
+      "lib/state.mjs": {
+        "sizeBytes": 6846,
+        "sha256": "d6ad15dbf5fc2175e253007aea5db5ee74dd5ea5ca4d2c6675ce62584dacd80a"
+      },
+      "lib/storage-contract-probe.mjs": {
+        "sizeBytes": 1228,
+        "sha256": "2f94edc8fb1bb7f15752bcf2437831689ead7d7117aa6cf1d873fd1f00f3ad00"
+      },
+      "lib/storage-health.mjs": {
+        "sizeBytes": 330,
+        "sha256": "0b8932a9d05f0a9de9f113efa22ecd9d13fc4b58254acbc7c0d2b577cf7022ba"
+      },
+      "lib/storage-retention.mjs": {
+        "sizeBytes": 9223,
+        "sha256": "0244f4d9122dba2e6c8a7fbde35ee2d94382ab601c3cefaa0140bbce1e2a3ea2"
+      },
+      "lib/tab-health.mjs": {
+        "sizeBytes": 6721,
+        "sha256": "de13e8874f0cd192354c6de52abd22d23f8e04a859686195927d2e236664fa4c"
+      },
+      "lib/turn-causality.mjs": {
+        "sizeBytes": 9203,
+        "sha256": "9c071c80d2e135dbbd9003829fac23b225a77022747cdd727b81edffed028791"
+      },
+      "lib/usage-governor.mjs": {
+        "sizeBytes": 12728,
+        "sha256": "8c899bbd93317a73d12e41b882ee344e372fae2c8204eb626651d3398de48e0f"
+      },
+      "lib/waiting-refresh.mjs": {
+        "sizeBytes": 13548,
+        "sha256": "5401d5266adf346bf47d722de17e6e4c6ea70204e6b11e4a59f396ab68ca3e83"
+      },
+      "lib/warm-resume.mjs": {
+        "sizeBytes": 8319,
+        "sha256": "f82c1bcbe87d10dca568dbbc07d5ea5214cf50fc3a346ba2cdc045cb6a55b44f"
+      },
+      "lib/window-queue-overview.mjs": {
+        "sizeBytes": 5133,
+        "sha256": "75d9b730a90090ee8aa35087fd8734166593c9b1f6c3cd25f8c732fbe2f083c4"
+      },
+      "lib/work-mode-supervisor.mjs": {
+        "sizeBytes": 2437,
+        "sha256": "f3828f70bc82284162e43e21ecbaa08d1429aa987a168b808eacd797e346c4e5"
+      },
+      "lib/work-mode.mjs": {
+        "sizeBytes": 5681,
+        "sha256": "022aa3bd58841602f5d45e721d98b648414701735c8e843cf1a82b3e786ae6bc"
+      },
+      "lib/worker-identity.mjs": {
+        "sizeBytes": 5561,
+        "sha256": "0106e6b1de762f85cb8f828e3e659809968d61b7fab7272ee8caeb8fab979d52"
+      },
+      "manifest.json": {
+        "sizeBytes": 1403,
+        "sha256": "264233552da68dfeaa00ce28f5e9f9196d6a4e4f62566c804d6f35cb3df78ce1"
+      },
+      "offscreen.html": {
+        "sizeBytes": 186,
+        "sha256": "82932bf696a310274d0300d73646c2b277e8617d3a96c752f9d7dd96dfb7a9dc"
+      },
+      "offscreen.js": {
+        "sizeBytes": 28501,
+        "sha256": "65b5ac7061657f70903a4573c27cf5e89aba1731134faa77cfaf815f2899a596"
+      },
+      "package.json": {
+        "sizeBytes": 169,
+        "sha256": "40e165491e19aa306c703f20c92bb655adbe39757049e2330769611cb650714b"
+      },
+      "sidepanel.css": {
+        "sizeBytes": 25199,
+        "sha256": "62ad44ad1f57d3f6d6a9c366927996c6070ed0cebfd00970fc8e68ec86a6e92c"
+      },
+      "sidepanel.html": {
+        "sizeBytes": 32617,
+        "sha256": "b01a91da25306ae123ea8795380a6b07f6aed3aeb7fba666b01fba62c796d17b"
+      },
+      "sidepanel.js": {
+        "sizeBytes": 121715,
+        "sha256": "bed9ba9b500fef179f8be5a0a848df9eaec8c02fd299263feb570859c8258790"
+      }
+    },
+    "byteIdenticalToZip": true,
+    "rootDigest": "21b1de25fe4b4e1739024738c9f42c8945a993f2516cea7bed16279759189e6a",
+    "rootDigestCanonicalization": "sorted relative path + NUL + sizeBytes + NUL + sha256 + LF"
+  },
+  "packageContents": "runtime files and RC1 docs only: no tests, tools, INTEGRITY.json or BUILD_VERIFICATION.json",
+  "baseline": {
+    "repoVersion": "1.9.3",
+    "repoTree": "greenfield/ (unchanged by this import)"
+  },
+  "notImported": {
+    "file": "Greenfield_fortsattningspaket_17.zip",
+    "sha256": "f49cd14d56104bf2443f644d965434da3632d4ad12f06aa8558933670fd5ba77",
+    "reason": "development package (R1H checkpoint, still version 1.9.3) contains operator diagnostics exports and screenshots; this repository is public"
+  }
+}
