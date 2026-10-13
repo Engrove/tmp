@@ -1,0 +1,282 @@
+✖ text: advertised maximum succeeds without clicking model navigation (337.028767ms)
+✖ aria: advertised maximum succeeds without clicking model navigation (200.256215ms)
+✖ description: advertised maximum succeeds without clicking model navigation (172.950692ms)
+✖ numeric: advertised maximum succeeds without clicking model navigation (159.960229ms)
+✖ text: Balanced reaches discovered maximum with arrow-only control (54.085244ms)
+✖ aria: Balanced reaches discovered maximum with arrow-only control (50.86ms)
+✖ description: Balanced reaches discovered maximum with arrow-only control (53.509486ms)
+✖ numeric: Balanced reaches discovered maximum with arrow-only control (54.330504ms)
+✖ six seeded failures become six successes without changing the modeled external menu (918.16496ms)
+✖ the maximum is discovered rather than hard-coded to four (167.456301ms)
+✖ unknown singleton named button is never clicked or accepted as maximum (176.44333ms)
+✖ conflicting ordinal controls cannot authorize a send (154.736796ms)
+✔ rejected input stays blocked and unchanged retries make no new actions (56.044599ms)
+✔ maximum announcement with stale closed selection is rejected (51.799777ms)
+✖ new session invalidates ordinal receipt and maximizes Balanced again (144.446571ms)
+✖ a paused or rejected context does not hold another context (61.353666ms)
+✖ real background maximum preflight releases initialization; real submit sends exactly once (57.677111ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 2
+ℹ fail 15
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3214.713377
+
+✖ failing tests:
+
+test at tests/thinking-ordinal.test.mjs:78:59
+✖ text: advertised maximum succeeds without clicking model navigation (337.028767ms)
+  AssertionError [ERR_ASSERTION]: {"ok":false,"changed":false,"code":"THINKING_SELECTION_TIMEOUT","detail":"SELECT_MAXIMUM"}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:80:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:78:59
+✖ aria: advertised maximum succeeds without clicking model navigation (200.256215ms)
+  AssertionError [ERR_ASSERTION]: {"ok":false,"changed":false,"code":"THINKING_SELECTION_TIMEOUT","detail":"SELECT_MAXIMUM"}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:80:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:78:59
+✖ description: advertised maximum succeeds without clicking model navigation (172.950692ms)
+  AssertionError [ERR_ASSERTION]: {"ok":false,"changed":false,"code":"THINKING_SELECTION_TIMEOUT","detail":"SELECT_MAXIMUM"}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:80:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:78:59
+✖ numeric: advertised maximum succeeds without clicking model navigation (159.960229ms)
+  AssertionError [ERR_ASSERTION]: {"ok":false,"changed":false,"code":"THINKING_SELECTION_TIMEOUT","detail":"SELECT_MAXIMUM"}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:80:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:84:59
+✖ text: Balanced reaches discovered maximum with arrow-only control (54.085244ms)
+  AssertionError [ERR_ASSERTION]: {"ok":false,"changed":false,"code":"THINKING_OPTIONS_UNVERIFIED","detail":"SELECT_MAXIMUM"}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:86:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:84:59
+✖ aria: Balanced reaches discovered maximum with arrow-only control (50.86ms)
+  AssertionError [ERR_ASSERTION]: {"ok":false,"changed":false,"code":"THINKING_OPTIONS_UNVERIFIED","detail":"SELECT_MAXIMUM"}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:86:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:84:59
+✖ description: Balanced reaches discovered maximum with arrow-only control (53.509486ms)
+  AssertionError [ERR_ASSERTION]: {"ok":false,"changed":false,"code":"THINKING_OPTIONS_UNVERIFIED","detail":"SELECT_MAXIMUM"}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:86:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:84:59
+✖ numeric: Balanced reaches discovered maximum with arrow-only control (54.330504ms)
+  AssertionError [ERR_ASSERTION]: {"ok":false,"changed":false,"code":"THINKING_OPTIONS_UNVERIFIED","detail":"SELECT_MAXIMUM"}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:86:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:91:1
+✖ six seeded failures become six successes without changing the modeled external menu (918.16496ms)
+  AssertionError [ERR_ASSERTION]: [{"seed":1,"ok":false,"code":"THINKING_SELECTION_TIMEOUT","navigationClicks":1},{"seed":2,"ok":false,"code":"THINKING_SELECTION_TIMEOUT","navigationClicks":1},{"seed":3,"ok":false,"code":"THINKING_SELECTION_TIMEOUT","navigationClicks":1},{"seed":4,"ok":false,"code":"THINKING_SELECTION_TIMEOUT","navigationClicks":1},{"seed":5,"ok":false,"code":"THINKING_SELECTION_TIMEOUT","navigationClicks":1},{"seed":6,"ok":false,"code":"THINKING_SELECTION_TIMEOUT","navigationClicks":1}]
+  
+  6 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:98:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 6,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:100:1
+✖ the maximum is discovered rather than hard-coded to four (167.456301ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:101:49)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:103:1
+✖ unknown singleton named button is never clicked or accepted as maximum (176.44333ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:104:128)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:106:1
+✖ conflicting ordinal controls cannot authorize a send (154.736796ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:107:158)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:118:1
+✖ new session invalidates ordinal receipt and maximizes Balanced again (144.446571ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:120:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:124:1
+✖ a paused or rejected context does not hold another context (61.353666ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:126:104)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/thinking-ordinal.test.mjs:134:1
+✖ real background maximum preflight releases initialization; real submit sends exactly once (57.677111ms)
+  AssertionError [ERR_ASSERTION]: {"handled":true,"process":{"phase":"SENDING","tabId":1,"gptRoot":"https://chatgpt.com/g/g-test","pendingPrompt":{"hash":"hash","dispatch":null},"hold":{"code":"THINKING_OPTIONS_UNVERIFIED","detail":"SELECT_MAXIMUM"}}}
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:142:58)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

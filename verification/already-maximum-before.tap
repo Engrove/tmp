@@ -1,0 +1,32 @@
+TAP version 13
+# Subtest: already selected option is verified after a generic open-menu label closes
+not ok 1 - already selected option is verified after a generic open-menu label closes
+  ---
+  duration_ms: 6675.126843
+  type: 'test'
+  location: '/workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-control.test.mjs:253:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"ok":false,"changed":false,"code":"THINKING_SELECTION_TIMEOUT","detail":"SELECT_MAXIMUM"}
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-control.test.mjs:262:42)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6986.835501

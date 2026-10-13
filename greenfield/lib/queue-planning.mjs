@@ -1,5 +1,6 @@
 import { text } from "./common.mjs";
 import { trimResponseTrace } from "./response-observation.mjs";
+import { interactionPosition, planningHint } from "./interaction-slicing.mjs";
 
 const PRIORITY_DISPLAY_SV = Object.freeze({
   LOW: "Låg",
@@ -29,14 +30,24 @@ export function queuePlanningFields(queueContext = {}) {
   const priority = String(queueContext.priority || "NORMAL").trim().toUpperCase() || "NORMAL";
   const priorityDisplay = PRIORITY_DISPLAY_SV[priority] || priority;
   const plural = "interaktioner";
+  const finalInteractionInQuantum = interactionInQuantum >= maxInteractions;
   return {
     completedInteractions,
     interactionInQuantum,
     maxInteractions,
     remainingInteractionsIncludingCurrent,
-    finalInteractionInQuantum: interactionInQuantum >= maxInteractions,
+    finalInteractionInQuantum,
     operatorDisplay: `${priorityDisplay} · ${maxInteractions} ${plural}/kvant · ${completedInteractions}/${maxInteractions} slutförda i kvanten`,
-    planningHint: `This is interaction ${interactionInQuantum} of ${maxInteractions} in the current queue-slot quantum. Plan a bounded slice that fits this interaction and preserve a restart-safe handoff before the quantum ends.`,
+    // v1.9.3: one owner for sizing text (lib/interaction-slicing.mjs). Without
+    // a schedule the checkpoint interaction is the final one; queueTurnControl
+    // rebuilds the hint once the schedule's window checkpoint is known.
+    planningHint: planningHint(interactionPosition({
+      interactionInQuantum,
+      maxInteractions,
+      remainingInteractionsIncludingCurrent,
+      finalInteractionInQuantum,
+      checkpointRequired: finalInteractionInQuantum
+    })),
     responseRoundTripApproxMs: finiteNonNegative(queueContext.responseRoundTripApproxMs),
     loopRoundTripApproxMs: finiteNonNegative(queueContext.loopRoundTripApproxMs),
     activationCount: Math.max(0, Math.floor(Number(queueContext.activationCount || 0)))
@@ -70,7 +81,8 @@ export function applyQueueParkTransition(items, currentItem, {
   outcome = "MISSION_QUEUE_PARKED",
   summary = "",
   now = Date.now(),
-  responseRoundTripMs = null
+  responseRoundTripMs = null,
+  quantumCompleted = false
 } = {}) {
   const rows = Array.isArray(items) ? items : [];
   const itemId = String(currentItem?.itemId || "");
@@ -80,6 +92,14 @@ export function applyQueueParkTransition(items, currentItem, {
   const snapshot = parkedSnapshot && Array.isArray(parkedSnapshot.responseObservationTrace)
     ? { ...parkedSnapshot, responseObservationTrace: trimResponseTrace(parkedSnapshot.responseObservationTrace) }
     : parkedSnapshot;
+  // If publication resumes after the queue write, the same captured work turn
+  // must not move its already saved completion deadline forward. A new prompt
+  // has a new hash even when its answer repeats the preceding answer's text.
+  const prior = currentItem?.processSnapshot;
+  const sameCompletion = snapshot?.lastPrompt?.hash && snapshot?.lastResponse?.hash &&
+    prior?.lastPrompt?.hash === snapshot.lastPrompt.hash && prior?.lastResponse?.hash === snapshot.lastResponse.hash;
+  const completedAtMs = sameCompletion && Number(currentItem?.lastQuantumCompletedAtMs) > 0
+    ? Number(currentItem.lastQuantumCompletedAtMs) : Number(now);
   return rows.map((candidate) => {
     const sameLogical = candidate?.itemId === itemId ||
       Boolean(savedMissionId && String(candidate?.savedMissionId || "").trim() === savedMissionId);
@@ -91,6 +111,7 @@ export function applyQueueParkTransition(items, currentItem, {
     return {
       ...candidate,
       ...telemetry,
+      ...(quantumCompleted === true ? { lastQuantumCompletedAtMs: completedAtMs } : {}),
       status: pausing ? "PAUSED" : isCurrentSlot ? "READY" : candidate.status,
       readySinceMs: pausing ? Number(pauseUntilMs) : isCurrentSlot ? Number(now) : candidate.readySinceMs,
       pauseUntilMs: pausing ? Number(pauseUntilMs) : isCurrentSlot ? 0 : candidate.pauseUntilMs,

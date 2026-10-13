@@ -1,0 +1,36 @@
+✔ text: advertised maximum succeeds without clicking model navigation (226.082019ms)
+✔ aria: advertised maximum succeeds without clicking model navigation (119.42094ms)
+✔ description: advertised maximum succeeds without clicking model navigation (94.065901ms)
+✔ numeric: advertised maximum succeeds without clicking model navigation (83.087582ms)
+✔ text: Balanced reaches discovered maximum with arrow-only control (121.286124ms)
+✔ aria: Balanced reaches discovered maximum with arrow-only control (121.209067ms)
+✔ description: Balanced reaches discovered maximum with arrow-only control (108.856225ms)
+✔ numeric: Balanced reaches discovered maximum with arrow-only control (114.795584ms)
+Error: Not implemented: HTMLFormElement.prototype.requestSubmit
+    at module.exports (/workspace/scratch/acc6d5ae6dec/menu_fix/greenfield/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLFormElementImpl.requestSubmit (/workspace/scratch/acc6d5ae6dec/menu_fix/greenfield/node_modules/jsdom/lib/jsdom/living/nodes/HTMLFormElement-impl.js:130:5)
+    at HTMLFormElementImpl._doRequestSubmit (/workspace/scratch/acc6d5ae6dec/menu_fix/greenfield/node_modules/jsdom/lib/jsdom/living/nodes/HTMLFormElement-impl.js:100:10)
+    at HTMLButtonElementImpl._activationBehavior (/workspace/scratch/acc6d5ae6dec/menu_fix/greenfield/node_modules/jsdom/lib/jsdom/living/nodes/HTMLButtonElement-impl.js:23:14)
+    at HTMLButtonElementImpl._dispatch (/workspace/scratch/acc6d5ae6dec/menu_fix/greenfield/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:252:26)
+    at fireAnEvent (/workspace/scratch/acc6d5ae6dec/menu_fix/greenfield/node_modules/jsdom/lib/jsdom/living/helpers/events.js:18:36)
+    at HTMLButtonElementImpl.click (/workspace/scratch/acc6d5ae6dec/menu_fix/greenfield/node_modules/jsdom/lib/jsdom/living/nodes/HTMLElement-impl.js:85:5)
+    at HTMLButtonElement.click (/workspace/scratch/acc6d5ae6dec/menu_fix/greenfield/node_modules/jsdom/lib/jsdom/living/generated/HTMLElement.js:108:34)
+    at eval (eval at <anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:147:7), <anonymous>:134:20)
+    at async TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/queue_fix/greenfield/tests/thinking-ordinal.test.mjs:149:19) undefined
+✔ six seeded failures become six successes without changing the modeled external menu (488.769568ms)
+✔ the maximum is discovered rather than hard-coded to four (118.169913ms)
+✔ unknown singleton named button is never clicked or accepted as maximum (75.264136ms)
+✔ conflicting ordinal controls cannot authorize a send (80.569559ms)
+✔ rejected input stays blocked and unchanged retries make no new actions (249.075176ms)
+✔ maximum announcement with stale closed selection is rejected (114.95188ms)
+✔ new session invalidates ordinal receipt and maximizes Balanced again (155.380736ms)
+✔ a paused or rejected context does not hold another context (86.150897ms)
+✔ real background maximum preflight releases initialization; real submit sends exactly once (117.903101ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2817.067914

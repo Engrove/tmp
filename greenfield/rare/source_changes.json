@@ -1,0 +1,38 @@
+{
+  "changed": [
+    "README.md",
+    "UPPDATERA_TILL_1_9_12.md",
+    "VERSION",
+    "background.js",
+    "content.js",
+    "lib/contracts.mjs",
+    "lib/operations-view.mjs",
+    "lib/runtime-version.mjs",
+    "manifest.json",
+    "package-lock.json",
+    "package.json",
+    "sidepanel.css",
+    "sidepanel.html",
+    "sidepanel.js",
+    "tests/model-recheck.test.mjs",
+    "tests/runtime-version.test.mjs"
+  ],
+  "sha256": {
+    "README.md": "23e40ac2d87677fa82d17e5e4f65aef6b105217803445647a8338cd35fe8a0bd",
+    "UPPDATERA_TILL_1_9_12.md": "c8b092f031a6eda69e20d174d777e98fc1b651acb2444e837cab648748328d07",
+    "VERSION": "087b5c361fc74a775cfd4e703195f3f79618d011ea96e70cbf69634f6a03744f",
+    "background.js": "4aea8d31ce04c46bb3a59c5edb962b28c37c0aeca1594f31052634fdd96eab5a",
+    "content.js": "379c916b8e6fb119a926dd42e5f2f3c4e583449c152c4d46f3fbc3687ad2f6fc",
+    "lib/contracts.mjs": "81a0e9899efbea96cec8b7d8aee1030425d7d45f0779a6259c5031a7c518ebd7",
+    "lib/operations-view.mjs": "cc8b978ea00588653eabcb0bdf31c4e25ba504125facb1510c11888618137a45",
+    "lib/runtime-version.mjs": "e694cf21ddee6d1875bc73ef375010beeb1824502c17a5580a53ae696c3d9898",
+    "manifest.json": "5caf68724127b7cbe50abd95ce98fa74a8f1ce33d35c8773add644c4d286d919",
+    "package-lock.json": "3228e987b4191bb1a2af2b4a441b93f3f4d1ee4ddaae74c73acd300af235094f",
+    "package.json": "cefbbfe667052dec69209812d54ab0c56d08ac02ac77ff75cb48ea55805c1fab",
+    "sidepanel.css": "8ade9826a6abb6ce757262a98cd91adbd260c98ebb5a3588939c9ca3d51f6634",
+    "sidepanel.html": "0a5e81db2780531086a2a237c08d45de3606844abc022425f53d796a8ad8980f",
+    "sidepanel.js": "2182c55961ae5d323ea3dcaf7fb0a7e01cecddb902f52bd987d3ffd2eff19fcb",
+    "tests/model-recheck.test.mjs": "aa2ccd68fa00f9979dbb769648e9b51c5844aefcb22d7141ec33a6bb2b21b079",
+    "tests/runtime-version.test.mjs": "a5796050db00f754b125fda7c8e3ca310781572ee63e385f59678aab8fa8e709"
+  }
+}

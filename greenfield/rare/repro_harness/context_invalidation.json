@@ -1,0 +1,76 @@
+[
+  {
+    "path": "../../thinking_fix/greenfield/content.js",
+    "runs": [
+      {
+        "run": 1,
+        "uncaught": "Extension context invalidated.",
+        "remainingListeners": 1
+      },
+      {
+        "run": 2,
+        "uncaught": "Extension context invalidated.",
+        "remainingListeners": 1
+      },
+      {
+        "run": 3,
+        "uncaught": "Extension context invalidated.",
+        "remainingListeners": 1
+      },
+      {
+        "run": 4,
+        "uncaught": "Extension context invalidated.",
+        "remainingListeners": 1
+      },
+      {
+        "run": 5,
+        "uncaught": "Extension context invalidated.",
+        "remainingListeners": 1
+      },
+      {
+        "run": 6,
+        "uncaught": "Extension context invalidated.",
+        "remainingListeners": 1
+      }
+    ],
+    "failures": 6,
+    "total": 6
+  },
+  {
+    "path": "content.js",
+    "runs": [
+      {
+        "run": 1,
+        "uncaught": "",
+        "remainingListeners": 0
+      },
+      {
+        "run": 2,
+        "uncaught": "",
+        "remainingListeners": 0
+      },
+      {
+        "run": 3,
+        "uncaught": "",
+        "remainingListeners": 0
+      },
+      {
+        "run": 4,
+        "uncaught": "",
+        "remainingListeners": 0
+      },
+      {
+        "run": 5,
+        "uncaught": "",
+        "remainingListeners": 0
+      },
+      {
+        "run": 6,
+        "uncaught": "",
+        "remainingListeners": 0
+      }
+    ],
+    "failures": 0,
+    "total": 6
+  }
+]

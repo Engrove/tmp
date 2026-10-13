@@ -1,4 +1,12 @@
 export const REASONS = Object.freeze({
+  THINKING_MAXIMUM_VERIFIED:"Högsta tillgängliga tänkenivå verifierad",
+  MODEL_RECHECK_INCOMPLETE:"Alla modellkontroller kunde inte slutföras",
+  NO_SENDING_PROCESS:"Ingen process väntar på ett nytt utskick",
+  PROCESS_OWNER_CHANGED:"Uppdraget ändrades under kontrollen",
+  PROCESS_PAUSED:"Workern är pausad",
+  PROCESS_DETACHED:"Workern saknar ansluten flik",
+  QUEUE_SCHEDULE_CLOSED:"Uppdraget väntar på sin schemalagda körtid",
+  ADMISSION_PAUSED:"Nya utskick är pausade",
   UI_MODEL_VERIFIED:"Modellversion och tänkenivå verifierade i gränssnittet",
   UI_MODEL_COMPATIBLE:"Kompatibelt modell-/reasoningläge verifierat i gränssnittet",
   MODEL_EVIDENCE_MISSING:"Modelluppgift saknas",
@@ -9,7 +17,25 @@ export const REASONS = Object.freeze({
   THINKING_MODE_UNVERIFIED:"Reasoning-/Thinking-kontroll kan inte verifieras",
   THINKING_EFFORT_UNKNOWN:"Tänkenivån kan inte rankas mot valt golv",
   THINKING_EFFORT_TOO_LOW:"För låg tänkenivå",
+  THINKING_MAXIMUM_UNVERIFIED:"Högsta tillgängliga tänkenivå är inte verifierad; inget nytt utskick",
+  THINKING_CONTROL_UNAVAILABLE:"Tänkenivåns kontroll saknas eller är inaktiverad",
+  THINKING_CONTROL_AMBIGUOUS:"Flera möjliga tänkenivåkontroller hittades; inget automatiskt val",
+  THINKING_OPTIONS_UNVERIFIED:"Högsta valbara tänkenivå kunde inte fastställas",
+  THINKING_SLIDER_UNVERIFIED:"Tänkenivåns reglage kan inte läsas säkert",
+  THINKING_SELECTION_TIMEOUT:"Valet av tänkenivå kunde inte bekräftas i tid; använd Kontrollera modellen igen för ett nytt försök",
+  THINKING_SELECTION_READBACK_FAILED:"Vald tänkenivå kunde inte bekräftas; inget nytt utskick",
+  THINKING_SELECTION_SESSION_CHANGED:"Sessionen ändrades under valet av tänkenivå",
+  THINKING_SELECTION_DOCUMENT_CHANGED:"Sidan laddades om under valet av tänkenivå",
+  THINKING_MENU_ALREADY_OPEN:"Stäng modellmenyn så kan Greenfield välja högsta tänkenivå",
+  THINKING_MENU_OWNERSHIP_UNVERIFIED:"En öppen meny kunde inte kopplas säkert till tänkenivån; stäng menyn och kontrollera modellen igen",
+  THINKING_MENU_CLOSE_FAILED:"Menyn kunde inte stängas och verifieras; inga fler klick förrän gränssnittet ändrats eller modellen kontrolleras igen",
+  THINKING_SELECTION_BUSY:"Val av högsta tänkenivå pågår",
+  THINKING_SELECTION_FAILED:"Automatiskt val av högsta tänkenivå misslyckades",
+  THINKING_ADAPTER_UNAVAILABLE:"Styrningen för tänkenivå saknas i fliken; läs in fliken igen",
   EIC_SURFACE_UNVERIFIED:"Rätt EIC GPT-yta är inte verifierad",
+  ACTIVE_CHATGPT_TAB_REQUIRED:"Välj ChatGPT-fliken i detta Chrome-fönster och starta arbetskön igen",
+  EXTENSION_CONTEXT_INVALIDATED:"Anslutningen till tillägget har upphört; läs in ChatGPT-fliken igen",
+  CONTENT_BRIDGE_DISPOSED:"Sidans Greenfield-anslutning har ersatts; invänta den nya anslutningen",
   EIC_GPT_ROOT_UNKNOWN:"EIC-adressen kunde inte fastställas: välj EIC under Fästa på ChatGPT:s startsida (eller öppna en EIC-konversation) och starta kön igen",
   SESSION_ROTATION_EIC_NOT_SELECTED:"EIC kunde inte väljas i ny chatt: välj EIC i sidofältet (Fästa) och starta kön igen",
   CHAT_MODE_REQUIRED:"Greenfield kräver vanligt Chat-läge",
@@ -44,7 +70,10 @@ export const REASONS = Object.freeze({
   AMBIGUOUS_CONVERSATION:"Flera flikar eller processer matchar samma konversation",
   RECOVERY_USER_TURN_UNPROVEN:"Tidigare prompt kan inte verifieras i konversationen",
   SEND_CONTROL_UNAVAILABLE:"Skicka-knappen är inte tillgänglig",
-  NO_FRESH_APPROVED_MODEL_UI:"Ingen öppen worker visar godkänd modell och tänkenivå"
+  NO_FRESH_APPROVED_MODEL_UI:"Ingen öppen worker visar godkänd modell och tänkenivå",
+  SAFETY_POLICY_UPDATED:"Körkrav sparade",
+  SAFETY_POLICY_RESTORED:"Körkrav återställda från bokmärkesvalvet",
+  DRIFT_SETTINGS_RESTORED:"Driftinställningar återställda från bokmärkesvalvet"
 });
 export function reasonLabel(code) {
   const value=String(code||"");
@@ -121,6 +150,17 @@ const ACTION_ERRORS = Object.freeze({
   RUNTIME_FAULT: "Greenfield är spärrat av ett körfel."
 });
 
+export function modelRecheckMessage(recheck = {}) {
+  const ready=Number(recheck.ready || 0),failed=Number(recheck.failed || 0),skipped=Number(recheck.skipped || 0);
+  const parts=[];
+  if (ready) parts.push(`Högsta tänkenivån verifierad för ${ready} worker. Återupptagning köad.`);
+  if (failed) parts.push(`${failed} kontroll${failed===1 ? "" : "er"} blockerad${failed===1 ? "" : "e"}.`);
+  if (skipped) parts.push(`${skipped} worker behåller sitt nuvarande läge.`);
+  const reasons=[...new Set((recheck.results || []).filter(r=>!r.ok).map(r=>reasonLabel(r.code)))];
+  if (reasons.length) parts.push(reasons.join(" · "));
+  return parts.join(" ") || "Ingen process väntar på modellkontroll.";
+}
+
 export function workerActionMessage(action, result = {}) {
   if (result?.ok) {
     if (action === "read-response") {
@@ -131,7 +171,7 @@ export function workerActionMessage(action, result = {}) {
     }
     return result.outcome === "QUEUE_WOKEN"
       ? "Nästa uppgift i kön startar."
-      : "Nästa uppgift startar i en ny chatt. Uppdraget parkerades med sin checkpoint.";
+      : "Nästa uppgift startar i en ny chatt, eller fortsätter sin ofärdiga kvant i sin egen chatt. Uppdraget parkerades med sin checkpoint.";
   }
   const code = String(result?.code || result?.error || "");
   if (code === "READ_RESPONSE_SAFETY_HOLD") return `En annan spärr gäller: ${reasonLabel(result.holdCode)}. Läs svar ändrar den inte.`;
@@ -149,7 +189,7 @@ export function workerActionConfirmText(action, process = {}) {
   const unread = phase === "SENDING" || phase === "WAITING"
     ? " Svaret på den senaste prompten har inte lästs; vill du ha med det, välj Läs svar först."
     : "";
-  return `Gå till nästa uppgift i kön: nuvarande uppdrag parkeras med sin checkpoint och nästa uppgift startar i en ny chatt.${unread} Inget skickas om. Fortsätta?`;
+  return `Gå till nästa uppgift i kön: nuvarande uppdrag parkeras med sin checkpoint och nästa uppgift startar i en ny chatt (eller fortsätter sin ofärdiga kvant i sin egen chatt).${unread} Inget skickas om. Fortsätta?`;
 }
 
 // v1.8.12 reserved slot: what the card and the panel say and offer.

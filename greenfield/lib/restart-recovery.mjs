@@ -5,6 +5,106 @@ import { sameGpt } from "./managed-eic-surface.mjs";
 import { TERMINAL_PHASES, PHASES } from "./contracts.mjs";
 import { CHECKPOINT_PREFIX, readCheckpoint } from "./durable-checkpoint.mjs";
 import { autonomousUserTurnProof, expectedAutonomousUserTurn, expectedPromptMarker } from "./turn-causality.mjs";
+import { validateHjalmarDecision } from "./hjalmar-d2.mjs";
+import { parseTargetResponse } from "./response-contract.mjs";
+import { validateA2AEnvelope } from "./a2a.mjs";
+
+// R1G: only an unsent cold rotation's saved deadline stop. Eligibility for
+// a fresh, bound page check; never permission to restore a binding or send.
+export function legacyRotationBlockedCandidate(process) {
+  const rotation = process?.sessionRotation;
+  const pending = process?.pendingPrompt;
+  const code = process?.lastError?.code;
+  const completedMs = Date.parse(process?.completedAt || "");
+  const deadlineMs = code === "SESSION_ROTATION_CHAT_READY_TIMEOUT"
+    ? Date.parse(rotation?.navigationStartedAt || "") + 300_000
+    : code === "SESSION_ROTATION_EIC_NOT_SELECTED"
+      ? Number(rotation?.eicLanding?.firstUnverifiedAtMs) + 120_000 : NaN;
+  if (process?.phase !== PHASES.BLOCKED || !Number.isSafeInteger(process.generation) ||
+      process.generation < 1 || process.generation >= Number.MAX_SAFE_INTEGER || !Number.isFinite(completedMs) ||
+      !Number.isFinite(deadlineMs) || deadlineMs <= 120_000 || completedMs < deadlineMs ||
+      process.queueContext?.itemId || process.storageRecoveryRequired || process.detached ||
+      process.safety?.qualityIncident || process.safety?.hold || process.greenfieldControl?.hardStop ||
+      process.lastDecision?.humanAuthorityRequired === true ||
+      !rotation?.rotationId || rotation.state !== "NAVIGATING" || rotation.warmResume ||
+      rotation.eicDiscovery && rotation.eicDiscovery.state !== "BOUND" ||
+      !process.gptRoot || rotation.gptRoot !== process.gptRoot ||
+      !Number.isInteger(process.tabId) || rotation.targetTabId !== process.tabId ||
+      rotation.sessionSeq !== process.sessionSeq || rotation.readyAt || rotation.resumedAt ||
+      rotation.hardReloadBeforeResume && !["COMPLETED", "DISABLED"].includes(rotation.hardReloadState) ||
+      process.legacyRotationRecovery?.rotationId === rotation.rotationId ||
+      !pending?.text || !pending.hash || pending.sendAttempts !== 0 || pending.dispatch !== null ||
+      pending.promptPause || pending.fullFallback || pending.promptProfile?.profile !== "FULL") return false;
+
+  // An unknown previous effect is not a readiness timeout. Preserve that
+  // boundary, including legacy records with missing acknowledgement evidence.
+  if (rotation.sourceResponseState === "NO_COMPLETED_RESPONSE") {
+    if (process.lastPrompt || process.lastResponse) return false;
+  } else if (rotation.sourceResponseState === "COMPLETED_RESPONSE_CAPTURED") {
+    const prompt = process.lastPrompt, response = process.lastResponse;
+    if (prompt?.acknowledged !== true || !prompt.text || !prompt.hash || !prompt.dispatchedUserTurnId ||
+        !response?.text || !response.hash || !response.messageId ||
+        response.observation?.causalMatch !== true || response.observation.ownerTrusted !== true ||
+        response.observation.pairedUserTurnId !== prompt.dispatchedUserTurnId ||
+        response.observation.messageId !== response.messageId) return false;
+  } else return false;
+
+  let envelope;
+  try { envelope = JSON.parse(pending.text); } catch { return false; }
+  const identity = envelope.process;
+  const source = envelope.continuity?.sessionRotation;
+  const instruction = pending.oneShotInstruction;
+  return validateA2AEnvelope(envelope).ok && envelope.messageType === "SESSION_ROTATION" &&
+    JSON.stringify(envelope) === JSON.stringify(pending.a2a) &&
+    envelope.correlationId === process.runId && envelope.mission === process.goal &&
+    envelope.objective === process.objectiveState?.objective &&
+    identity.processId === process.processId && identity.runId === process.runId &&
+    identity.generation === process.generation && identity.turn === process.turn &&
+    identity.sessionSeq === process.sessionSeq && source?.rotationId === rotation.rotationId &&
+    source.sessionSeq === rotation.sessionSeq && source.sourceResponseState === rotation.sourceResponseState &&
+    (instruction ? instruction.processId === process.processId && instruction.runId === process.runId &&
+      instruction.instructionId === envelope.operatorInstruction?.instructionId &&
+      instruction.text === envelope.operatorInstruction?.text : envelope.operatorInstruction === null);
+}
+
+// R1E: recognize only the old standalone advisory stop. This is eligibility
+// for fresh browser/model verification and reanalysis, never permission to send.
+export function legacyAdvisoryBlockedCandidate(process) {
+  const decision = process?.lastDecision;
+  const response = process?.lastResponse;
+  const prompt = process?.lastPrompt;
+  const control = process?.greenfieldControl;
+  if (process?.phase !== PHASES.BLOCKED || process.queueContext?.itemId ||
+      process.lastError?.code !== "GREENFIELD_BLOCKED" ||
+      control?.reason !== "NO_EXECUTABLE_AUTONOMOUS_NEXT_STEP" ||
+      control.state !== "ACTIVE" || control.action !== "BLOCK" || control.hardStop !== true ||
+      !validateHjalmarDecision(decision).ok || decision.disposition !== "BLOCKED" ||
+      decision.humanAuthorityRequired !== false || decision.reversibility !== "YES" ||
+      decision.materialAmbiguity !== "NONE" || decision.nanoTaskAssessment !== "NOT_REQUESTED" ||
+      process.lastNanoTask?.requested || process.pendingPrompt || process.storageRecoveryRequired ||
+      process.safety?.qualityIncident || process.safety?.hold ||
+      process.safety?.proof?.allowed !== true || process.safety?.turnProof?.allowed !== true ||
+      prompt?.acknowledged !== true || !prompt.hash || !prompt.text || !prompt.dispatchedUserTurnId ||
+      process.safety.turnProof.promptHash !== prompt.hash ||
+      !response?.text || !response.hash || !response.messageId ||
+      response.observation?.causalMatch !== true || response.observation.ownerTrusted !== true ||
+      response.observation.pairedUserTurnId !== prompt.dispatchedUserTurnId ||
+      response.observation.messageId !== response.messageId) return false;
+
+  const responseId = `${process.processId}:${process.runId}:${process.turn}:${response.hash}`;
+  if (process.legacyAdvisoryRecovery?.responseId === responseId) return false;
+  // Re-parse captured bytes, rather than trust a stale status cached beside them.
+  const parsed = parseTargetResponse(response.text);
+  if (parsed.found && !parsed.ok) return false;
+  const target = parsed.ok ? parsed.value : parsed.controlOk ? parsed.control : null;
+  const status = target ? parsed.status : "UNKNOWN";
+  const controls = [target,response.contract?.value,response.contract?.control].filter(Boolean);
+  return ["CONTINUE", "UNKNOWN"].includes(status) && decision.targetDisposition === status &&
+    (!response.contract || response.contract.status === status) && controls.every(value =>
+      (!value.status || value.status === status) && (value.sessionAction || "KEEP") === "KEEP" &&
+      !String(value.nextSuggestedAction || "").trim() && !value.runtimeControl &&
+      !value.learningControl && !value.missionDelegations?.length);
+}
 
 export function conversationKey(url) {
   try {
@@ -56,13 +156,25 @@ export async function reconcileRestart({ local, session, tabs, ensureBridge }) {
   const keys = new Map();
   for (const p of inventory.processes) {
     const key = conversationKey(p.lastManagedUrl);
-    if (key && !TERMINAL_PHASES.has(p.phase)) keys.set(key,(keys.get(key)||0)+1);
+    if (key && (!TERMINAL_PHASES.has(p.phase) || legacyAdvisoryBlockedCandidate(p))) keys.set(key,(keys.get(key)||0)+1);
   }
   for (const original of inventory.processes) {
     let queue;
     try { queue = await loadMissionWorkQueue(original.windowId,local,{workerId:original.workerId}); }
     catch (error) { report.errors.push({key:original.workerId,code:error.message}); continue; }
-    if (TERMINAL_PHASES.has(original.phase) && !queue.enabled) continue;
+    if (legacyRotationBlockedCandidate(original)) {
+      const binding = await getWorkerBinding(original.windowId,session);
+      if (binding?.workerId !== original.workerId ||
+          !liveTabs.some(t=>t.id===original.tabId && t.windowId===original.windowId)) {
+        report.unresolved.push({workerId:original.workerId,processId:original.processId,
+          phase:original.phase,goal:String(original.goal||"").slice(0,220),
+          code:"LEGACY_ROTATION_BINDING_UNPROVEN"});
+      }
+      // A fresh GPT landing page has no durable user turn with which to prove
+      // an erased binding. Never attach it by reused numeric window/tab ids.
+      continue;
+    }
+    if (TERMINAL_PHASES.has(original.phase) && !queue.enabled && !legacyAdvisoryBlockedCandidate(original)) continue;
     const currentBinding = await getWorkerBinding(original.windowId,session);
     if (currentBinding?.workerId === original.workerId && liveTabs.some(t=>t.id===original.tabId && t.windowId===original.windowId)) continue;
     let key = conversationKey(original.lastManagedUrl);

@@ -2,6 +2,7 @@
 <html lang="sv">
 <head>
   <meta charset="utf-8">
+  <meta name="greenfield-version" content="1.9.12">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>EIC Autonom Agent Greenfield</title>
   <link rel="stylesheet" href="sidepanel.css">
@@ -11,11 +12,12 @@
     <header class="hero">
       <div>
         <div class="eyebrow">EIC AUTONOM AGENT</div>
-        <h1>Greenfield <span>v1.9.0</span></h1>
-        <div class="micro">1.9.0 · Varm återupptagning · stabil panel · Arbetsläge vid start</div>
+        <h1>Greenfield <span>v1.9.12</span></h1>
+        <div class="micro">1.9.12 · Högsta tillgängliga Thinking verifieras före sändning · En avgränsad slice per interaktion · Ny kvant i ny chatt · Delegerat arbete i samma fönster · Kööversikt i varje prompt</div>
       </div>
       <div id="continuityLamp" class="lamp" title="Continuity"></div>
     </header>
+    <p id="runtimeVersionStatus" class="micro" role="status" aria-live="polite">Kontrollerar körande version…</p>
 
     <nav class="top-tabs" aria-label="Greenfield vy">
       <button id="overviewTabButton" class="top-tab active" type="button">Körstatus</button>
@@ -112,6 +114,8 @@
       </form>
       <div class="ops-actions"><button id="inspectActiveModel" type="button" class="ghost">Läs modell i aktiv EIC-flik</button></div>
       <output id="safetyActionResult" class="safety-action-result" aria-live="polite"></output>
+      <p id="safetyVaultStatus" class="micro">Bokmärkesvalv: kontrolleras vid start.</p>
+      <p class="micro">Spara körkrav skriver värdena både i denna installation och i Chrome-profilens bokmärken (mappen ”EIC Greenfield · Run requirements v1”). Laddas Greenfield från en ny mapp återställs den senast sparade versionen därifrån. Gäller sparningar från och med 1.9.1. Radera inte mappen.</p>
       <p class="micro">Detta är Greenfields egna budgetar, inte OpenAI-gränser. Semesterprofilen fyller i 12 utskick / 3 h, 48 / dygn, 240 / vecka och minst 5 minuter mellan utskick; klicka Spara körkrav för att tillämpa.</p>
     </section>
 
@@ -169,6 +173,7 @@
         <input id="maxActiveSessions" class="delay-range" type="range" min="1" max="4" step="1" value="2" aria-label="Max parallella Greenfield-sessioner">
         <div class="delay-scale"><span>1</span><span>2</span><span>4</span></div>
         <p class="micro">Normal kapacitet. Vid ChatGPT rate-limit går Greenfield automatiskt ned till 0 under cooldown och 1 under seriell recovery utan att avbryta redan aktiva turns.</p>
+        <p id="driftVaultStatusRuntime" class="micro">Bokmärkesvalv (driftinställningar): kontrolleras vid start.</p>
 
         <div class="reserved-slot">
           <div class="section-head">
@@ -332,7 +337,23 @@
         <button id="savedMissionAdminDelete" class="ghost" type="button" disabled>Ta bort</button>
       </div>
       <div id="savedMissionAdminMeta" class="micro"></div>
-      <textarea id="savedMissionEditor" class="saved-admin-editor" rows="9" placeholder="Välj ett sparat uppdrag och klicka Redigera, eller skriv ett nytt uppdrag." aria-label="Uppdragstext"></textarea>
+      <div class="saved-launcher-fields">
+        <label for="savedMissionProjectId">Projekt-ID</label>
+        <input id="savedMissionProjectId" type="text" inputmode="numeric" placeholder="59" autocomplete="off">
+        <label for="savedMissionProjectName">Projektnamn</label>
+        <input id="savedMissionProjectName" type="text" placeholder="Elli Lab" autocomplete="off">
+        <label for="savedMissionGfId">GFW-ID</label>
+        <input id="savedMissionGfId" type="text" placeholder="GF-2.59.1001" autocomplete="off" spellcheck="false">
+      </div>
+      <label for="savedMissionInstruction">Gemensam instruktion / uppdragets instruktion</label>
+      <textarea id="savedMissionInstruction" class="saved-admin-editor" rows="8" aria-label="Redigerbar instruktion"></textarea>
+      <p class="micro">Nya uppdrag får standardinstruktionen. Vid redigering visas uppdragets befintliga instruktion; ändringen gäller det uppdrag du sparar.</p>
+      <button id="savedMissionAddStandard" class="ghost" type="button">Lägg till standardinstruktion</button>
+      <div id="savedMissionFieldsStatus" class="micro" role="status"></div>
+      <details id="savedMissionEditorDetails">
+        <summary>Full uppdragstext / fri text</summary>
+        <textarea id="savedMissionEditor" class="saved-admin-editor" rows="9" placeholder="Här visas den fulla uppdragstexten. Äldre fria texter kan också redigeras här." aria-label="Full uppdragstext"></textarea>
+      </details>
       <div class="saved-admin-actions">
         <button id="savedMissionUpdate" class="secondary" type="button" disabled>Spara ändring</button>
         <button id="savedMissionCreate" class="ghost" type="button" disabled>Spara som nytt</button>
@@ -340,7 +361,7 @@
       </div>
       <details id="savedMissionImportDetails" class="saved-import">
         <summary>Import och export</summary>
-        <textarea id="savedMissionImportText" class="saved-admin-editor" rows="8" placeholder="Klistra in uppdrag med rubriker ### GF-001 … eller en exporterad JSON-fil." aria-label="Importtext"></textarea>
+        <textarea id="savedMissionImportText" class="saved-admin-editor" rows="8" placeholder="Klistra in uppdrag med rubriker ### GF-2.59.1001 … eller en exporterad JSON-fil." aria-label="Importtext"></textarea>
         <label class="queue-setting queue-setting-check">
           <span>Slå ihop dubbletter med samma GF-ID (köplatser och kö-set flyttas till den kvarvarande posten)</span>
           <input id="savedMissionImportMerge" type="checkbox" checked>
@@ -422,6 +443,17 @@
         <p id="queueScheduleZone" class="micro">Lokal tid.</p>
         <div id="queueScheduleWindows" class="queue-schedule-windows"></div>
         <button id="queueScheduleAddWindow" class="ghost" type="button">+ Lägg till körfönster</button>
+        <div class="queue-schedule-interval">
+          <label for="queueScheduleInterval" class="label">Minsta väntetid efter färdig kvant</label>
+          <div class="queue-schedule-interval-fields">
+            <input id="queueScheduleInterval" type="number" min="0" step="1" value="0" aria-describedby="queueScheduleIntervalHint">
+            <select id="queueScheduleIntervalUnit" aria-label="Tidsenhet">
+              <option value="MINUTES">Minuter</option>
+              <option value="HOURS">Timmar</option>
+            </select>
+          </div>
+          <p id="queueScheduleIntervalHint" class="micro">0 = ingen väntetid. Max 30 dygn. Första kvanten får köras direkt. Därefter hoppas detta GFW över tills väntetiden löpt ut. Övriga körbara uppdrag fortsätter. Gäller även dubbletter i samma kö.</p>
+        </div>
         <div class="queue-schedule-pause">
           <label for="queueSchedulePause" class="label">Pausa till</label>
           <input id="queueSchedulePause" type="datetime-local" aria-label="Pausa till">
@@ -431,7 +463,7 @@
           <button id="queueScheduleSave" class="secondary" type="button">Spara schema</button>
           <button id="queueScheduleClear" class="ghost" type="button">Rensa schema</button>
         </div>
-        <p class="micro">Platsen körs bara inom sina fönster och efter eventuell paus. Utan fönster körs den alltid. Slut före start betyder över midnatt, 24:00 betyder dygnets slut. En pågående tur avbryts aldrig: när fönstret stänger parkeras platsen efter svaret och kön går vidare. EIC-AI:n kan också ändra schemat via SET_SCHEDULE; en senare operatörsändring vinner alltid.</p>
+        <p class="micro">Platsen körs inom sina fönster, efter eventuell paus och när väntetiden efter senaste färdiga kvant har löpt ut. Utan fönster kan den köras när dessa väntetider tillåter det. Slut före start betyder över midnatt, 24:00 betyder dygnets slut. En pågående tur avbryts aldrig: när fönstret stänger parkeras platsen efter svaret och kön går vidare. EIC-AI:n kan ändra fönster och paus via SET_SCHEDULE; en senare operatörsändring vinner alltid.</p>
       </div>
 
       <details class="queue-history-details">
@@ -473,11 +505,13 @@
         <input id="queueSwitchSettleSeconds" type="number" min="0" max="30" step="1" value="2">
       </label>
       <label class="queue-setting queue-setting-check">
-        <span>Fortsätt i GFW:ns egen chatt när den kommer tillbaka i kön (varm återupptagning)</span>
+        <span>Fortsätt en ofärdig kvant i GFW:ns egen chatt när den kommer tillbaka i kön (varm återupptagning)</span>
         <input id="warmQueueResume" type="checkbox" checked>
       </label>
       <button id="saveQueueSettings" class="secondary queue-settings-save" type="button">Spara grundparametrar</button>
-      <p class="micro">Varje GFW har sin egen ChatGPT-konversation; två köplatser delar aldrig chatt. Med varm återupptagning fortsätter en parkerad GFW i sin egen chatt med kort prompt när chatten kan bekräftas på sidan; annars, och efter AI:ns begäran om ny chatt, öppnas en färsk konversation med full prompt. Ändrade fält som inte är sparade markeras med streckad ram och skrivs inte över av panelens uppdatering. Listordningen är styrande och loopar; prioritet används först när en aktiv köplats konkurrerar om profilglobal ChatGPT-kapacitet. Växlingens minsta paus är separat från promptpausen. Ofärdig kvant bevaras över tidig yield/pause/block; först full kvant nollställer platsens kvantmätare inför nästa varv. PAUSE_PROCESS i köläge sover den logiska GFW:n och låter nästa körbara plats gå vidare. BLOCKED återförs efter cooldown; DONE/STOP_PROCESS avslutar den logiska sparade GFW:n och tar bort dess eventuella dubblettplatser.</p>
+      <p id="driftVaultStatus" class="micro">Bokmärkesvalv (driftinställningar): kontrolleras vid start.</p>
+      <p class="micro">Grundparametrarna, Paus mellan analys och post och Max parallella sparas både i denna installation och i Chrome-profilens bokmärken (mappen ”EIC Greenfield · Run requirements v1”, samma som körkraven). Laddas Greenfield från en ny mapp återställs den senast sparade versionen därifrån, inställning för inställning. Värden från en äldre version kopieras dit vid första start efter uppdatering på plats.</p>
+      <p class="micro">Varje GFW har sin egen ChatGPT-konversation; två köplatser delar aldrig chatt. En ny kvant (interaktion 1) startar alltid i en färsk konversation med full prompt. Med varm återupptagning fortsätter en GFW som parkerades mitt i en ofärdig kvant i sin egen chatt med kort prompt när chatten kan bekräftas på sidan; annars, och efter AI:ns begäran om ny chatt, öppnas en färsk konversation med full prompt. Ändrade fält som inte är sparade markeras med streckad ram och skrivs inte över av panelens uppdatering. Listordningen är styrande och loopar; prioritet används först när en aktiv köplats konkurrerar om profilglobal ChatGPT-kapacitet. Växlingens minsta paus är separat från promptpausen. Ofärdig kvant bevaras över tidig yield/pause/block; först full kvant nollställer platsens kvantmätare inför nästa varv. PAUSE_PROCESS i köläge sover den logiska GFW:n och låter nästa körbara plats gå vidare. BLOCKED återförs efter cooldown; DONE/STOP_PROCESS avslutar den logiska sparade GFW:n och tar bort dess eventuella dubblettplatser.</p>
     </section>
 
     <footer>

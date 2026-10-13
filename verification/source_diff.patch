@@ -1,0 +1,420 @@
+--- 1.9.10/README.md
++++ 1.9.11/README.md
+@@ -1,36 +1,31 @@
+-# EIC Autonom Agent Greenfield 1.9.10 RC1 Thinking Menu
++# EIC Autonom Agent Greenfield 1.9.11
+ 
+-Installationskandidat, 2026-10-13, baserad på 1.9.9 RC1. Rättar Thinking-adapterns menyöppning, stängning efter omrendering och upprepade åtgärder vid oförändrade fel. Inkluderar rättningen för `Extension context invalidated` och val av högsta tillgängliga Thinking-nivå före varje ny sändning, inklusive sessionsinitieringen.
++Komplett Chrome-tillägg med kodrättning för köuppstartens Thinking-kontroll. Baserat på 1.9.10. Installera enligt `UPPDATERA_TILL_1_9_11.md`. Evidens-ID finns i paketets `verification/evidence_log.md`. [E102, E106]
+ 
+-Se `UPPDATERA_TILL_1_9_10.md` för installation och `THINKING_MENU_CHANGELOG.md` för felanalys, rättning och verifiering. Äldre uppdateringsdokument och changeloggar beskriver respektive tidigare kandidat.
++## Rättningen
+ 
+-Greenfield söker först ett tänkenivåreglage genom att aktivera knappens hovringshändelser. Dedikerade menyer kan även öppnas med tangentbord och därefter klick som reservväg. En modellista med exempelvis 6, GPT-5.6 och Pro räknas inte som tänkenivåalternativ. Reglagets högsta numeriska värde eller det högst rankade tillgängliga tänkealternativet väljs och läses tillbaka.
++Greenfield läser högsta tillgängliga tänkenivå från det öppnade reglaget. Versionen stöder vanliga sliders, numeriska ARIA-värden utan slider-roll och annonserad position som **Extra hög, 4 av 4**. Om kontrollen redan visar högsta nivån verifieras den utan ett nytt nivåval. Lägre nivåer höjs med tangentbordshändelser och läses tillbaka efter menyernas stängning. Högsta positionen upptäcks från kontrollen; den är inte hårdkodad till fyra. [E102, E103]
+ 
+-En redan öppen meny som säkert hör till samma kompositorknapp stängs före försöket. Escape och lämnahändelser används för stängning; en stängd modellknapp klickas inte för att försöka stänga ett hovringsreglage. Samma oförändrade misslyckande medför inga fler menyåtgärder. Ändrad kontroll, ny session eller **Kontrollera modellen igen** tillåter ett nytt försök. Diagnostikexporten innehåller steg, hittade kontrolltyper och reglagevärden under `modelInspection.evidence.thinkingControl`.
++En ensam knapp med texten Extra hög eller Pro räcker inte som bevis på en lista med tänkenivåer. Modellnavigation får inte användas som nivåval. För vanliga alternativlistor behövs en faktisk grupp eller uttryckliga valattribut. Ett redan valt högsta alternativ verifieras även när menyöppningen tillfälligt byter knappens etikett till Resonemangsansträngning. [E102, E103, E104]
+ 
+-Ny session, omladdad sida, ändrad modellkontroll eller återställd nivå kräver ny verifiering. Kvittot gäller högst 60 sekunder och kontrolleras direkt före Skicka-klicket. Balanserad och okända, overifierade etiketter godkänns inte som tillräcklig tänkenivå. Befintligt modellgolv och lägsta nivå gäller fortfarande.
++Vid omrendering hämtas kontrollen på nytt. Motsägelsefulla reglage, utebliven nivåändring, utebliven återläsning, främmande popup, ändrad session och blockerande operatörstillstånd godkänns inte för sändning. Oförändrade misslyckanden skickar inte nya kontrollaktioner förrän förutsättningarna ändras eller en återkontroll begärs. [E102, E103]
+ 
+-Om nivån inte kan väljas och verifieras hålls nya utskick med en förklarande status. Greenfield ändrar inte tänkenivå under pågående generering eller när effekten av ett tidigare sändförsök är okänd. Automationen gäller den styrda EIC-fliken.
++Kvittot är fortsatt bundet till dokument, URL, modellkontroll och aktuell inställning och gäller högst 60 sekunder. Förkontrollen körs även före sessionsinitieringen. Balanserad ger inte tillstånd till utskick. [E102, E103]
+ 
+-Verifiering: 44 riktade Node/jsdom-fall, varav 10 nya menyfall, 22 tidigare Thinking-fall och 12 för livscykel och startmeddelande. Tre nya regressionfall misslyckas med 1.9.9-adaptern och passerar med denna kandidat. Kompositorknappens HTML kommer från bilagan den 13 oktober. Öppna reglage, händelser och menyer modelleras i testerna; deras riktiga DOM ingick inte i bilagorna. Chrome-API:er simuleras. Liveverifiering i inloggad Chrome återstår. Tidigare fullständig projekttestsvit ingick inte i underlaget och har inte körts.
++## Verifiering
+ 
+-Utvecklingstester: `npm ci` följt av `npm test`. Endast testerna använder jsdom; tilläggets runtime har inga nya externa beroenden. `node_modules` ingår inte i leveransen.
++**62/62 tillgängliga automatiska tester passerar.** Reproduktion med samma konstruerade meny och sex frön: **6/6 fel i 1.9.10 → 0/6 i 1.9.11**. Testerna omfattar låg och redan högsta nivå, roller/text/ARIA-beskrivningar, omrendering, ny session, isolerade samtidiga dokument, avvisad input, gammal återläsning och initieringsförkontroll följd av exakt ett sändklick. [E101, E103]
+ 
+-Tidigare identifierade problem med Nano-förkontroll, initieringsåterhämtning, köägarskap, schemaretry och återställning är separata från denna rättning och kvarstår i basversionen.
++Testmiljö: Node v24.19.0 och JSDOM 26.1.0. Öppna menyer och externa handlers är modellerade. Chrome-API:er simuleras. Körning i användarens inloggade Chrome-session är inte verifierad. Den tidigare fullständiga projektsviten ingår inte i tillgängligt källunderlag. [E103, E105, A101]
+ 
+-## Befintlig funktion från 1.9.7
++Utveckling: `npm ci --ignore-scripts --no-audit --no-fund` och sedan `npm test`. JSDOM används bara av testerna; runtime har inga nya externa beroenden eller behörigheter. [E102, E106]
+ 
+-Initieringsprompten öppnar projektet från uppdragets första Project/Projekt-rad, svarar endast READY och inväntar nästa prompt. Hänvisningar till Project71 i uppdragsregistret styr inte projektvalet.
++## Omfång och diagnostik
+ 
+-Basversionen innehåller styrning för kontrollbeslut, paus, köåterstart, operatörsinstruktioner, delegation, promptstorlek, transport och den redigerbara launchern. Generell BLOCKED-återstart är fortsatt spärrad när ägarvillkor eller utskickseffekt saknar bevis.
++Funktionella ändringar gäller Thinking-adaptern och igenkänning av dess kvitto. Övriga runtimeändringar gäller version/diagnostik. Körschema, scheduler, lagring, arbetsköer och GFW-identiteter har inte ändrats. Testet med en blockerad och en aktiv adapter verifierar dokumentisolering, inte hela schemaläggningen i Chrome. [E102, E103, E106]
+ 
+-- Under Schema kan operatören ange minsta väntetid efter färdig kvant, i minuter eller timmar. Första kvanten får köras direkt. Efter varje färdig kvant hoppas GFW:t och dess dubbletter i samma kö över tills väntetiden löpt ut. Andra körbara uppdrag fortsätter. Väntetiden bevaras över återstart; en delvis körd kvant startar ingen ny period. Körfönster och paus måste också tillåta körning. 0 stänger av intervallet, högst 30 dygn. Köset sparar intervallet som inställning, utan den gamla körningens väcktid.
+-- En uppdragspaus gäller uppdraget och dess dubbletter i samma kö. Andra körbara uppdrag får fortsätta. Utan alternativ väntar arbetsfönstret. Pausa nya utskick är globalt.
+-- En ny eller kall appstyrd session får ett separat litet initieringsping före arbetsuppdraget.
+-- Förlorad konversation och leveranstimeout behandlas utifrån aktuellt sidtillstånd. Fortsättningsförsök återspelar inte hela arbetsuppdraget.
+-- Sparade uppdrag får redigerbara identitetsfält och instruktion med en standard för nya uppdrag. Befintlig fulltext bevaras.
+-- GF-n.z.xxxx stöds som ett helt ID. Inga registerändringar eller ID-tilldelningar ingår.
++Separata tidigare fynd om Nano-förkontroll, initieringsåterhämtning, köägarskap och schemaretry åtgärdas inte av denna rättning; dessa källfiler är byteidentiska med basversionen. [E102]
+ 
+-Manifest, content bridge, panel och runtime använder version 1.9.10. Versionshöjningen gör att en äldre sidbrygga inte godtas som aktuell. RC1 markerar kvarvarande liveverifiering.
++Diagnostiken registrerar vald strategi, kontrollattribut och högst 32 nivåaktioner med förfluten tid. Felfall får även en begränsad sammanfattning av popupens kontrollnoder. Fälten finns under `modelInspection.evidence.thinkingControl`; observationsadaptern har version 8. Ingen ny chatt-/promptinsamling införs av dessa fält. [E102]
+ 
+-Leveransen innehåller aktuella källor, tester, versionsdiff och resultat från denna rättning. Historiska fullständiga utvecklingspaket ingår inte.
++Äldre uppdateringsdokument och changeloggar är historik. Aktuella instruktioner finns i `UPPDATERA_TILL_1_9_11.md`, ändringsbeskrivningen i `QUEUE_STARTUP_CHANGELOG.md` och verifieringsunderlaget i paketets `verification/`.
+--- 1.9.10/VERSION
++++ 1.9.11/VERSION
+@@ -1 +1 @@
+-1.9.10
++1.9.11
+--- 1.9.10/content.js
++++ 1.9.11/content.js
+@@ -1,7 +1,7 @@
+ (() => {
+   const BRIDGE = "__EIC_GF_CONTENT_V2__";
+   const OVERLAY_ID = "eic-gf-linked-overlay";
+-  const CONTENT_VERSION = "1.9.10";
++  const CONTENT_VERSION = "1.9.11";
+   const previousBridge = globalThis[BRIDGE] || null;
+   const DOCUMENT_ID = previousBridge?.documentId || crypto.randomUUID();
+   const dispatchRecords = previousBridge?.dispatchRecords instanceof Map
+--- 1.9.10/lib/contracts.mjs
++++ 1.9.11/lib/contracts.mjs
+@@ -1,5 +1,5 @@
+ export const APP_NAME = "EIC Autonom Agent Greenfield";
+-export const APP_VERSION = "1.9.10";
++export const APP_VERSION = "1.9.11";
+ export const AUDIT_SCHEMA = "eic.greenfield.audit.v2";
+ export const PROCESS_SCHEMA = "eic.greenfield.process.v1";
+ export const ANALYSIS_SCHEMA = "eic.greenfield.hjalmar-d2.v3";
+--- 1.9.10/lib/model-observation.js
++++ 1.9.11/lib/model-observation.js
+@@ -228,7 +228,7 @@
+       ambiguityKind:resolvedModel.ambiguous ? "model" : resolvedEffort.ambiguous ? "effort" : "",
+       mode, quota,
+       blockingUi:notices.some(e=>e.matches("[role='dialog'],[role='alertdialog'],[aria-modal='true']") && !S.quotaSignal(e.innerText || e.textContent || "")),
+-      adapterVersion:7,
++      adapterVersion:8,
+       highestEffort:globalThis.GreenfieldThinkingControl?.proof() || null,
+       thinkingControl:globalThis.GreenfieldThinkingControl?.diagnostics?.() || null,
+       effortEvidenceSource,
+--- 1.9.10/lib/safety-policy.js
++++ 1.9.11/lib/safety-policy.js
+@@ -198,7 +198,7 @@
+     const maximumVerified = highest?.status === "VERIFIED" && highest.url === url &&
+       Number.isFinite(highest.verifiedAtMs) && now >= highest.verifiedAtMs - 1000 &&
+       now - highest.verifiedAtMs <= 60000 &&
+-      ["SLIDER_MAXIMUM", "HIGHEST_AVAILABLE_OPTION"].includes(highest.strategy);
++      ["SLIDER_MAXIMUM", "ORDINAL_MAXIMUM", "HIGHEST_AVAILABLE_OPTION"].includes(highest.strategy);
+     if (requireHighestEffort && !maximumVerified) return deny("THINKING_MAXIMUM_UNVERIFIED");
+ 
+     let observedEffort = effort(effortLabel);
+--- 1.9.10/lib/thinking-control.js
++++ 1.9.11/lib/thinking-control.js
+@@ -56,7 +56,9 @@
+   function fail(code) { throw Object.assign(new Error(code), {code}); }
+   const pause = () => new Promise(resolve => setTimeout(resolve,100));
+   const popupSelector = "[role='menu'], [role='listbox'], [role='dialog'], [role='tooltip'], [data-radix-popper-content-wrapper], [data-slot='popover-content']";
+-  const sliderSelector = "[role='slider'], input[type='range']";
++  // Some composer controls expose range values without role=slider.
++  const sliderSelector = "[role='slider'], input[type='range'], [aria-valuemin][aria-valuemax][aria-valuenow]:not([role='progressbar']):not([role='meter'])";
++  const optionSelector = "[role='menuitemradio'],[role='menuitem'],[role='option'],[role='radio'],button";
+   const allVisible = selector => [...document.querySelectorAll(selector)].filter(visible);
+   function popupFor(el, previous) {
+     if (!el) return null;
+@@ -99,6 +101,9 @@
+   function controlSummary(el) {
+     if (!el) return null;
+     return {tag:el.tagName,role:el.getAttribute("role") || "",label:text(el).slice(0,120),
++      id:el.id || "",tabIndex:el.getAttribute("tabindex"),
++      ariaLabel:el.getAttribute("aria-label"),valueText:el.getAttribute("aria-valuetext"),
++      selected:el.getAttribute("aria-selected"),checked:el.getAttribute("aria-checked"),hasPopup:el.getAttribute("aria-haspopup"),
+       expanded:el.getAttribute("aria-expanded"),state:el.getAttribute("data-state"),
+       min:el.getAttribute("aria-valuemin") ?? (el.matches("input[type='range']") ? el.min : null),
+       max:el.getAttribute("aria-valuemax") ?? (el.matches("input[type='range']") ? el.max : null),
+@@ -109,13 +114,59 @@
+     return JSON.stringify({url:location.href,selection:selection(el),model:modelKey(),disabled:el?disabled(el):true,
+       trigger:controlSummary(el),popups:allVisible(popupSelector).map(controlSummary),sliders:allVisible(sliderSelector).map(controlSummary)});
+   }
++  function modelSurface(popup) {
++    const options=[...popup.querySelectorAll(optionSelector)].filter(visible);
++    // A bare Pro entry in a model list is not a reasoning level.
++    return options.some(el=>globalThis.GreenfieldSafetyPolicy.modelVersion(text(el)) || /^\d+(?:\.\d+)*$/u.test(text(el)));
++  }
++  function namedOptions(popup) {
++    const options=[...popup.querySelectorAll(optionSelector)].filter(visible)
++      .map(el=>({el,rank:optionRank(el)})).filter(x=>x.rank>=0);
++    const distinct=new Set(options.map(x=>x.rank)).size;
++    // One unmarked named button may navigate to the model picker. A group of
++    // choices or explicit choice semantics is required before clicking it.
++    return options.filter(({el})=>!disabled(el) && (distinct>=2 ||
++      el.matches("[role='menuitemradio'],[role='radio'],[role='option'],[aria-checked],[aria-selected],[data-reasoning-effort],[data-effort]")));
++  }
++  function ordinalControls(popup) {
++    if (!popup || modelSurface(popup)) return [];
++    const found=[];
++    for (const el of [popup,...popup.querySelectorAll("[aria-label],[aria-valuetext],[aria-describedby],span,div,p,button,[role]")]) {
++      if (!visible(el) || disabled(el)) continue;
++      const described=(el.getAttribute("aria-describedby") || "").split(/\s+/)
++        .map(id=>document.getElementById(id)).filter(node=>node && popup.contains(node)).map(text);
++      const sources=[el.getAttribute("aria-valuetext"),el.getAttribute("aria-label"),...described,text(el)].filter(Boolean);
++      const values=[];
++      for (const source of sources) {
++        const value=norm(source);
++        for (const match of value.matchAll(/(?<![\d.])([1-9]\d*)\s*(?:av|of|\/|von|sur|de)\s*([1-9]\d*)(?!\d)/giu)) {
++          const now=Number(match[1]),max=Number(match[2]);
++          const label=norm(value.slice(0,match.index).replace(/[,;:.\s]+$/u,""));
++          const rank=globalThis.GreenfieldSafetyPolicy.effort(label);
++          if (now>max || max<2 || max>32 || rank<0 || globalThis.GreenfieldSafetyPolicy.modelVersion(label)) continue;
++          values.push({now,max,label,rank});
++        }
++      }
++      // Ancestor text can contain several controls. Never infer one position
++      // from contradictory values or levels in that text.
++      const keys=new Set(values.map(v=>`${v.now}/${v.max}/${v.rank}`));
++      if (keys.size===1) found.push({el,...values[0]});
++    }
++    return found.filter(a=>!found.some(b=>a!==b && a.el.contains(b.el)));
++  }
++  function ordinalTarget(control,popup) {
++    for (let el=control.el;el && popup.contains(el);el=el.parentElement) {
++      if (el.matches("button,input,[tabindex],[role='slider'],[role='spinbutton']")) return el;
++      if (el===popup) break;
++    }
++    // Key events bubble to the control's existing handler; never synthesize
++    // a click on a named header or install new DOM attributes/listeners.
++    return control.el;
++  }
+   function effortSurface(popup) {
+-    if (!popup) return false;
++    if (!popup || modelSurface(popup)) return false;
+     if (popup.matches(sliderSelector) || [...popup.querySelectorAll(sliderSelector)].some(visible)) return true;
+-    const options=[...popup.querySelectorAll("[role='menuitemradio'],[role='menuitem'],[role='option'],[role='radio'],button")].filter(visible);
+-    // A bare Pro entry in a model list is not a reasoning level.
+-    if (options.some(el=>globalThis.GreenfieldSafetyPolicy.modelVersion(text(el)) || /^\d+(?:\.\d+)*$/u.test(text(el)))) return false;
+-    return options.some(el=>optionRank(el)>=0);
++    return ordinalControls(popup).length>0 || namedOptions(popup).length>0;
+   }
+   function sliderValues(el) {
+     const native = el.matches("input[type='range']");
+@@ -142,7 +193,11 @@
+     const deadline = started + 6000;
+     let opened = false, owner = null, previous = new Set(), initialFocus = document.activeElement;
+     let outcome = null, stage = "PREFLIGHT", openingMethod = "", recoveredOpenMenu = false;
+-    const observedSurfaces=[];
++    const observedSurfaces=[],actions=[];
++    let chosenControl=null,selectionStrategy="";
++    const recordAction=(type,el)=>{
++      if(actions.length<32) actions.push({type,elapsedMs:Date.now()-started,target:controlSummary(el)});
++    };
+     const captureSurface = () => observedSurfaces.push({stage,trigger:controlSummary(trigger()),
+       popups:allVisible(popupSelector).filter(p=>!previous.has(p)).map(controlSummary).slice(0,6),
+       sliders:allVisible(sliderSelector).map(controlSummary).slice(0,6)});
+@@ -235,22 +290,42 @@
+       stage="SELECT_MAXIMUM";
+       let sliders = [ ...(popup.matches(sliderSelector) ? [popup] : []), ...popup.querySelectorAll(sliderSelector) ].filter(visible);
+       sliders = sliders.filter(s=>!sliders.some(t=>s!==t && s.contains(t)));
+-      let strategy, target, changed = false;
++      let strategy, target, changed = false, verifiedRank=null;
+       if (sliders.length === 1) {
+         const slider = sliders[0], before = sliderValues(slider);
+         if (!before || disabled(slider)) fail("THINKING_SLIDER_UNVERIFIED");
+-        strategy = "SLIDER_MAXIMUM"; target = String(before.max);
++        strategy = selectionStrategy = "SLIDER_MAXIMUM"; target = String(before.max);chosenControl=controlSummary(slider);
+         changed = before.now !== before.max;
+         if (changed) {
+           await check();
++          if (!slider.isConnected || currentPopup()!==popup) fail("THINKING_CONTROL_CHANGED");
+           slider.focus({preventScroll:true});
+           if (slider.matches("input[type='range']")) {
++            recordAction("RANGE_MAXIMUM",slider);
+             Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(slider,target);
+             slider.dispatchEvent(new Event("input",{bubbles:true}));
+             slider.dispatchEvent(new Event("change",{bubbles:true}));
+           } else {
+-            slider.dispatchEvent(new KeyboardEvent("keydown",{key:"End",code:"End",bubbles:true,cancelable:true}));
+-            slider.dispatchEvent(new KeyboardEvent("keyup",{key:"End",code:"End",bubbles:true}));
++            recordAction("KEY_END",slider);keypress(slider,"End");
++            const readRange=()=>{
++              const p=currentPopup();
++              if (!p || modelSurface(p)) return null;
++              const matches=[...(p.matches(sliderSelector)?[p]:[]),...p.querySelectorAll(sliderSelector)].filter(visible);
++              const inner=matches.filter(s=>!matches.some(t=>s!==t && s.contains(t)));
++              if(inner.length!==1 || disabled(inner[0]))return null;
++              const values=sliderValues(inner[0]);
++              return values && values.max===before.max && values.min===before.min ? {el:inner[0],...values} : null;
++            };
++            // Custom ranges may implement only Left/Right. Reacquire after
++            // every event because React can replace both trigger and control.
++            const atMaximum=await poll(()=>{const c=readRange();return c?.now===before.max;},Math.min(deadline,Date.now()+250));
++            if(!atMaximum)for(let step=0;step<32;step++){
++              await check();const current=readRange();
++              if(!current)fail("THINKING_CONTROL_CHANGED");
++              if(current.now===before.max)break;
++              current.el.focus({preventScroll:true});recordAction("KEY_ARROW_RIGHT",current.el);keypress(current.el,"ArrowRight");
++              await until(()=>{const next=readRange();return next && next.now>current.now;});
++            }
+           }
+         }
+         await until(()=>{
+@@ -260,20 +335,44 @@
+           return value && value.max === before.max && value.now === value.max && (!changed || key() !== priorKey);
+         });
+       } else if (!sliders.length) {
+-        const options = [...popup.querySelectorAll("[role='menuitemradio'], [role='menuitem'], [role='option'], [role='radio'], button")]
+-          .filter(el=>visible(el) && !disabled(el)).map(el=>({el,rank:optionRank(el)})).filter(x=>x.rank>=0);
+-        const highest = Math.max(-1,...options.map(x=>x.rank));
+-        const best = options.filter(x=>x.rank===highest);
+-        if (highest < 2 || best.length !== 1) fail("THINKING_OPTIONS_UNVERIFIED");
+-        const chosen = best[0].el, targetLabel = text(chosen);
+-        strategy = "HIGHEST_AVAILABLE_OPTION"; target = targetLabel;
+-        const selected = chosen.getAttribute("aria-checked") === "true" || chosen.getAttribute("aria-selected") === "true";
+-        if (!selected) { await check(); chosen.click(); changed = true; }
+-        await until(()=>{
+-          const current = selection();
+-          const rank = current && (/^pro$/iu.test(current.label) ? 4 : globalThis.GreenfieldSafetyPolicy.effort(current.label || current.value));
+-          return rank === highest && (!changed || key() !== priorKey);
+-        });
++        const ordinal=ordinalControls(popup);
++        if (ordinal.length>1) fail("THINKING_CONTROL_AMBIGUOUS");
++        if (ordinal.length===1) {
++          const before=ordinal[0];strategy=selectionStrategy="ORDINAL_MAXIMUM";target=String(before.max);
++          chosenControl=controlSummary(ordinalTarget(before,popup));changed=before.now!==before.max;
++          const readOrdinal=()=>{
++            const p=currentPopup(),values=ordinalControls(p);
++            return values.length===1 && values[0].max===before.max ? {...values[0],popup:p} : null;
++          };
++          // The announced denominator is the available maximum. Do not
++          // click the adjacent named button when this level is already set.
++          for(let step=0;step<32;step++){
++            await check();const current=readOrdinal();
++            if(!current)fail("THINKING_CONTROL_CHANGED");
++            if(current.now===before.max){verifiedRank=current.rank;break;}
++            const targetControl=ordinalTarget(current,current.popup);
++            targetControl.focus?.({preventScroll:true});recordAction("KEY_ARROW_RIGHT",targetControl);keypress(targetControl,"ArrowRight");
++            await until(()=>{const next=readOrdinal();return next && next.now>current.now;});
++          }
++          if(verifiedRank===null)fail("THINKING_SELECTION_TIMEOUT");
++        } else {
++          const options = namedOptions(popup);
++          const highest = Math.max(-1,...options.map(x=>x.rank));
++          const best = options.filter(x=>x.rank===highest);
++          if (highest < 2 || best.length !== 1) fail("THINKING_OPTIONS_UNVERIFIED");
++          const chosen = best[0].el, targetLabel = text(chosen);
++          strategy = selectionStrategy = "HIGHEST_AVAILABLE_OPTION"; target = targetLabel;verifiedRank=highest;chosenControl=controlSummary(chosen);
++          const selected = chosen.getAttribute("aria-checked") === "true" || chosen.getAttribute("aria-selected") === "true";
++          const priorRank=/^pro$/iu.test(prior.label)?4:globalThis.GreenfieldSafetyPolicy.effort(prior.label || prior.value);
++          if (!selected && priorRank!==highest) { await check();if(!chosen.isConnected)fail("THINKING_CONTROL_CHANGED");recordAction("OPTION_CLICK",chosen);chosen.click(); changed = true; }
++          // An already-selected maximum needs no transition. Its name may
++          // be hidden by a generic trigger label until the menu is closed.
++          if(changed)await until(()=>{
++            const current = selection();
++            const rank = current && (/^pro$/iu.test(current.label) ? 4 : globalThis.GreenfieldSafetyPolicy.effort(current.label || current.value));
++            return rank === highest && key() !== priorKey;
++          });
++        }
+       } else fail("THINKING_CONTROL_AMBIGUOUS");
+       await check();
+       stage="CLOSE_REASONING";
+@@ -281,6 +380,8 @@
+       opened = false;
+       const selected = selection();
+       if (!selected || globalThis.GreenfieldSafetyPolicy.effort(selected.label) === 0) fail("THINKING_SELECTION_READBACK_FAILED");
++      const selectedRank=strategy==="HIGHEST_AVAILABLE_OPTION" && /^pro$/iu.test(selected.label) ? 4 : globalThis.GreenfieldSafetyPolicy.effort(selected.label || selected.value);
++      if ((verifiedRank!==null && selectedRank!==verifiedRank) || (changed && key()===priorKey)) fail("THINKING_SELECTION_READBACK_FAILED");
+       const selectionKey = key();
+       await pause(); await check();
+       if (key() !== selectionKey) fail("THINKING_SELECTION_READBACK_FAILED");
+@@ -289,11 +390,12 @@
+       if (!proof()) fail("THINKING_SELECTION_READBACK_FAILED");
+       outcome = {ok:true,changed,previous:prior,proof:proof()};
+       failedAttempt=null;
+-      lastAttempt={ok:true,stage:"VERIFIED",openingMethod,recoveredOpenMenu,selected:selection(),observedSurfaces,atMs:Date.now()};
++      lastAttempt={ok:true,stage:"VERIFIED",openingMethod,recoveredOpenMenu,selected:selection(),strategy:selectionStrategy,chosenControl,actions,observedSurfaces,atMs:Date.now()};
+     } catch (error) {
+       receipt = null;
+       outcome = {ok:false,changed:false,code:error?.code || "THINKING_SELECTION_FAILED",detail:stage};
+-      lastAttempt={...outcome,stage,openingMethod,recoveredOpenMenu,observedSurfaces,atMs:Date.now(),
++      lastAttempt={...outcome,stage,openingMethod,recoveredOpenMenu,strategy:selectionStrategy,chosenControl,actions,observedSurfaces,atMs:Date.now(),
++        controls:currentPopup()?[...currentPopup().querySelectorAll(optionSelector+",[tabindex],[aria-valuetext],[aria-describedby]")].filter(visible).slice(0,24).map(controlSummary):[],
+         trigger:controlSummary(trigger()),popup:controlSummary(currentPopup()),sliders:allVisible(sliderSelector).map(controlSummary)};
+     } finally {
+       if (opened && !disposed && location.href === url) {
+@@ -301,7 +403,7 @@
+         catch { lastAttempt={...lastAttempt,cleanup:"UNSAFE_OR_UNAVAILABLE"}; }
+       }
+     }
+-    if (outcome?.ok === false && ["THINKING_OPTIONS_UNVERIFIED","THINKING_SLIDER_UNVERIFIED","THINKING_SELECTION_TIMEOUT","THINKING_MENU_CLOSE_FAILED","THINKING_MENU_OWNERSHIP_UNVERIFIED"].includes(outcome.code)) {
++    if (outcome?.ok === false && ["THINKING_OPTIONS_UNVERIFIED","THINKING_SLIDER_UNVERIFIED","THINKING_SELECTION_TIMEOUT","THINKING_SELECTION_READBACK_FAILED","THINKING_CONTROL_AMBIGUOUS","THINKING_CONTROL_CHANGED","THINKING_MENU_CLOSE_FAILED","THINKING_MENU_OWNERSHIP_UNVERIFIED"].includes(outcome.code)) {
+       failedAttempt={key:surfaceKey(),result:outcome};
+     }
+     return outcome;
+--- 1.9.10/manifest.json
++++ 1.9.11/manifest.json
+@@ -2,7 +2,7 @@
+   "manifest_version": 3,
+   "name": "EIC Autonom Agent Greenfield",
+   "description": "EIC i Chat med modellkrav, lokal förbrukningsbudget, beständiga körkvitton, skydd mot dubbla utskick och tydlig driftstatus.",
+-  "version": "1.9.10",
++  "version": "1.9.11",
+   "minimum_chrome_version": "138",
+   "permissions": [
+     "sidePanel",
+@@ -57,5 +57,5 @@
+     "128": "icons/icon128.png"
+   },
+   "incognito": "not_allowed",
+-  "version_name": "1.9.10 RC1 Thinking Menu"
++  "version_name": "1.9.11 Queue Startup"
+ }
+--- 1.9.10/package-lock.json
++++ 1.9.11/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "eic-autonom-agent-greenfield",
+-  "version": "1.9.10",
++  "version": "1.9.11",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "eic-autonom-agent-greenfield",
+-      "version": "1.9.10",
++      "version": "1.9.11",
+       "devDependencies": {
+         "jsdom": "26.1.0"
+       }
+--- 1.9.10/package.json
++++ 1.9.11/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "eic-autonom-agent-greenfield",
+-  "version": "1.9.10",
++  "version": "1.9.11",
+   "private": true,
+   "type": "module",
+   "scripts": {
+--- 1.9.10/sidepanel.html
++++ 1.9.11/sidepanel.html
+@@ -11,8 +11,8 @@
+     <header class="hero">
+       <div>
+         <div class="eyebrow">EIC AUTONOM AGENT</div>
+-        <h1>Greenfield <span>v1.9.10 RC1</span></h1>
+-        <div class="micro">1.9.10 RC1 · Högsta tillgängliga Thinking verifieras före sändning · En avgränsad slice per interaktion · Ny kvant i ny chatt · Delegerat arbete i samma fönster · Kööversikt i varje prompt</div>
++        <h1>Greenfield <span>v1.9.11</span></h1>
++        <div class="micro">1.9.11 · Högsta tillgängliga Thinking verifieras före sändning · En avgränsad slice per interaktion · Ny kvant i ny chatt · Delegerat arbete i samma fönster · Kööversikt i varje prompt</div>
+       </div>
+       <div id="continuityLamp" class="lamp" title="Continuity"></div>
+     </header>
+--- 1.9.10/tests/thinking-control.test.mjs
++++ 1.9.11/tests/thinking-control.test.mjs
+@@ -249,3 +249,17 @@
+     assert.equal((await f.ensure()).ok,true);assert.equal(f.proof().allowed,true);assert.equal(f.counts.sends,0);
+   }finally{f.close();}
+ });
++
++test('already selected option is verified after a generic open-menu label closes',async()=>{
++  const f=fixture({type:'options',initial:'Pro'});try{
++    let choiceClicks=0;
++    f.trigger.addEventListener('click',()=>{
++      if(f.trigger.getAttribute('aria-expanded')==='true'){
++        f.trigger.querySelector('.ModelPickerTriggerLabel-xR9gDc').textContent='Resonemangsansträngning';
++        f.d.querySelectorAll('[role=menuitemradio]').forEach(el=>el.addEventListener('click',()=>choiceClicks++));
++      }else f.setLabel('Pro');
++    });
++    const result=await f.ensure();assert.equal(result.ok,true,JSON.stringify(result));
++    assert.equal(result.changed,false);assert.equal(f.proof().allowed,true);assert.equal(choiceClicks,0);
++  }finally{f.close();}
++});

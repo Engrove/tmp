@@ -1,0 +1,656 @@
+{
+  "appVersion": "1.9.10",
+  "createdAt": "2026-10-13T07:11:13.502Z",
+  "runtimeFault": "",
+  "modelInspection": {
+    "url": "https://chatgpt.com/g/g-69e0b4be34308191aa6c05db1908be1b-eic",
+    "evidence": {
+      "source": "CHATGPT_UI_CONTROLS_V1",
+      "observedAtMs": 1791875473501,
+      "modelLabel": "Extra hög Välj ChatGPT-modell",
+      "effortLabel": "Extra hög",
+      "reasoningControlSeen": true,
+      "effortControlSeen": true,
+      "ambiguous": false,
+      "ambiguityKind": "",
+      "mode": "CHAT",
+      "quota": {
+        "active": false
+      },
+      "blockingUi": false,
+      "adapterVersion": 7,
+      "highestEffort": null,
+      "thinkingControl": {
+        "ok": false,
+        "changed": false,
+        "code": "THINKING_SELECTION_TIMEOUT",
+        "detail": "SELECT_MAXIMUM",
+        "stage": "SELECT_MAXIMUM",
+        "openingMethod": "KEYBOARD",
+        "recoveredOpenMenu": false,
+        "observedSurfaces": [
+          {
+            "stage": "OPEN_REASONING_HOVER",
+            "trigger": {
+              "tag": "BUTTON",
+              "role": "",
+              "label": "Extra hög",
+              "expanded": "false",
+              "state": "closed",
+              "min": null,
+              "max": null,
+              "now": null
+            },
+            "popups": [
+              {
+                "tag": "DIV",
+                "role": "tooltip",
+                "label": "ResonemangsansträngningCtrl+Shift+M",
+                "expanded": null,
+                "state": null,
+                "min": null,
+                "max": null,
+                "now": null
+              }
+            ],
+            "sliders": []
+          },
+          {
+            "stage": "OPEN_REASONING_MENU",
+            "trigger": {
+              "tag": "BUTTON",
+              "role": "",
+              "label": "Resonemangsansträngning",
+              "expanded": "true",
+              "state": "open",
+              "min": null,
+              "max": null,
+              "now": null
+            },
+            "popups": [
+              {
+                "tag": "DIV",
+                "role": "",
+                "label": "Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan",
+                "expanded": null,
+                "state": null,
+                "min": null,
+                "max": null,
+                "now": null
+              },
+              {
+                "tag": "DIV",
+                "role": "menu",
+                "label": "Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan",
+                "expanded": null,
+                "state": "open",
+                "min": null,
+                "max": null,
+                "now": null
+              }
+            ],
+            "sliders": []
+          }
+        ],
+        "atMs": 1791875263316,
+        "trigger": {
+          "tag": "BUTTON",
+          "role": "",
+          "label": "Extra hög",
+          "expanded": "true",
+          "state": "open",
+          "min": null,
+          "max": null,
+          "now": null
+        },
+        "popup": {
+          "tag": "DIV",
+          "role": "menu",
+          "label": "Låst, öppnar åtkomstalternativ6GPT-5.6 SolGPT-5.5Försvinner 14 oktoberPro",
+          "expanded": null,
+          "state": "open",
+          "min": null,
+          "max": null,
+          "now": null
+        },
+        "sliders": [],
+        "suppressedRepeatedActions": true
+      },
+      "effortEvidenceSource": "COMPOSER_SELECTED_CONTROL",
+      "gptSurface": {
+        "composerName": "EIC",
+        "headerName": "EIC",
+        "ambiguous": false,
+        "version": 1
+      },
+      "controlsSeen": {
+        "model": [
+          "Extra hög Välj ChatGPT-modell"
+        ],
+        "effort": [
+          "Extra hög Välj ChatGPT-modell",
+          "Extra hög"
+        ],
+        "currentUseNotices": [],
+        "recommendations": []
+      }
+    }
+  },
+  "storageContract": {
+    "verified": true,
+    "codec": "EIC_SORTED_JSON_V1",
+    "checkedAt": "2026-10-13T07:03:49.135Z",
+    "keyOrderChanged": true
+  },
+  "incidents": {
+    "rows": 11,
+    "droppedRows": 0,
+    "firstAtMs": 1791875026460,
+    "lastAtMs": 1791875263402,
+    "byKind": {
+      "WORK_MODE_ENABLED_AT_STARTUP": {
+        "count": 1,
+        "codes": {
+          "installed": 1
+        }
+      },
+      "SAFETY_POLICY_RESTORED": {
+        "count": 1,
+        "codes": {
+          "LOCAL_HAS_NO_SAVE_TIME": 1
+        }
+      },
+      "DRIFT_SETTINGS_RESTORED": {
+        "count": 1,
+        "codes": {
+          "service-worker-evaluation": 1
+        }
+      },
+      "QUEUE_ITEM_ACTIVATED": {
+        "count": 2,
+        "codes": {
+          "QUEUE_MISSION_START": 2
+        }
+      },
+      "WORK_MODE_SUPERVISOR_CLAIMED": {
+        "count": 2,
+        "codes": {
+          "NO_SUPERVISOR": 1,
+          "SUPERVISOR_NOT_LIVE": 1
+        }
+      },
+      "SAFETY_HOLD_STARTED": {
+        "count": 4,
+        "codes": {
+          "THINKING_CONTROL_UNAVAILABLE": 2,
+          "THINKING_SELECTION_TIMEOUT": 2
+        }
+      }
+    }
+  },
+  "processes": [
+    {
+      "workerId": "worker-8fad4532-0d19-4d28-8616-84983b7e967d",
+      "processId": "process-0e67fa12-7269-46d5-b4ac-8e347e1cd59e",
+      "phase": "DETACHED",
+      "tabId": 20849217,
+      "windowId": 20849216,
+      "turn": 1,
+      "sessionSeq": 1,
+      "gptRoot": "https://chatgpt.com/g/g-69e0b4be34308191aa6c05db1908be1b-eic",
+      "conversationUrl": null,
+      "updatedAt": "2026-10-13T07:05:55.796Z",
+      "lastError": {
+        "code": "MANAGED_TAB_CLOSED",
+        "message": "MANAGED_TAB_CLOSED",
+        "name": "Error",
+        "stack": "Error: MANAGED_TAB_CLOSED\n    at chrome-extension://bddbfdkcnhmhkgnlpfnnjfinpponpeif/background.js:11566:35"
+      },
+      "initializationStatus": "PENDING",
+      "dispatch": null,
+      "thinkingControl": {
+        "atMs": 1791875114478,
+        "changed": false,
+        "code": "THINKING_SELECTION_TIMEOUT",
+        "detail": "SELECT_MAXIMUM",
+        "observedSurfaces": [
+          {
+            "popups": [
+              {
+                "expanded": null,
+                "label": "ResonemangsansträngningCtrl+Shift+M",
+                "max": null,
+                "min": null,
+                "now": null,
+                "role": "tooltip",
+                "state": null,
+                "tag": "DIV"
+              }
+            ],
+            "sliders": [],
+            "stage": "OPEN_REASONING_HOVER",
+            "trigger": {
+              "expanded": "false",
+              "label": "Extra hög",
+              "max": null,
+              "min": null,
+              "now": null,
+              "role": "",
+              "state": "closed",
+              "tag": "BUTTON"
+            }
+          },
+          {
+            "popups": [
+              {
+                "expanded": null,
+                "label": "Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan",
+                "max": null,
+                "min": null,
+                "now": null,
+                "role": "",
+                "state": null,
+                "tag": "DIV"
+              },
+              {
+                "expanded": null,
+                "label": "Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan",
+                "max": null,
+                "min": null,
+                "now": null,
+                "role": "menu",
+                "state": "open",
+                "tag": "DIV"
+              }
+            ],
+            "sliders": [],
+            "stage": "OPEN_REASONING_MENU",
+            "trigger": {
+              "expanded": "true",
+              "label": "Resonemangsansträngning",
+              "max": null,
+              "min": null,
+              "now": null,
+              "role": "",
+              "state": "open",
+              "tag": "BUTTON"
+            }
+          }
+        ],
+        "ok": false,
+        "openingMethod": "KEYBOARD",
+        "popup": {
+          "expanded": null,
+          "label": "Låst, öppnar åtkomstalternativ6GPT-5.6 SolGPT-5.5Försvinner 14 oktoberPro",
+          "max": null,
+          "min": null,
+          "now": null,
+          "role": "menu",
+          "state": "open",
+          "tag": "DIV"
+        },
+        "recoveredOpenMenu": false,
+        "sliders": [],
+        "stage": "SELECT_MAXIMUM",
+        "trigger": {
+          "expanded": "true",
+          "label": "Extra hög",
+          "max": null,
+          "min": null,
+          "now": null,
+          "role": "",
+          "state": "open",
+          "tag": "BUTTON"
+        }
+      },
+      "hold": {
+        "code": "THINKING_SELECTION_TIMEOUT",
+        "detail": "SELECT_MAXIMUM",
+        "retryAtMs": 1791875174715,
+        "savedAtMs": 1791875144715,
+        "sinceMs": 1791875114543
+      }
+    },
+    {
+      "workerId": "worker-ea8ebb32-b62a-4286-8ce0-dcaab7364d57",
+      "processId": "process-431b421d-9ce1-4217-9a53-92860cbba569",
+      "phase": "SENDING",
+      "tabId": 20849228,
+      "windowId": 20849227,
+      "turn": 1,
+      "sessionSeq": 1,
+      "gptRoot": "https://chatgpt.com/g/g-69e0b4be34308191aa6c05db1908be1b-eic",
+      "conversationUrl": null,
+      "updatedAt": "2026-10-13T07:07:06.483Z",
+      "lastError": null,
+      "initializationStatus": "PENDING",
+      "dispatch": null,
+      "thinkingControl": {
+        "atMs": 1791875263316,
+        "changed": false,
+        "code": "THINKING_SELECTION_TIMEOUT",
+        "detail": "SELECT_MAXIMUM",
+        "observedSurfaces": [
+          {
+            "popups": [
+              {
+                "expanded": null,
+                "label": "ResonemangsansträngningCtrl+Shift+M",
+                "max": null,
+                "min": null,
+                "now": null,
+                "role": "tooltip",
+                "state": null,
+                "tag": "DIV"
+              }
+            ],
+            "sliders": [],
+            "stage": "OPEN_REASONING_HOVER",
+            "trigger": {
+              "expanded": "false",
+              "label": "Extra hög",
+              "max": null,
+              "min": null,
+              "now": null,
+              "role": "",
+              "state": "closed",
+              "tag": "BUTTON"
+            }
+          },
+          {
+            "popups": [
+              {
+                "expanded": null,
+                "label": "Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan",
+                "max": null,
+                "min": null,
+                "now": null,
+                "role": "",
+                "state": null,
+                "tag": "DIV"
+              },
+              {
+                "expanded": null,
+                "label": "Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan",
+                "max": null,
+                "min": null,
+                "now": null,
+                "role": "menu",
+                "state": "open",
+                "tag": "DIV"
+              }
+            ],
+            "sliders": [],
+            "stage": "OPEN_REASONING_MENU",
+            "trigger": {
+              "expanded": "true",
+              "label": "Resonemangsansträngning",
+              "max": null,
+              "min": null,
+              "now": null,
+              "role": "",
+              "state": "open",
+              "tag": "BUTTON"
+            }
+          }
+        ],
+        "ok": false,
+        "openingMethod": "KEYBOARD",
+        "popup": {
+          "expanded": null,
+          "label": "Låst, öppnar åtkomstalternativ6GPT-5.6 SolGPT-5.5Försvinner 14 oktoberPro",
+          "max": null,
+          "min": null,
+          "now": null,
+          "role": "menu",
+          "state": "open",
+          "tag": "DIV"
+        },
+        "recoveredOpenMenu": false,
+        "sliders": [],
+        "stage": "SELECT_MAXIMUM",
+        "suppressedRepeatedActions": true,
+        "trigger": {
+          "expanded": "true",
+          "label": "Extra hög",
+          "max": null,
+          "min": null,
+          "now": null,
+          "role": "",
+          "state": "open",
+          "tag": "BUTTON"
+        }
+      },
+      "hold": {
+        "code": "THINKING_SELECTION_TIMEOUT",
+        "detail": "SELECT_MAXIMUM",
+        "retryAtMs": 1791875474550,
+        "savedAtMs": 1791875444550,
+        "sinceMs": 1791875263364
+      }
+    }
+  ],
+  "events": [
+    {
+      "atMs": 1791875026460,
+      "code": "installed",
+      "detail": {
+        "supervisorKept": false
+      },
+      "generation": null,
+      "kind": "WORK_MODE_ENABLED_AT_STARTUP",
+      "processId": "",
+      "promptHash": "",
+      "sessionSeq": null,
+      "turn": null,
+      "windowId": null,
+      "workerId": ""
+    },
+    {
+      "atMs": 1791875026470,
+      "code": "LOCAL_HAS_NO_SAVE_TIME",
+      "detail": {
+        "reason": "service-worker-evaluation",
+        "vaultAppVersion": "1.9.7",
+        "vaultSavedAtMs": 1791810098040
+      },
+      "generation": null,
+      "kind": "SAFETY_POLICY_RESTORED",
+      "processId": "",
+      "promptHash": "",
+      "sessionSeq": null,
+      "turn": null,
+      "windowId": null,
+      "workerId": ""
+    },
+    {
+      "atMs": 1791875026478,
+      "code": "service-worker-evaluation",
+      "detail": {
+        "vaultAppVersion": "1.9.5",
+        "vaultSavedAtMs": 1791533067713
+      },
+      "generation": null,
+      "kind": "DRIFT_SETTINGS_RESTORED",
+      "processId": "",
+      "promptHash": "",
+      "sessionSeq": null,
+      "turn": null,
+      "windowId": null,
+      "workerId": ""
+    },
+    {
+      "atMs": 1791875070638,
+      "code": "QUEUE_MISSION_START",
+      "detail": {
+        "activationCount": 1,
+        "freshChat": true,
+        "interactionInQuantum": 1,
+        "itemId": "queue-item-f4c36f0f-b09a-47dc-b55f-092664029c67",
+        "maxInteractions": 5,
+        "priorProcessId": "",
+        "promptProfile": "FULL",
+        "resumeMode": "",
+        "resumed": false,
+        "warmResume": false
+      },
+      "generation": 1,
+      "kind": "QUEUE_ITEM_ACTIVATED",
+      "processId": "process-0e67fa12-7269-46d5-b4ac-8e347e1cd59e",
+      "promptHash": "4b1c58963b630e6f",
+      "sessionSeq": 1,
+      "turn": 1,
+      "windowId": 20849216,
+      "workerId": "worker-8fad4532-0d19-4d28-8616-84983b7e967d"
+    },
+    {
+      "atMs": 1791875070782,
+      "code": "NO_SUPERVISOR",
+      "detail": {
+        "previousWorkerId": ""
+      },
+      "generation": 1,
+      "kind": "WORK_MODE_SUPERVISOR_CLAIMED",
+      "processId": "process-0e67fa12-7269-46d5-b4ac-8e347e1cd59e",
+      "promptHash": "4b1c58963b630e6f",
+      "sessionSeq": 1,
+      "turn": 1,
+      "windowId": 20849216,
+      "workerId": "worker-8fad4532-0d19-4d28-8616-84983b7e967d"
+    },
+    {
+      "atMs": 1791875078359,
+      "code": "THINKING_CONTROL_UNAVAILABLE",
+      "detail": {
+        "detail": "PREFLIGHT",
+        "phase": "SENDING",
+        "priorCode": "",
+        "retryAtMs": null
+      },
+      "generation": 1,
+      "kind": "SAFETY_HOLD_STARTED",
+      "processId": "process-0e67fa12-7269-46d5-b4ac-8e347e1cd59e",
+      "promptHash": "c262b47ec1fc519d",
+      "sessionSeq": 1,
+      "turn": 1,
+      "windowId": 20849216,
+      "workerId": "worker-8fad4532-0d19-4d28-8616-84983b7e967d"
+    },
+    {
+      "atMs": 1791875114578,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": {
+        "detail": "SELECT_MAXIMUM",
+        "phase": "SENDING",
+        "priorCode": "THINKING_CONTROL_UNAVAILABLE",
+        "retryAtMs": null
+      },
+      "generation": 1,
+      "kind": "SAFETY_HOLD_STARTED",
+      "processId": "process-0e67fa12-7269-46d5-b4ac-8e347e1cd59e",
+      "promptHash": "c262b47ec1fc519d",
+      "sessionSeq": 1,
+      "turn": 1,
+      "windowId": 20849216,
+      "workerId": "worker-8fad4532-0d19-4d28-8616-84983b7e967d"
+    },
+    {
+      "atMs": 1791875216950,
+      "code": "QUEUE_MISSION_START",
+      "detail": {
+        "activationCount": 1,
+        "freshChat": true,
+        "interactionInQuantum": 1,
+        "itemId": "queue-item-f7bf06aa-6ebd-4f8a-a4be-7de430d6e8d5",
+        "maxInteractions": 5,
+        "priorProcessId": "",
+        "promptProfile": "FULL",
+        "resumeMode": "",
+        "resumed": false,
+        "warmResume": false
+      },
+      "generation": 1,
+      "kind": "QUEUE_ITEM_ACTIVATED",
+      "processId": "process-431b421d-9ce1-4217-9a53-92860cbba569",
+      "promptHash": "a7d17a45849a4b58",
+      "sessionSeq": 1,
+      "turn": 1,
+      "windowId": 20849227,
+      "workerId": "worker-ea8ebb32-b62a-4286-8ce0-dcaab7364d57"
+    },
+    {
+      "atMs": 1791875217139,
+      "code": "SUPERVISOR_NOT_LIVE",
+      "detail": {
+        "previousWorkerId": "worker-8fad4532-0d19-4d28-8616-84983b7e967d"
+      },
+      "generation": 1,
+      "kind": "WORK_MODE_SUPERVISOR_CLAIMED",
+      "processId": "process-431b421d-9ce1-4217-9a53-92860cbba569",
+      "promptHash": "a7d17a45849a4b58",
+      "sessionSeq": 1,
+      "turn": 1,
+      "windowId": 20849227,
+      "workerId": "worker-ea8ebb32-b62a-4286-8ce0-dcaab7364d57"
+    },
+    {
+      "atMs": 1791875226605,
+      "code": "THINKING_CONTROL_UNAVAILABLE",
+      "detail": {
+        "detail": "PREFLIGHT",
+        "phase": "SENDING",
+        "priorCode": "",
+        "retryAtMs": null
+      },
+      "generation": 1,
+      "kind": "SAFETY_HOLD_STARTED",
+      "processId": "process-431b421d-9ce1-4217-9a53-92860cbba569",
+      "promptHash": "2d9c331a75ef5d48",
+      "sessionSeq": 1,
+      "turn": 1,
+      "windowId": 20849227,
+      "workerId": "worker-ea8ebb32-b62a-4286-8ce0-dcaab7364d57"
+    },
+    {
+      "atMs": 1791875263402,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": {
+        "detail": "SELECT_MAXIMUM",
+        "phase": "SENDING",
+        "priorCode": "THINKING_CONTROL_UNAVAILABLE",
+        "retryAtMs": null
+      },
+      "generation": 1,
+      "kind": "SAFETY_HOLD_STARTED",
+      "processId": "process-431b421d-9ce1-4217-9a53-92860cbba569",
+      "promptHash": "2d9c331a75ef5d48",
+      "sessionSeq": 1,
+      "turn": 1,
+      "windowId": 20849227,
+      "workerId": "worker-ea8ebb32-b62a-4286-8ce0-dcaab7364d57"
+    }
+  ],
+  "capacity": {
+    "activeTurns": [],
+    "schema": "eic.greenfield.global-capacity-scheduler.v1",
+    "ticketSeq": 0,
+    "updatedAt": "2026-10-13T07:10:53.724Z",
+    "waiters": []
+  },
+  "recovery": {
+    "atMs": 1791875453685,
+    "restored": [],
+    "errors": [],
+    "checkpointRepairs": [],
+    "unresolved": [
+      {
+        "atMs": 1791875453685,
+        "workerId": "worker-8fad4532-0d19-4d28-8616-84983b7e967d",
+        "processId": "process-0e67fa12-7269-46d5-b4ac-8e347e1cd59e",
+        "phase": "DETACHED",
+        "conversationUrl": "https://chatgpt.com/g/g-69e0b4be34308191aa6c05db1908be1b-eic",
+        "code": "NO_DURABLE_CONVERSATION_ID"
+      }
+    ]
+  }
+}

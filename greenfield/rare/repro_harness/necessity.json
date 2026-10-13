@@ -1,0 +1,32 @@
+[
+  {
+    "run": 1,
+    "ok": false,
+    "maximumVerified": false
+  },
+  {
+    "run": 2,
+    "ok": false,
+    "maximumVerified": false
+  },
+  {
+    "run": 3,
+    "ok": false,
+    "maximumVerified": false
+  },
+  {
+    "run": 4,
+    "ok": false,
+    "maximumVerified": false
+  },
+  {
+    "run": 5,
+    "ok": false,
+    "maximumVerified": false
+  },
+  {
+    "run": 6,
+    "ok": false,
+    "maximumVerified": false
+  }
+]

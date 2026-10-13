@@ -10,7 +10,7 @@ import {
   DEFAULT_GREENFIELD_PRIORITY,
   normalizeGreenfieldPriority
 } from "./global-capacity-scheduler.mjs";
-import { MAX_SCHEDULE_WINDOWS, parseScheduleWindow } from "./queue-schedule.mjs";
+import { MAX_SCHEDULE_WINDOWS, normalizeMinIntervalMinutes, parseScheduleWindow } from "./queue-schedule.mjs";
 import { reconcileItemsWithSavedMissions } from "./saved-mission-catalog.mjs";
 
 // v1.8.1: a set keeps each slot's weekly run windows. A one-shot pauseUntil is
@@ -67,6 +67,7 @@ function normalizeTemplateItem(value = {}, order = 0) {
     priority: normalizeGreenfieldPriority(value.priority || DEFAULT_GREENFIELD_PRIORITY),
     maxInteractions: normalizeMissionQuantumInteractions(value.maxInteractions),
     scheduleWindows: templateWindows(value),
+    minIntervalMinutes: normalizeMinIntervalMinutes(value.minIntervalMinutes ?? value.schedule?.minIntervalMinutes),
     order: Number.isFinite(Number(value.order)) ? Number(value.order) : order
   };
 }
@@ -240,8 +241,8 @@ export function applyMissionQueueSet(queueValue, setValue, {
     goal: template.goal,
     priority: template.priority,
     maxInteractions: template.maxInteractions,
-    schedule: template.scheduleWindows.length
-      ? { windows: template.scheduleWindows, pauseUntilMs: 0, updatedBy: "OPERATOR", updatedAtMs: now }
+    schedule: template.scheduleWindows.length || template.minIntervalMinutes
+      ? { windows: template.scheduleWindows, pauseUntilMs: 0, minIntervalMinutes: template.minIntervalMinutes, updatedBy: "OPERATOR", updatedAtMs: now }
       : null,
     status: QUEUE_STATUS.READY,
     order: index,

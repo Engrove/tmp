@@ -5,7 +5,11 @@
     const r = el.getBoundingClientRect(), s = getComputedStyle(el);
     return r.width > 0 && r.height > 0 && s.display !== "none" && s.visibility !== "hidden" && el.getAttribute("aria-hidden") !== "true";
   };
-  const label = el => [el.innerText || el.textContent || "", el.getAttribute("aria-label") || ""].join(" ").replace(/\s+/g," ").trim().slice(0,240);
+  const label = el => {
+    const copy = el.cloneNode(true);
+    copy.querySelectorAll("[aria-hidden='true'], [hidden]").forEach(node=>node.remove());
+    return [copy.textContent || "", el.getAttribute("aria-label") || ""].join(" ").replace(/\s+/g," ").trim().slice(0,240);
+  };
   const normalized = s => String(s || "").normalize("NFKC").toLowerCase().replace(/\s+/g," ").trim();
   function controls(selectors) {
     return [...new Set(selectors.flatMap(s => [...document.querySelectorAll(s)]))].filter(visible);
@@ -148,6 +152,10 @@
       "button[data-testid*='thinking' i]",
       "button[aria-label*='Thinking time' i]",
       "button[aria-label*='Reasoning effort' i]",
+      "button[aria-label*='Resonemangsansträngning' i]",
+      "button[data-codex-intelligence-trigger]",
+      "button[data-composer-navigation-target='reasoning']",
+      "button[data-selected-reasoning-effort]",
       "button[aria-label*='Tänketid' i]",
       "button[aria-label*='Tänknivå' i]",
       "button[aria-label*='Ajattelu' i]",
@@ -158,7 +166,7 @@
     // control is stronger evidence than generic document controls, so when one
     // exists it owns effort resolution. This prevents unrelated UI controls
     // such as Swedish "Nåla fast Djupanalys ..." from contaminating the rank.
-    const composer = document.querySelector("#prompt-textarea");
+    const composer = [...document.querySelectorAll("#prompt-textarea, form [contenteditable='true'], form textarea")].find(visible);
     const composerEffortElements = [];
     for (const button of composer?.closest("form")?.querySelectorAll("button") || []) {
       if (!visible(button)) continue;
@@ -176,6 +184,11 @@
           : switcherEffortElements
     )];
     const effortLabels = [...new Set(effortElements.map(label).filter(Boolean))];
+    const tokenLabels = {medium:"Balanserad",balanced:"Balanserad",low:"Låg",none:"Direkt",high:"Hög",xhigh:"Extra hög",max:"Extra hög",pro:"Pro"};
+    for (const el of effortElements) {
+      const token = el.getAttribute("data-selected-reasoning-effort");
+      if (tokenLabels[token]) effortLabels.push(tokenLabels[token]);
+    }
     const resolvedEffort = resolveEffortLabels(effortLabels, S);
     const effortEvidenceSource = composerEffortElements.length
       ? "COMPOSER_SELECTED_CONTROL"
@@ -215,7 +228,9 @@
       ambiguityKind:resolvedModel.ambiguous ? "model" : resolvedEffort.ambiguous ? "effort" : "",
       mode, quota,
       blockingUi:notices.some(e=>e.matches("[role='dialog'],[role='alertdialog'],[aria-modal='true']") && !S.quotaSignal(e.innerText || e.textContent || "")),
-      adapterVersion:5,
+      adapterVersion:8,
+      highestEffort:globalThis.GreenfieldThinkingControl?.proof() || null,
+      thinkingControl:globalThis.GreenfieldThinkingControl?.diagnostics?.() || null,
       effortEvidenceSource,
       gptSurface:gptSurface(),
       controlsSeen:{

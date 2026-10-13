@@ -1,7 +1,8 @@
-import { fleetHealth, reasonLabel, reservedSlotConfirmText, reservedSlotMessage, reservedSlotView, staleTurnSlotNote, workerActionAvailability, workerActionConfirmText, workerActionMessage, workerReason } from "./lib/operations-view.mjs";
+import { fleetHealth, reasonLabel, modelRecheckMessage, reservedSlotConfirmText, reservedSlotMessage, reservedSlotView, staleTurnSlotNote, workerActionAvailability, workerActionConfirmText, workerActionMessage, workerReason } from "./lib/operations-view.mjs";
+import { runtimeVersionStatus } from "./lib/runtime-version.mjs";
 import { auditAsNdjson } from "./lib/audit-store.mjs";
 import { modelCreateOptions } from "./lib/model-config.mjs";
-import { PHASES, TERMINAL_PHASES, AUDIT_FIFO_LIMIT } from "./lib/contracts.mjs";
+import { APP_VERSION, PHASES, TERMINAL_PHASES, AUDIT_FIFO_LIMIT } from "./lib/contracts.mjs";
 import { errorRecord } from "./lib/common.mjs";
 import {
   fleetWorkerDetailsKey,
@@ -12,7 +13,6 @@ import {
   applySavedMissionImport,
   deleteMissionPreset,
   loadOperatorSettings,
-  saveOperatorSettings,
   saveSavedMission
 } from "./lib/operator-settings.mjs";
 import {
@@ -23,6 +23,12 @@ import {
   savedMissionDisplayLabel,
   savedMissionKey
 } from "./lib/saved-mission-catalog.mjs";
+import {
+  addStandardLauncherInstruction,
+  composeSavedMissionLauncher,
+  newSavedMissionDraft,
+  savedMissionDraft
+} from "./lib/saved-mission-launcher.mjs";
 import {
   DEFAULT_GREENFIELD_PRIORITY,
   DEFAULT_MAX_ACTIVE_SESSIONS,
@@ -86,6 +92,8 @@ const state = {
   queueSetUpdateConfirm: null,
   savedMissionAdmin: {
     editingId: "",
+    editorMode: "STRUCTURED",
+    originalGoal: "",
     deleteConfirm: null,
     importText: "",
     importParsed: null,
@@ -435,7 +443,12 @@ async function updatePostDelay() {
   state.operatorSettingsBusy = true;
   try {
     const postDelaySeconds = Number($("postDelay").value || 0);
-    state.operatorSettings = await saveOperatorSettings({ postDelaySeconds });
+    // v1.9.2: saved by the background like the other Drift settings, so one
+    // context writes them and the profile vault is reconciled in the same step.
+    const result = await chrome.runtime.sendMessage({ type: "EIC_GF_SET_POST_DELAY", postDelaySeconds });
+    if (!result?.ok) throw new Error(result?.error || result?.code || "Pausen kunde inte sparas.");
+    state.operatorSettings = result.operatorSettings || state.operatorSettings;
+    noteDriftVaultResult(result.driftSettingsVault);
     await appendAudit({
       kind: "OPERATOR_POST_DELAY_UPDATED",
       component: "sidepanel-settings",
@@ -470,6 +483,7 @@ async function updateMaxActiveSessions() {
     if (result.globalCapacityScheduler) {
       state.globalCapacityScheduler = result.globalCapacityScheduler;
     }
+    noteDriftVaultResult(result.driftSettingsVault);
   } catch (error) {
     $("statusDetail").textContent = error?.message || String(error);
   } finally {
@@ -576,6 +590,9 @@ async function deleteSelectedMission() {
 
 // v1.8.5 saved-mission administration.
 const SAVED_MISSION_ERROR_SV = {
+  LAUNCHER_PROJECT_ID_REQUIRED: "Ange ett positivt numeriskt projekt-ID.",
+  LAUNCHER_PROJECT_NAME_REQUIRED: "Ange projektnamnet på en rad, utan en extra Gf:-markör.",
+  LAUNCHER_GF_ID_INVALID: "Ange hela GFW-ID:t, exempelvis GF-2.59.1001. Äldre ID:n kan behållas vid redigering.",
   SAVED_MISSION_LIMIT_REACHED: `Max ${MAX_SAVED_MISSIONS} sparade uppdrag. Ta bort ett uppdrag först; inget raderas automatiskt.`,
   SAVED_MISSION_KEY_CONFLICT: "GF-ID:t finns redan i ett annat sparat uppdrag. Redigera det uppdraget, eller slå ihop dubbletterna via import.",
   SAVED_MISSION_NOT_FOUND: "Det sparade uppdraget finns inte längre. Välj igen.",
@@ -586,7 +603,7 @@ const SAVED_MISSION_ERROR_SV = {
 };
 const IMPORT_ERROR_SV = {
   IMPORT_EMPTY: "Importtexten är tom.",
-  IMPORT_NO_SECTIONS: "Inga rubriker av typen ### GF-001 hittades.",
+  IMPORT_NO_SECTIONS: "Inga rubriker av typen ### GF-2.59.1001 hittades.",
   IMPORT_HEADING_NOT_A_KEY: "rubriken är inte ett GF-ID",
   IMPORT_EMPTY_BODY: "rubriken saknar uppdragstext",
   IMPORT_HEADING_KEY_MISMATCH: "rubrikens GF-ID stämmer inte med Gf: på första raden",
@@ -681,7 +698,14 @@ function renderSavedMissionAdmin() {
     : editing ? `Redigerar ${savedMissionKey(editing.goal) || editing.label} · id ${editing.id}` : "";
 
   const busy = state.operatorSettingsBusy;
-  const editorText = $("savedMissionEditor").value.trim();
+  const composed = savedMissionEditorGoal();
+  const editorText = composed.ok ? composed.goal.trim() : "";
+  $("savedMissionFieldsStatus").textContent = composed.ok
+    ? admin.editorMode === "TEXT" ? "Fri uppdragstext bevaras. Fyll i identitetsfälten för att använda formuläret." : ""
+    : savedMissionErrorText(composed.error);
+  for (const id of ["savedMissionProjectId", "savedMissionProjectName", "savedMissionGfId", "savedMissionInstruction", "savedMissionEditor", "savedMissionAddStandard"]) {
+    $(id).disabled = busy;
+  }
   $("savedMissionEdit").disabled = busy || !current;
   const confirmPending = Boolean(current && admin.deleteConfirm?.id === current.id && admin.deleteConfirm.untilMs > Date.now());
   $("savedMissionAdminDelete").disabled = busy || !current;
@@ -771,24 +795,95 @@ function setSavedMissionAdminStatus(text, isError = false) {
   $("savedMissionAdminStatus").classList.toggle("error", isError);
 }
 
+function populateSavedMissionFields(draft) {
+  $("savedMissionProjectId").value = draft.projectId;
+  $("savedMissionProjectName").value = draft.projectName;
+  $("savedMissionGfId").value = draft.gfId;
+  $("savedMissionInstruction").value = draft.instruction;
+  state.savedMissionAdmin.editorMode = draft.mode;
+}
+
+function savedMissionEditorGoal() {
+  if (state.savedMissionAdmin.editorMode === "TEXT") {
+    const raw = $("savedMissionEditor").value;
+    const original = state.savedMissionAdmin.originalGoal;
+    const goal = original && original.replace(/\r\n?/g, "\n") === raw.replace(/\r\n?/g, "\n") ? original : raw;
+    return { ok: Boolean(goal.trim()), goal, error: "SAVED_MISSION_GOAL_REQUIRED" };
+  }
+  return composeSavedMissionLauncher({
+    projectId: $("savedMissionProjectId").value,
+    projectName: $("savedMissionProjectName").value,
+    gfId: $("savedMissionGfId").value,
+    instruction: $("savedMissionInstruction").value
+  }, { originalGoal: state.savedMissionAdmin.originalGoal });
+}
+
+function handleSavedMissionFieldsInput() {
+  const hasIdentity = ["savedMissionProjectId", "savedMissionProjectName", "savedMissionGfId"]
+    .some((id) => $(id).value.trim());
+  if (state.savedMissionAdmin.editorMode === "TEXT" && !hasIdentity) {
+    $("savedMissionEditor").value = $("savedMissionInstruction").value;
+  } else {
+    state.savedMissionAdmin.editorMode = "STRUCTURED";
+    const composed = savedMissionEditorGoal();
+    if (composed.ok) $("savedMissionEditor").value = composed.goal;
+  }
+  renderSavedMissionAdmin();
+}
+
+function handleSavedMissionTextInput() {
+  const goal = $("savedMissionEditor").value;
+  state.savedMissionAdmin.originalGoal = goal;
+  populateSavedMissionFields(savedMissionDraft(goal));
+  renderSavedMissionAdmin();
+}
+
+function addSavedMissionStandardInstruction() {
+  if (state.savedMissionAdmin.editorMode === "TEXT") {
+    // A legacy free-text first line can itself carry the GFW identity. Keep
+    // that title first when the operator explicitly adds the standard text.
+    const source = $("savedMissionEditor").value;
+    const end = source.indexOf("\n");
+    const header = end < 0 ? source : source.slice(0, end);
+    const body = end < 0 ? "" : source.slice(end + 1);
+    $("savedMissionInstruction").value = `${header}\n${addStandardLauncherInstruction(body)}`;
+  } else {
+    $("savedMissionInstruction").value = addStandardLauncherInstruction($("savedMissionInstruction").value);
+  }
+  handleSavedMissionFieldsInput();
+}
+
 function editSelectedSavedMission() {
   const mission = adminSelectedMission();
   if (!mission) return;
   state.savedMissionAdmin.editingId = mission.id;
+  state.savedMissionAdmin.originalGoal = mission.goal;
   $("savedMissionEditor").value = mission.goal;
+  populateSavedMissionFields(savedMissionDraft(mission.goal));
+  $("savedMissionEditorDetails").open = state.savedMissionAdmin.editorMode === "TEXT";
   setSavedMissionAdminStatus("");
   renderSavedMissionAdmin();
 }
 
 function clearSavedMissionEditor() {
   state.savedMissionAdmin.editingId = "";
+  state.savedMissionAdmin.originalGoal = "";
+  populateSavedMissionFields(newSavedMissionDraft());
   $("savedMissionEditor").value = "";
+  $("savedMissionEditorDetails").open = false;
+  setSavedMissionAdminStatus("");
   renderSavedMissionAdmin();
 }
 
 async function saveSavedMissionFromEditor(mode) {
-  const goal = $("savedMissionEditor").value.trim();
-  if (!goal || state.operatorSettingsBusy) return;
+  if (state.operatorSettingsBusy) return;
+  const composed = savedMissionEditorGoal();
+  const goal = composed.goal.trim();
+  if (!composed.ok || !goal) {
+    setSavedMissionAdminStatus(savedMissionErrorText(composed.error), true);
+    renderSavedMissionAdmin();
+    return;
+  }
   state.operatorSettingsBusy = true;
   renderSavedMissionAdmin();
   try {
@@ -798,7 +893,9 @@ async function saveSavedMissionFromEditor(mode) {
     });
     state.operatorSettings = result.settings;
     state.savedMissionAdmin.editingId = result.record.id;
+    state.savedMissionAdmin.originalGoal = result.record.goal;
     $("savedMissionEditor").value = result.record.goal;
+    populateSavedMissionFields(savedMissionDraft(result.record.goal));
     await appendAudit({
       kind: "SAVED_MISSION_ADMIN_SAVED",
       component: "sidepanel-settings",
@@ -1027,8 +1124,19 @@ async function setReservedSlot({ windowId, workerId, reserve }) {
   await snapshot();
 }
 
+function panelRuntimeVersion() {
+  return runtimeVersionStatus({
+    panelVersion:document.querySelector('meta[name="greenfield-version"]')?.content || APP_VERSION,
+    workerVersion:state.fleetStatus?.appVersion || "",
+    manifestVersion:chrome.runtime.getManifest().version
+  });
+}
+
 function renderFleetStatus() {
   const fleet = state.fleetStatus || {};
+  const version=panelRuntimeVersion();
+  $("runtimeVersionStatus").textContent=version.message;
+  $("runtimeVersionStatus").dataset.mismatch=String(version.mismatch);
   const workers = Array.isArray(fleet.workers) ? fleet.workers : [];
   const now = Date.now(), health = fleetHealth(state.fleetStatus,now);
   const n = v => Number(v || 0).toLocaleString("sv-SE");
@@ -1109,6 +1217,54 @@ function renderFleetStatus() {
   $("safetyEvents").innerHTML=events.map(e=>`<li><time>${escapeHtml(formatTime(e.atMs))}</time><span>${escapeHtml(reasonLabel(e.code))}${e.detail ? `<small>${escapeHtml(e.detail)}</small>` : ""}</span></li>`).join("") || '<li>Inga kontrollhändelser ännu.</li>';
   if (!$("safetyPolicyForm").contains(document.activeElement) && !state.safetyPolicyDirty && policy.requiredModel) {
     for (const [key,value] of Object.entries(policy)) if ($(key)) $(key).value=String(value);
+  }
+  $("safetyVaultStatus").textContent=safetyVaultText(fleet.safetyVault,u);
+  renderDriftVaultStatus();
+}
+
+// v1.9.2: where the Drift settings survive a new installation folder.
+function driftVaultText(vault,settings={}) {
+  const at=ms=>Number(ms) > 0 ? new Date(Number(ms)).toLocaleString("sv-SE") : "–";
+  const head="Bokmärkesvalv (driftinställningar):";
+  switch (vault?.state) {
+    case "RESTORED": return `${head} ${(vault.adoptedKeys || []).length} värde(n) hämtade från valvet (senast sparat ${at(vault.savedAtMs)}).`;
+    case "SAVED": return `${head} sparade ${at(vault.savedAtMs)}. Följer med till nya installationsmappar i denna Chrome-profil.`;
+    case "IN_SYNC": return settings.driftSettingsOrigin==="VAULT"
+      ? `${head} hämtade från valvet och stämmer med det (senast sparat ${at(vault.savedAtMs)}).`
+      : `${head} stämmer med valvet (senast sparat ${at(vault.savedAtMs)}).`;
+    case "EMPTY": return `${head} inget giltigt sparat värde. Värdena gäller tills du sparar; inställningar sparade i en äldre version än 1.9.2 finns bara kvar i den gamla installationen.`;
+    case "WRITE_FAILED":
+    case "ERROR": return `${head} kunde inte läsas eller uppdateras (${vault.error || "okänt fel"}). Sparade värden gäller i denna installation; valvet stäms av vid nästa start eller sparning, inställning för inställning, så inget av valvets andra värden går förlorat.`;
+    case "UNAVAILABLE": return `${head} inte tillgängligt. Värdena gäller bara denna installation.`;
+    default: return `${head} kontrolleras vid start.`;
+  }
+}
+function renderDriftVaultStatus() {
+  const text=driftVaultText(state.fleetStatus?.driftSettingsVault,state.operatorSettings || {});
+  for (const id of ["driftVaultStatus","driftVaultStatusRuntime"]) if ($(id)) $(id).textContent=text;
+}
+// After a save: show the vault outcome in the two status lines now, not at the
+// next status poll (statusDetail is rewritten on every render).
+function noteDriftVaultResult(vault) {
+  if (!vault) return;
+  state.fleetStatus={...(state.fleetStatus || {}),driftSettingsVault:vault};
+  renderDriftVaultStatus();
+}
+
+// v1.9.1: where the run requirements survive a new installation folder.
+function safetyVaultText(vault,safety={}) {
+  const at=ms=>Number(ms) > 0 ? new Date(Number(ms)).toLocaleString("sv-SE") : "–";
+  switch (vault?.state) {
+    case "RESTORED": return `Bokmärkesvalv: körkraven återställdes från valvet (sparade ${at(vault.savedAtMs)}).`;
+    case "SAVED": return `Bokmärkesvalv: sparat ${at(vault.savedAtMs)}. Följer med till nya installationsmappar i denna Chrome-profil.`;
+    case "IN_SYNC": return safety.policyOrigin==="VAULT"
+      ? `Bokmärkesvalv: körkraven hämtades från valvet och stämmer med senaste sparning (${at(safety.policyUpdatedAtMs || vault.savedAtMs)}).`
+      : `Bokmärkesvalv: stämmer med senaste sparning (${at(vault.savedAtMs)}).`;
+    case "EMPTY": return "Bokmärkesvalv: inget giltigt sparat värde. Värdena nedan gäller tills du sparar körkrav; körkrav sparade i en äldre version än 1.9.1 finns bara kvar i den gamla installationen.";
+    case "WRITE_FAILED":
+    case "ERROR": return `Bokmärkesvalv: kunde inte läsas eller uppdateras (${vault.error || "okänt fel"}). Körkraven gäller bara denna installation tills det lyckas; nytt försök vid nästa start.`;
+    case "UNAVAILABLE": return "Bokmärkesvalv: inte tillgängligt. Körkraven gäller bara denna installation.";
+    default: return "Bokmärkesvalv: kontrolleras vid start.";
   }
 }
 
@@ -1380,7 +1536,7 @@ async function startMissionQueue() {
   $("statusDetail").textContent = "Förbereder arbetskö, Nano och Hjalmar D2…";
   renderMissionQueue();
   try {
-    await ensureAnalyzerReadyFromGesture();
+    await prepareLocalAnalyzerOptional();
     const result = await chrome.runtime.sendMessage({
       type: "EIC_GF_QUEUE_START",
       windowId: state.windowId,
@@ -1447,6 +1603,11 @@ async function saveQueueSettings() {
     queueSwitchSettleSeconds: Number($("queueSwitchSettleSeconds").value),
     warmQueueResume: $("warmQueueResume").checked === true
   };
+  // v1.9.2: send only what the operator changed. A field the form still shows
+  // from before must not overwrite a newer value another installation saved
+  // (each setting has its own save time in the profile vault).
+  const stored = state.operatorSettings || {};
+  for (const key of Object.keys(patch)) if (patch[key] === stored[key]) delete patch[key];
   state.operatorSettingsBusy = true;
   renderOperatorSettings();
   try {
@@ -1461,6 +1622,7 @@ async function saveQueueSettings() {
     // Saved: show the stored (normalised) values again. A failed save keeps
     // the edits on screen, marked unsaved.
     for (const id of QUEUE_SETTING_CONTROLS) releaseControl($(id));
+    noteDriftVaultResult(result.driftSettingsVault);
   } catch (error) {
     $("statusDetail").textContent = error?.message || String(error);
   } finally {
@@ -1501,6 +1663,9 @@ function queueScheduleText(item) {
   if (item.scheduleBlockReason === "SCHEDULE_PAUSED") {
     return `Schema: ${summary} · pausad · startar ${item.scheduleNextOpenAtMs ? formatScheduleTime(item.scheduleNextOpenAtMs) : "okänt"}`;
   }
+  if (item.scheduleBlockReason === "MIN_INTERVAL_WAIT") {
+    return `Schema: ${summary} · hoppas över · tidigast ${item.scheduleNextOpenAtMs ? formatScheduleTime(item.scheduleNextOpenAtMs) : "okänt"}`;
+  }
   if (item.scheduleBlockReason) {
     return `Schema: ${summary} · utanför fönster · öppnar ${item.scheduleNextOpenAtMs ? formatScheduleTime(item.scheduleNextOpenAtMs) : "okänt"}`;
   }
@@ -1527,7 +1692,10 @@ function openScheduleEditor(itemId) {
       start: window.start,
       end: window.end
     })),
-    pauseValue: localDateTimeValue(item.schedule?.pauseUntilMs)
+    pauseValue: localDateTimeValue(item.schedule?.pauseUntilMs),
+    intervalUnit: item.schedule?.minIntervalMinutes && item.schedule.minIntervalMinutes % 60 === 0 ? "HOURS" : "MINUTES",
+    intervalValue: String(item.schedule?.minIntervalMinutes
+      ? item.schedule.minIntervalMinutes / (item.schedule.minIntervalMinutes % 60 === 0 ? 60 : 1) : 0)
   };
   renderScheduleEditor();
 }
@@ -1559,8 +1727,10 @@ function renderScheduleEditor() {
             <button class="ghost" type="button" data-schedule-remove="${index}" title="Ta bort fönster">×</button>
           </div>
         </div>`).join("")
-    : '<div class="empty">Inga körfönster: platsen körs alltid (om den inte är pausad).</div>';
+    : '<div class="empty">Inga körfönster: ingen begränsning till vissa tider på dygnet.</div>';
   $("queueSchedulePause").value = editor.pauseValue || "";
+  $("queueScheduleInterval").value = editor.intervalValue;
+  $("queueScheduleIntervalUnit").value = editor.intervalUnit;
   $("queueScheduleAddWindow").disabled = editor.windows.length >= 7;
 }
 
@@ -1568,6 +1738,14 @@ function handleScheduleEditorInput(event) {
   const editor = state.scheduleEditor;
   if (!editor) return;
   const row = event.target.closest("[data-window-index]");
+  if (event.target.id === "queueScheduleInterval") {
+    editor.intervalValue = event.target.value;
+    return;
+  }
+  if (event.target.id === "queueScheduleIntervalUnit") {
+    editor.intervalUnit = event.target.value;
+    return;
+  }
   if (event.target.id === "queueSchedulePause") {
     editor.pauseValue = event.target.value;
     return;
@@ -1598,6 +1776,12 @@ function handleScheduleEditorClick(event) {
 async function saveScheduleEditor({ clear = false } = {}) {
   const editor = state.scheduleEditor;
   if (!editor) return;
+  const minIntervalMinutes = clear ? 0 : Number(editor.intervalValue) * (editor.intervalUnit === "HOURS" ? 60 : 1);
+  if (!clear && (!String(editor.intervalValue).trim() || !Number.isInteger(Number(editor.intervalValue)) ||
+      !Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 0 || minIntervalMinutes > 30 * 24 * 60)) {
+    $("statusDetail").textContent = "Ange en hel väntetid från 0 till 30 dygn i minuter eller timmar.";
+    return;
+  }
   let pauseUntil = "";
   if (!clear && editor.pauseValue) {
     const at = new Date(editor.pauseValue);
@@ -1608,8 +1792,8 @@ async function saveScheduleEditor({ clear = false } = {}) {
     pauseUntil = at.toISOString();
   }
   const schedule = clear
-    ? { windows: [], pauseUntil: "" }
-    : { windows: editor.windows.map((window) => ({ days: window.days, start: window.start, end: window.end })), pauseUntil };
+    ? { windows: [], pauseUntil: "", minIntervalMinutes: 0 }
+    : { windows: editor.windows.map((window) => ({ days: window.days, start: window.start, end: window.end })), pauseUntil, minIntervalMinutes };
   try {
     await mutateMissionQueue("UPDATE", { itemId: editor.itemId, schedule });
     $("statusDetail").textContent = clear ? "Schemat rensades." : "Schemat sparades.";
@@ -1785,6 +1969,20 @@ async function snapshot() {
   await render();
 }
 
+// v1.9.3 (contract C14/F16): the local Nano/Hjalmar D2 analysis is optional
+// advisory. A missing or failing Chrome LanguageModel is recorded and shown,
+// but never stops a mission from starting; continuation then follows the
+// EIC's own handoff through the runtime fallback.
+async function prepareLocalAnalyzerOptional() {
+  try {
+    await ensureAnalyzerReadyFromGesture();
+    return true;
+  } catch (error) {
+    $("statusDetail").textContent = `Lokal analys (Nano/Hjalmar D2) är inte tillgänglig: ${String(error?.message || error).slice(0, 160)} Greenfield startar ändå och följer EIC:s egen handoff.`;
+    return false;
+  }
+}
+
 async function ensureAnalyzerReadyFromGesture() {
   if (!globalThis.LanguageModel?.create) {
     const error = new Error("Chrome local LanguageModel saknas. Greenfield kräver Chrome med Prompt API/LanguageModel.");
@@ -1905,7 +2103,7 @@ async function start() {
   $("start").disabled = true;
   $("statusDetail").textContent = "Förbereder forensisk Audit, Nano och Hjalmar D2…";
   try {
-    await ensureAnalyzerReadyFromGesture();
+    await prepareLocalAnalyzerOptional();
     const result = await chrome.runtime.sendMessage({
       type: "EIC_GF_START",
       windowId: state.windowId,
@@ -2238,7 +2436,11 @@ $("savedMissionAdminSelect").addEventListener("change", () => {
 });
 $("savedMissionEdit").addEventListener("click", editSelectedSavedMission);
 $("savedMissionAdminDelete").addEventListener("click", deleteAdminSelectedMission);
-$("savedMissionEditor").addEventListener("input", renderSavedMissionAdmin);
+$("savedMissionEditor").addEventListener("input", handleSavedMissionTextInput);
+for (const id of ["savedMissionProjectId", "savedMissionProjectName", "savedMissionGfId", "savedMissionInstruction"]) {
+  $(id).addEventListener("input", handleSavedMissionFieldsInput);
+}
+$("savedMissionAddStandard").addEventListener("click", addSavedMissionStandardInstruction);
 $("savedMissionUpdate").addEventListener("click", () => saveSavedMissionFromEditor("UPDATE"));
 $("savedMissionCreate").addEventListener("click", () => saveSavedMissionFromEditor("CREATE"));
 $("savedMissionEditorClear").addEventListener("click", clearSavedMissionEditor);
@@ -2259,6 +2461,7 @@ $("savedMissionCleanupDelete").addEventListener("click", deleteSelectedCleanupMi
 $("loadSavedMission").addEventListener("click", loadSelectedMission);
 $("deleteSavedMission").addEventListener("click", deleteSelectedMission);
 $("goal").addEventListener("input", renderOperatorSettings);
+clearSavedMissionEditor();
 
 chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === "EIC_GF_AUDIT_CHANGED") {
@@ -2315,13 +2518,21 @@ setInterval(()=>renderFleetStatus(),1000);
 
 async function safetyAction(type,extra={}) {
   try {
+    if(type==="EIC_GF_SAFETY_RECHECK" && panelRuntimeVersion().mismatch) throw new Error(panelRuntimeVersion().message);
     const result=await chrome.runtime.sendMessage({type,windowId:state.windowId,...extra});
-    if (!result?.ok) throw new Error(result?.code || result?.error || "Kontrollen misslyckades");
-    if (result.fleetStatus) state.fleetStatus=result.fleetStatus;
-    if (result.inspection) {
+    if (result?.fleetStatus) state.fleetStatus=result.fleetStatus;
+    if(type==="EIC_GF_SAFETY_RECHECK" && panelRuntimeVersion().mismatch) throw new Error(panelRuntimeVersion().message);
+    if (!result?.ok && !result?.recheck) throw new Error(result?.code || result?.error || "Kontrollen misslyckades");
+    if (result.recheck) {
+      $("safetyActionResult").textContent=modelRecheckMessage(result.recheck);
+    } else if (result.inspection) {
       const modelText=result.inspection.model || (result.inspection.allowed ? "Modellnamn ej exponerat" : "Modell okänd");
       const effortText=result.inspection.effort || (result.inspection.allowed ? "Reasoning-kontroll verifierad" : "Tänkenivå okänd");
       $("safetyActionResult").textContent=`${reasonLabel(result.inspection.code)} · ${modelText} · ${effortText}`;
+    } else if (type==="EIC_GF_SAFETY_UPDATE" && ["WRITE_FAILED","UNAVAILABLE","ERROR"].includes(result.fleetStatus?.safetyVault?.state)) {
+      $("safetyActionResult").textContent=`Körkraven är sparade i denna installation, men bokmärkesvalvet kunde inte uppdateras (${result.fleetStatus.safetyVault.error || "okänt fel"}). De gäller bara denna installationsmapp tills valvet har uppdaterats; nytt försök vid nästa start.`;
+    } else if (type==="EIC_GF_SAFETY_UPDATE") {
+      $("safetyActionResult").textContent="Körkraven är sparade, även i bokmärkesvalvet.";
     } else {
       $("safetyActionResult").textContent="Ändringen är sparad.";
     }
@@ -2374,7 +2585,7 @@ $("importRecoveryFile").addEventListener("change",async event=>{
     if(file.size>32*1024*1024)throw Error("BACKUP_SIZE_INVALID");
     const backupJson=await file.text();JSON.parse(backupJson);
     const result=await safetyAction("EIC_GF_IMPORT_RECOVERY",{backupJson});
-    $("backupResult").textContent=`Återläst pausat: ${result.restored.processes} processer och ${result.restored.queues} köer. Kontrollera tidigare effekter i EIC innan du startar nytt arbete.`;
+    $("backupResult").textContent=`Återläst pausat: ${result.restored.processes} processer och ${result.restored.queues} köer. Kontrollera tidigare effekter i EIC innan du startar nytt arbete.${result.fleetStatus?.safetyVault?.state==="RESTORED" ? " Körkraven togs från bokmärkesvalvet, som har en senare sparning än kopian." : ""}${result.fleetStatus?.driftSettingsVault?.state==="RESTORED" ? " Driftinställningarna togs från bokmärkesvalvet, som har en senare sparning än kopian." : ""}`;
   }catch(error){$("backupResult").textContent=reasonLabel(error.message);}
 });
 
@@ -2419,7 +2630,7 @@ window.addEventListener("unhandledrejection", (event) => {
       windowId: state.windowId,
       kind: "SIDEPANEL_SESSION_STARTED",
       component: "sidepanel",
-      payload: { appVersion: "1.9.0" }
+      payload: { appVersion: APP_VERSION }
     });
     await snapshot();
   } catch (error) {

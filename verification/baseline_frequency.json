@@ -1,0 +1,41 @@
+{
+  "scope": "CONSTRUCTED_DOM_NOT_LIVE_CHROME",
+  "rows": [
+    {
+      "seed": 1,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "navigationClicks": 1
+    },
+    {
+      "seed": 2,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "navigationClicks": 1
+    },
+    {
+      "seed": 3,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "navigationClicks": 1
+    },
+    {
+      "seed": 4,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "navigationClicks": 1
+    },
+    {
+      "seed": 5,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "navigationClicks": 1
+    },
+    {
+      "seed": 6,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "navigationClicks": 1
+    }
+  ]
+}

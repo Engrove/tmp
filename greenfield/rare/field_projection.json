@@ -1,0 +1,305 @@
+{
+  "sha256": "04543285951ef8b71dfdcf4a00fa5ff7f309ce8bc07a36294541ffaa1c338759",
+  "appVersion": "1.9.10",
+  "createdAt": "2026-10-13T09:52:31.084Z",
+  "runtimeFault": "",
+  "modelEvidence": {
+    "source": "CHATGPT_UI_CONTROLS_V1",
+    "observedAtMs": 1791885151084,
+    "modelLabel": "Extra hög Välj ChatGPT-modell",
+    "effortLabel": "Extra hög",
+    "reasoningControlSeen": true,
+    "effortControlSeen": true,
+    "ambiguous": false,
+    "ambiguityKind": "",
+    "mode": "CHAT",
+    "quota": {
+      "active": false
+    },
+    "blockingUi": false,
+    "adapterVersion": 7,
+    "highestEffort": null,
+    "thinkingControl": {
+      "ok": false,
+      "changed": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": "SELECT_MAXIMUM",
+      "stage": "SELECT_MAXIMUM",
+      "openingMethod": "KEYBOARD",
+      "recoveredOpenMenu": false,
+      "observedSurfaces": [
+        {
+          "stage": "OPEN_REASONING_HOVER",
+          "trigger": {
+            "tag": "BUTTON",
+            "role": "",
+            "label": "Extra hög",
+            "expanded": "false",
+            "state": "closed",
+            "min": null,
+            "max": null,
+            "now": null
+          },
+          "popups": [
+            {
+              "tag": "DIV",
+              "role": "tooltip",
+              "label": "ResonemangsansträngningCtrl+Shift+M",
+              "expanded": null,
+              "state": null,
+              "min": null,
+              "max": null,
+              "now": null
+            }
+          ],
+          "sliders": []
+        },
+        {
+          "stage": "OPEN_REASONING_MENU",
+          "trigger": {
+            "tag": "BUTTON",
+            "role": "",
+            "label": "Resonemangsansträngning",
+            "expanded": "true",
+            "state": "open",
+            "min": null,
+            "max": null,
+            "now": null
+          },
+          "popups": [
+            {
+              "tag": "DIV",
+              "role": "",
+              "label": "Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan",
+              "expanded": null,
+              "state": null,
+              "min": null,
+              "max": null,
+              "now": null
+            },
+            {
+              "tag": "DIV",
+              "role": "menu",
+              "label": "Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan",
+              "expanded": null,
+              "state": "open",
+              "min": null,
+              "max": null,
+              "now": null
+            }
+          ],
+          "sliders": []
+        }
+      ],
+      "atMs": 1791884955956,
+      "trigger": {
+        "tag": "BUTTON",
+        "role": "",
+        "label": "Extra hög",
+        "expanded": "true",
+        "state": "open",
+        "min": null,
+        "max": null,
+        "now": null
+      },
+      "popup": {
+        "tag": "DIV",
+        "role": "menu",
+        "label": "Låst, öppnar åtkomstalternativ6GPT-5.6 SolGPT-5.5Försvinner 14 oktoberPro",
+        "expanded": null,
+        "state": "open",
+        "min": null,
+        "max": null,
+        "now": null
+      },
+      "sliders": [],
+      "suppressedRepeatedActions": true
+    },
+    "effortEvidenceSource": "COMPOSER_SELECTED_CONTROL",
+    "gptSurface": {
+      "composerName": "EIC",
+      "headerName": "EIC",
+      "ambiguous": false,
+      "version": 1
+    },
+    "controlsSeen": {
+      "model": [
+        "Extra hög Välj ChatGPT-modell"
+      ],
+      "effort": [
+        "Extra hög Välj ChatGPT-modell",
+        "Extra hög"
+      ],
+      "currentUseNotices": [],
+      "recommendations": []
+    }
+  },
+  "processes": [
+    {
+      "phase": "DETACHED",
+      "version": "1.9.10",
+      "hold": {
+        "code": "THINKING_SELECTION_TIMEOUT",
+        "detail": "SELECT_MAXIMUM",
+        "retryAtMs": 1791875174715,
+        "savedAtMs": 1791875144715,
+        "sinceMs": 1791875114543
+      },
+      "proof": {
+        "allowed": true,
+        "assurance": "VISIBLE_REASONING_CONTROL_MODEL_NAME_UNEXPOSED",
+        "code": "UI_MODEL_COMPATIBLE",
+        "effort": "Extra hög",
+        "effortAssurance": "NAMED_EFFORT",
+        "eicSurface": "URL_GPT_ID",
+        "highestEffort": null,
+        "highestEffortVerified": false,
+        "minimumModelVersion": "5.6",
+        "model": "Extra hög Välj ChatGPT-modell",
+        "modelNamePolicy": "NUMERIC_MINIMUM_FAMILY_AGNOSTIC",
+        "observedAtMs": 1791875144651,
+        "observedModelVersion": "",
+        "visibleUiOnly": true
+      },
+      "dispatch": null,
+      "initializationStatus": "PENDING",
+      "missionPause": null
+    },
+    {
+      "phase": "SENDING",
+      "version": "1.9.10",
+      "hold": {
+        "code": "THINKING_SELECTION_TIMEOUT",
+        "detail": "SELECT_MAXIMUM",
+        "retryAtMs": 1791885169244,
+        "savedAtMs": 1791885139244,
+        "sinceMs": 1791884956024
+      },
+      "proof": {
+        "allowed": true,
+        "assurance": "VISIBLE_REASONING_CONTROL_MODEL_NAME_UNEXPOSED",
+        "code": "UI_MODEL_COMPATIBLE",
+        "effort": "Extra hög",
+        "effortAssurance": "NAMED_EFFORT",
+        "eicSurface": "URL_GPT_ID",
+        "highestEffort": null,
+        "highestEffortVerified": false,
+        "minimumModelVersion": "5.6",
+        "model": "Extra hög Välj ChatGPT-modell",
+        "modelNamePolicy": "NUMERIC_MINIMUM_FAMILY_AGNOSTIC",
+        "observedAtMs": 1791885139176,
+        "observedModelVersion": "",
+        "visibleUiOnly": true
+      },
+      "dispatch": null,
+      "initializationStatus": "PENDING",
+      "missionPause": null
+    },
+    {
+      "phase": "DETACHED",
+      "version": "1.9.10",
+      "hold": {
+        "code": "THINKING_SELECTION_TIMEOUT",
+        "detail": "SELECT_MAXIMUM",
+        "retryAtMs": 1791876440672,
+        "savedAtMs": 1791876410672,
+        "sinceMs": 1791875263364
+      },
+      "proof": {
+        "allowed": true,
+        "assurance": "VISIBLE_REASONING_CONTROL_MODEL_NAME_UNEXPOSED",
+        "code": "UI_MODEL_COMPATIBLE",
+        "effort": "Extra hög",
+        "effortAssurance": "NAMED_EFFORT",
+        "eicSurface": "URL_GPT_ID",
+        "highestEffort": null,
+        "highestEffortVerified": false,
+        "minimumModelVersion": "5.6",
+        "model": "Extra hög Välj ChatGPT-modell",
+        "modelNamePolicy": "NUMERIC_MINIMUM_FAMILY_AGNOSTIC",
+        "observedAtMs": 1791876410606,
+        "observedModelVersion": "",
+        "visibleUiOnly": true
+      },
+      "dispatch": null,
+      "initializationStatus": "PENDING",
+      "missionPause": null
+    }
+  ],
+  "incidents": [
+    {
+      "atMs": 1791875078359,
+      "kind": "SAFETY_HOLD_STARTED",
+      "code": "THINKING_CONTROL_UNAVAILABLE",
+      "detail": {
+        "detail": "PREFLIGHT",
+        "phase": "SENDING",
+        "priorCode": "",
+        "retryAtMs": null
+      }
+    },
+    {
+      "atMs": 1791875114578,
+      "kind": "SAFETY_HOLD_STARTED",
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": {
+        "detail": "SELECT_MAXIMUM",
+        "phase": "SENDING",
+        "priorCode": "THINKING_CONTROL_UNAVAILABLE",
+        "retryAtMs": null
+      }
+    },
+    {
+      "atMs": 1791875226605,
+      "kind": "SAFETY_HOLD_STARTED",
+      "code": "THINKING_CONTROL_UNAVAILABLE",
+      "detail": {
+        "detail": "PREFLIGHT",
+        "phase": "SENDING",
+        "priorCode": "",
+        "retryAtMs": null
+      }
+    },
+    {
+      "atMs": 1791875263402,
+      "kind": "SAFETY_HOLD_STARTED",
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": {
+        "detail": "SELECT_MAXIMUM",
+        "phase": "SENDING",
+        "priorCode": "THINKING_CONTROL_UNAVAILABLE",
+        "retryAtMs": null
+      }
+    },
+    {
+      "atMs": 1791884910446,
+      "kind": "SAFETY_HOLD_STARTED",
+      "code": "THINKING_CONTROL_UNAVAILABLE",
+      "detail": {
+        "detail": "PREFLIGHT",
+        "phase": "SENDING",
+        "priorCode": "",
+        "retryAtMs": null
+      }
+    },
+    {
+      "atMs": 1791884956058,
+      "kind": "SAFETY_HOLD_STARTED",
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": {
+        "detail": "SELECT_MAXIMUM",
+        "phase": "SENDING",
+        "priorCode": "",
+        "retryAtMs": null
+      }
+    }
+  ],
+  "capacity": {
+    "activeTurns": 0,
+    "waiters": 0
+  },
+  "globalSafety": {
+    "providerHold": null,
+    "admissionPaused": false
+  }
+}

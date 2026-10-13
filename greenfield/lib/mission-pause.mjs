@@ -54,6 +54,8 @@ export function createMissionPauseRecord({
   sourceResponseHash = "",
   nextObjectiveId = "",
   nextPromptHash = "",
+  // v1.9.3: GREENFIELD_NO_DELTA for Greenfield's own no-delta pause.
+  requestedBy = "EIC_AI",
   now = Date.now()
 } = {}) {
   const seconds = normalizeMissionPauseSeconds(durationSeconds);
@@ -69,7 +71,7 @@ export function createMissionPauseRecord({
     processId: String(processId),
     generation,
     state: MISSION_PAUSE_STATES.ARMED,
-    requestedBy: "EIC_AI",
+    requestedBy: String(requestedBy || "EIC_AI").slice(0, 64),
     durationSeconds: seconds,
     reason: text(reason, 2000),
     sourceResponseHash: text(sourceResponseHash, 128),

@@ -5,11 +5,20 @@ export const WAITING_STALE_INTERVAL_MS = 30 * 60 * 1000;
 export const WAITING_GENERATION_LIMIT_MS = 4 * 60 * 60 * 1000;
 export const WAITING_RECOVERY_SETTLE_MS = 60 * 1000;
 
+// v1.9.3: ChatGPT's background-processing notice or its connection-lost
+// banner on the page means the provider still owes this turn's answer.
+export function providerTransportPending(page) {
+  return page?.providerNotices?.processingNotice === true ||
+    page?.providerNotices?.connectionInterrupted === true;
+}
+
 // A busy/disabled composer alone also occurs during loading and UI holds.
-// Deferral needs the bridge's current positive stop/streaming observation.
+// Deferral needs the bridge's current positive stop/streaming observation, or
+// (v1.9.3) a provider notice that the answer is still being processed.
 export function hasCurrentGenerationEvidence(page) {
-  return page?.generating === true &&
-    (page?.signals?.stopVisible === true || page?.signals?.streaming === true);
+  return (page?.generating === true &&
+    (page?.signals?.stopVisible === true || page?.signals?.streaming === true)) ||
+    providerTransportPending(page);
 }
 
 // Backward-compatible aliases retained for older deterministic imports. In v1.1.11
@@ -378,5 +387,6 @@ export function staleTurnCapacityDecision({
       page.signals?.streaming === true || page.signals?.composerBusy === true) {
     return hold("GENERATION_SIGNAL");
   }
+  if (providerTransportPending(page)) return hold("PROVIDER_NOTICE");
   return { action: "RELEASE", code: "STALE_TURN_NO_GENERATION_AFTER_RELOAD", stage };
 }

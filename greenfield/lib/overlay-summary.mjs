@@ -4,6 +4,7 @@ import { queuePlanningFields } from "./queue-planning.mjs";
 import { WAITING_REFRESH_ACTIONS, waitingRefreshSchedule } from "./waiting-refresh.mjs";
 import { queueItemNextRunnableAtMs, scheduleClosesAtMs } from "./queue-schedule.mjs";
 import { tabHealthStatusSv } from "./tab-health.mjs";
+import { gfwIdentityInText } from "./gfw-identity.mjs";
 
 // v1.7.9 operator overview for the in-page overlay. Pure: derived from process
 // state plus an optional read-only queue snapshot. Countdowns are sent as
@@ -29,11 +30,7 @@ function firstLine(value, max = 80) {
 
 /** "Projekt: 59 - ... - Gf: GF-002." -> "GF-002"; empty when no GFW id is present. */
 export function gfwIdentity(value) {
-  const source = String(value || "");
-  const tagged = source.match(/\bGf\s*:\s*([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9])/i);
-  if (tagged) return tagged[1];
-  const bare = source.match(/\bGF-[A-Za-z0-9_-]*[A-Za-z0-9]/i);
-  return bare ? bare[0] : "";
+  return gfwIdentityInText(String(value || "").split(/\r?\n/, 1)[0]);
 }
 
 function missionName(item, process) {
@@ -140,6 +137,12 @@ export function managedOverlayOverview(process, { queue = null, now = Date.now()
     countdown.push({ template: "Paus · återupptas om {t}", atMs: pauseAtMs });
   }
   let phaseText = PHASE_TEXT[process?.phase] || "";
+  if (process?.sessionInitialization?.status === "PENDING" &&
+      ["SENDING", "WAITING"].includes(process?.phase)) {
+    phaseText = process.phase === "SENDING" ? "Initierar session" : "Väntar på initieringssvar";
+  } else if (process?.pendingPrompt?.transportKind === "DELIVERY_CONTINUATION") {
+    phaseText = "Förbereder kort Fortsätt efter leveranstimeout";
+  }
   if (!phaseText && process?.phase === "WAITING" && process?.lastPrompt?.acknowledged !== true) {
     phaseText = "Väntar på bekräftat utskick";
   }

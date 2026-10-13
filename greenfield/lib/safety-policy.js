@@ -83,7 +83,7 @@
     // English, Swedish and Finnish are all expected in the same runtime.
     // Rank exact semantic words/phrases only after known non-effort UI action
     // phrases have been removed.
-    if (containsSemanticTerm(s, "light|standard|low|medium|snabb|lätt|nopea|kevyt|vakio|normaali|instant|quick|fast|normal")) return 0;
+    if (containsSemanticTerm(s, "light|standard|low|medium|balanced|balanserad|balanserat|tasapainoinen|snabb|lätt|låg|direkt|nopea|kevyt|vakio|normaali|instant|quick|fast|normal")) return 0;
     // v1.8.6: ChatGPT's model picker shows the thinking level as text
     // ("Extra hög" observed 2026-09-26). Extra high = the top level (Heavy);
     // High = Extended. Checked in this order so "extra hög" never ranks as "hög".
@@ -96,7 +96,7 @@
 
   function reasoningSignal(text) {
     const s = semanticText(text);
-    return containsSemanticTerm(s, "thinking|reasoning|tänkande|tänketid|tänknivå|ajattelu|ajatteluaika|päättely|päättelytaso|reasoning effort|thinking time|extended|utökad|utökat|förlängd|laajennettu|pidennetty|heavy|max|maximum|maximal|djupgående|djup|deep|deeper|intensiv|syvä|syvällinen");
+    return containsSemanticTerm(s, "thinking|reasoning|tänkande|tänketid|tänknivå|resonemangsansträngning|ajattelu|ajatteluaika|päättely|päättelytaso|reasoning effort|thinking time|extended|utökad|utökat|förlängd|laajennettu|pidennetty|heavy|max|maximum|maximal|djupgående|djup|deep|deeper|intensiv|syvä|syvällinen");
   }
 
   // v1.8.7: ChatGPT's newer shell addresses a custom GPT as /g/g-<id> without
@@ -156,7 +156,7 @@
     return gptNameMatchesRoot(name, gptRoot) ? { ok: true, code: "EIC_SURFACE_VERIFIED", kind: "GPT_NAME_MATCH" } : no("WRONG_GPT_NAME");
   }
 
-  function evaluateModel(evidence, policy = defaults, { now = Date.now(), url = "", gptRoot = "" } = {}) {
+  function evaluateModel(evidence, policy = defaults, { now = Date.now(), url = "", gptRoot = "", requireHighestEffort = false } = {}) {
     const deny = (code) => ({
       allowed: false, code,
       model: evidence?.modelLabel || "",
@@ -194,16 +194,21 @@
     const reasoningSeen = structuralReasoning || reasoningSignal(effortLabel) || /\b(thinking|reasoning|tänkande)\b/iu.test(label);
     if (!reasoningSeen) return deny("THINKING_MODE_UNVERIFIED");
 
+    const highest = evidence.highestEffort;
+    const maximumVerified = highest?.status === "VERIFIED" && highest.url === url &&
+      Number.isFinite(highest.verifiedAtMs) && now >= highest.verifiedAtMs - 1000 &&
+      now - highest.verifiedAtMs <= 60000 &&
+      ["SLIDER_MAXIMUM", "ORDINAL_MAXIMUM", "HIGHEST_AVAILABLE_OPTION"].includes(highest.strategy);
+    if (requireHighestEffort && !maximumVerified) return deny("THINKING_MAXIMUM_UNVERIFIED");
+
     let observedEffort = effort(effortLabel);
     let effortAssurance = "NAMED_EFFORT";
     if (observedEffort < 0) {
-      // A positively identified reasoning control is stronger than an unknown
-      // cosmetic label. For the default Extended floor it is accepted as an
-      // unranked deep-reasoning control. Heavy remains strict unless the label
-      // can be semantically ranked at Heavy/Max/Deep level.
-      if (structuralReasoning && ranks[policy.minimumEffort] <= ranks.extended) {
-        observedEffort = ranks.extended;
-        effortAssurance = "REASONING_CONTROL_UNRANKED";
+      // An unknown label proves no level. A verified numeric slider maximum
+      // can establish the maximum even when the UI localizes its name anew.
+      if (structuralReasoning && maximumVerified && highest.strategy === "SLIDER_MAXIMUM") {
+        observedEffort = ranks.max;
+        effortAssurance = "VERIFIED_SLIDER_MAXIMUM";
       } else {
         return deny("THINKING_EFFORT_UNKNOWN");
       }
@@ -221,6 +226,8 @@
       observedAtMs: evidence.observedAtMs,
       assurance: explicitModelVersion ? "VISIBLE_UI_COMPATIBLE_VERSION" : "VISIBLE_REASONING_CONTROL_MODEL_NAME_UNEXPOSED",
       effortAssurance,
+      highestEffortVerified: maximumVerified,
+      highestEffort: maximumVerified ? highest : null,
       observedModelVersion: observedVersion?.text || "",
       minimumModelVersion: requiredVersion.text,
       modelNamePolicy: "NUMERIC_MINIMUM_FAMILY_AGNOSTIC",

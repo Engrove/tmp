@@ -77,6 +77,7 @@ export function createProcess({
     lastNanoTask: null,
     lastDecision: null,
     greenfieldControl: null,
+    noDeltaState: null,
     missionPause: null,
     sessionHealth: createSessionHealthState({ sessionSeq: 1, sessionStartTurn: 1, now }),
     objectiveState: {

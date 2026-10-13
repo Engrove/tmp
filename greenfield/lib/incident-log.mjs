@@ -13,7 +13,9 @@
 export const INCIDENT_LOG_KEY = "eic.gf.incident-log.v1";
 export const INCIDENT_LOG_SCHEMA = "eic.greenfield.incident-log.v1";
 export const INCIDENT_LOG_MAX_ROWS = 400;
-export const INCIDENT_DETAIL_MAX_KEYS = 24;
+// v1.9.3: 28 so the stale-ladder rows keep every page flag with the two
+// provider-notice flags added (up to 5 decision keys + 20 page keys).
+export const INCIDENT_DETAIL_MAX_KEYS = 28;
 export const INCIDENT_TEXT_MAX_CHARS = 120;
 
 let writeQueue = Promise.resolve();

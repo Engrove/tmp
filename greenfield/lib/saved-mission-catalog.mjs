@@ -9,11 +9,9 @@
 
 export const SAVED_MISSION_EXPORT_SCHEMA = "eic.greenfield.saved-missions-export.v1";
 
-const KEY_TAGGED = /\bGf\s*:\s*([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9])/i;
-const KEY_BARE = /\bGF-[A-Za-z0-9_-]*[A-Za-z0-9]/i;
-const KEY_SHAPE = /^GF-[A-Z0-9_-]*\d[A-Z0-9_-]*$/;
+import { gfwIdentityInText, isGfwIdentity } from "./gfw-identity.mjs";
 const IMPORT_HEADING = /^#{2,4}[ \t]+(\S+)[ \t]*$/;
-const PROJECT_HEADER = /^Pro(?:jekt|ject)\s*:\s*(\d+)\s*[-–]\s*(.+?)(?:\s*[-–]\s*Gf\s*:\s*[A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9])?\s*\.?\s*$/i;
+const PROJECT_HEADER = /^Pro(?:jekt|ject)\s*:\s*(\d+)\s*[-–]\s*(.+?)(?:\s*[-–]\s*Gf\s*:\s*[A-Za-z0-9][A-Za-z0-9_.-]*[A-Za-z0-9])?\s*\.?\s*$/i;
 
 function firstLine(goal) {
   return String(goal ?? "").trim().split(/\r?\n/, 1)[0].trim();
@@ -26,10 +24,7 @@ function timestampValue(value) {
 
 /** First-line GFW key, upper case ("GF-001", "GF-WC-RE-001"); "" when absent. */
 export function savedMissionKey(goal) {
-  const line = firstLine(goal);
-  const tagged = line.match(KEY_TAGGED);
-  const candidate = (tagged ? tagged[1] : line.match(KEY_BARE)?.[0] || "").toUpperCase();
-  return KEY_SHAPE.test(candidate) ? candidate : "";
+  return gfwIdentityInText(firstLine(goal));
 }
 
 /** "Projekt: 63 - Greenfield - Gf: GF-001." -> { projectId: 63, projectName: "Greenfield" }. */
@@ -121,7 +116,7 @@ function parseMarkdownImport(source) {
     const ignoredLines = section.body.slice(end).filter((line) => line.trim()).length;
     const key = savedMissionKey(goal);
     const at = { heading: section.heading, line: section.line };
-    if (!KEY_SHAPE.test(section.heading)) errors.push({ code: "IMPORT_HEADING_NOT_A_KEY", ...at });
+    if (!isGfwIdentity(section.heading)) errors.push({ code: "IMPORT_HEADING_NOT_A_KEY", ...at });
     else if (!goal) errors.push({ code: "IMPORT_EMPTY_BODY", ...at });
     else if (key !== section.heading) errors.push({ code: "IMPORT_HEADING_KEY_MISMATCH", key, ...at });
     else if (seen.has(key)) errors.push({ code: "IMPORT_DUPLICATE_KEY", ...at });

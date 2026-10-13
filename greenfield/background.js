@@ -1,6 +1,10 @@
 import "./lib/safety-policy.js";
-import { readSafety, usageSummary, budgetDecision, reserveUsage, authorizeUsageSend, recordUsageOutput, usageIdentity, observeProviderQuota, probeProviderRecovery, updateSafetyPolicy, pauseAdmission } from "./lib/usage-governor.mjs";
-import { conversationKey, reconcileRestart } from "./lib/restart-recovery.mjs";
+import { readSafety, usageSummary, budgetDecision, reserveUsage, authorizeUsageSend, recordUsageOutput, usageIdentity, observeProviderQuota, probeProviderRecovery, updateSafetyPolicy, pauseAdmission, adoptSafetyPolicyFromVault, equalSafetyPolicy } from "./lib/usage-governor.mjs";
+import { loadSafetyPolicyVault, writeSafetyPolicyVault, safetyPolicyVaultPlan, SAFETY_POLICY_VAULT_FOLDER, loadDriftSettingsVault, writeDriftSettingsVault } from "./lib/safety-policy-vault.mjs";
+import { conversationKey, legacyAdvisoryBlockedCandidate, legacyRotationBlockedCandidate, reconcileRestart } from "./lib/restart-recovery.mjs";
+import { nextInteractionAfterResponse } from "./lib/interaction-slicing.mjs";
+import { createAnalysisBudget } from "./lib/analysis-deadline.mjs";
+import { windowQueueOverview } from "./lib/window-queue-overview.mjs";
 import { conversationRecoveryUrl, shouldRememberManagedUrl, expectedThreadMissing } from "./lib/conversation-recovery.mjs";
 import { reconcileRecoveryReportWithLiveObservation } from "./lib/recovery-report.mjs";
 import { createOperatorBackup, restoreOperatorBackup } from "./lib/operator-backup.mjs";
@@ -15,6 +19,23 @@ let restartReport = {atMs:0,restored:[],unresolved:[],errors:[]};
 let runtimeFault = "";
 let hydrationInFlight = null;
 let storageContractProof = null;
+// v1.9.1: run requirements (Körkrav) also live in the Chrome profile bookmark
+// store, so a new extension id (a release loaded from a new folder) restores
+// them instead of starting from the defaults. Synced once per service worker
+// lifetime; a vault failure never blocks startup or the local save.
+let safetyVaultStatus = {state:"NOT_CHECKED",atMs:0,folder:SAFETY_POLICY_VAULT_FOLDER};
+let safetyVaultSynced = false;
+const SAFETY_VAULT_TIMEOUT_MS = 8000;
+// The recovery alarm wakes the worker every minute; a settled result is kept
+// for the browser session (chrome.storage.session is cleared on browser
+// restart and on "Läs in igen"), so the bookmark tree is read once per session.
+const SAFETY_VAULT_SESSION_KEY = "eic.gf.safety-vault-status.v1";
+const SAFETY_VAULT_SETTLED = new Set(["RESTORED","SAVED","IN_SYNC","EMPTY"]);
+// v1.9.2: the Drift settings (operator-settings.mjs DRIFT_SETTINGS_KEYS) are a
+// second, independent section of the same vault, with its own status.
+let driftVaultStatus = {state:"NOT_CHECKED",atMs:0,folder:SAFETY_POLICY_VAULT_FOLDER};
+const DRIFT_VAULT_SESSION_KEY = "eic.gf.drift-vault-status.v1";
+let driftVaultQueue = Promise.resolve();
 let storageRetentionStatus = null;
 const RECOVERY_SCAN_ALARM = "eic.gf.recovery-scan.v1";
 
@@ -84,7 +105,7 @@ import {
   readNextInstruction,
   writeNextInstruction
 } from "./lib/instruction-store.mjs";
-import { composeA2APrompt, initialMissionObjective } from "./lib/a2a.mjs";
+import { composeA2APrompt, initialMissionObjective, validateA2AEnvelope } from "./lib/a2a.mjs";
 import {
   DISPOSITIONS,
   normalizeHjalmarDecision,
@@ -102,16 +123,27 @@ import { appendIncident } from "./lib/incident-log.mjs";
 import { queueBoundaryAnalysisDecision, queueBoundaryControl, runtimeControlRequestsCompletion } from "./lib/queue-boundary.mjs";
 import { warmResumeDecision, warmResumeObjective, warmResumePageVerdict } from "./lib/warm-resume.mjs";
 import { workModeStartupPatch, workModeSupervisorDecision } from "./lib/work-mode-supervisor.mjs";
-import { applyGreenfieldControlToDecision, resolveGreenfieldControl } from "./lib/greenfield-control.mjs";
+import { applyGreenfieldControlToDecision, eicHandoffWithoutNanoTask, resolveGreenfieldControl } from "./lib/greenfield-control.mjs";
+import { advanceNoDeltaState } from "./lib/no-delta.mjs";
 import {
   autonomousResponseObservation,
+  autonomousUserTurnProof,
   expectedAutonomousUserTurn,
   expectedPromptMarker,
   externalAssistantInterleaveEvidence,
   promptCausalMarker
 } from "./lib/turn-causality.mjs";
 import {
+  SESSION_INITIALIZATION, DELIVERY_CONTINUATION, DELIVERY_CONTINUATION_MAX_ATTEMPTS,
+  DELIVERY_NOTICE_SETTLE_MS, isInitializationPrompt, isTransportPrompt,
+  waitingForInitialization, workPromptHash, prepareSessionInitialization,
+  deliveryContinuationEligibility, deliveryRetryForPrompt, prepareDeliveryContinuation,
+  deliveryFencePage
+} from "./lib/session-transport.mjs";
+import {
   hasCurrentGenerationEvidence,
+  providerTransportPending,
+  WAITING_GENERATION_LIMIT_MS,
   createWaitingRefreshState,
   evaluateWaitingRefresh,
   resetWaitingRefreshOnAssistantResponse,
@@ -133,7 +165,9 @@ import {
 } from "./lib/session-rotation.mjs";
 import {
   loadOperatorSettings,
-  saveOperatorSettings
+  saveOperatorSettings,
+  reconcileLocalDriftSettings,
+  normalizeDriftVaultSettings
 } from "./lib/operator-settings.mjs";
 import {
   claimGlobalPromptSend,
@@ -182,6 +216,7 @@ import {
 } from "./lib/mission-pause.mjs";
 import {
   DEFAULT_MISSION_QUANTUM_INTERACTIONS,
+  MAX_QUEUE_ITEMS,
   MAX_QUEUE_HISTORY,
   DEFAULT_QUEUE_PRIORITY_AGING_SECONDS,
   DEFAULT_QUEUE_SWITCH_HARD_RELOAD,
@@ -198,7 +233,7 @@ import {
   removeMissionWorkItem,
   requeueBlockedMissionWorkItem,
   saveMissionWorkQueue,
-  selectNextMissionItem,
+  selectNextMissionItem as selectNextMissionItemUnchecked,
   updateMissionWorkItem
 } from "./lib/mission-work-queue.mjs";
 import {
@@ -271,7 +306,9 @@ import {
   completeSessionHealthTurn,
   markSessionHealthFirstResponse,
   markSessionHealthPromptPosted,
+  markSessionHealthProviderNotice,
   markSessionHealthRecovery,
+  PROVIDER_NOTICE_KINDS,
   resetSessionHealthForRotation,
   sessionHealthCapsule
 } from "./lib/session-health.mjs";
@@ -286,6 +323,9 @@ import {
 } from "./lib/work-mode.mjs";
 import {
   MISSION_DELEGATION_RELATION,
+  MAX_MISSION_DELEGATIONS,
+  loadMissionDelegationRegistry,
+  missionDelegationPromptState,
   claimPendingMissionDelegationForWorker,
   markMissionDelegationApplied,
   markMissionDelegationCompleted,
@@ -610,7 +650,7 @@ async function pingContentBridge(tabId) {
 async function injectContentBridge(tabId) {
   await withDeadline(chrome.scripting.executeScript({
     target: { tabId },
-    files: ["lib/safety-policy.js", "lib/model-observation.js", "content.js"]
+    files: ["lib/safety-policy.js", "lib/model-observation.js", "lib/thinking-control.js", "content.js"]
   }), TAB_HEALTH.INJECT_TIMEOUT_MS, "CONTENT_BRIDGE_INJECT_TIMEOUT");
 }
 
@@ -957,6 +997,17 @@ function publicSnapshot(process) {
     lastResponse: process.lastResponse,
     responseInterleave: process.responseInterleave || null,
     waitingRefresh: process.waitingRefresh || null,
+    sessionInitialization: process.sessionInitialization ? {
+      initializationId: process.sessionInitialization.initializationId,
+      status: process.sessionInitialization.status, sessionSeq: process.sessionInitialization.sessionSeq,
+      conversationKey: process.sessionInitialization.conversationKey,
+      receipt: process.sessionInitialization.receipt, response: process.sessionInitialization.response
+    } : null,
+    deliveryRetry: process.deliveryRetry ? {
+      attempts: process.deliveryRetry.attempts, status: process.deliveryRetry.status,
+      conversationKey: process.deliveryRetry.conversationKey,
+      sourcePromptHash: process.deliveryRetry.rootPrompt?.hash || ""
+    } : null,
     lastNano: process.lastNano || null,
     lastNanoTask: process.lastNanoTask || null,
     lastDecision: process.lastDecision,
@@ -1248,6 +1299,7 @@ async function executeRateLimitRecoveryPreflight(process, gateClaim) {
 async function commitTransition(process, nextPhase, patch, {
   kind = "STATE_TRANSITION",
   component = "runtime",
+  beforeSave = null,
   detail = {}
 } = {}) {
   const operationId = randomId("transition");
@@ -1259,6 +1311,10 @@ async function commitTransition(process, nextPhase, patch, {
     ...detail
   }, operationId);
 
+  if (beforeSave) {
+    const admission = await beforeSave();
+    if (admission.blocked) return admission.process;
+  }
   const next = transitionProcess(process, nextPhase, patch);
   try {
     await saveProcess(next);
@@ -1376,9 +1432,53 @@ function incidentPageEvidence(page) {
     assistantGenerating: auto.assistantGenerating === true,
     responseSlotClosed: auto.responseSlotClosed === true,
     providerNotice: String(health.providerNotice?.kind || ""),
+    // v1.9.3: ChatGPT background processing / connection-lost banner.
+    processingNotice: page?.providerNotices?.processingNotice === true,
+    connectionInterrupted: page?.providerNotices?.connectionInterrupted === true,
     rateLimitWarning: page?.rateLimitWarning?.active === true,
     quotaNotice: page?.modelEvidence?.quota?.active === true
   };
+}
+
+// v1.9.3: record ChatGPT's background-processing notice and its
+// connection-lost banner for the waiting turn: session-health pressure for
+// the next slice (contract adaptiveRule) and one incident per kind and turn.
+// Observation only; the ladder, capture and send gates read the page flags.
+const PROVIDER_NOTICE_REFRESH_MS = 30 * 1000;
+async function observeProviderTransportNotices(process, page) {
+  const notices = page?.providerNotices || {};
+  const kinds = [];
+  if (notices.processingNotice === true) kinds.push([PROVIDER_NOTICE_KINDS.PROCESSING, "processingNotice"]);
+  if (notices.connectionInterrupted === true) kinds.push([PROVIDER_NOTICE_KINDS.CONNECTION_INTERRUPTED, "connectionInterrupted"]);
+  const active = process.sessionHealth?.activeTurn || null;
+  if (!kinds.length || !active) return process;
+  const now = Date.now();
+  let health = process.sessionHealth;
+  const first = [];
+  let refresh = false;
+  for (const [kind, key] of kinds) {
+    const prior = health.activeTurn?.[key] || null;
+    if (!prior) first.push(kind);
+    if (!prior || now - Number(prior.lastSeenAtMs || 0) >= PROVIDER_NOTICE_REFRESH_MS) refresh = true;
+    health = markSessionHealthProviderNotice(health, { kind, observedAtMs: now });
+  }
+  if (!refresh) return process;
+  const saved = await saveObserved(process, { sessionHealth: health },
+    first.length ? "PROVIDER_TRANSPORT_NOTICE_OBSERVED" : "PROVIDER_TRANSPORT_NOTICE_STILL_SHOWN", {
+      kinds: kinds.map(([kind]) => kind),
+      firstSighting: first,
+      promptHash: process.lastPrompt?.hash || ""
+    });
+  for (const kind of first) {
+    const postedAtMs = Number(process.lastPrompt?.postedAtMs || 0);
+    await recordIncident(saved, "PROVIDER_TRANSPORT_NOTICE", kind, {
+      ...incidentPageEvidence(page),
+      waitMin: postedAtMs ? Math.round((now - postedAtMs) / 60000) : null,
+      promptChars: Number(process.lastPrompt?.metrics?.promptChars || String(process.lastPrompt?.text || "").length),
+      interactionInQuantum: Number(process.lastPrompt?.a2a?.control?.workQueue?.interactionInQuantum || 0) || null
+    });
+  }
+  return saved;
 }
 
 // v1.8.2 durable response-observation trace (lib/response-observation.mjs).
@@ -1524,6 +1624,201 @@ async function maybeRecoverPageHealth(process, page) {
       turnCount: Number(health.turnCount || 0)
     }
   });
+}
+
+// R5A transport transitions recheck their durable owner after asynchronous
+// page/audit work. STOP, queue changes and quality holds always win.
+async function transportTransitionBoundary(process) {
+  const current = await loadProcessForWindow(process.windowId);
+  const matches = isCurrentToken(current, ownerToken(process)) && current.phase === process.phase &&
+    current.goal === process.goal && current.pendingPrompt?.hash === process.pendingPrompt?.hash &&
+    current.lastPrompt?.dispatchId === process.lastPrompt?.dispatchId &&
+    JSON.stringify(current.queueContext || null) === JSON.stringify(process.queueContext || null) &&
+    JSON.stringify(current.sessionInitialization || null) === JSON.stringify(process.sessionInitialization || null) &&
+    JSON.stringify(current.deliveryRetry || null) === JSON.stringify(process.deliveryRetry || null);
+  if (!matches) return { blocked: true, process: current || process };
+  if (current.storageRecoveryRequired || current.safety?.qualityIncident || current.greenfieldControl?.hardStop) {
+    return { blocked: true, process: current };
+  }
+  return { blocked: false, process: current };
+}
+
+async function maybeHandleLostConversation(process, page) {
+  if (page?.providerNotices?.conversationUnavailable !== true) return { handled: false, process };
+  if (page.generating === true || hasCurrentGenerationEvidence(page)) {
+    scheduleFast(process.processId, 1200);
+    return { handled: true, process };
+  }
+  const boundary = await transportTransitionBoundary(process);
+  if (boundary.blocked) return { handled: true, process: boundary.process };
+  const pending = process.pendingPrompt;
+  if (pending && (pending.dispatch?.effectPossible !== false && pending.dispatch ||
+      Number(pending.sendAttempts || 0) > 0 && !pending.dispatch)) {
+    return { handled: true, process: await holdForSafety(process, { code: "DISPATCH_EFFECT_UNRESOLVED",
+      detail: "Lost conversation with an unacknowledged dispatch; automatic replay is forbidden." }) };
+  }
+  if (process.phase === PHASES.WAITING &&
+      (process.lastPrompt?.acknowledged !== true || !process.lastPrompt?.dispatchedUserTurnId)) {
+    return { handled: true, process: await holdForSafety(process, { code: "DISPATCH_EFFECT_UNRESOLVED" }) };
+  }
+  const work = isInitializationPrompt(pending) || waitingForInitialization(process)
+    ? process.sessionInitialization?.workPrompt
+    : pending?.transportKind === DELIVERY_CONTINUATION ? process.deliveryRetry?.rootPrompt : pending;
+  const prior = { at: nowIso(), conversationKey: conversationKey(process.lastManagedUrl || page.url || ""),
+    lastPrompt: process.lastPrompt || null, sessionInitialization: process.sessionInitialization || null,
+    deliveryRetry: process.deliveryRetry || null };
+  const rotated = await armSessionRotation({ ...process, lostConversation: prior,
+    sessionInitialization: null, deliveryRetry: null }, {
+    reasonCode: "CHATGPT_CONVERSATION_UNAVAILABLE", requestedBy: "PROVIDER_TRANSPORT",
+    reason: "ChatGPT explicitly reports that this conversation cannot be loaded.",
+    objective: work?.a2a?.objective || process.objectiveState?.objective || process.goal,
+    operatorInstruction: work?.oneShotInstruction || null,
+    sourceResponseState: sessionRotationSourceState(process),
+    beforeSave: () => transportTransitionBoundary(process)
+  });
+  return { handled: true, process: rotated };
+}
+
+function sourceResponseAlreadyDelivered(process, page) {
+  const causal = autonomousResponseObservation(process, page);
+  return causal.ready && page.generating !== true && causal.observation.generating !== true &&
+    Boolean(causal.observation.assistantHash && causal.observation.assistantText) &&
+    (parseTargetResponse(causal.observation.assistantText).ok ||
+      waitingForInitialization(process) && /^\s*READY\b/i.test(causal.observation.assistantText));
+}
+
+async function maybeHandleDeliveryTimeout(process, page) {
+  if (page?.providerNotices?.deliveryTimeout !== true || sourceResponseAlreadyDelivered(process, page)) {
+    if (process.deliveryNotice?.promptHash === process.lastPrompt?.hash) {
+      process = await saveObserved(process, { deliveryNotice: null }, "DELIVERY_NOTICE_CLEARED");
+    }
+    return { handled: false, process };
+  }
+  if (page.generating === true || hasCurrentGenerationEvidence(page) || providerTransportPending(page)) {
+    scheduleFast(process.processId, 1200);
+    return { handled: true, process };
+  }
+  const reason = deliveryContinuationEligibility(process, page);
+  if (reason) return { handled: true, process: await holdForSafety(process, { code: reason }) };
+  const prior = deliveryRetryForPrompt(process);
+  if (Number(prior?.attempts || 0) >= DELIVERY_CONTINUATION_MAX_ATTEMPTS) {
+    // Exhausting short retries must not freeze an entire queue forever. The
+    // existing bounded reload/rotation ladder still owns later recovery.
+    const refresh = await maybeEscalateWaitingRefresh(process, page, { reason: "DELIVERY_CONTINUATION_LIMIT" });
+    if (refresh.handled) return { handled: true, process: refresh.process };
+    process = refresh.process;
+    return { handled: true, process: await holdForSafety(process, { code: "DELIVERY_CONTINUATION_LIMIT",
+      detail: "Two short continuations already prepared for this work turn; no full prompt replay." }) };
+  }
+  if (process.deliveryNotice?.promptHash !== process.lastPrompt.hash) {
+    const boundary = await transportTransitionBoundary(process);
+    if (boundary.blocked) return { handled: true, process: boundary.process };
+    const saved = await saveObserved(process, { deliveryNotice: {
+      promptHash: process.lastPrompt.hash, userTurnId: process.lastPrompt.dispatchedUserTurnId,
+      firstSeenAtMs: Date.now() } }, "DELIVERY_TIMEOUT_SEEN");
+    scheduleFast(saved.processId, DELIVERY_NOTICE_SETTLE_MS);
+    return { handled: true, process: saved };
+  }
+  if (Date.now() - Number(process.deliveryNotice.firstSeenAtMs || 0) < DELIVERY_NOTICE_SETTLE_MS) {
+    scheduleFast(process.processId, DELIVERY_NOTICE_SETTLE_MS);
+    return { handled: true, process };
+  }
+  const patch = await prepareDeliveryContinuation(process, page);
+  const next = await commitTransition(process, PHASES.SENDING, { ...patch, deliveryNotice: null,
+    responseCandidate: null, waitingRefresh: null, lastError: null }, {
+    kind: "DELIVERY_SHORT_CONTINUATION_PREPARED", component: "transport",
+    beforeSave: () => transportTransitionBoundary(process),
+    detail: { sourcePromptHash: patch.deliveryRetry.rootPrompt.hash,
+      sourceUserTurnId: patch.pendingPrompt.sourceUserTurnId,
+      attempts: patch.deliveryRetry.attempts, conversationKey: patch.deliveryRetry.conversationKey } });
+  if (next.phase === PHASES.SENDING) {
+    await cancelSchedulerProcess(next, "DELIVERY_SHORT_CONTINUATION_REARM").catch(() => undefined);
+    scheduleFast(next.processId, 50);
+  }
+  return { handled: true, process: next };
+}
+
+async function guardShortContinuation(process, page) {
+  const pending = process.pendingPrompt;
+  if (pending?.transportKind !== DELIVERY_CONTINUATION) return { handled: false, process };
+  const retry = process.deliveryRetry;
+  if (!retry?.sourcePrompt || !pending.requiredConversationKey ||
+      conversationKey(page.url) !== pending.requiredConversationKey) {
+    return { handled: true, process: await holdForSafety(process, { code: "DELIVERY_CONVERSATION_UNPROVEN" }) };
+  }
+  // A possibly issued short dispatch is owned by the existing exact-once
+  // fence. It cannot be cancelled by a disappearing banner or late response.
+  if (pending.dispatch && pending.dispatch.effectPossible !== false) return { handled: false, process };
+  const source = { ...process, phase: PHASES.WAITING, pendingPrompt: null, lastPrompt: retry.sourcePrompt };
+  const causal = autonomousResponseObservation(source, page);
+  const lateResponse = causal.ready && !causal.observation.generating &&
+    Boolean(causal.observation.assistantHash && causal.observation.assistantText) &&
+    causal.observation.assistantHash !== retry.sourcePrompt.baselineAssistantHash &&
+    (parseTargetResponse(causal.observation.assistantText).ok ||
+      waitingForInitialization(source) && /^\s*READY\b/i.test(causal.observation.assistantText));
+  if (page.generating || lateResponse || page.providerNotices?.deliveryTimeout !== true) {
+    const next = await commitTransition(process, PHASES.WAITING, {
+      pendingPrompt: null, lastPrompt: retry.sourcePrompt,
+      deliveryRetry: { ...retry, status: lateResponse ? "CANCELLED_LATE_RESPONSE" : "CANCELLED_PROVIDER_RECOVERED" },
+      waitingRefresh: createWaitingRefreshState({ now: Date.now(), page,
+        promptHash: retry.sourcePrompt.hash, turn: process.turn }), responseCandidate: null }, {
+      kind: "DELIVERY_SHORT_CONTINUATION_CANCELLED", component: "transport",
+      beforeSave: () => transportTransitionBoundary(process) });
+    await cancelSchedulerProcess(next, "DELIVERY_PROVIDER_RECOVERED").catch(() => undefined);
+    scheduleFast(next.processId, 100);
+    return { handled: true, process: next };
+  }
+  if (page.lastUserId !== pending.sourceUserTurnId ||
+      page.lastUserHash !== retry.sourcePrompt.hash) {
+    return { handled: true, process: await holdForSafety(process, { code: "DELIVERY_SOURCE_TURN_UNPROVEN" }) };
+  }
+  return { handled: false, process };
+}
+
+async function tickSessionInitialization(process, page) {
+  const init = process.sessionInitialization;
+  const key = conversationKey(page.url || "");
+  if (!init?.workPrompt || init.sessionSeq !== process.sessionSeq || !key ||
+      init.conversationKey && init.conversationKey !== key ||
+      process.lastPrompt?.conversationKey && process.lastPrompt.conversationKey !== key) {
+    return holdForSafety(process, { code: "SESSION_INITIALIZATION_CONVERSATION_UNPROVEN" });
+  }
+  const causal = autonomousResponseObservation(process, page);
+  if (!causal.ready || page.generating || causal.observation.generating || providerTransportPending(page)) {
+    const refresh = await maybeEscalateWaitingRefresh(process, page, { reason: "SESSION_INITIALIZATION_AWAITING_RESPONSE" });
+    if (refresh.handled) return refresh.process;
+    process = refresh.process;
+    scheduleFast(process.processId, FAST_RECHECK_MS);
+    return process;
+  }
+  const advanced = advanceResponseCandidate(process.responseCandidate, causal.observation);
+  process = await saveObserved(process, { responseCandidate: advanced.candidate }, "SESSION_INITIALIZATION_RESPONSE_SAMPLE");
+  const sampledOwner = await transportTransitionBoundary(process);
+  if (sampledOwner.blocked) return sampledOwner.process;
+  if (!advanced.complete || !responseStructuralCompleteness(causal.observation.assistantText).complete) {
+    scheduleFast(process.processId, FAST_RECHECK_MS);
+    return process;
+  }
+  const pendingPrompt = { ...init.workPrompt, baselineAssistantHash: causal.observation.assistantHash,
+    requiredConversationKey: key, sendAttempts: 0, dispatch: null, promptPause: null };
+  if (process.lastPrompt?.usageId) {
+    await recordUsageOutput(process.lastPrompt.usageId, causal.observation.assistantText);
+  }
+  const next = await commitTransition(process, PHASES.SENDING, {
+    pendingPrompt, sessionInitialization: { ...init, status: "READY", conversationKey: key,
+      completedAt: nowIso(), workPrompt: null,
+      receipt: { ...(process.deliveryRetry?.rootPrompt || process.lastPrompt) },
+      completionReceipt: process.lastPrompt.transportKind === DELIVERY_CONTINUATION ? { ...process.lastPrompt } : null,
+      response: { messageId: causal.observation.lastAssistantId, hash: causal.observation.assistantHash } },
+    responseCandidate: null, waitingRefresh: null, deliveryRetry: null, deliveryNotice: null,
+    lastError: null, lastMaterialAt: nowIso() }, {
+    kind: "SESSION_INITIALIZED_WORK_PROMPT_RELEASED", component: "transport",
+    beforeSave: () => transportTransitionBoundary(process),
+    detail: { conversationKey: key, initializationDoesNotConsumeWorkInteraction: true,
+      providerPersistenceGuaranteed: false } });
+  await releaseSchedulerTurn(next, { promptHash: process.lastPrompt.hash, reason: "SESSION_INITIALIZED" }).catch(() => undefined);
+  scheduleFast(next.processId, 50);
+  return next;
 }
 
 // v1.8.3 ChatGPT content block (Daybreak notice). Two observations >= 3 s apart
@@ -2224,6 +2519,37 @@ async function contentSend(process, pending, operationId) {
   return result || { ok: false, effectPossible: true, code: "PROMPT_SEND_EFFECT_UNKNOWN" };
 }
 
+// v1.9.3: the window queue overview carried in every prompt. A read failure
+// leaves it out of this one prompt; it never blocks the prompt.
+async function windowQueueForPrompt(process, source = null) {
+  if (!process.queueContext?.queueId || !process.queueContext?.itemId) return null;
+  try {
+    const queue = source && Array.isArray(source.items)
+      ? source
+      : (await missionQueueForWindow(Number(process.windowId))).queue;
+    if (String(queue.queueId || "") !== String(process.queueContext.queueId)) return null;
+    return windowQueueOverview(queue, {
+      now: Date.now(),
+      currentItemId: String(process.queueContext?.itemId || ""),
+      currentQueueContext: process.queueContext || null
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function delegationStatusForPrompt(process) {
+  if (!process.queueContext?.queueId || !process.queueContext?.itemId) return null;
+  try {
+    return missionDelegationPromptState(await loadMissionDelegationRegistry(chrome.storage.local), {
+      sourceQueueId: process.queueContext.queueId, sourceItemId: process.queueContext.itemId
+    });
+  } catch {
+    return { schema: "eic.greenfield.mission-delegation-status.v1",
+      sourceQueueId: process.queueContext.queueId, unavailable: true };
+  }
+}
+
 async function buildPendingA2A(process, {
   objective,
   objectiveId = "",
@@ -2236,9 +2562,12 @@ async function buildPendingA2A(process, {
   pauseResume = null,
   processStatusMode = "",
   baselineAssistantHash = "",
-  turn = process.turn
+  turn = process.turn,
+  // v1.9.3: the in-memory queue when the caller is mid-activation.
+  windowQueueSource = null
 }) {
   const virtual = { ...process, turn };
+  const windowQueue = await windowQueueForPrompt(process, windowQueueSource);
   const processStatus = String(processStatusMode || "").toUpperCase() === PROCESS_STATUS_REQUEST
     ? buildFullProcessStatus(virtual, { at: Date.now() })
     : null;
@@ -2266,7 +2595,9 @@ async function buildPendingA2A(process, {
     analysisEvidence,
     processStatus,
     sessionRotation,
-    pauseResume
+    pauseResume,
+    windowQueue,
+    delegationStatus: await delegationStatusForPrompt(process)
   };
   const composed = composeA2APrompt({ ...composeArgs, promptProfile });
   const hash = await sha256Hex(composed.text);
@@ -2278,7 +2609,8 @@ async function buildPendingA2A(process, {
       text: fallback.text,
       hash: await sha256Hex(fallback.text),
       a2a: fallback.envelope,
-      promptProfile: fallbackProfile
+      promptProfile: fallbackProfile,
+      metrics: fallback.metrics
     };
   }
   const operatorSettings = await loadOperatorSettings(chrome.storage.local, { restoreSavedMissions: false, bookmarks: null }).catch(() => ({ postDelaySeconds: 0 }));
@@ -2293,13 +2625,100 @@ async function buildPendingA2A(process, {
     dispatch: null,
     a2a: composed.envelope,
     promptProfile,
+    // v1.9.3: per-prompt sizing telemetry (role, pressure, overpack guard).
+    metrics: composed.metrics,
     fullFallback,
     oneShotInstruction: operatorInstruction ? {
+      // Retain the inbox owner when a parked mission is restored on a new
+      // worker/process. The prompt recipient and inbox owner can differ.
+      processId: operatorInstruction.processId || process.processId,
+      runId: operatorInstruction.runId || process.runId,
       instructionId: operatorInstruction.instructionId,
       text: operatorInstruction.text,
       createdAt: operatorInstruction.createdAt || nowIso()
     } : null
   };
+}
+
+// A worker can stop after committing a prompt but before consuming its inbox.
+// Reconcile that local transfer before another turn can claim the instruction.
+// This never changes the prompt, dispatch receipt or process phase.
+async function consumeCheckpointedInstructions(process, { instructionLockProcessId = "" } = {}) {
+  for (const slot of ["pendingPrompt", "lastPrompt"]) {
+    const prompt = process?.[slot];
+    const instruction = prompt?.oneShotInstruction;
+    if (!instruction?.instructionId || !prompt.text || !prompt.hash) continue;
+    let ownerId = instruction.processId || process.processId;
+    let ownerRunId = instruction.runId || process.runId;
+    let legacyOwner = null;
+    // Older queue prompts did not retain the inbox owner. Resolve it only
+    // from this durable activation's parked process and an exact inbox match.
+    if (!instruction.processId && process.queueContext?.itemId) {
+      const queue = await loadMissionWorkQueue(process.windowId, chrome.storage.local, { workerId: process.workerId });
+      const item = queue.items.find(candidate => candidate.itemId === process.queueContext.itemId);
+      const source = item?.processSnapshot;
+      if (queue.queueId === process.queueContext.queueId && queue.activeItemId === item?.itemId &&
+          item?.status === QUEUE_STATUS.ACTIVE &&
+          Number(item.activationCount || 0) === Number(process.queueContext.activationCount || 0) &&
+          source?.processId && source.runId && source.processId !== process.processId) {
+        const priorInbox = await readNextInstruction(source.processId);
+        if (priorInbox?.instructionId === instruction.instructionId &&
+            priorInbox.runId === source.runId && priorInbox.text === instruction.text) {
+          legacyOwner = source;
+          ownerId = source.processId;
+          ownerRunId = source.runId;
+        }
+      }
+    }
+    const consume = async () => {
+      const inbox = await readNextInstruction(ownerId);
+      if (!inbox || inbox.instructionId !== instruction.instructionId ||
+          inbox.runId !== ownerRunId || inbox.text !== instruction.text) return;
+
+      const current = await loadProcessForWindow(process.windowId);
+      if (!current || current.processId !== process.processId || current.runId !== process.runId ||
+          current.workerId !== process.workerId || current.generation !== process.generation ||
+          current.phase !== process.phase ||
+          current.storageRecoveryRequired || current.safety?.qualityIncident) return;
+      const committed = current[slot];
+      const claimed = committed?.oneShotInstruction;
+      if (!committed || committed.hash !== prompt.hash || committed.text !== prompt.text ||
+          claimed?.instructionId !== instruction.instructionId || claimed.text !== instruction.text ||
+          (claimed.processId || legacyOwner?.processId || current.processId) !== ownerId ||
+          (claimed.runId || legacyOwner?.runId || current.runId) !== ownerRunId) return;
+
+      let envelope;
+      try { envelope = JSON.parse(committed.text); } catch { return; }
+      if (await sha256Hex(committed.text) !== committed.hash ||
+          envelope.process?.processId !== current.processId || envelope.process?.runId !== current.runId ||
+          (slot === "pendingPrompt" && envelope.process?.generation !== current.generation) ||
+          envelope.operatorInstruction?.instructionId !== inbox.instructionId ||
+          envelope.operatorInstruction?.text !== inbox.text ||
+          committed.a2a?.operatorInstruction?.instructionId !== inbox.instructionId ||
+          committed.a2a?.operatorInstruction?.text !== inbox.text) return;
+
+      // Queue activation publishes the process before publishing the queue.
+      // An interrupted activation must retain its inbox until both are durable.
+      if (current.queueContext?.itemId) {
+        const queue = await loadMissionWorkQueue(current.windowId, chrome.storage.local, { workerId: current.workerId });
+        const item = queue.items.find(candidate => candidate.itemId === current.queueContext.itemId);
+        if (queue.queueId !== current.queueContext.queueId ||
+            queue.activeItemId !== current.queueContext.itemId || item?.status !== QUEUE_STATUS.ACTIVE ||
+            Number(item.activationCount || 0) !== Number(current.queueContext.activationCount || 0)) return;
+      }
+
+      const cleared = await clearNextInstruction(ownerId, inbox.instructionId);
+      if (cleared.cleared) {
+        await audit(current, "NEXT_INSTRUCTION_CHECKPOINT_ACK_RECOVERED", "operator-input", {
+          instructionId: inbox.instructionId, sourceProcessId: ownerId,
+          sourceRunId: ownerRunId, promptHash: committed.hash, promptSlot: slot,
+          clearedFromInbox: true, dispatchUnchanged: true
+        }).catch(() => undefined);
+      }
+    };
+    if (ownerId === instructionLockProcessId) await consume();
+    else await instructionQueues.enqueue(ownerId, consume);
+  }
 }
 
 
@@ -2356,6 +2775,64 @@ function queueItemForProcess(queue, process) {
   return itemId ? queue?.items?.find((item) => item.itemId === itemId) || null : null;
 }
 
+// R1H: a queue switch is not dispatch reconciliation. Keep every pending
+// receipt (including acknowledged/no-effect) until the normal fence settles
+// it, and do not erase legacy attempts or an explicit unresolved-effect hold.
+function queuePendingEffectNeedsReconciliation(process) {
+  if (process?.safety?.hold?.code === "DISPATCH_EFFECT_UNRESOLVED" ||
+      process?.lastError?.code === "SESSION_ROTATION_PROMPT_EFFECT_UNKNOWN") return true;
+  const pending = process?.pendingPrompt;
+  return Boolean(pending && (pending.dispatch != null ||
+    (pending.sendAttempts != null && pending.sendAttempts !== 0)));
+}
+
+function queueItemNeedsEffectReconciliation(queue, item) {
+  const logical = String(item?.savedMissionId || "").trim();
+  return queuePendingEffectNeedsReconciliation(item?.processSnapshot) || (queue?.items || []).some(candidate =>
+    (candidate.itemId === item?.itemId || logical && String(candidate.savedMissionId || "").trim() === logical) &&
+    queuePendingEffectNeedsReconciliation(candidate.processSnapshot));
+}
+
+function selectNextMissionItem(queue, options = {}) {
+  // Older requeues can already contain an ambiguous receipt. Skip the whole
+  // logical mission without starving independent runnable missions.
+  return selectNextMissionItemUnchecked({ ...queue,
+    items:(queue?.items || []).filter(item=>!queueItemNeedsEffectReconciliation(queue,item)) },options);
+}
+
+function queueActivationSourceMatches(current, prior) {
+  if (!current || !prior) return current === prior;
+  if (!isCurrentToken(current,ownerToken(prior)) || current.phase !== prior.phase) return false;
+  // Analysis adds local runtime receipts and no-delta observations before its
+  // transition commits. Compare the dispatch/continuation source at entry;
+  // compare the entire durable process again after asynchronous composition.
+  return ["tabId","windowId","gptRoot","turn","sessionSeq","goal","objectiveState",
+    "pendingPrompt","lastPrompt","lastResponse","sessionRotation","storageRecoveryRequired","qualityIncident"]
+    .every(key=>JSON.stringify(current[key]) === JSON.stringify(prior[key])) &&
+    JSON.stringify(current.safety?.hold) === JSON.stringify(prior.safety?.hold) &&
+    JSON.stringify(current.safety?.qualityIncident) === JSON.stringify(prior.safety?.qualityIncident);
+}
+
+async function queueActivationEffectBoundary({ queue, item, windowId, priorProcess = null,
+  expectedProcess, expectedQueue = queue, allowQueueEnable = false, operatorHandoff = false } = {}) {
+  const liveQueue = await loadMissionWorkQueue(windowId,chrome.storage.local,{workerId:queue.workerId});
+  const current = await loadProcessForWindow(windowId);
+  const queueToCompare = allowQueueEnable && expectedQueue.enabled === true && liveQueue.enabled === false
+    ? { ...liveQueue,enabled:true } : liveQueue;
+  const changed = (expectedProcess !== undefined
+    ? JSON.stringify(current) !== JSON.stringify(expectedProcess) : !queueActivationSourceMatches(current,priorProcess)) ||
+    JSON.stringify(queueToCompare) !== JSON.stringify(expectedQueue);
+  const unresolved = (!operatorHandoff && (queuePendingEffectNeedsReconciliation(current) ||
+    queuePendingEffectNeedsReconciliation(priorProcess))) || queueItemNeedsEffectReconciliation(queue,item) ||
+    queueItemNeedsEffectReconciliation(liveQueue,item);
+  if (!changed && !unresolved) return { current, liveQueue };
+  const code = unresolved ? "MISSION_QUEUE_PENDING_EFFECT_RECONCILIATION_REQUIRED" : "MISSION_QUEUE_ACTIVATION_SOURCE_CHANGED";
+  await audit(current || priorProcess,"MISSION_QUEUE_ACTIVATION_HELD","mission-work-queue",{
+    code,itemId:item?.itemId || "",automaticResend:false,processUnchanged:true,operatorHandoff
+  }).catch(()=>undefined);
+  return { blocked:true,code,process:current || priorProcess,queue:liveQueue };
+}
+
 function missionQueueWakeAlarmName(windowId, workerId) {
   const id = String(workerId || "").trim();
   if (!id) throw new Error("MISSION_QUEUE_WAKE_WORKER_REQUIRED");
@@ -2378,7 +2855,7 @@ async function syncMissionQueueWakeAlarm(queue) {
   const now = Date.now();
   // v1.8.1: a slot becomes runnable at the later of its status time (pause,
   // blocked retry) and its schedule's next opening (run window, pauseUntil).
-  const wakeTimes = (queue.items || [])
+  const wakeTimes = (queue.items || []).filter(item=>!queueItemNeedsEffectReconciliation(queue,item))
     .map((item) => queueItemNextRunnableAtMs(item, now))
     .filter((when) => Number.isFinite(when) && when > now)
     .sort((a,b) => a-b);
@@ -2500,6 +2977,8 @@ async function buildQueueActivationProcess({
       enabled: settings?.warmQueueResume == null ? DEFAULT_WARM_QUEUE_RESUME : settings.warmQueueResume === true,
       item,
       parked,
+      // v1.9.3: a new quantum (interaction 1) always starts in a fresh chat.
+      interactionInQuantum: Number(queueContext?.interactionCount || 0) + 1,
       lastSessionAction: capturedTargetResponse(parked).targetResponse?.sessionAction || "KEEP",
       otherConversationKeys: conversationsOfOtherGfws(queue, priorProcess, parked.processId),
       now: activationAtMs
@@ -2583,9 +3062,19 @@ async function buildQueueActivationProcess({
       queueContext
     });
     process.phase = PHASES.ROTATING;
+    process.noDeltaState = item.processSnapshot?.noDeltaState ? deepClone(item.processSnapshot.noDeltaState) : null;
     sessionHealth = process.sessionHealth;
     messageType = item.resume?.objective || parkedSnapshotPresent ? "MISSION_RESTORE" : "MISSION_START";
   }
+
+  // A parked instruction stays owned by its logical GFW. Prefer a newer inbox
+  // entry, then the durable slot copy (including recovery on a different worker).
+  const instructionSourceProcessId = item.processSnapshot?.processId ||
+    item.resume?.operatorInstruction?.processId || process.processId;
+  const operatorInstruction = await readNextInstruction(instructionSourceProcessId) ||
+    item.resume?.operatorInstruction ||
+    item.processSnapshot?.sessionInitialization?.workPrompt?.oneShotInstruction || null;
+  if (coldPlan) coldPlan.operatorInstruction = operatorInstruction ? deepClone(operatorInstruction) : null;
 
   const rotationId = randomId("queue-switch");
   const warm = warmPlan?.warm === true;
@@ -2628,6 +3117,7 @@ async function buildQueueActivationProcess({
   const pendingPrompt = await buildPendingA2A(process, {
     objective,
     messageType,
+    operatorInstruction,
     previousResponseHash,
     previousDisposition,
     analysisEvidence,
@@ -2638,7 +3128,8 @@ async function buildQueueActivationProcess({
       sourceResponseState: rotation.sourceResponseState
     } : null,
     baselineAssistantHash: "",
-    turn
+    turn,
+    windowQueueSource: queue
   });
   process.pendingPrompt = pendingPrompt;
   process.objectiveState = {
@@ -2658,8 +3149,23 @@ async function activateQueueItem({
   settings,
   windowId,
   priorProcess = null,
-  auditSessionId = ""
+  auditSessionId = "",
+  instructionLockProcessId = "",
+  allowQueueEnable = false,
+  operatorHandoff = false
 }) {
+  const boundary = await queueActivationEffectBoundary({ queue,item,windowId,priorProcess,allowQueueEnable,operatorHandoff });
+  if (boundary.blocked) return boundary;
+  // Serialize the inbox -> durable prompt transfer with operator edits. Analysis
+  // already owns its process's instruction lock, including duplicate-GFW slots.
+  const instructionOwnerProcessId = String(item.processSnapshot?.processId ||
+    item.resume?.operatorInstruction?.processId || "");
+  if (instructionOwnerProcessId && instructionOwnerProcessId !== instructionLockProcessId) {
+    return instructionQueues.enqueue(instructionOwnerProcessId, () => activateQueueItem({
+      queue, item, settings, windowId, priorProcess, auditSessionId,
+      instructionLockProcessId: instructionOwnerProcessId, allowQueueEnable, operatorHandoff
+    }));
+  }
   let tab = null;
   if (Number.isInteger(priorProcess?.tabId)) {
     try {
@@ -2720,14 +3226,20 @@ async function activateQueueItem({
 
   const consumedProcessStatusRequest =
     String(item.resume?.processStatusRequest || "").toUpperCase() === PROCESS_STATUS_REQUEST;
+  const consumedInstruction = process.pendingPrompt?.oneShotInstruction || null;
   const activeLogicalSavedMissionId = String(item.savedMissionId || "").trim();
   queue.items = queue.items.map((candidate) => {
     const sameLogicalMission = candidate.itemId === item.itemId ||
       Boolean(activeLogicalSavedMissionId &&
         String(candidate.savedMissionId || "").trim() === activeLogicalSavedMissionId);
-    const clearedResume = consumedProcessStatusRequest && sameLogicalMission && candidate.resume
+    let clearedResume = consumedProcessStatusRequest && sameLogicalMission && candidate.resume
       ? { ...candidate.resume, processStatusRequest: "" }
       : candidate.resume;
+    if (sameLogicalMission && consumedInstruction && clearedResume?.operatorInstruction) {
+      // The inbox may supersede the parked copy; neither that copy nor any
+      // duplicate slot may replay an older, explicitly replaced instruction.
+      clearedResume = { ...clearedResume, operatorInstruction: null };
+    }
     if (candidate.itemId === item.itemId) {
       const bootstrapText = {
         goal: item.goal,
@@ -2776,6 +3288,11 @@ async function activateQueueItem({
   queue.activeItemId = item.itemId;
   queue.enabled = true;
 
+  // Composition and browser discovery are asynchronous. Check live ownership,
+  // receipts and queue revision again before publishing a replacement process.
+  const finalBoundary = await queueActivationEffectBoundary({ queue,item,windowId,priorProcess,
+    expectedProcess:boundary.current,expectedQueue:boundary.liveQueue,operatorHandoff });
+  if (finalBoundary.blocked) return finalBoundary;
   await saveProcess(process);
   const readback = await loadProcessForWindow(windowId);
   if (!readback || readback.processId !== process.processId ||
@@ -2794,7 +3311,9 @@ async function activateQueueItem({
       priority: item.priority,
       maxInteractions: item.maxInteractions,
       resumed: Boolean(item.processSnapshot),
-      freshChatRequired: true,
+      // v1.9.3: true only when this activation opens a fresh chat.
+      freshChatRequired: process.sessionRotation?.warmResume?.warm !== true,
+      interactionInQuantum: Number(process.queueContext?.interactionCount || 0) + 1,
       hardReloadBeforeResume: settings.queueSwitchHardReload === true,
       switchDelaySeconds: priorProcess?.queueContext?.itemId
         ? settings.queueSwitchDelaySeconds
@@ -2802,6 +3321,16 @@ async function activateQueueItem({
       settleSeconds: settings.queueSwitchSettleSeconds
     }
   );
+  // Consume only after the prompt and queue activation are both durable. If
+  // either write fails, the slot/inbox retains the instruction for recovery.
+  if (consumedInstruction && instructionOwnerProcessId && process.sessionRotation?.warmResume?.warm === true) {
+    const cleared = await clearNextInstruction(instructionOwnerProcessId, consumedInstruction.instructionId);
+    await audit(process, "NEXT_INSTRUCTION_CONSUMED_BY_QUEUE_ACTIVATION", "operator-input", {
+      instructionId: consumedInstruction.instructionId,
+      sourceProcessId: instructionOwnerProcessId,
+      clearedFromInbox: cleared.cleared === true
+    }).catch(() => undefined);
+  }
   if (bootstrapRefresh) {
     await audit(process, "SAVED_MISSION_BOOTSTRAP_REFRESHED", "saved-missions", {
       itemId: item.itemId,
@@ -2822,7 +3351,8 @@ async function activateQueueItem({
     resumed: Boolean(item.processSnapshot),
     activationCount: Number(process.queueContext?.activationCount || 0),
     maxInteractions: Number(item.maxInteractions || 0),
-    freshChat: true
+    interactionInQuantum: Number(process.queueContext?.interactionCount || 0) + 1,
+    freshChat: process.sessionRotation?.warmResume?.warm !== true
   });
   await setWatchdog(process);
   await broadcast(process, "mission-queue-activated");
@@ -2835,6 +3365,8 @@ async function startMissionQueue({ windowId, auditSessionId = "" }) {
   if (runtimeFault) throw new Error(runtimeFault);
   if (!Number.isInteger(windowId)) throw new Error("WINDOW_ID_REQUIRED");
   const current = await loadProcessForWindow(windowId);
+  if (queuePendingEffectNeedsReconciliation(current)) return { ok:false,
+    code:"MISSION_QUEUE_PENDING_EFFECT_RECONCILIATION_REQUIRED",process:publicSnapshot(current) };
   if (current && !TERMINAL_PHASES.has(current.phase)) {
     const error = new Error("ACTIVE_PROCESS_EXISTS");
     error.code = "ACTIVE_PROCESS_EXISTS";
@@ -2872,8 +3404,11 @@ async function startMissionQueue({ windowId, auditSessionId = "" }) {
     settings,
     windowId,
     priorProcess: current,
-    auditSessionId
+    auditSessionId,
+    allowQueueEnable: true
   });
+  if (activated.blocked) return { ok:false,code:activated.code,
+    process:publicSnapshot(activated.process),missionQueue:publicMissionWorkQueue(activated.queue) };
   return {
     ok: true,
     process: publicSnapshot(activated.process),
@@ -2908,9 +3443,161 @@ async function stopMissionQueue({ windowId, reason = "OPERATOR_QUEUE_STOP" }) {
   return { ok: true, process: publicSnapshot(process), missionQueue: publicMissionWorkQueue(saved) };
 }
 
+function terminalQueueDispatchCandidate(process) {
+  const pending=process?.pendingPrompt,dispatch=pending?.dispatch;
+  if (process?.phase !== PHASES.BLOCKED || !process.queueContext?.itemId ||
+      !["SESSION_ROTATION_PROMPT_EFFECT_UNKNOWN","SESSION_ROTATION_CHAT_READY_TIMEOUT",
+        "SESSION_ROTATION_EIC_NOT_SELECTED"].includes(process.lastError?.code) ||
+      process.storageRecoveryRequired || process.detached || process.safety?.qualityIncident ||
+      process.greenfieldControl?.hardStop || process.lastDecision?.humanAuthorityRequired === true ||
+      process.safety?.hold && process.safety.hold.code !== "DISPATCH_EFFECT_UNRESOLVED" ||
+      !Number.isSafeInteger(process.generation) || process.generation < 1 ||
+      process.generation >= Number.MAX_SAFE_INTEGER ||
+      !pending?.text || !pending.hash || !dispatch?.operationId || !dispatch.materializedUserTurnId ||
+      !Number.isSafeInteger(pending.sendAttempts) || pending.sendAttempts < 1 ||
+      dispatch.effectPossible !== true || !process.safety?.turnProof?.allowed ||
+      process.safety.turnProof.promptHash !== pending.hash) return false;
+  let envelope;
+  try {envelope=JSON.parse(pending.text);} catch {return false;}
+  const identity=envelope.process,instruction=pending.oneShotInstruction;
+  return validateA2AEnvelope(envelope).ok && JSON.stringify(envelope) === JSON.stringify(pending.a2a) &&
+    envelope.mission === process.goal && envelope.correlationId === process.runId &&
+    envelope.objective === process.objectiveState?.objective && identity.processId === process.processId &&
+    identity.runId === process.runId && identity.generation === process.generation &&
+    identity.turn === process.turn && identity.sessionSeq === process.sessionSeq &&
+    (instruction ? instruction.instructionId === envelope.operatorInstruction?.instructionId &&
+      instruction.text === envelope.operatorInstruction?.text : envelope.operatorInstruction === null);
+}
+
+function terminalQueueDispatchOwner(queue,process) {
+  const item=queueItemForProcess(queue,process);
+  return queue.enabled && queue.queueId === process.queueContext.queueId &&
+    queue.workerId === process.workerId && queue.activeItemId === item?.itemId &&
+    item?.status === QUEUE_STATUS.ACTIVE && item.savedMissionId === process.queueContext.savedMissionId;
+}
+
+async function recoverTerminalQueueDispatch(process,reason) {
+  if (!terminalQueueDispatchCandidate(process) ||
+      await sha256Hex(process.pendingPrompt.text) !== process.pendingPrompt.hash) return process;
+  const queue=await loadMissionWorkQueue(process.windowId,chrome.storage.local,{workerId:process.workerId});
+  const safety=await readSafety();
+  const binding=await getWorkerBinding(process.windowId,chrome.storage.session);
+  if (!terminalQueueDispatchOwner(queue,process) || binding?.workerId !== process.workerId ||
+      safety.admissionPaused || safety.providerHold) return process;
+
+  // Pending owns browser identity only in SENDING. This virtual view performs
+  // observation; it never enters the dispatch branch or rewrites sent bytes.
+  const sending={...process,phase:PHASES.SENDING};
+  const expected=expectedAutonomousUserTurn(sending);
+  let page,tab;
+  try {
+    await ensureContentBridgeVersion(process.tabId);
+    const observed=await bridgeMessage(process.tabId,{type:"EIC_GF_GET_PAGE_STATE",
+      source:"terminal-queue-dispatch-recheck",expectedUserTurnId:expected.id,
+      expectedUserIndex:expected.index,expectedPromptMarker:expectedPromptMarker(sending)});
+    if (observed?.ok) page=observed.state;
+    tab=await chrome.tabs.get(process.tabId);
+  } catch {}
+  const current=await loadProcessForWindow(process.windowId);
+  if (!isCurrentToken(current,ownerToken(process)) || JSON.stringify(current) !== JSON.stringify(process)) return current || process;
+  const durableConversation=conversationKey(process.lastManagedUrl || "");
+  const admissiblePage=(liveTab,policy)=>Boolean(page && liveTab &&
+    liveTab.id === process.tabId && liveTab.windowId === process.windowId &&
+    liveTab.status === "complete" && !liveTab.discarded && !liveTab.frozen &&
+    page.url === liveTab.url && conversationKey(page.url) &&
+    (!durableConversation || conversationKey(page.url) === durableConversation) &&
+    page.bridgeVersion === APP_VERSION && !page.rateLimitWarning?.active &&
+    Safety.eicSurfaceProof(page.modelEvidence,page.url,process.gptRoot).ok &&
+    Safety.evaluateModel(page.modelEvidence,policy,{url:page.url,gptRoot:process.gptRoot}).allowed &&
+    autonomousUserTurnProof(sending,page,{allowLegacyHash:false}).ok);
+  if (!admissiblePage(tab,safety.policy)) return current;
+  const reconciliation=reconcileDispatchObservation(sending,page);
+  if (reconciliation.action !== "ADVANCE_TO_WAITING" ||
+      reconciliation.resolvedUserTurnId !== process.pendingPrompt.dispatch.materializedUserTurnId) return current;
+
+  const beforeSave=async()=>{
+    const liveTab=await chrome.tabs.get(process.tabId).catch(()=>null);
+    const [liveQueue,liveSafety,liveBinding,live]=await Promise.all([
+      loadMissionWorkQueue(process.windowId,chrome.storage.local,{workerId:process.workerId}),readSafety(),
+      getWorkerBinding(process.windowId,chrome.storage.session),loadProcessForWindow(process.windowId)]);
+    if (!isCurrentToken(live,ownerToken(process)) || JSON.stringify(live) !== JSON.stringify(process) ||
+        JSON.stringify(liveQueue) !== JSON.stringify(queue) || JSON.stringify(liveSafety.policy) !== JSON.stringify(safety.policy) ||
+        !terminalQueueDispatchCandidate(live) || !terminalQueueDispatchOwner(liveQueue,live) ||
+        liveBinding?.workerId !== process.workerId || liveSafety.admissionPaused || liveSafety.providerHold ||
+        !admissiblePage(liveTab,liveSafety.policy)) return {blocked:true,process:live || process};
+    return {blocked:false};
+  };
+  const proof=Safety.evaluateModel(page.modelEvidence,safety.policy,{url:page.url,gptRoot:process.gptRoot});
+  const resumed={...sending,generation:process.generation+1,completedAt:null,lastManagedUrl:page.url,
+    safety:{...process.safety,proof,evidence:page.modelEvidence,lastObservationAtMs:Date.now()},
+    terminalDispatchRecovery:{version:1,atMs:Date.now(),reason,priorError:deepClone(process.lastError),
+      priorCompletedAt:process.completedAt,priorGeneration:process.generation,
+      promptHash:process.pendingPrompt.hash,receipt:deepClone(process.pendingPrompt.dispatch),
+      conversationUrl:page.url,turnProof:reconciliation.turnProof.code,automaticResend:false}};
+  // Reuse the ordinary proven-effect handoff. Generic BLOCKED transition
+  // rules remain closed. The guard runs after ledger calls and audit awaits.
+  const next=await commitObservedDispatchToWaiting(resumed,page,reconciliation,{beforeSave});
+  if (next?.phase === PHASES.WAITING && next.generation === resumed.generation) {
+    await consumeCheckpointedInstructions(next);
+    await audit(next,"TERMINAL_QUEUE_DISPATCH_RECONCILED","migration",{
+      reason,promptHash:next.lastPrompt.hash,dispatchId:next.lastPrompt.dispatchId,
+      priorGeneration:process.generation,generation:next.generation,automaticResend:false
+    }).catch(()=>undefined);
+  }
+  return next;
+}
+
+// Complete an interrupted terminal publication, rather than reopen BLOCKED
+// generally. Reuse the two existing narrowly classified legacy candidates;
+// queue parking alone never authorizes or dispatches their continuation.
+async function reconcileRetryableTerminalQueueSlot(process, reason) {
+  if (!process?.queueContext?.itemId || process.phase !== PHASES.BLOCKED) return null;
+  const classified = (value) => {
+    const standaloneView = { ...value, queueContext: null };
+    return legacyAdvisoryBlockedCandidate(standaloneView) || legacyRotationBlockedCandidate(standaloneView);
+  };
+  if (!classified(process) || queuePendingEffectNeedsReconciliation(process)) return null;
+  return queues.enqueue(process.processId, async () => {
+    const current = await loadProcessForWindow(process.windowId);
+    if (JSON.stringify(current) !== JSON.stringify(process)) return { process: current || process };
+    const queue = await loadMissionWorkQueue(process.windowId, chrome.storage.local, { workerId:process.workerId });
+    const binding = await getWorkerBinding(process.windowId, chrome.storage.session);
+    const safety = await readSafety();
+    if (!terminalQueueDispatchOwner(queue,current) || binding?.workerId !== current.workerId ||
+        safety.admissionPaused || safety.providerHold) return null;
+    for (const prompt of [current.pendingPrompt,current.lastPrompt,current.lastResponse].filter(Boolean)) {
+      if (!prompt.text || !prompt.hash || await sha256Hex(prompt.text) !== prompt.hash) return null;
+    }
+    const finalized = await finalizeQueueTerminalAndMaybeAdvance(current);
+    await audit(current,"MISSION_QUEUE_INTERRUPTED_BLOCKER_PUBLICATION_RECONCILED","migration",{
+      reason,itemId:current.queueContext.itemId,priorError:current.lastError?.code || "",automaticResend:false
+    }).catch(() => undefined);
+    return { process: finalized };
+  });
+}
+
 async function wakeMissionQueue(windowId, reason = "QUEUE_WAKE_ALARM") {
-  const process = await loadProcessForWindow(windowId);
-  if (process && !TERMINAL_PHASES.has(process.phase)) return process;
+  let process = await loadProcessForWindow(windowId);
+  await acceptPendingMissionDelegationsForQueue(windowId, await missionQueueForWindow(windowId), process);
+  process = await loadProcessForWindow(windowId);
+  if (terminalQueueDispatchCandidate(process)) {
+    return queues.enqueue(process.processId,async()=>{
+      const current=await loadProcessForWindow(windowId);
+      return recoverTerminalQueueDispatch(current,reason);
+    });
+  }
+  if (queuePendingEffectNeedsReconciliation(process)) return process;
+  const reconciled = await reconcileRetryableTerminalQueueSlot(process,reason);
+  if (reconciled) return reconciled.process;
+  if (process && !TERMINAL_PHASES.has(process.phase)) {
+    if (process.phase === PHASES.PAUSED && process.queueContext?.itemId) {
+      // Serialize with the active tick, then the instruction mailbox. A
+      // newly runnable slot must not wait behind another GFW's process pause.
+      return queues.enqueue(process.processId, async () =>
+        await advancePausedQueueMission(process.processId) || loadProcessForWindow(windowId));
+    }
+    return process;
+  }
   await reconcileTerminalQueueSlot(process);
   const { queue, settings } = await missionQueueForWindow(windowId);
   if (!queue.enabled) return process;
@@ -2929,6 +3616,7 @@ async function wakeMissionQueue(windowId, reason = "QUEUE_WAKE_ALARM") {
     priorProcess: process,
     auditSessionId: process?.auditSessionId || BACKGROUND_AUDIT_SESSION_ID
   });
+  if (activated.blocked) return activated.process;
   await audit(activated.process, "MISSION_QUEUE_WAKE_ACTIVATED", "mission-work-queue", {
     reason,
     itemId: item.itemId
@@ -3231,19 +3919,12 @@ async function registerResponseMissionDelegations(process, targetResponse) {
       })),
       duplicates: result.duplicates.map((item) => item.requestId),
       supervisorContinues: true,
+      // v1.9.3: the request is appended to this same window's queue on a
+      // later tick of this worker, never inside the delegating answer.
+      targetQueue: "SAME_WINDOW_QUEUE",
       selfQueueMutation: false
     }).catch(() => undefined);
-
-    // The supervising worker never inserts into its own queue. It only wakes
-    // already-running queue-managed workers so one of them can accept the
-    // durable request inside that worker's own queue context.
-    const workers = await loadAllProcesses().catch(() => []);
-    for (const worker of workers) {
-      if (!worker?.processId || worker.processId === process.processId) continue;
-      if (Number(worker.windowId) === Number(process.windowId)) continue;
-      if (!worker.queueContext?.itemId || TERMINAL_PHASES.has(worker.phase)) continue;
-      scheduleFast(worker.processId, 100);
-    }
+    scheduleFast(process.processId, 100);
     return result;
   } catch (error) {
     await audit(process, "MISSION_DELEGATION_REQUEST_PERSIST_FAILED", "mission-delegation", {
@@ -3255,108 +3936,106 @@ async function registerResponseMissionDelegations(process, targetResponse) {
   }
 }
 
+async function acceptPendingMissionDelegationsForQueue(targetWindowId, queueState, process = null) {
+  const queueId = String(queueState?.queue?.queueId || "");
+  if (!Number.isInteger(Number(targetWindowId)) || !queueId || !queueState.queue.enabled) return queueState?.queue || null;
+  const context = process || { windowId: targetWindowId, workerId: queueState.worker.workerId,
+    auditSessionId: BACKGROUND_AUDIT_SESSION_ID };
+  // Queue ownership, not a live process phase, controls admission. Serialize
+  // the whole bounded pass so wake/recovery/tick cannot double-claim a row.
+  return missionDelegationQueues.enqueue(`queue:${queueId}`, async () => {
+    let latest = queueState.queue;
+    const registry = await loadMissionDelegationRegistry(chrome.storage.local);
+    if (!registry.items.some(row => ["PENDING", "ASSIGNED"].includes(row.state) &&
+        (row.sourceQueueId === queueId || row.targetQueueId === queueId))) return latest;
+    const liveTargetQueueIds = [];
+    for (const window of await chrome.windows.getAll({})) {
+      const bound = window.id === Number(targetWindowId) ? queueState : await missionQueueForWindow(window.id);
+      if (bound.queue.enabled) liveTargetQueueIds.push(bound.queue.queueId);
+    }
+    for (let index = 0; index < MAX_MISSION_DELEGATIONS; index++) {
+      const bound = await missionQueueForWindow(targetWindowId);
+      if (!bound.queue.enabled || bound.queue.queueId !== queueId ||
+          bound.worker.workerId !== queueState.worker.workerId) break;
+      latest = bound.queue;
+      let delegation;
+      try {
+        const claim = await missionDelegationQueues.enqueue("registry", () =>
+          claimPendingMissionDelegationForWorker({ targetWindowId, targetQueueId: queueId }, chrome.storage.local, {
+            liveTargetQueueIds, queueFull: latest.items.length >= MAX_QUEUE_ITEMS,
+            targetQueueRequestIds: [...latest.items, ...latest.history].map(item => item.delegation?.requestId).filter(Boolean)
+          }));
+        delegation = claim.delegation;
+      } catch (error) {
+        await audit(context, "MISSION_DELEGATION_CLAIM_FAILED", "mission-delegation", { error: errorRecord(error) }).catch(() => undefined);
+        break;
+      }
+      if (!delegation) break;
+      try {
+        // Operator stop/rebind during the claim wins before queue insertion.
+        const fresh = await missionQueueForWindow(targetWindowId);
+        if (!fresh.queue.enabled || fresh.queue.queueId !== queueId ||
+            fresh.worker.workerId !== queueState.worker.workerId) {
+          throw Object.assign(new Error("MISSION_DELEGATION_QUEUE_CHANGED"), { code: "MISSION_DELEGATION_QUEUE_CHANGED" });
+        }
+        latest = await addMissionWorkItem(targetWindowId, delegation.mission, {
+          storage: chrome.storage.local, workerId: fresh.worker.workerId,
+          priority: delegation.priority, maxInteractions: fresh.settings.defaultMissionQuantumInteractions,
+          label: delegation.label || "EIC-delegerat uppdrag",
+          delegation: { requestId: delegation.requestId, relation: delegation.relation,
+            sourceWindowId: delegation.sourceWindowId, sourceQueueId: delegation.sourceQueueId,
+            sourceItemId: delegation.sourceItemId, sourceProcessId: delegation.sourceProcessId,
+            createdBy: "EIC_DELEGATED_FROM_OTHER_GFW", createdAt: delegation.createdAt }
+        });
+        const targetItem = [...latest.items, ...latest.history].find(item => item.delegation?.requestId === delegation.requestId);
+        if (!targetItem) throw new Error("MISSION_DELEGATION_TARGET_ITEM_READBACK_MISSING");
+        await missionDelegationQueues.enqueue("registry", () => targetItem.status === QUEUE_STATUS.DONE
+          ? markMissionDelegationCompleted(delegation.requestId, chrome.storage.local)
+          : markMissionDelegationApplied(delegation.requestId, targetItem.itemId, chrome.storage.local));
+        await syncMissionQueueWakeAlarm(latest).catch(() => undefined);
+        await audit(context, "MISSION_DELEGATION_ACCEPTED_BY_WORKER", "mission-delegation", {
+          requestId: delegation.requestId, relation: delegation.relation,
+          sourceWindowId: delegation.sourceWindowId, sourceQueueId: delegation.sourceQueueId,
+          sourceItemId: delegation.sourceItemId, targetWindowId, targetQueueId: latest.queueId,
+          targetItemId: targetItem.itemId, targetStatus: targetItem.status,
+          sameWindowAsSource: delegation.sourceQueueId === latest.queueId
+        }).catch(() => undefined);
+      } catch (error) {
+        await missionDelegationQueues.enqueue("registry", () => releaseMissionDelegation(
+          delegation.requestId, errorRecord(error), chrome.storage.local)).catch(() => undefined);
+        await audit(context, "MISSION_DELEGATION_WORKER_ACCEPT_FAILED", "mission-delegation", {
+          requestId: delegation.requestId, error: errorRecord(error)
+        }).catch(() => undefined);
+      }
+    }
+    return latest;
+  });
+}
+
 async function acceptPendingMissionDelegationForWorker(process) {
-  if (!process?.queueContext?.itemId || TERMINAL_PHASES.has(process.phase)) return process;
-  const targetWindowId = Number(process.windowId);
-  if (!Number.isInteger(targetWindowId)) return process;
-
-  let queueState;
+  if (!process?.queueContext?.itemId || !process.queueContext.queueId) return process;
   try {
-    queueState = await missionQueueForWindow(targetWindowId);
-  } catch {
-    return process;
-  }
-  if (!queueState?.queue?.queueId ||
-      String(queueState.queue.queueId) !== String(process.queueContext.queueId || "")) {
-    return process;
-  }
-
-  let delegation = null;
-  try {
-    const liveProcesses = await loadAllProcesses().catch(() => []);
-    const liveTargetQueueIds = liveProcesses
-      .filter((candidate) => candidate?.queueContext?.queueId && !TERMINAL_PHASES.has(candidate.phase))
-      .map((candidate) => String(candidate.queueContext.queueId));
-    const claim = await missionDelegationQueues.enqueue("registry", () =>
-      claimPendingMissionDelegationForWorker({
-        targetWindowId,
-        targetQueueId: queueState.queue.queueId
-      }, chrome.storage.local, { liveTargetQueueIds })
-    );
-    delegation = claim?.delegation || null;
+    const state = await missionQueueForWindow(process.windowId);
+    if (state.queue.queueId !== process.queueContext.queueId || !state.queue.enabled) return process;
+    await acceptPendingMissionDelegationsForQueue(process.windowId, state, process);
+    const current = await loadProcessForWindow(process.windowId);
+    if (current?.processId !== process.processId) return current || process;
+    // Existing pause recovery owns its instruction/effect/deadline guards.
+    if (current.phase === PHASES.PAUSED) return await advancePausedQueueMission(current.processId) || current;
+    return current;
   } catch (error) {
-    await audit(process, "MISSION_DELEGATION_CLAIM_FAILED", "mission-delegation", {
-      error: errorRecord(error)
-    }).catch(() => undefined);
-    return process;
+    await audit(process, "MISSION_DELEGATION_CLAIM_FAILED", "mission-delegation", { error: errorRecord(error) }).catch(() => undefined);
+    return await loadProcessForWindow(process.windowId) || process;
   }
-  if (!delegation) return process;
-
-  try {
-    const savedQueue = await addMissionWorkItem(targetWindowId, delegation.mission, {
-      storage: chrome.storage.local,
-      workerId: queueState.worker.workerId,
-      priority: delegation.priority,
-      maxInteractions: queueState.settings.defaultMissionQuantumInteractions,
-      label: delegation.label || "EIC-delegerat uppdrag",
-      delegation: {
-        requestId: delegation.requestId,
-        relation: delegation.relation,
-        sourceWindowId: delegation.sourceWindowId,
-        sourceQueueId: delegation.sourceQueueId,
-        sourceItemId: delegation.sourceItemId,
-        sourceProcessId: delegation.sourceProcessId,
-        createdBy: "EIC_DELEGATED_FROM_OTHER_GFW",
-        createdAt: delegation.createdAt
-      }
-    });
-    const targetItem = [...savedQueue.items, ...savedQueue.history]
-      .find((item) => item.delegation?.requestId === delegation.requestId);
-    if (!targetItem) throw new Error("MISSION_DELEGATION_TARGET_ITEM_READBACK_MISSING");
-
-    await missionDelegationQueues.enqueue("registry", async () => {
-      if (targetItem.status === QUEUE_STATUS.DONE) {
-        return markMissionDelegationCompleted(delegation.requestId, chrome.storage.local);
-      }
-      return markMissionDelegationApplied(
-        delegation.requestId,
-        targetItem.itemId,
-        chrome.storage.local
-      );
-    });
-
-    await syncMissionQueueWakeAlarm(savedQueue).catch(() => undefined);
-    await audit(process, "MISSION_DELEGATION_ACCEPTED_BY_WORKER", "mission-delegation", {
-      requestId: delegation.requestId,
-      relation: delegation.relation,
-      sourceWindowId: delegation.sourceWindowId,
-      sourceQueueId: delegation.sourceQueueId,
-      sourceItemId: delegation.sourceItemId,
-      targetWindowId,
-      targetQueueId: savedQueue.queueId,
-      targetItemId: targetItem.itemId,
-      targetStatus: targetItem.status,
-      supervisorSelfCreation: false
-    }).catch(() => undefined);
-  } catch (error) {
-    await missionDelegationQueues.enqueue("registry", () =>
-      releaseMissionDelegation(
-        delegation.requestId,
-        errorRecord(error),
-        chrome.storage.local
-      )
-    ).catch(() => undefined);
-    await audit(process, "MISSION_DELEGATION_WORKER_ACCEPT_FAILED", "mission-delegation", {
-      requestId: delegation.requestId,
-      error: errorRecord(error)
-    }).catch(() => undefined);
-  }
-  return process;
 }
 
 async function makeDelegationSourceRetryable(delegation, targetProcess) {
   if (String(delegation?.relation || "") !== MISSION_DELEGATION_RELATION.UNBLOCKS_CURRENT) return;
-  const sourceWindowId = Number(delegation?.sourceWindowId);
+  const sameQueue = Boolean(delegation?.sourceQueueId) &&
+    String(delegation.sourceQueueId) === String(targetProcess?.queueContext?.queueId || "");
+  // Numeric window ids change across Chrome restarts; the stable queue id
+  // proves same-queue ownership, so use the finishing child's live window.
+  const sourceWindowId = Number(sameQueue ? targetProcess?.windowId : delegation?.sourceWindowId);
   if (!Number.isInteger(sourceWindowId)) return;
 
   let sourceWindow = null;
@@ -3402,7 +4081,11 @@ async function makeDelegationSourceRetryable(delegation, targetProcess) {
       sourceItemId: delegation.sourceItemId
     }
   ).catch(() => undefined);
-  void wakeMissionQueue(sourceWindowId, "DELEGATED_UNBLOCKER_COMPLETED");
+  // Same-queue terminal finalization owns the next selection and activation.
+  // A detached wake here races that owner and writes the worker process twice.
+  if (!sameQueue) {
+    void wakeMissionQueue(sourceWindowId, "DELEGATED_UNBLOCKER_COMPLETED").catch(() => undefined);
+  }
 }
 
 async function completeMissionDelegationForQueueItem(process, item, queueStatus) {
@@ -3433,7 +4116,8 @@ async function parkQueueMissionAfterAnalysis({
   pauseSeconds = null,
   requestedSessionAction = "KEEP",
   quantumReached = false,
-  scheduleBlock = ""
+  scheduleBlock = "",
+  outcomeOverride = ""
 }) {
   const { queue, settings } = await missionQueueForWindow(current.windowId);
   const item = queueItemForProcess(queue, current);
@@ -3486,7 +4170,7 @@ async function parkQueueMissionAfterAnalysis({
   const isSameLogicalMission = (candidate) =>
     candidate.itemId === item.itemId ||
     Boolean(logicalSavedMissionId && String(candidate.savedMissionId || "").trim() === logicalSavedMissionId);
-  const outcome = scheduleBlock
+  const outcome = outcomeOverride || (scheduleBlock
     ? scheduleParkOutcome(scheduleBlock)
     : requestedSessionAction === "BACKGROUND_SLEEP"
     ? "EIC_BACKGROUND_SLEEP"
@@ -3496,7 +4180,7 @@ async function parkQueueMissionAfterAnalysis({
         ? "EIC_PAUSE_PARKED"
         : quantumReached
           ? "QUANTUM_EXHAUSTED"
-          : "MISSION_QUEUE_PARKED";
+          : "MISSION_QUEUE_PARKED");
   const summary = String(result.targetResponse?.summary || effectiveDecision?.analysis || "").slice(0, 2000);
   return parkSlotAndActivateNext({
     current,
@@ -3510,7 +4194,9 @@ async function parkQueueMissionAfterAnalysis({
     resumedQuantumProgress,
     pauseUntilMs,
     latestInstruction,
-    idleWhenNoNext: Boolean(scheduleBlock),
+    instructionLockProcessId: current.processId,
+    idleWhenNoNext: Boolean(scheduleBlock) || (quantumReached && Number(item.schedule?.minIntervalMinutes || 0) > 0),
+    quantumCompleted: quantumReached,
     parkDetail: {
       completedInteractions,
       maxInteractions,
@@ -3537,23 +4223,38 @@ async function parkSlotAndActivateNext({
   resumedQuantumProgress,
   pauseUntilMs = 0,
   latestInstruction = null,
+  instructionLockProcessId = "",
   parkDetail = {},
-  idleWhenNoNext = false
+  idleWhenNoNext = false,
+  quantumCompleted = false,
+  operatorHandoff = false
 }) {
   const now = Date.now();
+  // Park is not instruction delivery. Keep a restart-safe copy on every slot
+  // of this logical GFW; an unsent pending prompt may own an earlier instruction.
+  const pendingInstruction = current.pendingPrompt?.dispatch?.acknowledged === true
+    ? null : current.pendingPrompt?.oneShotInstruction;
+  const parkedInstruction = latestInstruction || await readNextInstruction(current.processId) ||
+    pendingInstruction || resume?.operatorInstruction || item.resume?.operatorInstruction || null;
+  const parkedResume = parkedInstruction ? {
+    ...(resume || {}),
+    operatorInstruction: { ...deepClone(parkedInstruction), processId: current.processId }
+  } : resume;
 
   // The scheduling slot owns quantum progress, while savedMissionId owns the
   // logical continuation. Duplicate slots therefore share the newest mission
-  // checkpoint without sharing independent counters/timing.
+  // checkpoint without sharing independent counters/round-trip telemetry.
+  // A complete quantum starts the shared logical GFW interval.
   queue.items = applyQueueParkTransition(queue.items, item, {
     pauseUntilMs,
     resumedQuantumProgress,
     parkedSnapshot,
-    resume,
+    resume: parkedResume,
     outcome,
     summary,
     now,
-    responseRoundTripMs: latestResponseRoundTripMs(current.sessionHealth)
+    responseRoundTripMs: latestResponseRoundTripMs(current.sessionHealth),
+    quantumCompleted
   });
   queue.activeItemId = "";
   queue.cursorOrder = Number(item.order);
@@ -3598,9 +4299,6 @@ async function parkSlotAndActivateNext({
     }
   );
 
-  if (latestInstruction) {
-    await clearNextInstruction(current.processId, latestInstruction.instructionId).catch(() => undefined);
-  }
   const selectedReadback = selectNextMissionItem(saved, {
     afterOrder: saved.cursorOrder,
     excludeItemId: item.itemId
@@ -3616,7 +4314,9 @@ async function parkSlotAndActivateNext({
     settings,
     windowId: current.windowId,
     priorProcess: current,
-    auditSessionId: current.auditSessionId
+    auditSessionId: current.auditSessionId,
+    instructionLockProcessId,
+    operatorHandoff
   });
   return activated.process;
 }
@@ -3644,7 +4344,7 @@ async function activeSlotScheduleBlock(process, now = Date.now()) {
 }
 
 function earliestQueueWakeAtMs(queue, now = Date.now()) {
-  const times = (queue?.items || [])
+  const times = (queue?.items || []).filter(item=>!queueItemNeedsEffectReconciliation(queue,item))
     .map((candidate) => queueItemNextRunnableAtMs(candidate, now))
     .filter((when) => Number.isFinite(when) && when > now)
     .sort((a, b) => a - b);
@@ -3929,6 +4629,15 @@ async function parkQueueMissionAfterStale(process) {
 
 async function finalizeQueueTerminalAndMaybeAdvance(process) {
   if (!process?.queueContext?.itemId) return process;
+  const current = await loadProcessForWindow(process.windowId);
+  if (!isCurrentToken(current,ownerToken(process)) || JSON.stringify(current) !== JSON.stringify(process)) return current || process;
+  if (queuePendingEffectNeedsReconciliation(current)) {
+    await audit(current,"MISSION_QUEUE_TERMINAL_EFFECT_HELD","mission-work-queue",{
+      code:"MISSION_QUEUE_PENDING_EFFECT_RECONCILIATION_REQUIRED",automaticResend:false,
+      dispatchId:current.pendingPrompt?.dispatch?.operationId || "",promptHash:current.pendingPrompt?.hash || ""
+    }).catch(()=>undefined);
+    return current;
+  }
   const { queue, settings } = await missionQueueForWindow(process.windowId);
   const item = queueItemForProcess(queue, process);
   if (!item) return process;
@@ -3949,13 +4658,18 @@ async function finalizeQueueTerminalAndMaybeAdvance(process) {
   // same saved GFW receives the same cooldown/checkpoint so duplicate placement
   // cannot create a hot-loop around one logical blocker.
   if (process.phase === PHASES.BLOCKED) {
-    const resume = queueResumeRecordFromAnalysis({
+    const baseResume = queueResumeRecordFromAnalysis({
       current: process,
       effectiveNextPrompt: process.objectiveState?.objective || process.goal,
       previousDisposition: process.lastDecision?.disposition || "BLOCKED",
       analysisEvidence: null,
       sessionReason: lastOutcome
     });
+    // Local inbox acknowledgement means that the prompt claimed an instruction,
+    // not that ChatGPT received it. Preserve it on every logical duplicate.
+    const instruction = await readNextInstruction(process.processId) || process.pendingPrompt?.oneShotInstruction ||
+      item.resume?.operatorInstruction || null;
+    const resume = instruction ? { ...baseResume,operatorInstruction:deepClone(instruction) } : baseResume;
     const blockedQueue = requeueBlockedMissionWorkItem(queue, item.itemId, {
       processSnapshot: deepClone(process),
       resume,
@@ -3964,6 +4678,9 @@ async function finalizeQueueTerminalAndMaybeAdvance(process) {
       lastError: process.lastError ? deepClone(process.lastError) : null,
       retryAfterSeconds: settings.queuePriorityAgingSeconds
     });
+    const beforePark = await queueActivationEffectBoundary({ queue,item,
+      windowId:process.windowId,priorProcess:process });
+    if (beforePark.blocked) return beforePark.process;
     const saved = await persistMissionQueue(
       blockedQueue,
       settings,
@@ -4011,17 +4728,23 @@ async function finalizeQueueTerminalAndMaybeAdvance(process) {
   if (!retirement) return process;
   const { saved, finalized } = retirement;
   await completeMissionDelegationForQueueItem(process, finalized, queueStatus);
+  // Completing an unblocker can update the same queue. Never select or persist
+  // an activation from the pre-completion snapshot/revision.
+  const selectionQueue = finalized.delegation?.relation === MISSION_DELEGATION_RELATION.UNBLOCKS_CURRENT &&
+      String(finalized.delegation?.sourceQueueId || "") === String(saved.queueId || "")
+    ? (await missionQueueForWindow(process.windowId)).queue
+    : saved;
   await cancelSchedulerProcess(process, `MISSION_QUEUE_${queueStatus}`).catch(() => undefined);
   try { await chrome.alarms.clear(alarmName(process.processId)); } catch {}
   try { await chrome.alarms.clear(missionPauseAlarmName(process.processId)); } catch {}
 
-  if (!saved.enabled || process.phase === PHASES.AUDIT_FAILURE) return process;
-  const nextItem = selectNextMissionItem(saved, {
-    afterOrder: saved.cursorOrder
+  if (!selectionQueue.enabled || process.phase === PHASES.AUDIT_FAILURE) return process;
+  const nextItem = selectNextMissionItem(selectionQueue, {
+    afterOrder: selectionQueue.cursorOrder
   });
   if (!nextItem) return process;
   const activated = await activateQueueItem({
-    queue: saved,
+    queue: selectionQueue,
     item: nextItem,
     settings,
     windowId: process.windowId,
@@ -4068,10 +4791,16 @@ async function armSessionRotation(process, {
   analysisEvidence = null,
   sourceResponseState = "",
   operatorInstruction = null,
-  processStatusMode = ""
+  processStatusMode = "",
+  beforeSave = null
 } = {}) {
   if (!process || TERMINAL_PHASES.has(process.phase)) return process;
   if (process.phase === PHASES.ROTATING) return process;
+  if (isInitializationPrompt(process.pendingPrompt) || waitingForInitialization(process)) {
+    const work = process.sessionInitialization?.workPrompt;
+    operatorInstruction ||= work?.oneShotInstruction || null;
+    objective ||= work?.a2a?.objective || process.objectiveState?.objective || process.goal;
+  }
   await recordIncident(process, "SESSION_ROTATION_ARMED", reasonCode, {
     requestedBy,
     fromPhase: String(process.phase || ""),
@@ -4153,6 +4882,9 @@ async function armSessionRotation(process, {
     sessionSeq: nextSessionSeq,
     gptRoot: resolved.gptRoot,
     sessionRotation: rotation,
+    missionPause: process.missionPause?.resumeSessionAction
+      ? { ...process.missionPause, resumeSessionAction: "" }
+      : process.missionPause,
     turn: nextTurn,
     sessionHealth: rotatedSessionHealth
   };
@@ -4177,6 +4909,7 @@ async function armSessionRotation(process, {
     sessionSeq: nextSessionSeq,
     gptRoot: resolved.gptRoot,
     sessionRotation: rotation,
+    missionPause: virtual.missionPause,
     turn: nextTurn,
     sessionHealth: rotatedSessionHealth,
     pendingPrompt,
@@ -4195,6 +4928,7 @@ async function armSessionRotation(process, {
   }, {
     kind: "SESSION_ROTATION_ARMED",
     component: "session-rotation",
+    beforeSave,
     detail: {
       rotationId,
       reasonCode,
@@ -4261,6 +4995,7 @@ async function abandonWarmResume(process, rotation, code, detail = {}) {
   const pendingPrompt = await buildPendingA2A(coldProcess, {
     objective,
     messageType: "SESSION_ROTATION",
+    operatorInstruction: plan.operatorInstruction || process.pendingPrompt?.oneShotInstruction || null,
     previousResponseHash: plan.previousResponseHash || process.lastResponse?.hash || "",
     previousDisposition: plan.previousDisposition || "CONTINUE",
     analysisEvidence: plan.analysisEvidence || null,
@@ -4495,6 +5230,111 @@ async function steerRotationToEic(process, rotation, tab, gptRoot, landing, page
   return process;
 }
 
+async function commitFreshRotationReady(process, rotation, tab, page, gptRoot, landing, detail = {}) {
+  const readyRotation = {
+    ...rotation,
+    state: SESSION_ROTATION_STATES.READY_TO_RESUME,
+    targetTabId: tab.id,
+    readyAt: nowIso()
+  };
+  const pendingPrompt = {
+    ...process.pendingPrompt,
+    baselineAssistantHash: page.assistantHash || "",
+    sendAttempts: 0,
+    dispatch: null,
+    promptPause: null
+  };
+  const initialization = await prepareSessionInitialization(process, pendingPrompt, page);
+  const next = await commitTransition(process, PHASES.SENDING, {
+    tabId: tab.id,
+    gptRoot,
+    sessionRotation: readyRotation,
+    ...initialization,
+    deliveryRetry: null,
+    deliveryNotice: null,
+    responseCandidate: null,
+    waitingRefresh: null,
+    lastError: null,
+    lastMaterialAt: nowIso()
+  }, {
+    kind: "SESSION_ROTATION_READY_TO_RESUME",
+    component: "session-rotation",
+    beforeSave: () => transportTransitionBoundary(process),
+    detail: {
+      rotationId: rotation.rotationId,
+      targetTabId: tab.id,
+      gptRoot,
+      newChatVerified: true,
+      eicSurface: landing.kind,
+      observedUserCount: Number(page.userCount || 0),
+      composerReady: page.composerReady === true,
+      messageType: pendingPrompt.a2a?.messageType || "",
+      ...detail
+    }
+  });
+  scheduleFast(next.processId, 50);
+  return next;
+}
+
+function expiredRotationCheckpointSafe(process, rotation, tab) {
+  return process?.phase === PHASES.ROTATING && rotation?.state === SESSION_ROTATION_STATES.NAVIGATING &&
+    tab?.windowId === process.windowId && tab.id === process.tabId &&
+    rotation.targetTabId === tab.id && tab.status === "complete" && !tab.discarded && !tab.frozen &&
+    !warmResumeTarget(rotation) &&
+    (!rotation.hardReloadBeforeResume || ["COMPLETED", "DISABLED"].includes(rotation.hardReloadState)) &&
+    !process.storageRecoveryRequired && !process.safety?.qualityIncident && !process.safety?.hold &&
+    !process.pendingPrompt?.dispatch && process.pendingPrompt?.sendAttempts === 0;
+}
+
+async function recheckExpiredRotationReady(process, rotation, tab, gptRoot, navigationAgeMs) {
+  // A suspended worker's wall-clock deadline is not evidence of an auth wall.
+  // Recheck only an unsent cold rotation; unresolved effects stay closed.
+  if (!expiredRotationCheckpointSafe(process, rotation, tab) ||
+      await sha256Hex(process.pendingPrompt.text) !== process.pendingPrompt.hash) return { handled: false };
+  let page, liveTab;
+  try {
+    await ensureContentBridgeVersion(tab.id);
+    const observed = await bridgeMessage(tab.id, {
+      type: "EIC_GF_GET_PAGE_STATE", source: "expired-session-rotation-ready-check",
+      expectedUserTurnId: "", expectedUserIndex: null
+    });
+    if (observed?.ok) {
+      page = observed.state;
+      liveTab = await chrome.tabs.get(tab.id);
+    }
+  } catch {}
+
+  const queue = await loadMissionWorkQueue(process.windowId, chrome.storage.local, { workerId: process.workerId });
+  const safety = await readSafety();
+  const current = await loadProcessForWindow(process.windowId);
+  // Read back after browser calls so a late result cannot replace STOP, a new
+  // run, changed prompt bytes, or a different rotation checkpoint.
+  if (!isCurrentToken(current, ownerToken(process)) || current.phase !== PHASES.ROTATING ||
+      current.turn !== process.turn || current.sessionSeq !== process.sessionSeq ||
+      current.gptRoot !== process.gptRoot || current.goal !== process.goal ||
+      JSON.stringify(current.queueContext) !== JSON.stringify(process.queueContext) ||
+      JSON.stringify(current.sessionRotation) !== JSON.stringify(rotation) ||
+      JSON.stringify(current.pendingPrompt) !== JSON.stringify(process.pendingPrompt)) {
+    return { handled: true, process: current || process };
+  }
+  if (!page || !liveTab) return { handled: false };
+  if (!expiredRotationCheckpointSafe(current, current.sessionRotation, liveTab) ||
+      safety.admissionPaused || safety.providerHold) return { handled: true, process: current };
+  if (current.queueContext?.itemId
+      ? !queue.enabled || queue.activeItemId !== current.queueContext.itemId
+      : queue.enabled) return { handled: true, process: current };
+  const proof = Safety.evaluateModel(page?.modelEvidence, safety.policy, { url: page?.url, gptRoot });
+  const landing = Safety.eicSurfaceProof(page?.modelEvidence, page?.url, gptRoot);
+  if (!proof.allowed || !landing.ok || page?.bridgeVersion !== APP_VERSION ||
+      page?.url !== liveTab.url || page.userCount !== 0 ||
+      page.composerReady !== true || page.composerEmpty !== true || page.generating !== false ||
+      page.rateLimitWarning?.active || providerTransportPending(page)) return { handled: false };
+
+  return { handled: true, process: await commitFreshRotationReady(current, current.sessionRotation,
+    liveTab, page, gptRoot, landing, { expiredDeadlineRechecked: true, navigationAgeMs,
+      automaticResend: false, modelProof: proof.code }) };
+}
+
 async function tickRotating(process) {
   const rotation = process.sessionRotation;
   if (!rotation?.rotationId || !process.pendingPrompt?.text || !process.pendingPrompt?.hash) {
@@ -4508,6 +5348,10 @@ async function tickRotating(process) {
       component: "session-rotation"
     });
   }
+
+  // A cold session still owes its ping. Its held work/inbox instruction is
+  // acknowledged only after initialization releases the real work prompt.
+  if (rotation.warmResume?.warm === true) await consumeCheckpointedInstructions(process);
 
   if (rotation.eicDiscovery && rotation.eicDiscovery.state !== "BOUND") return tickEicRootDiscovery(process, rotation);
 
@@ -4680,6 +5524,11 @@ async function tickRotating(process) {
     Date.now() - (Date.parse(rotation.navigationStartedAt || rotation.requestedAt || "") || Date.now())
   );
   const eicLandingFirstMs = Number(rotation.eicLanding?.firstUnverifiedAtMs || 0);
+  if ((eicLandingFirstMs && Date.now() - eicLandingFirstMs >= EIC_LANDING_TIMEOUT_MS) ||
+      navigationAgeMs >= 5 * 60 * 1000) {
+    const rechecked = await recheckExpiredRotationReady(process, rotation, tab, gptRoot, navigationAgeMs);
+    if (rechecked.handled) return rechecked.process;
+  }
   if (eicLandingFirstMs && Date.now() - eicLandingFirstMs >= EIC_LANDING_TIMEOUT_MS) {
     const error = Object.assign(new Error("SESSION_ROTATION_EIC_NOT_SELECTED"), {
       code: "SESSION_ROTATION_EIC_NOT_SELECTED"
@@ -4875,7 +5724,7 @@ async function tickRotating(process) {
     return process;
   }
 
-  if (page.composerReady !== true || page.composerEmpty !== true || page.generating === true) {
+  if (page.composerReady !== true || page.composerEmpty !== true || page.generating === true || providerTransportPending(page)) {
     scheduleFast(process.processId, 900);
     return process;
   }
@@ -4885,44 +5734,7 @@ async function tickRotating(process) {
   const landing = Safety.eicSurfaceProof(page.modelEvidence, page.url || tab.url || "", gptRoot);
   if (!landing.ok) return steerRotationToEic(process, rotation, tab, gptRoot, landing, page);
 
-  const readyRotation = {
-    ...rotation,
-    state: SESSION_ROTATION_STATES.READY_TO_RESUME,
-    targetTabId: tab.id,
-    readyAt: nowIso()
-  };
-  const pendingPrompt = {
-    ...process.pendingPrompt,
-    baselineAssistantHash: page.assistantHash || "",
-    sendAttempts: 0,
-    dispatch: null,
-    promptPause: null
-  };
-  const next = await commitTransition(process, PHASES.SENDING, {
-    tabId: tab.id,
-    gptRoot,
-    sessionRotation: readyRotation,
-    pendingPrompt,
-    responseCandidate: null,
-    waitingRefresh: null,
-    lastError: null,
-    lastMaterialAt: nowIso()
-  }, {
-    kind: "SESSION_ROTATION_READY_TO_RESUME",
-    component: "session-rotation",
-    detail: {
-      rotationId: rotation.rotationId,
-      targetTabId: tab.id,
-      gptRoot,
-      newChatVerified: true,
-      eicSurface: landing.kind,
-      observedUserCount: Number(page.userCount || 0),
-      composerReady: page.composerReady === true,
-      messageType: pendingPrompt.a2a?.messageType || ""
-    }
-  });
-  scheduleFast(next.processId, 50);
-  return next;
+  return commitFreshRotationReady(process, rotation, tab, page, gptRoot, landing);
 }
 
 async function enterRecovery(process, error, recoverTo) {
@@ -4988,6 +5800,7 @@ async function upgradeCompactPendingPrompt(process, page) {
       hash: fallback.hash,
       a2a: fallback.a2a,
       promptProfile: fallback.promptProfile || upgradedFullProfile(pending.promptProfile),
+      metrics: fallback.metrics || pending.metrics || null,
       fullFallback: null,
       promptPause: null
     },
@@ -5005,6 +5818,120 @@ async function upgradeCompactPendingPrompt(process, page) {
   return upgraded;
 }
 
+async function commitObservedDispatchToWaiting(process,page,reconciliation,{beforeSave=null}={}) {
+  const pending=process.pendingPrompt;
+  const {fence,turnProof,resolvedUserTurnId,resolvedUserTurnIndex}=reconciliation;
+  const evidence = fence.evidence;
+  await adoptSchedulerTurnForObservedEffect(
+    process,
+    pending.hash,
+    fence.action
+  ).catch(() => undefined);
+  const postedAtMs = Date.now();
+  if (pending.promptPause?.reservationId) {
+    const gate = await commitGlobalPromptPost({
+      reservationId: pending.promptPause.reservationId,
+      processId: process.processId,
+      windowId: process.windowId,
+      promptHash: pending.hash,
+      postedAtMs
+    });
+    await audit(process, "GLOBAL_PROMPT_POST_COMMITTED", "prompt-gate", {
+      reservationId: pending.promptPause.reservationId,
+      promptHash: pending.hash,
+      lastPromptPostedAtMs: gate.lastPromptPostedAtMs,
+      source: fence.action
+    });
+  }
+  const next = await commitTransition(process, PHASES.WAITING, {
+    lastPrompt: {
+      text: pending.text,
+      hash: pending.hash,
+      usageId: process.safety?.turnProof?.usageId || usageIdentity(process,pending),
+      modelProof: process.safety?.turnProof || null,
+      sentAt: pending.dispatch?.startedAt || nowIso(),
+      postedAtMs,
+      acknowledged: fence.acknowledged === true || pending.dispatch?.acknowledged === true,
+      acknowledgementEvidence: evidence,
+      method: pending.dispatch?.method || (fence.action === "ALREADY_MATERIALIZED" ? "external-or-prior-materialization" : ""),
+      dispatchId: pending.dispatch?.operationId || "",
+      baselineAssistantHash: pending.baselineAssistantHash || page.assistantHash || "",
+      baselineAssistantId: page.lastAssistantId || "",
+      baselineAssistantCount: Number(page.assistantCount || 0),
+      dispatchedUserTurnId: resolvedUserTurnId,
+      dispatchedUserTurnIndex: resolvedUserTurnIndex,
+      // v1.8.11: how the user turn was bound (PROMPT_MARKER, USER_COUNT or
+      // OPERATOR via "Läs svar"); kept after the pending prompt is cleared.
+      dispatchedUserTurnBoundBy: String(pending.dispatch?.materializedBy || turnProof.resolvedBy || ""),
+      operatorOverride: pending.dispatch?.operatorOverride || null,
+      oneShotInstruction: pending.oneShotInstruction || null,
+      a2a: pending.a2a || null,
+      // v1.9.3: sizing telemetry of the prompt actually posted.
+      metrics: { ...(pending.metrics || {}), promptChars: String(pending.text || "").length },
+      promptProfile: pending.promptProfile || null,
+      transportKind: pending.transportKind || "",
+      transportId: pending.transportId || "",
+      conversationKey: conversationKey(page.url || ""),
+      sourceUserTurnId: pending.sourceUserTurnId || ""
+    },
+    sessionHealth: isTransportPrompt(pending) ? process.sessionHealth : markSessionHealthPromptPosted(process.sessionHealth, {
+      sessionSeq: process.sessionSeq,
+      turn: process.turn,
+      promptHash: pending.hash,
+      promptChars: String(pending.text || "").length,
+      postedAtMs,
+      timingEligible: false
+    }),
+    safety: {
+      ...process.safety,
+      hold: null
+    },
+    pendingPrompt: null,
+    responseCandidate: null,
+    waitingRefresh: createWaitingRefreshState({
+      now: Date.now(),
+      page: {
+        lastAssistantId: page.lastAssistantId || "",
+        assistantHash: pending.baselineAssistantHash || page.assistantHash || "",
+        assistantCount: Number(page.assistantCount || 0)
+      },
+      promptHash: pending.hash,
+      turn: process.turn,
+      staleSince: pending.dispatch?.startedAt || nowIso()
+    }),
+    sessionRotation: (pending.a2a?.messageType === "SESSION_ROTATION" ||
+        process.sessionRotation?.warmResume?.state === "VERIFIED") && process.sessionRotation
+      ? {
+          ...process.sessionRotation,
+          state: SESSION_ROTATION_STATES.RESUMED,
+          resumedAt: nowIso()
+        }
+      : process.sessionRotation || null,
+    recovery: resetRecovery(process).recovery,
+    lastError: null,
+    lastMaterialAt: nowIso()
+  }, {
+    kind: fence.action === "ALREADY_MATERIALIZED" ? "PROMPT_ACKNOWLEDGED" : "PROMPT_DISPATCH_RECONCILED",
+    component: "prompt",
+    beforeSave,
+    detail: {
+      promptHash: pending.hash,
+      evidence,
+      exactOnce: true,
+      resendForbidden: fence.action === "WAIT_NO_RESEND",
+      sessionRotationResumed: pending.a2a?.messageType === "SESSION_ROTATION",
+      rotationId: pending.a2a?.messageType === "SESSION_ROTATION"
+        ? process.sessionRotation?.rotationId || ""
+        : "",
+      dispatchedUserTurnId: resolvedUserTurnId,
+      dispatchedUserTurnIndex: resolvedUserTurnIndex,
+      turnProof: turnProof.code
+    }
+  });
+  scheduleFast(next.processId, 700);
+  return next;
+}
+
 async function tickSending(process) {
   let page;
   try {
@@ -5017,6 +5944,33 @@ async function tickSending(process) {
   if (!pending?.text || !pending?.hash) {
     const error = Object.assign(new Error("PENDING_PROMPT_MISSING"), { code: "PENDING_PROMPT_MISSING" });
     return enterRecovery(process, error, PHASES.SENDING);
+  }
+
+  const lostConversation = await maybeHandleLostConversation(process, page);
+  if (lostConversation.handled) return lostConversation.process;
+  const shortGuard = await guardShortContinuation(process, page);
+  if (shortGuard.handled) return shortGuard.process;
+  if (pending.requiredConversationKey && conversationKey(page.url) !== pending.requiredConversationKey) {
+    return holdForSafety(process, { code: "SESSION_INITIALIZATION_CONVERSATION_UNPROVEN" });
+  }
+
+  await consumeCheckpointedInstructions(process);
+
+  // A no-delta wait delays an EIC rotation, it does not discard it. The
+  // durable resumed-pause marker also covers restart between wake and rotation.
+  if (!pending.dispatch && process.missionPause?.resumeSessionAction === "ROTATE_SESSION_NOW" &&
+      process.missionPause.state !== MISSION_PAUSE_STATES.ARMED) {
+    return armSessionRotation(process, {
+      reasonCode: "EIC_ROTATE_SESSION_NOW_AFTER_NO_DELTA_PAUSE",
+      reason: process.missionPause.resumeSessionReason || "EIC requested rotation after the pacing wait.",
+      requestedBy: "EIC_AI", objective: pending.a2a?.objective || "",
+      previousResponseHash: process.lastResponse?.hash || "",
+      previousDisposition: process.lastDecision?.disposition || "CONTINUE",
+      analysisEvidence: pending.a2a?.analysisEvidence || null,
+      sourceResponseState: "COMPLETED_RESPONSE_CAPTURED",
+      operatorInstruction: pending.oneShotInstruction || null,
+      processStatusMode: capturedTargetResponse(process).targetResponse?.greenfieldStatusRequest || ""
+    });
   }
 
   // v1.8.1: never post a new prompt outside the active slot's schedule. A
@@ -5097,7 +6051,7 @@ async function tickSending(process) {
     return process;
   }
 
-  const reconciliation = reconcileDispatchObservation(process, page);
+  const reconciliation = reconcileDispatchObservation(process, deliveryFencePage(pending, page));
   const { fence, turnProof, resolvedUserTurnId, resolvedUserTurnIndex } = reconciliation;
 
   await audit(process, "PROMPT_DISPATCH_FENCE_EVALUATED", "prompt", {
@@ -5126,108 +6080,7 @@ async function tickSending(process) {
   // Exact-once invariant: once a dispatch operation may have crossed the
   // side-effect boundary, every later tick only reconciles. No automatic resend.
   if (reconciliation.action === "ADVANCE_TO_WAITING") {
-    const evidence = fence.evidence;
-    await adoptSchedulerTurnForObservedEffect(
-      process,
-      pending.hash,
-      fence.action
-    ).catch(() => undefined);
-    const postedAtMs = Date.now();
-    if (pending.promptPause?.reservationId) {
-      const gate = await commitGlobalPromptPost({
-        reservationId: pending.promptPause.reservationId,
-        processId: process.processId,
-        windowId: process.windowId,
-        promptHash: pending.hash,
-        postedAtMs
-      });
-      await audit(process, "GLOBAL_PROMPT_POST_COMMITTED", "prompt-gate", {
-        reservationId: pending.promptPause.reservationId,
-        promptHash: pending.hash,
-        lastPromptPostedAtMs: gate.lastPromptPostedAtMs,
-        source: fence.action
-      });
-    }
-    const next = await commitTransition(process, PHASES.WAITING, {
-      lastPrompt: {
-        text: pending.text,
-        hash: pending.hash,
-        usageId: process.safety?.turnProof?.usageId || usageIdentity(process,pending),
-        modelProof: process.safety?.turnProof || null,
-        sentAt: pending.dispatch?.startedAt || nowIso(),
-        postedAtMs,
-        acknowledged: fence.acknowledged === true || pending.dispatch?.acknowledged === true,
-        acknowledgementEvidence: evidence,
-        method: pending.dispatch?.method || (fence.action === "ALREADY_MATERIALIZED" ? "external-or-prior-materialization" : ""),
-        dispatchId: pending.dispatch?.operationId || "",
-        baselineAssistantHash: pending.baselineAssistantHash || page.assistantHash || "",
-        baselineAssistantId: page.lastAssistantId || "",
-        baselineAssistantCount: Number(page.assistantCount || 0),
-        dispatchedUserTurnId: resolvedUserTurnId,
-        dispatchedUserTurnIndex: resolvedUserTurnIndex,
-        // v1.8.11: how the user turn was bound (PROMPT_MARKER, USER_COUNT or
-        // OPERATOR via "Läs svar"); kept after the pending prompt is cleared.
-        dispatchedUserTurnBoundBy: String(pending.dispatch?.materializedBy || turnProof.resolvedBy || ""),
-        operatorOverride: pending.dispatch?.operatorOverride || null,
-        oneShotInstruction: pending.oneShotInstruction || null,
-        a2a: pending.a2a || null,
-        promptProfile: pending.promptProfile || null
-      },
-      sessionHealth: markSessionHealthPromptPosted(process.sessionHealth, {
-        sessionSeq: process.sessionSeq,
-        turn: process.turn,
-        promptHash: pending.hash,
-        promptChars: String(pending.text || "").length,
-        postedAtMs,
-        timingEligible: false
-      }),
-      safety: {
-        ...process.safety,
-        hold: null
-      },
-      pendingPrompt: null,
-      responseCandidate: null,
-      waitingRefresh: createWaitingRefreshState({
-        now: Date.now(),
-        page: {
-          lastAssistantId: page.lastAssistantId || "",
-          assistantHash: pending.baselineAssistantHash || page.assistantHash || "",
-          assistantCount: Number(page.assistantCount || 0)
-        },
-        promptHash: pending.hash,
-        turn: process.turn,
-        staleSince: pending.dispatch?.startedAt || nowIso()
-      }),
-      sessionRotation: (pending.a2a?.messageType === "SESSION_ROTATION" ||
-          process.sessionRotation?.warmResume?.state === "VERIFIED") && process.sessionRotation
-        ? {
-            ...process.sessionRotation,
-            state: SESSION_ROTATION_STATES.RESUMED,
-            resumedAt: nowIso()
-          }
-        : process.sessionRotation || null,
-      recovery: resetRecovery(process).recovery,
-      lastError: null,
-      lastMaterialAt: nowIso()
-    }, {
-      kind: fence.action === "ALREADY_MATERIALIZED" ? "PROMPT_ACKNOWLEDGED" : "PROMPT_DISPATCH_RECONCILED",
-      component: "prompt",
-      detail: {
-        promptHash: pending.hash,
-        evidence,
-        exactOnce: true,
-        resendForbidden: fence.action === "WAIT_NO_RESEND",
-        sessionRotationResumed: pending.a2a?.messageType === "SESSION_ROTATION",
-        rotationId: pending.a2a?.messageType === "SESSION_ROTATION"
-          ? process.sessionRotation?.rotationId || ""
-          : "",
-        dispatchedUserTurnId: resolvedUserTurnId,
-        dispatchedUserTurnIndex: resolvedUserTurnIndex,
-        turnProof: turnProof.code
-      }
-    });
-    scheduleFast(next.processId, 700);
-    return next;
+    return commitObservedDispatchToWaiting(process,page,reconciliation);
   }
 
   if (page.generating) {
@@ -5244,6 +6097,37 @@ async function tickSending(process) {
     return process;
   }
 
+  // v1.9.3: never post while ChatGPT still shows its background-processing
+  // notice or its connection-lost banner (operator screenshot 2026-10-07:
+  // SENDING while "Anslutningen bröts. Väntar på hela svaret" was shown).
+  // Bounded like generation evidence: after WAITING_GENERATION_LIMIT_MS of
+  // continuous hold the prompt is posted.
+  if (providerTransportPending(page)) {
+    const heldSinceMs = Number(pending.providerNoticeHoldSinceMs || 0) || Date.now();
+    if (Date.now() - heldSinceMs < WAITING_GENERATION_LIMIT_MS) {
+      if (pending.providerNoticeHoldSinceMs) {
+        scheduleFast(process.processId, 5000);
+        return process;
+      }
+      const held = { ...process, pendingPrompt: { ...pending, providerNoticeHoldSinceMs: heldSinceMs }, updatedAt: nowIso() };
+      await saveProcess(held);
+      await audit(held, "PROMPT_DISPATCH_HELD_PROVIDER_NOTICE", "prompt", {
+        promptHash: pending.hash,
+        providerNotices: page.providerNotices || {}
+      });
+      await recordIncident(held, "PROMPT_DISPATCH_HELD_PROVIDER_NOTICE", "", incidentPageEvidence(page));
+      scheduleFast(held.processId, 5000);
+      return held;
+    }
+    await audit(process, "PROMPT_DISPATCH_PROVIDER_NOTICE_HOLD_EXPIRED", "prompt", {
+      promptHash: pending.hash,
+      heldMs: Date.now() - heldSinceMs
+    });
+  }
+
+  const thinking = await ensureHighestThinkingBeforeSend(process, page);
+  if (thinking.handled) return thinking.process;
+  page = thinking.page;
   const gateSafety = await sendingSafetyDecision(process, page, pending);
   if (!gateSafety.allowed) return holdForSafety(process, gateSafety);
   if (process.safety?.hold) {
@@ -5455,8 +6339,16 @@ async function tickSending(process) {
         promptMarker: promptCausalMarker(pending.text),
         replayCount: 0
       };
-  const freshSafetyPage = await tabState(process, "pre-dispatch-model-recheck");
-  const freshProof = Safety.evaluateModel(freshSafetyPage.modelEvidence, (await readSafety()).policy, {url:freshSafetyPage.url,gptRoot:process.gptRoot});
+  let freshSafetyPage = await tabState(process, "pre-dispatch-model-recheck");
+  const finalThinking = await ensureHighestThinkingBeforeSend(process, freshSafetyPage);
+  if (finalThinking.handled) return finalThinking.process;
+  freshSafetyPage = finalThinking.page;
+  const freshShortGuard = await guardShortContinuation(process, freshSafetyPage);
+  if (freshShortGuard.handled) return freshShortGuard.process;
+  if (pending.requiredConversationKey && conversationKey(freshSafetyPage.url) !== pending.requiredConversationKey) {
+    return holdForSafety(process, { code: "SESSION_INITIALIZATION_CONVERSATION_UNPROVEN" });
+  }
+  const freshProof = Safety.evaluateModel(freshSafetyPage.modelEvidence, (await readSafety()).policy, {url:freshSafetyPage.url,gptRoot:process.gptRoot,requireHighestEffort:true});
   if (!freshProof.allowed) return holdForSafety(process, freshProof);
   const usage = await reserveUsage({id:usageIdentity(process,pending),processId:process.processId,workerId:process.workerId,prompt:pending.text,proof:freshProof});
   if (!usage.allowed) return holdForSafety(process, usage);
@@ -5758,7 +6650,7 @@ async function tickSending(process) {
 
   const fenced = {
     ...refreshed,
-    sessionHealth: markSessionHealthPromptPosted(refreshed.sessionHealth, {
+    sessionHealth: isTransportPrompt(pending) ? refreshed.sessionHealth : markSessionHealthPromptPosted(refreshed.sessionHealth, {
       sessionSeq: refreshed.sessionSeq,
       turn: refreshed.turn,
       promptHash: pending.hash,
@@ -5790,6 +6682,9 @@ async function tickWaiting(process) {
     return handleDetached(process, error);
   }
 
+  const lostConversation = await maybeHandleLostConversation(process, page);
+  if (lostConversation.handled) return lostConversation.process;
+
   // v1.8.3: a page that is not drawn or lost its thread is recovered in place;
   // a ChatGPT content block ends this turn with a fresh-chat rotation.
   const pageHealth = await maybeRecoverPageHealth(process, page);
@@ -5799,6 +6694,7 @@ async function tickWaiting(process) {
   if (providerNotice.handled) return providerNotice.process;
   process = providerNotice.process;
   process = await maybeReadoptStaleTurnCapacity(process, page);
+  process = await observeProviderTransportNotices(process, page);
 
   if (!process.lastPrompt?.modelProof && !process.safety?.turnProof) {
     process.safety = {...process.safety,qualityIncident:{code:"IN_FLIGHT_MODEL_UNVERIFIED",atMs:Date.now(),turn:process.turn}};
@@ -5820,6 +6716,11 @@ async function tickWaiting(process) {
     return holdForSafety(process,process.safety?.proof || {code:"MODEL_EVIDENCE_MISSING"});
   }
 
+  const deliveryTimeout = await maybeHandleDeliveryTimeout(process, page);
+  if (deliveryTimeout.handled) return deliveryTimeout.process;
+  process = deliveryTimeout.process;
+  if (waitingForInitialization(process)) return tickSessionInitialization(process, page);
+
   const baselineHash = process.lastPrompt?.baselineAssistantHash || "";
   const lastResponseHash = process.lastResponse?.hash || "";
 
@@ -5830,7 +6731,7 @@ async function tickWaiting(process) {
   if (responseActivityObserved && process.sessionHealth?.activeTurn?.firstResponseObservedAtMs == null) {
     const observedAtMs = Date.now();
     const nextSessionHealth = markSessionHealthFirstResponse(process.sessionHealth, {
-      promptHash: process.lastPrompt?.hash || "",
+      promptHash: workPromptHash(process),
       observedAtMs
     });
     if (nextSessionHealth.activeTurn?.firstResponseObservedAtMs != null) {
@@ -5927,7 +6828,8 @@ async function tickWaiting(process) {
   if (!causal.ready &&
       causal.reason === "AUTONOMOUS_RESPONSE_PRODUCER_LOST" &&
       process.lastPrompt?.acknowledged === true &&
-      page.generating !== true) {
+      page.generating !== true &&
+      !providerTransportPending(page)) {
     const nextTurn = Number(process.turn || 0) + 1;
     const seq = Number(process.interruptedContinuationSeq || 0) + 1;
     const nextObjectiveId = randomId("objective");
@@ -6069,6 +6971,7 @@ async function tickWaiting(process) {
     if (keepaliveDue &&
         process.lastPrompt?.acknowledged === true &&
         page.generating !== true &&
+        !providerTransportPending(page) &&
         !process.responseCandidate) {
       const nextTurn = Number(process.turn || 0) + 1;
       const seq = Number(process.idleKeepaliveSeq || 0) + 1;
@@ -6121,10 +7024,20 @@ async function tickWaiting(process) {
   }
 
   const responsePage = causal.observation;
+  // v1.9.3: while ChatGPT shows its background-processing notice or the
+  // connection-lost banner the visible text may be partial; nothing is
+  // admitted until the provider has finished.
+  // A complete, schema-valid EIC answer already on the page wins over a
+  // lingering connection banner (the processing notice is only flagged while
+  // no substantive answer is visible).
+  const providerPending = providerTransportPending(page) &&
+    !(page.providerNotices?.processingNotice !== true &&
+      parseTargetResponse(responsePage.assistantText || "").ok === true);
   const noNewAssistant = !responsePage.assistantHash ||
     responsePage.assistantHash === baselineHash ||
     responsePage.assistantHash === lastResponseHash ||
-    responsePage.generating === true;
+    responsePage.generating === true ||
+    providerPending;
 
   if (noNewAssistant) {
     if (process.responseCandidate) {
@@ -6138,7 +7051,9 @@ async function tickWaiting(process) {
     }
     const notNewReason = responsePage.generating === true
       ? "AUTONOMOUS_RESPONSE_STILL_GENERATING"
-      : "AUTONOMOUS_RESPONSE_NOT_NEW";
+      : providerPending
+        ? "AUTONOMOUS_RESPONSE_PROVIDER_NOTICE"
+        : "AUTONOMOUS_RESPONSE_NOT_NEW";
     process = await recordResponseObservation(process, notNewReason, page);
     const refreshEscalation = await maybeEscalateWaitingRefresh(process, page, {
       reason: notNewReason
@@ -6363,12 +7278,14 @@ async function tickWaiting(process) {
   // every causally paired terminal assistant response proceeds to analysis.
   const completedAtMs = Date.now();
   const completedSessionHealth = completeSessionHealthTurn(process.sessionHealth, {
-    promptHash: process.lastPrompt?.hash || "",
+    promptHash: workPromptHash(process),
     completedAtMs,
     responseChars: Number(responsePage.assistantTextLength ?? String(responsePage.assistantText || "").length)
   });
   const next = await commitTransition(process, PHASES.ANALYZING, {
     lastResponse: response,
+    deliveryRetry: process.lastPrompt?.transportKind === DELIVERY_CONTINUATION && process.deliveryRetry
+      ? { ...process.deliveryRetry, status: "COMPLETED", completedAt: nowIso() } : process.deliveryRetry || null,
     sessionHealth: completedSessionHealth,
     responseCandidate: null,
     responseObservationTrace: tracedResponseObservation(process, "RESPONSE_CAPTURED", page, {
@@ -6396,12 +7313,48 @@ async function tickWaiting(process) {
       sessionHealthSample: completedSessionHealth.samples?.at?.(-1) || null
     }
   });
+  await recordTurnMetrics(next, response);
   await releaseSchedulerTurn(next, {
     promptHash: next.lastPrompt?.hash || "",
     reason: "RESPONSE_CAPTURED"
   }).catch(() => undefined);
   scheduleFast(next.processId, 100);
   return next;
+}
+
+// v1.9.3 (contract observabilityRecommendations): one privacy-safe row per
+// completed turn, enough to compare background-processing frequency against
+// prompt size, interaction position and observed pressure. No text is stored.
+async function recordTurnMetrics(process, response) {
+  const sample = process.sessionHealth?.samples?.at?.(-1) || null;
+  const metrics = process.lastPrompt?.metrics || {};
+  const workQueue = process.lastPrompt?.a2a?.control?.workQueue || null;
+  const capsule = sessionHealthCapsule(process.sessionHealth, {
+    turn: process.turn,
+    sessionSeq: process.sessionSeq,
+    sessionStartTurn: process.turn
+  });
+  await recordIncident(process, "TURN_METRICS", String(process.lastPrompt?.promptProfile?.profile || ""), {
+    itemId: String(process.queueContext?.itemId || ""),
+    interactionInQuantum: workQueue ? Number(workQueue.interactionInQuantum || 0) : null,
+    maxInteractions: workQueue ? Number(workQueue.maxInteractions || 0) : null,
+    interactionRole: String(metrics.interactionRole || ""),
+    promptChars: Number(metrics.promptChars || String(process.lastPrompt?.text || "").length),
+    objectiveChars: Number(metrics.objectiveChars || 0),
+    overpackGuardFired: metrics.overpackGuardFired === true,
+    slicePressure: String(metrics.slicePressure || ""),
+    responseChars: sample ? Number(sample.responseChars || 0) : null,
+    ttfrMs: sample?.ttfrMs ?? null,
+    completionMs: sample?.completionMs ?? null,
+    roundTripMs: sample?.totalMs ?? null,
+    clean: sample ? sample.clean === true : null,
+    processingNotice: sample ? sample.processingNotice === true : null,
+    processingNoticeMs: sample?.processingNoticeMs ?? null,
+    connectionInterrupted: sample ? sample.connectionInterrupted === true : null,
+    sessionAction: String(response?.contract?.control?.sessionAction || response?.contract?.value?.sessionAction || ""),
+    pressureBand: String(capsule.pressureBand || ""),
+    signals: (capsule.signals || []).join(",")
+  });
 }
 
 async function ensureOffscreenAnalyzer() {
@@ -6451,10 +7404,9 @@ async function ensureOffscreenAnalyzer() {
 
 async function persistNanoTaskCheckpoint(process, token, nanoTask, kind = "NANO_TASK_DURABLE_COMMIT") {
   const current = await findProcessById(process.processId);
-  if (!current ||
-      current.generation !== process.generation ||
+  if (!isCurrentToken(current, token) ||
       current.phase !== PHASES.ANALYZING) {
-    return current;
+    return null;
   }
   const committed = {
     ...current,
@@ -6544,13 +7496,27 @@ function capturedTargetResponse(process) {
   };
 }
 
+async function currentAnalysisOwner(process, token) {
+  const current = await findProcessById(process.processId);
+  if (!isCurrentToken(current, token) || current.phase !== PHASES.ANALYZING ||
+      current.lastResponse?.hash !== process.lastResponse?.hash) {
+    throw Object.assign(new Error("STALE_ANALYSIS_CALLBACK"), { code: "STALE_ANALYSIS_CALLBACK" });
+  }
+  return current;
+}
+
 async function runAnalysis(process) {
-  await ensureOffscreenAnalyzer();
-  const instructionSnapshot = await instructionQueues.enqueue(
-    process.processId,
-    () => readNextInstruction(process.processId)
-  );
   const token = ownerToken(process, randomId("analysis"));
+  const budget = createAnalysisBudget();
+  // Reserve one second inside the existing 180-second wall for offscreen
+  // cleanup and deterministic fallback delivery. Both messages use this same
+  // model cutoff, including an isolated Nano task before advisory analysis.
+  const deadlineAtMs = budget.deadlineAtMs - 1000;
+  await budget.wait(() => ensureOffscreenAnalyzer(), "analysis host");
+  const instructionSnapshot = await budget.wait(() => instructionQueues.enqueue(
+    process.processId, () => readNextInstruction(process.processId)
+  ), "analysis instruction snapshot");
+  process = await currentAnalysisOwner(process, token);
 
   const {
     parsedTarget,
@@ -6609,7 +7575,7 @@ async function runAnalysis(process) {
           startedAt: nowIso()
         };
         const taskProcess = {
-          ...process,
+          ...await currentAnalysisOwner(process, token),
           lastNanoTask: nanoTask,
           updatedAt: nowIso()
         };
@@ -6653,14 +7619,32 @@ async function runAnalysis(process) {
   // never erase a completed exact-once task.
   if (nanoTask?.requested === true &&
       (executeNanoTask === true || nanoTask.status === NANO_TASK_STATUS.RUNNING)) {
-    const taskExecution = await chrome.runtime.sendMessage({
-      type: "EIC_GF_RUN_NANO_TASK",
-      token,
-      input: {
-        nanoTask,
-        executeNanoTask
+    await currentAnalysisOwner(process, token);
+    let taskExecution, submitted = false;
+    try {
+      taskExecution = await budget.wait(() => {
+        submitted = true;
+        return chrome.runtime.sendMessage({
+          type: "EIC_GF_RUN_NANO_TASK", token, deadlineAtMs,
+          input: { nanoTask, executeNanoTask }
+        });
+      }, "Nano task reply");
+    } catch (error) {
+      if (error?.code === "ANALYSIS_TIMEOUT") {
+        // A lost transport reply cannot prove that its task prompt never ran.
+        // Keep that uncertainty durable, and never replay the RUNNING task.
+        const unknown = submitted || executeNanoTask !== true;
+        await persistNanoTaskCheckpoint(process, token, {
+          ...nanoTask,
+          status: unknown ? NANO_TASK_STATUS.UNKNOWN_EFFECT : NANO_TASK_STATUS.FAILED,
+          semanticStatus: "UNVERIFIED",
+          executionStatus: unknown ? "UNKNOWN_EFFECT" : "NOT_EXECUTED",
+          error: unknown ? "ANALYSIS_TIMEOUT: Nano task reply lost; no replay." : "ANALYSIS_TIMEOUT: Nano task was not executed.",
+          completedAt: unknown ? null : nowIso()
+        });
       }
-    });
+      throw error;
+    }
     if (!taskExecution?.ok || !taskExecution.nanoTask) {
       const error = new Error(taskExecution?.error || "NANO_TASK_EXECUTION_FAILED");
       error.code = taskExecution?.code || "NANO_TASK_EXECUTION_FAILED";
@@ -6695,6 +7679,11 @@ async function runAnalysis(process) {
     targetContinuationInstruction,
     previousDecision: process.lastDecision,
     operatorInstruction: instructionSnapshot?.text || "",
+    // v1.9.3: the advisory controller sizes its nextPrompt for this position.
+    nextInteraction: nextInteractionAfterResponse(process.queueContext?.itemId ? {
+      ...process.queueContext,
+      maxInteractions: normalizeMissionQuantumInteractions(process.queueContext.maxInteractions)
+    } : null),
     nanoTask,
     // Side effect already checkpointed above. The advisory pipeline may only
     // reuse terminal Nano Task evidence.
@@ -6714,11 +7703,10 @@ async function runAnalysis(process) {
     stages: nanoTask ? ["NANO_TASK", "NANO_OBSERVER", "HJALMAR_D2"] : ["NANO_OBSERVER", "HJALMAR_D2"]
   }, token.operationId);
 
-  const result = await chrome.runtime.sendMessage({
-    type: "EIC_GF_ANALYZE_PIPELINE",
-    token,
-    input
-  });
+  await currentAnalysisOwner(process, token);
+  const result = await budget.wait(() => chrome.runtime.sendMessage({
+    type: "EIC_GF_ANALYZE_PIPELINE", token, deadlineAtMs, input
+  }), "analysis pipeline reply");
 
   if (!result?.ok) {
     const error = new Error(result?.error || "ANALYSIS_FAILED");
@@ -7060,6 +8048,33 @@ function capturedProtocolEvidence(current, result) {
 // mission delegations, the schedule gate, the checkpoint and the park.
 // Returns handled:false (and changes nothing) whenever analysis can change
 // the outcome; tickAnalyzing then analyses as before.
+async function observeNoDelta(current, result, { delegationResult = null, operatorInstructionPending = false } = {}) {
+  const handoff = eicHandoffWithoutNanoTask(result.targetResponse?.nextSuggestedAction || "");
+  const objective = String(result.currentObjective || current.objectiveState?.objective || "").trim();
+  const facts = result.targetResponse ? JSON.stringify({
+    workPerformed: result.targetResponse.workPerformed || [],
+    evidence: result.targetResponse.evidence || []
+  }) : "";
+  const previous = current.noDeltaState || (
+    ["ADVISORY_DONE_WITHOUT_EIC_TERMINAL", "ADVISORY_DONE_NO_DELTA_PAUSE"].includes(current.greenfieldControl?.reason)
+      ? { noDeltaTurns: 1 + Number(current.greenfieldControl?.noDeltaPause?.streak || 0), pauseStreak: Number(current.greenfieldControl?.noDeltaPause?.streak || 0) }
+      : null
+  );
+  const observed = advanceNoDeltaState({
+    previous,
+    responseId: `${current.processId}:${current.generation}:${current.turn}:${current.lastResponse?.hash || ""}`,
+    handoffKey: handoff ? await sha256Hex(handoff) : "",
+    objectiveKey: objective ? await sha256Hex(objective) : "",
+    factsKey: facts ? await sha256Hex(facts) : "",
+    materialEffect: Boolean(delegationResult?.accepted?.length) ||
+      (current.runtimeControl?.lastReceipts || []).some((receipt) => receipt.status === "APPLIED"),
+    blocked: result.targetDisposition === "BLOCKED",
+    operatorInstructionPending
+  });
+  current.noDeltaState = observed.state;
+  return observed.pause;
+}
+
 async function maybeParkAtQueueBoundaryWithoutAnalysis(process) {
   if (!process?.queueContext?.itemId) return { handled: false, process };
   const target = capturedTargetResponse(process);
@@ -7090,9 +8105,12 @@ async function maybeParkAtQueueBoundaryWithoutAnalysis(process) {
   const pauseUntilMs = decision.pauseSeconds ? Date.now() + decision.pauseSeconds * 1000 : 0;
   const simulatedNext = selectNextMissionItem({
     ...queueState.queue,
-    items: applyQueueParkTransition(queueState.queue.items, item, { pauseUntilMs, outcome: decision.outcome })
+    items: applyQueueParkTransition(queueState.queue.items, item, {
+      pauseUntilMs, outcome: decision.outcome, quantumCompleted: decision.quantumReached
+    })
   }, { afterOrder: Number(item.order), excludeItemId: item.itemId });
-  if (!simulatedNext) return { handled: false, process };
+  const intervalWait = decision.quantumReached && Number(item.schedule?.minIntervalMinutes || 0) > 0;
+  if (!simulatedNext && !intervalWait) return { handled: false, process };
 
   return instructionQueues.enqueue(process.processId, async () => {
     // An operator instruction for this GFW is weighed by the analysis.
@@ -7112,7 +8130,8 @@ async function maybeParkAtQueueBoundaryWithoutAnalysis(process) {
     if (runtimeControl.terminal) return { handled: false, process };
     if (runtimeControl.processPatch) Object.assign(current, runtimeControl.processPatch);
     if (runtimeControl.priorityChanged) await refreshSchedulerPriority(current);
-    await registerResponseMissionDelegations(current, target.targetResponse);
+    const delegationResult = await registerResponseMissionDelegations(current, target.targetResponse);
+    const noDeltaPause = await observeNoDelta(current, result, { delegationResult });
     const scheduleBlock = await activeSlotScheduleBlock(current);
 
     const boundary = queueBoundaryControl({
@@ -7121,6 +8140,15 @@ async function maybeParkAtQueueBoundaryWithoutAnalysis(process) {
       targetDisposition: target.targetDisposition,
       outcome: decision.outcome
     });
+    if (noDeltaPause) {
+      boundary.greenfieldControl = resolveGreenfieldControl({
+        targetDisposition: target.targetDisposition,
+        targetNextSuggestedAction: target.targetResponse?.nextSuggestedAction || "",
+        decision: boundary.decision, noDeltaPause
+      });
+      boundary.decision = applyGreenfieldControlToDecision(boundary.decision, boundary.greenfieldControl);
+      boundary.effectiveNextPrompt = boundary.greenfieldControl.effectiveNextPrompt;
+    }
     const analysisEvidence = {
       responseHash: current.lastResponse.hash,
       targetDisposition: target.targetDisposition,
@@ -7140,10 +8168,11 @@ async function maybeParkAtQueueBoundaryWithoutAnalysis(process) {
       effectiveDecision: boundary.decision,
       result,
       latestInstruction: null,
-      pauseSeconds: decision.pauseSeconds,
-      requestedSessionAction: decision.sessionAction,
+      pauseSeconds: noDeltaPause ? Math.max(noDeltaPause.pauseSeconds, decision.pauseSeconds || 0) : decision.pauseSeconds,
+      requestedSessionAction: noDeltaPause ? "PAUSE_PROCESS" : decision.sessionAction,
       quantumReached: decision.quantumReached,
-      scheduleBlock
+      scheduleBlock,
+      outcomeOverride: noDeltaPause && !scheduleBlock ? "ADVISORY_NO_DELTA_PAUSED" : ""
     });
     // The queue changed between the check and the park: analyse as before.
     if (!switched) return { handled: false, process };
@@ -7178,6 +8207,7 @@ async function tickAnalyzing(process) {
     const error = Object.assign(new Error("ANALYSIS_RESPONSE_MISSING"), { code: "ANALYSIS_RESPONSE_MISSING" });
     return enterRecovery(process, error, PHASES.WAITING);
   }
+  await consumeCheckpointedInstructions(process);
   const queueBoundary = await maybeParkAtQueueBoundaryWithoutAnalysis(process);
   if (queueBoundary.handled) return queueBoundary.process;
 
@@ -7229,15 +8259,56 @@ async function tickAnalyzing(process) {
     if (runtimeControl.processPatch) Object.assign(current, runtimeControl.processPatch);
     if (runtimeControl.priorityChanged) await refreshSchedulerPriority(current);
 
+    if (!result.evidenceBinding?.ok) {
+      await audit(current, "HJALMAR_EVIDENCE_BINDING_REJECTED", "decision", {
+        decision: result.decision,
+        evidenceBinding: result.evidenceBinding,
+        targetDisposition: result.targetDisposition,
+        nanoTask: result.nanoTask || null
+      }, result.token.operationId);
+      const error = Object.assign(
+        new Error(result.evidenceBinding.errors.join(",")),
+        { code: "HJALMAR_EVIDENCE_BINDING_REJECTED" }
+      );
+      return enterRecovery(current, error, PHASES.ANALYZING);
+    }
+
+    // Durable mission spawning is delegation-only. The supervising queue never
+    // mutates itself from an EIC response; it persists requests for another
+    // already-running queue-managed worker to accept on that worker's own tick.
+
     const modelControllerDecision = result.decision;
+    const delegationResult = await registerResponseMissionDelegations(current, result.targetResponse);
+    const persistedNoDeltaPause = await observeNoDelta(current, result, {
+      delegationResult, operatorInstructionPending: Boolean(latestInstruction)
+    });
     const greenfieldControl = resolveGreenfieldControl({
       targetDisposition: result.targetDisposition,
       targetNextSuggestedAction: result.targetResponse?.nextSuggestedAction || "",
       decision: modelControllerDecision,
       nanoTask: result.nanoTask,
       sessionAction: result.targetResponse?.sessionAction || "KEEP",
-      terminalControl: runtimeControl.terminal
+      terminalControl: runtimeControl.terminal,
+      previousReason: current.greenfieldControl?.reason || "",
+      previousNoDeltaStreak: current.greenfieldControl?.noDeltaPause?.streak || 0,
+      noDeltaPause: persistedNoDeltaPause,
+      noDeltaObserved: true,
+      standaloneAdvisoryRetry: current.queueContext?.itemId ? null : {
+        allowed: !current.storageRecoveryRequired && !current.safety?.qualityIncident &&
+          !current.safety?.hold && current.safety?.proof?.allowed === true &&
+          current.safety?.turnProof?.allowed === true && current.lastPrompt?.acknowledged === true &&
+          !current.pendingPrompt?.dispatch && Number(current.pendingPrompt?.sendAttempts || 0) <= 0,
+        previous: current.greenfieldControl?.advisoryBlockedRetry || null,
+        // Turn and source hash survive worker/browser generation changes. An
+        // analysis retry of this same captured turn is not a second blocker.
+        responseId: `${current.processId}:${current.runId}:${current.turn}:${current.lastResponse?.hash || ""}`
+      },
+      operatorInstructionPending: Boolean(latestInstruction)
     });
+    if (greenfieldControl.reason === "EIC_TERMINAL_DEFERRED_FOR_OPERATOR_INSTRUCTION") {
+      // The terminal was not committed, so its receipt must not claim APPLIED.
+      current.runtimeControl = withTerminalReceiptsRejected(current.runtimeControl, "OPERATOR_INSTRUCTION_PENDING");
+    }
     const d = applyGreenfieldControlToDecision(modelControllerDecision, greenfieldControl);
     const controllerValidation = validateHjalmarDecision(d);
     const queueContextAfterResponse = current.queueContext?.itemId ? {
@@ -7271,36 +8342,10 @@ async function tickAnalyzing(process) {
       return enterRecovery(current, error, PHASES.ANALYZING);
     }
 
-    if (!result.evidenceBinding?.ok) {
-      await audit(current, "HJALMAR_EVIDENCE_BINDING_REJECTED", "decision", {
-        decision: d,
-        evidenceBinding: result.evidenceBinding,
-        targetDisposition: result.targetDisposition,
-        nanoTask: result.nanoTask || null
-      }, result.token.operationId);
-      const error = Object.assign(
-        new Error(result.evidenceBinding.errors.join(",")),
-        { code: "HJALMAR_EVIDENCE_BINDING_REJECTED" }
-      );
-      return enterRecovery(current, error, PHASES.ANALYZING);
-    }
-
-    // Durable mission spawning is delegation-only. The supervising queue never
-    // mutates itself from an EIC response; it persists requests for another
-    // already-running queue-managed worker to accept on that worker's own tick.
-    await registerResponseMissionDelegations(current, result.targetResponse);
-
+    // v1.9.3: a terminal with a pending operator instruction is deferred by
+    // resolveGreenfieldControl (EIC_TERMINAL_DEFERRED_FOR_OPERATOR_INSTRUCTION),
+    // so DONE here always commits instead of looping in recovery.
     if (d.disposition === DISPOSITIONS.DONE) {
-      if (latestInstruction) {
-        // Operator input outranks an AI terminal control; the terminal was not
-        // committed, so its receipt must not claim APPLIED.
-        current.runtimeControl = withTerminalReceiptsRejected(current.runtimeControl, "OPERATOR_INSTRUCTION_PENDING");
-        const error = Object.assign(
-          new Error("HJALMAR_D2_DONE_WITH_PENDING_OPERATOR_INSTRUCTION"),
-          { code: "HJALMAR_D2_DONE_WITH_PENDING_OPERATOR_INSTRUCTION" }
-        );
-        return enterRecovery(current, error, PHASES.ANALYZING);
-      }
       return commitTransition(current, PHASES.DONE, {
         lastNano: result.nano || null,
         lastNanoTask: result.nanoTask || current.lastNanoTask || null,
@@ -7360,14 +8405,19 @@ async function tickAnalyzing(process) {
       });
     }
 
+    // v1.9.3: admission recovers only from the EIC handoff without its
+    // consumed NANO_TASK line, so a Nano directive is never sent back.
+    const targetHandoff = eicHandoffWithoutNanoTask(result.targetResponse?.nextSuggestedAction || "");
     let admission = evaluateContinuationAdmission({
       targetDisposition: result.targetDisposition,
       currentObjective: result.currentObjective,
-      targetNextSuggestedAction: result.targetResponse?.nextSuggestedAction || "",
+      targetNextSuggestedAction: targetHandoff,
       previousDecision: current.lastDecision,
       decision: d,
       nanoTask: result.nanoTask,
-      operatorInstructionPending: Boolean(latestInstruction)
+      operatorInstructionPending: Boolean(latestInstruction),
+      greenfieldControlReason: greenfieldControl.reason,
+      queueManaged: Boolean(current.queueContext?.itemId)
     });
     if (isExplicitRotationAction(result.targetResponse?.sessionAction || "KEEP") && !admission.ok) {
       admission = {
@@ -7378,7 +8428,7 @@ async function tickAnalyzing(process) {
         recoveryKind: "SESSION_ROTATION",
         originalNextPrompt: d.nextPrompt || "",
         effectiveNextPrompt: sessionRotationObjective(
-          result.targetResponse?.nextSuggestedAction ||
+          targetHandoff ||
           d.nextPrompt ||
           current.objectiveState?.objective
         )
@@ -7487,7 +8537,13 @@ async function tickAnalyzing(process) {
         runtimeCorrections: (result.runtimeReconciliation?.corrections || []).map((item) => item.code)
       }
     };
-    const requestedSessionAction = result.targetResponse?.sessionAction || "KEEP";
+    const eicSessionAction = result.targetResponse?.sessionAction || "KEEP";
+    // Persisted pacing survives queue/rotation controls and model fallbacks.
+    const noDeltaPause = greenfieldControl.noDeltaPause || null;
+    const requestedSessionAction = noDeltaPause ? "PAUSE_PROCESS" : eicSessionAction;
+    const requestedPauseSeconds = noDeltaPause
+      ? Math.max(noDeltaPause.pauseSeconds, Number(result.targetResponse?.pauseSeconds || 0))
+      : result.targetResponse?.pauseSeconds;
     const requestedProcessStatus = result.targetResponse?.greenfieldStatusRequest || "";
     const queueManaged = Boolean(queueContextAfterResponse?.itemId);
     // v1.8.1: the turn that was in flight when the window closed has finished;
@@ -7518,11 +8574,12 @@ async function tickAnalyzing(process) {
         result,
         latestInstruction,
         pauseSeconds: (backgroundSleepRequested || queuePauseRequested)
-          ? result.targetResponse?.pauseSeconds
+          ? requestedPauseSeconds
           : null,
         requestedSessionAction,
         quantumReached: queueQuantumReached,
-        scheduleBlock
+        scheduleBlock,
+        outcomeOverride: noDeltaPause && !scheduleBlock ? "ADVISORY_NO_DELTA_PAUSED" : ""
       });
       if (switched) {
         await audit(switched, "MISSION_QUEUE_SWITCH_COMPLETED", "mission-work-queue", {
@@ -7531,7 +8588,9 @@ async function tickAnalyzing(process) {
           nextQueueItemId: switched.queueContext?.itemId || "",
           reason: scheduleBlock
             ? scheduleParkOutcome(scheduleBlock)
-            : backgroundSleepRequested
+            : noDeltaPause
+              ? "ADVISORY_NO_DELTA_PAUSED"
+              : backgroundSleepRequested
               ? "EIC_BACKGROUND_SLEEP"
               : queuePauseRequested
                 ? "EIC_PAUSE_PARKED"
@@ -7582,7 +8641,9 @@ async function tickAnalyzing(process) {
         operatorInstruction: latestInstruction,
         processStatusMode: requestedProcessStatus
       });
-      if (latestInstruction && rotated) {
+      if (latestInstruction && rotated?.phase === PHASES.ROTATING &&
+          rotated.processId === current.processId && rotated.runId === current.runId &&
+          rotated.pendingPrompt?.oneShotInstruction?.instructionId === latestInstruction.instructionId) {
         const cleared = await clearNextInstruction(current.processId, latestInstruction.instructionId);
         await audit(rotated, "NEXT_INSTRUCTION_CONSUMED_BY_SESSION_ROTATION", "operator-input", {
           instructionId: latestInstruction.instructionId,
@@ -7599,8 +8660,11 @@ async function tickAnalyzing(process) {
       missionPause = createMissionPauseRecord({
         processId: current.processId,
         generation: current.generation,
-        durationSeconds: result.targetResponse?.pauseSeconds,
-        reason: result.targetResponse?.sessionReason || (
+        durationSeconds: requestedPauseSeconds,
+        requestedBy: noDeltaPause ? "GREENFIELD_NO_DELTA" : "EIC_AI",
+        reason: noDeltaPause
+          ? `Greenfield no-delta pause ${noDeltaPause.streak}: ${noDeltaPause.cause || "NO_NEW_HANDOFF_OR_FACTS"}. The EIC is asked again after ${requestedPauseSeconds} s.`
+          : result.targetResponse?.sessionReason || (
           backgroundSleepRequested
             ? "EIC requested background sleep; no other queued mission was runnable, so the worker is held until wake."
             : "EIC requested a timed Greenfield process pause."
@@ -7608,6 +8672,10 @@ async function tickAnalyzing(process) {
         sourceResponseHash: current.lastResponse.hash,
         nextObjectiveId
       });
+      if (noDeltaPause && isExplicitRotationAction(eicSessionAction)) {
+        missionPause.resumeSessionAction = "ROTATE_SESSION_NOW";
+        missionPause.resumeSessionReason = result.targetResponse?.sessionReason || "";
+      }
     }
 
     const promptCurrent = nextQueueContext
@@ -7729,7 +8797,102 @@ async function tickAnalyzing(process) {
   });
 }
 
+// Caller owns the instruction lock. Transfer a queued instruction to the
+// durable unsent prompt before consuming the inbox. Advisory waits can end
+// early; an EIC-requested pause delivers new input at its scheduled wake.
+async function resumeAdvisoryPauseForInstructionLocked(current) {
+  await consumeCheckpointedInstructions(current, { instructionLockProcessId: current?.processId || "" });
+  if (!current || current.phase !== PHASES.PAUSED ||
+      current.missionPause?.state !== MISSION_PAUSE_STATES.ARMED ||
+      (current.missionPause.requestedBy !== "GREENFIELD_NO_DELTA" && !missionPauseDue(current.missionPause)) ||
+      current.storageRecoveryRequired || current.safety?.qualityIncident ||
+      current.pendingPrompt?.dispatch || hasUnreceiptedPauseAttempt(current) || !current.pendingPrompt?.a2a ||
+      !current.pendingPrompt.text || !current.pendingPrompt.hash) return null;
+  const instruction = await readNextInstruction(current.processId);
+  if (!instruction) return null;
+
+  const prior = current.pendingPrompt;
+  const pendingPrompt = await buildPendingA2A(current, {
+    objective: prior.a2a.objective,
+    objectiveId: prior.a2a.objectiveId,
+    messageType: prior.a2a.messageType,
+    operatorInstruction: instruction,
+    previousResponseHash: prior.a2a.continuity?.previousResponseHash || current.lastResponse?.hash || "",
+    previousDisposition: prior.a2a.continuity?.previousDisposition || current.lastDecision?.disposition || "CONTINUE",
+    analysisEvidence: prior.a2a.analysisEvidence || null,
+    sessionRotation: prior.a2a.continuity?.sessionRotation || null,
+    processStatusMode: prior.a2a.processStatus ? PROCESS_STATUS_REQUEST : "",
+    baselineAssistantHash: prior.baselineAssistantHash || "",
+    turn: current.turn
+  });
+  const resumedPause = {
+    ...resumeMissionPauseRecord(current.missionPause, {
+      reason: "OPERATOR_INSTRUCTION", early: !missionPauseDue(current.missionPause)
+    }),
+    nextPromptHash: pendingPrompt.hash,
+    nextObjectiveId: pendingPrompt.a2a.objectiveId
+  };
+  const next = await commitTransition(current, PHASES.SENDING, {
+    missionPause: resumedPause, pendingPrompt,
+    lastConsumedInstructionId: instruction.instructionId,
+    objectiveState: { ...current.objectiveState, status: "PENDING", updatedAt: nowIso() },
+    lastError: null, lastMaterialAt: nowIso()
+  }, {
+    kind: "OPERATOR_INSTRUCTION_ENDED_ADVISORY_PAUSE", component: "operator-input",
+    detail: { instructionId: instruction.instructionId, pauseId: resumedPause.pauseId, promptHash: pendingPrompt.hash }
+  });
+  const cleared = await clearNextInstruction(current.processId, instruction.instructionId);
+  await audit(next, "NEXT_INSTRUCTION_CONSUMED_AFTER_ADVISORY_PAUSE", "operator-input", {
+    instructionId: instruction.instructionId, promptHash: pendingPrompt.hash, clearedFromInbox: cleared.cleared === true
+  });
+  await broadcast(next, "next-instruction-consumed");
+  scheduleFast(next.processId, 100);
+  return next;
+}
+
+async function resumeAdvisoryPauseForInstruction(processId) {
+  return instructionQueues.enqueue(processId, async () =>
+    resumeAdvisoryPauseForInstructionLocked(await findProcessById(processId)));
+}
+
+// Caller owns the process tick lock; hold the mailbox lock through parking
+// and activation so an instruction either wins or sees the changed owner.
+async function advancePausedQueueMission(processId) {
+  return instructionQueues.enqueue(processId, async () => {
+    const current = await findProcessById(processId);
+    const resumed = await resumeAdvisoryPauseForInstructionLocked(current);
+    if (resumed) return resumed;
+    if (!current || current.phase !== PHASES.PAUSED) return current;
+    const result = await operatorNextQueueItemLocked(processId, {
+      automaticPausedWake: true, instructionLockProcessId: processId
+    });
+    return result.ok
+      ? loadProcessForWindow(current.windowId)
+      : findProcessById(processId);
+  });
+}
+
 async function tickPaused(process) {
+  // The due-time mailbox check and resumed prompt publication are one
+  // boundary, just like analysis. Input accepted before it is attached;
+  // input accepted afterwards belongs to the following prompt.
+  return instructionQueues.enqueue(process.processId, async () => {
+    const current = await findProcessById(process.processId);
+    if (!current || current.phase !== PHASES.PAUSED) return current;
+    return tickPausedLocked(current);
+  });
+}
+
+function hasUnreceiptedPauseAttempt(process) {
+  // Older/corrupt paused checkpoints may carry an attempted continuation
+  // without a dispatch receipt. Replacing or waking it cannot prove no effect.
+  return !process?.pendingPrompt?.dispatch && (
+    Number(process?.pendingPrompt?.sendAttempts || 0) !== 0 ||
+    process?.safety?.hold?.code === "DISPATCH_EFFECT_UNRESOLVED"
+  );
+}
+
+async function tickPausedLocked(process) {
   const pause = process.missionPause;
   if (!pause ||
       pause.state !== MISSION_PAUSE_STATES.ARMED ||
@@ -7748,7 +8911,23 @@ async function tickPaused(process) {
     });
   }
 
+  if (hasUnreceiptedPauseAttempt(process)) {
+    return holdForSafety(process, {
+      code: "DISPATCH_EFFECT_UNRESOLVED",
+      detail: "Paused continuation has unproven send state and no dispatch receipt; preserve it until its effect is reconciled."
+    });
+  }
+
+  const instructed = await resumeAdvisoryPauseForInstructionLocked(process);
+  if (instructed) return instructed;
+
   if (!missionPauseDue(pause)) {
+    const advanced = process.queueContext?.itemId
+      ? await operatorNextQueueItemLocked(process.processId, {
+          automaticPausedWake: true, instructionLockProcessId: process.processId
+        })
+      : null;
+    if (advanced?.ok) return loadProcessForWindow(process.windowId);
     try {
       await syncMissionPauseAlarm(process);
     } catch (error) {
@@ -8135,7 +9314,14 @@ async function tickProcess(processId, reason = "manual") {
   await runtimeReady;
   if (runtimeFault) return null;
   let process = await findProcessById(processId);
-  if (!process || TERMINAL_PHASES.has(process.phase)) return process;
+  if (!process) return process;
+  if (TERMINAL_PHASES.has(process.phase)) {
+    // Registration schedules a later tick even when its supervisor has just
+    // ended or parked. Uncertain terminal effects remain on their old fence.
+    if (queuePendingEffectNeedsReconciliation(process) ||
+        (!process.queueContext?.queueId && !process.queueWait?.queueId)) return process;
+    return wakeMissionQueue(process.windowId, "TERMINAL_DELEGATION_TICK");
+  }
 
   if (![PHASES.DETACHED, PHASES.RECOVERING].includes(process.phase)) {
     const managedTab = await chrome.tabs.get(process.tabId).catch(() => null);
@@ -8155,10 +9341,12 @@ async function tickProcess(processId, reason = "manual") {
   if (Number(process.safety?.hold?.retryAtMs || 0) > Date.now()) return process;
   if (!localSafety.admissionPaused && !localSafety.providerHold) await syncWorkModeForWorker(process).catch(() => undefined);
 
-  // A worker accepts at most one pending delegation per tick. This is the
-  // ownership boundary that keeps the supervising Greenfield from creating
-  // new queue work in its own Chrome session.
+  // Accept the bounded pending batch on a separate pass. A pause may yield
+  // after admission; its new worker receives its own scheduled dispatch tick.
+  const beforeDelegation = process;
   process = await acceptPendingMissionDelegationForWorker(process);
+  if (!process || !isCurrentToken(process, ownerToken(beforeDelegation)) ||
+      process.phase !== beforeDelegation.phase) return process;
 
   try {
     await audit(process, "PROCESS_TICK", "runtime", {
@@ -8420,6 +9608,7 @@ async function startRun({ windowId, goal, auditSessionId = "", schedulerPriority
     status: "PENDING",
     updatedAt: nowIso()
   };
+  Object.assign(process, await prepareSessionInitialization(process, pendingPrompt, page));
 
   try {
     await appendAudit({
@@ -8655,7 +9844,9 @@ async function operatorNextQueueItem({ windowId, processId = "" }) {
   return queues.enqueue(process.processId, () => operatorNextQueueItemLocked(process.processId));
 }
 
-async function operatorNextQueueItemLocked(processId) {
+async function operatorNextQueueItemLocked(processId, {
+  automaticPausedWake = false, instructionLockProcessId = ""
+} = {}) {
   const process = await findProcessById(processId);
   if (!process || TERMINAL_PHASES.has(process.phase)) {
     return { ok: false, code: "QUEUE_NEXT_NOT_ACTIVE", phase: process?.phase || "", process: publicSnapshot(process) };
@@ -8666,6 +9857,12 @@ async function operatorNextQueueItemLocked(processId) {
   if (!OPERATOR_NEXT_QUEUE_PHASES.has(process.phase)) {
     return { ok: false, code: "QUEUE_NEXT_BUSY", phase: process.phase, process: publicSnapshot(process) };
   }
+  if (automaticPausedWake && (
+    process.phase !== PHASES.PAUSED || process.missionPause?.state !== MISSION_PAUSE_STATES.ARMED ||
+    missionPauseDue(process.missionPause) || process.pendingPrompt?.dispatch || hasUnreceiptedPauseAttempt(process) ||
+    !process.pendingPrompt?.text || !process.pendingPrompt?.hash ||
+    process.storageRecoveryRequired || process.safety?.qualityIncident
+  )) return { ok: false, code: "QUEUE_PAUSED_WAKE_NOT_ADMISSIBLE" };
   const { queue, settings } = await missionQueueForWindow(process.windowId);
   const item = queueItemForProcess(queue, process);
   if (!queue.enabled || !item) {
@@ -8702,9 +9899,9 @@ async function operatorNextQueueItemLocked(processId) {
     ...queueResumeRecordFromAnalysis({
       current: process,
       effectiveNextPrompt: objective,
-      previousDisposition: "OPERATOR_QUEUE_ADVANCE",
-      analysisEvidence: null,
-      sessionReason: "OPERATOR_NEXT_QUEUE_ITEM",
+      previousDisposition: automaticPausedWake ? "CONTINUE" : "OPERATOR_QUEUE_ADVANCE",
+      analysisEvidence: automaticPausedWake ? pending?.a2a?.analysisEvidence || null : null,
+      sessionReason: automaticPausedWake ? "PAUSED_QUEUE_WAKE" : "OPERATOR_NEXT_QUEUE_ITEM",
       pauseUntilMs
     }),
     // A one-shot status request was consumed by the prompt now left behind.
@@ -8736,7 +9933,8 @@ async function operatorNextQueueItemLocked(processId) {
     lastError: null,
     updatedAt: nowIso()
   };
-  await audit(process, "OPERATOR_NEXT_QUEUE_ITEM_REQUESTED", "operator", {
+  await audit(process, automaticPausedWake ? "MISSION_QUEUE_PAUSED_SLOT_YIELD_REQUESTED" : "OPERATOR_NEXT_QUEUE_ITEM_REQUESTED",
+    automaticPausedWake ? "mission-work-queue" : "operator", {
     phase: process.phase,
     itemId: item.itemId,
     nextItemId: next.itemId,
@@ -8752,12 +9950,18 @@ async function operatorNextQueueItemLocked(processId) {
     item,
     parkedSnapshot,
     resume,
-    outcome: "OPERATOR_QUEUE_ADVANCE",
-    summary: "The operator moved the queue on to the next task; this mission was parked with its checkpoint.",
+    outcome: automaticPausedWake ? "PAUSED_SLOT_YIELD" : "OPERATOR_QUEUE_ADVANCE",
+    summary: automaticPausedWake
+      ? "Another slot became runnable while this mission was paused; its checkpoint and not-before time were retained."
+      : "The operator moved the queue on to the next task; this mission was parked with its checkpoint.",
     resumedQuantumProgress,
     pauseUntilMs,
+    instructionLockProcessId,
+    // An explicit operator Next already accepts leaving the old conversation.
+    // Automatic pause/terminal wakes do not carry this authority.
+    operatorHandoff: !automaticPausedWake,
     parkDetail: {
-      operator: true,
+      operator: !automaticPausedWake,
       phase: process.phase,
       maxInteractions,
       sourceResponseState,
@@ -8823,6 +10027,18 @@ async function resumePausedRun({ windowId, reason = "OPERATOR_RESUME_NOW" }) {
       const error = new Error("MISSION_PAUSE_NOT_ARMED");
       error.code = "MISSION_PAUSE_NOT_ARMED";
       throw error;
+    }
+
+    if (hasUnreceiptedPauseAttempt(current)) {
+      const held = await holdForSafety(current, {
+        code: "DISPATCH_EFFECT_UNRESOLVED",
+        detail: "Early pause resume requires reconciliation of the prior unreceipted send state."
+      });
+      return {
+        ok: false, resumed: false, code: "MISSION_PAUSE_SEND_STATE_UNVERIFIED",
+        error: "Utskicksstatusen behöver verifieras innan pausen kan återupptas.",
+        process: publicSnapshot(held)
+      };
     }
 
     const early = !missionPauseDue(current.missionPause);
@@ -8893,6 +10109,8 @@ async function fleetStatusSnapshot() {
     storageContract:storageContractProof,
     recovery: restartReport,
     safety: await readSafety().then(v=>usageSummary(v)).catch(error=>({error:String(error.message)})),
+    safetyVault: {...safetyVaultStatus},
+    driftSettingsVault: {...driftVaultStatus},
     storage: await storageHealth().catch(error=>({known:false,error:String(error.message)})),
     storageRetention: storageRetentionStatus || await readStorageRetentionStatus(chrome.storage.local).catch(() => null),
     usedCapacity: Number(schedulerView.scheduler?.activeCount || 0),
@@ -9085,11 +10303,7 @@ async function setReservedSlot({ windowId, workerId, enabled }) {
 
 async function setMaxActiveSessions({ windowId, maxActiveSessions }) {
   const value = Number(maxActiveSessions);
-  const settings = await saveOperatorSettings(
-    { maxActiveSessions: value },
-    chrome.storage.local,
-    { restoreSavedMissions: false, bookmarks: null }
-  );
+  const { settings, driftSettingsVault } = await saveDriftSettings({ maxActiveSessions: value });
   const gate = await readGlobalPromptGate().catch(() => null);
   const context = await schedulerCapacityContext({ gate, settings });
   const scheduler = await readGlobalCapacityScheduler(chrome.storage.local, {
@@ -9121,8 +10335,25 @@ async function setMaxActiveSessions({ windowId, maxActiveSessions }) {
   return {
     ok: true,
     operatorSettings: settings,
-    globalCapacityScheduler: scheduler
+    globalCapacityScheduler: scheduler,
+    driftSettingsVault
   };
+}
+
+// Spara grundparametrar (sidepanel.js saveQueueSettings).
+// v1.9.2: only the fields the panel sends are saved (it sends the ones the
+// operator changed), so a value the form still shows from before cannot
+// overwrite a newer one saved by another installation.
+async function saveQueueSettingsFromPanel(bound) {
+  const patch = {};
+  for (const key of ["defaultMissionQuantumInteractions", "queuePriorityAgingSeconds", "queueSwitchDelaySeconds", "queueSwitchSettleSeconds"]) {
+    if (bound[key] !== undefined && bound[key] !== null) patch[key] = bound[key];
+  }
+  for (const key of ["queueSwitchHardReload", "warmQueueResume"]) {
+    if (typeof bound[key] === "boolean") patch[key] = bound[key];
+  }
+  const { settings, driftSettingsVault } = await saveDriftSettings(patch);
+  return { ok: true, operatorSettings: settings, driftSettingsVault };
 }
 
 async function setNextInstruction({ windowId, instruction = "" }) {
@@ -9140,7 +10371,7 @@ async function setNextInstruction({ windowId, instruction = "" }) {
     throw error;
   }
 
-  return instructionQueues.enqueue(process.processId, async () => {
+  const result = await instructionQueues.enqueue(process.processId, async () => {
     const current = await findProcessById(process.processId);
     if (!current || TERMINAL_PHASES.has(current.phase)) {
       const error = new Error("ACTIVE_PROCESS_REQUIRED");
@@ -9180,6 +10411,13 @@ async function setNextInstruction({ windowId, instruction = "" }) {
     await broadcast(current, "next-instruction-queued");
     return { ok: true, process: publicSnapshot(current), nextInstruction: record };
   });
+  // The inbox write precedes this process-lock acquisition, so an in-flight
+  // analysis still sees the new instruction and can invalidate its callback.
+  if (result.nextInstruction && result.process?.phase === PHASES.PAUSED) {
+    const resumed = await queues.enqueue(process.processId, () => resumeAdvisoryPauseForInstruction(process.processId));
+    if (resumed) return { ...result, process: publicSnapshot(resumed), nextInstruction: null };
+  }
+  return result;
 }
 
 async function auditUiEvent(
@@ -9504,12 +10742,53 @@ async function holdForSafety(process, decision) {
   return process;
 }
 
+async function ensureHighestThinkingBeforeSend(process, page) {
+  const state = await readSafety();
+  const options = {url:page.url,gptRoot:process.gptRoot};
+  const verified = Safety.evaluateModel(page.modelEvidence,state.policy,{...options,requireHighestEffort:true});
+  if (verified.allowed) return {handled:false,process,page};
+  const ordinary = Safety.evaluateModel(page.modelEvidence,state.policy,options);
+  if (process.safety?.qualityIncident || process.storageRecoveryRequired || state.admissionPaused || state.providerHold) {
+    return {handled:true,process:await holdForSafety(process,{code:process.safety?.qualityIncident?.code ||
+      (process.storageRecoveryRequired ? "STORAGE_RECOVERY_REQUIRES_REVIEW" : state.admissionPaused ? "ADMISSION_PAUSED" : "PROVIDER_QUOTA_HOLD")})};
+  }
+  if (!ordinary.allowed && !["THINKING_EFFORT_TOO_LOW","THINKING_EFFORT_UNKNOWN","THINKING_MODE_UNVERIFIED"].includes(ordinary.code)) {
+    return {handled:true,process:await holdForSafety(process,ordinary)};
+  }
+  if (page.generating || providerTransportPending(page)) return {handled:true,process:await holdForSafety(process,{code:"TARGET_BUSY"})};
+  // Reconciliation owns an uncertain prior effect. Never change its model UI.
+  if (process.pendingPrompt?.dispatch && process.pendingPrompt.dispatch.effectPossible !== false) {
+    return {handled:true,process:await holdForSafety(process,{code:"THINKING_MAXIMUM_UNVERIFIED"})};
+  }
+  const boundary = await transportTransitionBoundary(process);
+  if (boundary.blocked) return {handled:true,process:boundary.process};
+  let result;
+  try {
+    result = await bridgeMessage(process.tabId, {
+      type:"EIC_GF_ENSURE_HIGHEST_THINKING",documentId:page.documentId,expectedUrl:page.url,
+      promptHash:process.pendingPrompt?.hash || "",gptRoot:process.gptRoot,policy:state.policy
+    }, 10000);
+  } catch (error) { result = {ok:false,code:error?.code || "THINKING_SELECTION_FAILED"}; }
+  const after = await transportTransitionBoundary(process);
+  if (after.blocked) return {handled:true,process:after.process};
+  if (!result?.ok) return {handled:true,process:await holdForSafety(process,{code:result?.code || "THINKING_SELECTION_FAILED",detail:result?.detail || ""})};
+  const fresh = await tabState(process,"highest-thinking-readback");
+  const finalProof = Safety.evaluateModel(fresh.modelEvidence,state.policy,{url:fresh.url,gptRoot:process.gptRoot,requireHighestEffort:true});
+  if (!finalProof.allowed) return {handled:true,process:await holdForSafety(process,finalProof)};
+  await audit(process,"THINKING_MAXIMUM_VERIFIED","model-control",{
+    changed:result.changed === true,previous:result.previous || null,
+    selected:result.proof?.label || "",strategy:result.proof?.strategy || "",target:result.proof?.target || "",
+    documentId:fresh.documentId,sessionSeq:process.sessionSeq
+  });
+  return {handled:false,process,page:fresh};
+}
+
 async function sendingSafetyDecision(process,page,pending) {
   if (process.storageRecoveryRequired) return {allowed:false,code:"STORAGE_RECOVERY_REQUIRES_REVIEW"};
   if (process.safety?.qualityIncident) return {allowed:false,code:process.safety.qualityIncident.code};
   await maintainLocalStorage("before-send");
   const v=await readSafety();
-  const proof=Safety.evaluateModel(page.modelEvidence,v.policy,{url:page.url,gptRoot:process.gptRoot});
+  const proof=Safety.evaluateModel(page.modelEvidence,v.policy,{url:page.url,gptRoot:process.gptRoot,requireHighestEffort:true});
   if (!proof.allowed) return proof;
   if (!page.composerEmpty && page.composerTextHash !== await sha256Hex(pending.text)) return {allowed:false,code:"OPERATOR_DRAFT_PRESENT"};
   return budgetDecision(v,usageIdentity(process,pending),pending.text);
@@ -9606,17 +10885,148 @@ async function recordDispatchMaterialization(message, sender) {
 async function authorizeDispatch(message,sender) {
   const tab=sender?.tab;
   if (!tab || sender.id!==chrome.runtime.id) return {ok:false,code:"DISPATCH_OWNER_UNVERIFIED"};
-  const process=await loadProcessForWindow(tab.windowId);
+  let process=await loadProcessForWindow(tab.windowId);
   const dispatch=process?.pendingPrompt?.dispatch;
   if (runtimeFault || !process || process.phase!==PHASES.SENDING || process.tabId!==tab.id || dispatch?.operationId!==message.dispatchId || process.pendingPrompt.hash!==message.promptHash || process.safety?.qualityIncident || process.storageRecoveryRequired) return {ok:false,code:"DISPATCH_OWNER_UNVERIFIED"};
   await maintainLocalStorage("dispatch-authorization");
   const v=await readSafety();
   if (v.admissionPaused || v.providerHold) return {ok:false,code:v.admissionPaused?"ADMISSION_PAUSED":"PROVIDER_QUOTA_HOLD"};
+  const current = await loadProcessForWindow(tab.windowId);
+  if (!isCurrentToken(current, ownerToken(process)) || current?.phase !== PHASES.SENDING ||
+      current.pendingPrompt?.dispatch?.operationId !== message.dispatchId ||
+      current.pendingPrompt?.hash !== message.promptHash || current.safety?.qualityIncident ||
+      current.storageRecoveryRequired) return {ok:false,code:"DISPATCH_OWNER_UNVERIFIED"};
+  process = current;
   const identity=usageIdentity(process,process.pendingPrompt);
-  if (!v.entries.some(e=>e.id===identity) || !process.safety?.turnProof?.allowed || process.safety.turnProof.promptHash!==message.promptHash) return {ok:false,code:"DISPATCH_AUTHORIZATION_MISSING"};
+  if (!v.entries.some(e=>e.id===identity) || !process.safety?.turnProof?.allowed ||
+      process.safety.turnProof.highestEffortVerified !== true || process.safety.turnProof.promptHash!==message.promptHash) return {ok:false,code:"DISPATCH_AUTHORIZATION_MISSING"};
   const admission=await authorizeUsageSend(identity,message.dispatchId);
   if (!admission.allowed) return {ok:false,code:admission.code};
-  return {ok:true,policy:admission.policy,gptRoot:process.gptRoot};
+  const pending = process.pendingPrompt;
+  return {ok:true,policy:admission.policy,gptRoot:process.gptRoot, transportContext: {
+    kind: pending.transportKind || "", requiredConversationKey: pending.requiredConversationKey || "",
+    sourceUserTurnId: pending.sourceUserTurnId || "",
+    sourcePromptHash: process.deliveryRetry?.sourcePrompt?.hash || "",
+    baselineAssistantHash: pending.baselineAssistantHash || ""
+  }};
+}
+
+function withSafetyVaultTimeout(work,code="SAFETY_POLICY_VAULT_TIMEOUT") {
+  let timer;
+  return Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(code)),SAFETY_VAULT_TIMEOUT_MS);})]).finally(()=>clearTimeout(timer));
+}
+async function setSafetyVaultStatus(state,extra={}) {
+  safetyVaultStatus={state,atMs:Date.now(),folder:SAFETY_POLICY_VAULT_FOLDER,...extra};
+  try {
+    if (SAFETY_VAULT_SETTLED.has(state)) await chrome.storage.session.set({[SAFETY_VAULT_SESSION_KEY]:safetyVaultStatus});
+    else await chrome.storage.session.remove(SAFETY_VAULT_SESSION_KEY); // retried at the next worker start
+  } catch {}
+  return safetyVaultStatus;
+}
+async function writeSafetyPolicyToVault(v) {
+  // Never stamp the vault ahead of the clock: a save made while the clock ran
+  // fast would otherwise be rejected as far-future after the clock is corrected.
+  const savedAtMs=Math.min(Number(v.policyUpdatedAtMs || 0) || Date.now(),Date.now());
+  return withSafetyVaultTimeout(writeSafetyPolicyVault({policy:v.policy,savedAtMs,appVersion:APP_VERSION},{bookmarks:chrome.bookmarks,normalizePolicy:Safety.normalizePolicy}));
+}
+async function syncSafetyPolicyVault(reason,{force=false}={}) {
+  if (!chrome.bookmarks?.getTree) return setSafetyVaultStatus("UNAVAILABLE",{error:"chrome.bookmarks saknas"});
+  if (!force) {
+    const settled=await chrome.storage.session.get(SAFETY_VAULT_SESSION_KEY).then(r=>r?.[SAFETY_VAULT_SESSION_KEY]).catch(()=>null);
+    if (SAFETY_VAULT_SETTLED.has(settled?.state)) return (safetyVaultStatus={...settled,folder:SAFETY_POLICY_VAULT_FOLDER});
+  }
+  try {
+    return await withSafetyVaultTimeout((async()=>{
+      const local=await readSafety();
+      const vault=await loadSafetyPolicyVault(chrome.bookmarks,{normalizePolicy:Safety.normalizePolicy});
+      const plan=safetyPolicyVaultPlan({local,vault,defaults:Safety.defaults,equalPolicy:equalSafetyPolicy});
+      if (plan.action==="ADOPT_VAULT") {
+        const after=await adoptSafetyPolicyFromVault(vault);
+        if (after.policyOrigin==="VAULT" && after.policyUpdatedAtMs===vault.savedAtMs) {
+          await recordIncident(null,"SAFETY_POLICY_RESTORED",plan.reason,{reason,vaultSavedAtMs:vault.savedAtMs,vaultAppVersion:vault.appVersion});
+          return setSafetyVaultStatus("RESTORED",{savedAtMs:vault.savedAtMs,reason:plan.reason});
+        }
+        return setSafetyVaultStatus("IN_SYNC",{savedAtMs:Number(after.policyUpdatedAtMs || 0) || null,reason:"LOCAL_SAVED_DURING_SYNC"});
+      }
+      if (plan.action==="SEED_VAULT") {
+        const record=await writeSafetyPolicyToVault(local);
+        return setSafetyVaultStatus("SAVED",{savedAtMs:record.savedAtMs,reason:plan.reason});
+      }
+      return setSafetyVaultStatus(vault ? "IN_SYNC" : "EMPTY",{savedAtMs:vault?.savedAtMs || null,reason:plan.reason});
+    })());
+  } catch(error) {
+    return setSafetyVaultStatus("ERROR",{error:String(error?.message || error),reason});
+  }
+}
+
+async function setDriftVaultStatus(state,extra={}) {
+  driftVaultStatus={state,atMs:Date.now(),folder:SAFETY_POLICY_VAULT_FOLDER,...extra};
+  try {
+    if (SAFETY_VAULT_SETTLED.has(state)) await chrome.storage.session.set({[DRIFT_VAULT_SESSION_KEY]:driftVaultStatus});
+    else await chrome.storage.session.remove(DRIFT_VAULT_SESSION_KEY); // retried at the next worker start
+  } catch {}
+  return driftVaultStatus;
+}
+const readDriftVault=()=>loadDriftSettingsVault(chrome.bookmarks,{normalizeSettings:normalizeDriftVaultSettings});
+// One step for every occasion (start, after an operator save, after a backup
+// import): a per-setting merge of this installation and the vault, newest save
+// of each setting wins (operator-settings.mjs mergeDriftSettings). The merge is
+// computed inside the settings write lock; the vault is written afterwards.
+// Values that a running turn has already taken (its prompt pause, its queue
+// switch) are not changed; the next turn and the scheduler read the new ones.
+async function reconcileDriftSettingsWork(reason) {
+  if (!chrome.bookmarks?.getTree) return setDriftVaultStatus("UNAVAILABLE",{error:"chrome.bookmarks saknas",reason});
+  const vault=await readDriftVault();
+  const {settings,merge}=await reconcileLocalDriftSettings(vault,chrome.storage.local);
+  if (merge.adoptedKeys.length) {
+    await recordIncident(null,"DRIFT_SETTINGS_RESTORED",reason,{vaultSavedAtMs:vault?.savedAtMs ?? null,vaultAppVersion:vault?.appVersion || "",changed:Object.fromEntries(merge.adoptedKeys.map(k=>[k,settings[k]]))});
+  }
+  let record=vault;
+  if (merge.vaultWrite) {
+    record=await writeDriftSettingsVault({settings:{values:merge.values,keySavedAtMs:merge.stamps},appVersion:APP_VERSION},{bookmarks:chrome.bookmarks,normalizeSettings:normalizeDriftVaultSettings});
+  }
+  const state=merge.adoptedKeys.length ? "RESTORED" : merge.vaultWrite ? "SAVED" : vault ? "IN_SYNC" : "EMPTY";
+  return setDriftVaultStatus(state,{savedAtMs:record?.savedAtMs ?? null,reason,adoptedKeys:merge.adoptedKeys});
+}
+// Serialized: one reconciliation at a time in this worker. The queue waits for
+// the real end of each run (a bookmark call that outlives the 8 s limit is
+// still awaited), so an older run can never commit after a newer one; only the
+// caller's answer is bounded by the limit. At startup a result already settled
+// in this browser session is reused (no bookmark read).
+function reconcileDriftSettings(reason,{force=false}={}) {
+  const run=driftVaultQueue.catch(()=>undefined).then(async()=>{
+    if (!force && chrome.bookmarks?.getTree) {
+      const settled=await chrome.storage.session.get(DRIFT_VAULT_SESSION_KEY).then(r=>r?.[DRIFT_VAULT_SESSION_KEY]).catch(()=>null);
+      if (SAFETY_VAULT_SETTLED.has(settled?.state)) return (driftVaultStatus={...settled,folder:SAFETY_POLICY_VAULT_FOLDER});
+    }
+    return reconcileDriftSettingsWork(reason);
+  });
+  driftVaultQueue=run;
+  return withSafetyVaultTimeout(run,"DRIFT_SETTINGS_VAULT_TIMEOUT").catch(async(error)=>{
+    const operatorSave=reason==="OPERATOR_SAVE";
+    await setDriftVaultStatus(operatorSave ? "WRITE_FAILED" : "ERROR",{error:String(error?.message || error),reason});
+    if (operatorSave) await recordIncident(null,"DRIFT_SETTINGS_VAULT_WRITE_FAILED","OPERATOR",{error:driftVaultStatus.error});
+    return driftVaultStatus;
+  }).then(status=>({...status}));
+}
+// Every operator save of a Drift setting goes through here (all in this
+// worker, under the settings write lock). First this installation is brought
+// in line with the vault (newer values and save times from other
+// installations), then the change is saved, then the vault is updated. The
+// local save never waits on the vault; a vault failure is reported and retried
+// at the next start or save without losing the vault's other settings.
+async function saveDriftSettings(patch) {
+  await reconcileDriftSettings("BEFORE_OPERATOR_SAVE",{force:true});
+  await saveOperatorSettings(patch,chrome.storage.local,{restoreSavedMissions:false,bookmarks:null});
+  const driftSettingsVault=await reconcileDriftSettings("OPERATOR_SAVE",{force:true});
+  const settings=await loadOperatorSettings(chrome.storage.local,{restoreSavedMissions:false,bookmarks:null});
+  return {settings,driftSettingsVault};
+}
+// Paus mellan analys och post (sidepanel.js updatePostDelay). Panel pages only.
+async function savePostDelayFromPanel(message,sender) {
+  if (sender?.id!==chrome.runtime.id || !String(sender?.url || "").startsWith(chrome.runtime.getURL("sidepanel.html"))) throw new Error("POST_DELAY_PANEL_SENDER_REQUIRED");
+  const {settings,driftSettingsVault}=await saveDriftSettings({postDelaySeconds:Number(message?.postDelaySeconds)});
+  return {ok:true,operatorSettings:settings,driftSettingsVault};
 }
 
 async function hydrateProcesses(reason) {
@@ -9626,6 +11036,11 @@ async function hydrateProcesses(reason) {
       storageContractProof ||= await probeStorageContract(chrome.storage.local);
       const repaired=await recoverRc1Checkpoints(chrome.storage.local);
       await readSafety();
+      if (!safetyVaultSynced) {
+        safetyVaultSynced=true;
+        await syncSafetyPolicyVault(reason || "startup");
+        await reconcileDriftSettings(reason || "startup");
+      }
       const report=await reconcileRestart({local:chrome.storage.local,session:chrome.storage.session,tabs:chrome.tabs,ensureBridge:ensureContentBridgeVersion});
       // v1.8.13: restored rows accumulate for the service worker's lifetime;
       // each row carries its own time (diagnostics 2026-10-05 showed a days-old
@@ -9641,7 +11056,12 @@ async function hydrateProcesses(reason) {
       for (const process of processes) {
         const queue=await loadMissionWorkQueue(process.windowId,chrome.storage.local,{workerId:process.workerId});
         await syncMissionQueueWakeAlarm(queue);
-        if (queue.enabled && TERMINAL_PHASES.has(process.phase)) await wakeMissionQueue(process.windowId,"RESTART_QUEUE_RECONCILE");
+      }
+      // An enabled queue can outlive its process. Inspect every live window's
+      // bound queue; never guess a replacement window for an unbound owner.
+      for (const window of await chrome.windows.getAll({})) {
+        const state = await missionQueueForWindow(window.id);
+        if (state.queue.enabled) await wakeMissionQueue(window.id, "RESTART_QUEUE_RECONCILE");
       }
       await maintainLocalStorage(reason || "recovery-scan");
       runtimeFault="";
@@ -9653,6 +11073,76 @@ async function hydrateProcesses(reason) {
     return restartReport;
   })();
   try { return await hydrationInFlight; } finally { hydrationInFlight=null; }
+}
+
+// Keep explicit provider recovery separate from per-worker maximum checks.
+// A healthy sibling alone cannot clear a quota report from an unseen worker.
+async function recheckProviderHold(processes) {
+  const hold=(await readSafety()).providerHold;
+  if (!hold || !processes.some(p=>p.workerId===hold.sourceWorkerId)) return;
+  const proofs=[];
+  for (const candidate of processes) {
+    try {
+      const proof=await queues.enqueue(candidate.processId,async()=>{
+        const process=await findProcessById(candidate.processId);
+        if (!process || process.phase===PHASES.DETACHED || process.storageRecoveryRequired || process.safety?.qualityIncident) return null;
+        const page=await tabState(process,"operator-provider-recheck");
+        return Safety.evaluateModel(page.modelEvidence,(await readSafety()).policy,{url:page.url,gptRoot:process.gptRoot});
+      });
+      proofs.push(proof);
+    } catch { proofs.push(null); }
+  }
+  const current=(await readSafety()).providerHold;
+  if (current && current.signature===hold.signature && current.sourceWorkerId===hold.sourceWorkerId &&
+      current.multipleSources===hold.multipleSources && proofs.length && proofs.every(p=>p?.allowed)) {
+    await probeProviderRecovery(proofs[0],chrome.storage.local,{operator:true});
+  }
+}
+
+// Run under this process's keyed queue. A model inspection is not permission
+// to resume: unsent work needs the same maximum receipt and gates as dispatch.
+async function recheckProcessModel(processId) {
+  let process = await findProcessById(processId);
+  const result = (values) => ({processId,workerId:process?.workerId || "",...values});
+  if (!process || TERMINAL_PHASES.has(process.phase)) return result({ok:false,skipped:true,code:"PROCESS_NOT_RUNNING"});
+  if (process.phase !== PHASES.SENDING) return result({ok:false,skipped:true,code:`PROCESS_${process.phase}`});
+  if (process.storageRecoveryRequired || process.safety?.qualityIncident) {
+    return result({ok:false,code:process.storageRecoveryRequired ? "STORAGE_RECOVERY_REQUIRES_REVIEW" : process.safety.qualityIncident.code});
+  }
+  if (process.pendingPrompt?.dispatch && process.pendingPrompt.dispatch.effectPossible !== false) {
+    return result({ok:false,skipped:true,code:"DISPATCH_EFFECT_UNRESOLVED"});
+  }
+  if (!process.pendingPrompt?.text || !process.pendingPrompt?.hash) return result({ok:false,code:"PENDING_PROMPT_MISSING"});
+  if (process.queueContext?.itemId && await activeSlotScheduleBlock(process)) {
+    return result({ok:false,skipped:true,code:"QUEUE_SCHEDULE_CLOSED"});
+  }
+  const page = await tabState(process,"operator-model-recheck");
+  const before = await transportTransitionBoundary(process);
+  if (before.blocked) return result({ok:false,skipped:true,code:"PROCESS_OWNER_CHANGED"});
+  process = before.process;
+  const thinking = await ensureHighestThinkingBeforeSend(process,page);
+  if (thinking.handled) return result({ok:false,code:thinking.process?.safety?.hold?.code || "MODEL_RECHECK_NOT_READY"});
+  const decision = await sendingSafetyDecision(process,thinking.page,process.pendingPrompt);
+  const after = await transportTransitionBoundary(process);
+  if (after.blocked) return result({ok:false,skipped:true,code:"PROCESS_OWNER_CHANGED"});
+  process = after.process;
+  if (!decision.allowed) {
+    await holdForSafety(process,decision);
+    return result({ok:false,code:decision.code});
+  }
+  // Record intent before the final owner readback. STOP/queue replacement
+  // during a UI or audit await must not be undone by the old callback.
+  await audit(process,"OPERATOR_MODEL_RECHECK_VERIFIED","model-control",{
+    priorHoldCode:process.safety?.hold?.code || "",highestEffort:thinking.page.modelEvidence?.highestEffort || null
+  });
+  const final = await transportTransitionBoundary(process);
+  if (final.blocked) return result({ok:false,skipped:true,code:"PROCESS_OWNER_CHANGED"});
+  process = final.process;
+  process.safety={...process.safety,hold:null};
+  await saveProcess(process);
+  // Do not enqueue/await another task from inside this same keyed queue.
+  scheduleFast(process.processId,100);
+  return result({ok:true,code:"THINKING_MAXIMUM_VERIFIED",resumeScheduled:true});
 }
 
 async function panelSafetyAction(message,sender) {
@@ -9676,6 +11166,9 @@ async function panelSafetyAction(message,sender) {
   }
   if (message.type==="EIC_GF_IMPORT_RECOVERY") {
     const restored=await restoreOperatorBackup(typeof message.backupJson==="string" ? JSON.parse(message.backupJson) : message.backup,chrome.storage.local,{bookmarks:chrome.bookmarks || null});
+    // v1.9.1: settle imported run requirements against the vault now (newest save wins), not at an arbitrary later restart.
+    await syncSafetyPolicyVault("backup-import",{force:true});
+    await reconcileDriftSettings("backup-import",{force:true});
     await hydrateProcesses();
     return {ok:true,restored,fleetStatus:await fleetStatusSnapshot()};
   }
@@ -9691,8 +11184,21 @@ async function panelSafetyAction(message,sender) {
   }
   if (message.type==="EIC_GF_SAFETY_UPDATE") {
     const before=(await readSafety()).policy;
-    const after=(await updateSafetyPolicy(message.policy || {})).policy;
+    const saved=await updateSafetyPolicy(message.policy || {});
+    const after=saved.policy;
     await recordIncident(null,"SAFETY_POLICY_UPDATED","OPERATOR",Object.fromEntries(Object.keys(after||{}).filter(k=>before?.[k]!==after[k]).map(k=>[k,after[k]])));
+    // The local journal is already committed. A failed vault write is reported
+    // to the panel and retried at the next start (local is then the newer save).
+    if (!chrome.bookmarks?.getTree) await setSafetyVaultStatus("UNAVAILABLE",{error:"chrome.bookmarks saknas"});
+    else {
+      try {
+        const record=await writeSafetyPolicyToVault(saved);
+        await setSafetyVaultStatus("SAVED",{savedAtMs:record.savedAtMs,reason:"OPERATOR_SAVE"});
+      } catch(error) {
+        await setSafetyVaultStatus("WRITE_FAILED",{error:String(error?.message || error),reason:"OPERATOR_SAVE"});
+        await recordIncident(null,"SAFETY_POLICY_VAULT_WRITE_FAILED","OPERATOR",{error:safetyVaultStatus.error});
+      }
+    }
   }
   if (message.type==="EIC_GF_SAFETY_PAUSE") await pauseAdmission(message.paused===true);
   if (message.type==="EIC_GF_RECOVERY_SCAN") await hydrateProcesses("operator-recovery-scan");
@@ -9703,24 +11209,22 @@ async function panelSafetyAction(message,sender) {
       if(result.inspection?.allowed)await probeProviderRecovery(result.inspection,chrome.storage.local,{operator:true});
       return {...result,fleetStatus:await fleetStatusSnapshot()};
     }
-    const proofs=[];
+    await recheckProviderHold(processes);
+    const results=[];
     for (const p of processes) {
-      await queues.enqueue(p.processId,async()=>{
-        const process=await findProcessById(p.processId);
-        const page=await tabState(process,"operator-model-recheck");
-        proofs.push(Safety.evaluateModel(page.modelEvidence,(await readSafety()).policy,{url:page.url,gptRoot:process.gptRoot}));
-      });
-    }
-    if (!proofs.length || proofs.some(p=>!p.allowed)) return {ok:false,code:"NO_FRESH_APPROVED_MODEL_UI"};
-    await probeProviderRecovery(proofs[0],chrome.storage.local,{operator:true});
-    for (const p of processes) await queues.enqueue(p.processId,async()=>{
-      const current=await findProcessById(p.processId);
-      if (!current.safety?.qualityIncident && !current.storageRecoveryRequired) {
-        current.safety={...current.safety,hold:null};
-        await saveProcess(current);
-        scheduleFast(current.processId,100);
+      try {
+        results.push(await queues.enqueue(p.processId,()=>recheckProcessModel(p.processId)));
+      } catch (error) {
+        const code=String(error?.code || error?.message || "MODEL_RECHECK_FAILED");
+        results.push({processId:p.processId,workerId:p.workerId,ok:false,code});
+        await recordIncident(p,"OPERATOR_MODEL_RECHECK_FAILED",code,{}).catch(()=>undefined);
       }
-    });
+    }
+    const ready=results.filter(r=>r.ok && r.resumeScheduled).length;
+    const failed=results.filter(r=>!r.ok && !r.skipped).length;
+    const skipped=results.filter(r=>r.skipped).length;
+    return {ok:ready>0 && failed===0,code:failed ? "MODEL_RECHECK_INCOMPLETE" : ready ? "THINKING_MAXIMUM_VERIFIED" : "NO_SENDING_PROCESS",
+      recheck:{ready,failed,skipped,results},fleetStatus:await fleetStatusSnapshot()};
   }
 
   const processes=await loadAllProcesses();
@@ -9737,9 +11241,177 @@ async function panelSafetyAction(message,sender) {
   return {ok:true,fleetStatus:await fleetStatusSnapshot()};
 }
 
+async function recoverLegacyAdvisoryBlocked(process, reason) {
+  if (!legacyAdvisoryBlockedCandidate(process)) return process;
+  const safety = await readSafety();
+  if (safety.admissionPaused || safety.providerHold) return process;
+  const queue = await loadMissionWorkQueue(process.windowId,chrome.storage.local,{workerId:process.workerId});
+  if (queue.enabled || await sha256Hex(process.lastPrompt.text) !== process.lastPrompt.hash ||
+      await sha256Hex(process.lastResponse.text) !== process.lastResponse.hash) return process;
+
+  let tab, page;
+  try {
+    tab = await chrome.tabs.get(process.tabId);
+    const key = conversationKey(process.lastManagedUrl);
+    if (tab.windowId !== process.windowId || tab.discarded || tab.frozen ||
+        !key || conversationKey(tab.url) !== key) return process;
+    await ensureContentBridgeVersion(tab.id);
+    const expected = expectedAutonomousUserTurn(process);
+    const result = await bridgeMessage(tab.id, {
+      type: "EIC_GF_GET_PAGE_STATE", source: "legacy-advisory-blocked-recheck",
+      expectedUserTurnId: expected.id, expectedUserIndex: expected.index,
+      expectedPromptMarker: expectedPromptMarker(process)
+    });
+    if (!result?.ok) return process;
+    page = result.state;
+  } catch { return process; }
+  const proof = Safety.evaluateModel(page?.modelEvidence,safety.policy,{url:page?.url,gptRoot:process.gptRoot});
+  const causal = autonomousResponseObservation(process,page);
+  if (!proof.allowed || conversationKey(page?.url) !== conversationKey(process.lastManagedUrl) ||
+      page?.bridgeVersion !== APP_VERSION || page.generating || providerTransportPending(page) ||
+      !causal.ready || causal.observation.generating || causal.observation.lastAssistantOwnerTrusted !== true ||
+      causal.observation.lastAssistantId !== process.lastResponse.messageId ||
+      causal.observation.assistantHash !== process.lastResponse.hash ||
+      page.lastUserId !== process.lastPrompt.dispatchedUserTurnId ||
+      page.lastAssistantId !== process.lastResponse.messageId) return process;
+
+  const operationId = randomId("legacy-advisory-recovery");
+  await audit(process,"LEGACY_ADVISORY_BLOCKED_REANALYSIS_INTENT","migration",{
+    reason, from: PHASES.BLOCKED, to: PHASES.ANALYZING,
+    sourceResponseHash: process.lastResponse.hash, automaticResend: false
+  },operationId);
+  // Browser calls may finish after STOP, replacement, or a different capture.
+  // The process queue serializes normal controls; read back ownership as well.
+  const current = await loadProcessForWindow(process.windowId);
+  const currentSafety = await readSafety();
+  const currentQueue = await loadMissionWorkQueue(process.windowId,chrome.storage.local,{workerId:process.workerId});
+  const currentProof = Safety.evaluateModel(page.modelEvidence,currentSafety.policy,{url:page.url,gptRoot:process.gptRoot});
+  if (!isCurrentToken(current,ownerToken(process)) || !legacyAdvisoryBlockedCandidate(current) ||
+      current.lastResponse.hash !== process.lastResponse.hash || current.lastPrompt.hash !== process.lastPrompt.hash ||
+      current.lastResponse.text !== process.lastResponse.text || current.lastPrompt.text !== process.lastPrompt.text ||
+      current.turn !== process.turn || current.lastPrompt.dispatchedUserTurnId !== process.lastPrompt.dispatchedUserTurnId ||
+      !currentProof.allowed || currentSafety.admissionPaused || currentSafety.providerHold || currentQueue.enabled) return current || process;
+
+  const next = {
+    ...current, version: APP_VERSION, phase: PHASES.ANALYZING, generation: current.generation + 1,
+    completedAt: null, updatedAt: nowIso(),
+    safety: { ...current.safety, proof: currentProof, evidence: page.modelEvidence,
+      lastObservationAtMs: Date.now(), persistedObservationAtMs: Date.now() },
+    legacyAdvisoryRecovery: {
+      version: 1, atMs: Date.now(), responseId: `${current.processId}:${current.runId}:${current.turn}:${current.lastResponse.hash}`,
+      sourceResponseHash: current.lastResponse.hash, priorCompletedAt: current.completedAt || null,
+      priorError: deepClone(current.lastError), priorGeneration: current.generation,
+      reason: "LEGACY_LOCAL_ADVISORY_BLOCKED_REANALYSIS"
+    }
+  };
+  // This classified migration publishes only ANALYZING. Generic terminal
+  // transition rules stay closed; the normal pipeline authorizes the next step.
+  await saveProcess(next);
+  const readback = await loadProcessForWindow(next.windowId);
+  if (!isCurrentToken(readback,ownerToken(next)) || readback.phase !== PHASES.ANALYZING ||
+      readback.legacyAdvisoryRecovery?.responseId !== next.legacyAdvisoryRecovery.responseId) {
+    throw new Error("LEGACY_ADVISORY_RECOVERY_READBACK_MISMATCH");
+  }
+  await audit(next,"LEGACY_ADVISORY_BLOCKED_REANALYSIS_COMMIT","migration",{
+    reason, sourceResponseHash: next.lastResponse.hash, automaticResend: false,
+    priorGeneration: current.generation, generation: next.generation
+  },operationId);
+  return next;
+}
+
+async function recoverLegacyRotationBlocked(process, reason) {
+  if (!legacyRotationBlockedCandidate(process) ||
+      await sha256Hex(process.pendingPrompt.text) !== process.pendingPrompt.hash) return process;
+  if (process.lastPrompt && (await sha256Hex(process.lastPrompt.text) !== process.lastPrompt.hash ||
+      await sha256Hex(process.lastResponse.text) !== process.lastResponse.hash)) return process;
+  const safety = await readSafety();
+  const queue = await loadMissionWorkQueue(process.windowId,chrome.storage.local,{workerId:process.workerId});
+  if (safety.admissionPaused || safety.providerHold || queue.enabled) return process;
+
+  // Invalidate older callbacks while changing only the envelope's generation.
+  // Keep mission/objective, message id, rotation and instruction bytes intact.
+  const envelope = JSON.parse(process.pendingPrompt.text);
+  envelope.process.generation = process.generation + 1;
+  const promptText = JSON.stringify(envelope);
+  const pendingPrompt = { ...process.pendingPrompt, text: promptText,
+    hash: await sha256Hex(promptText), a2a: envelope,
+    metrics:{ ...process.pendingPrompt.metrics,promptChars:promptText.length } };
+  let page, tab;
+  try {
+    const before = await chrome.tabs.get(process.tabId);
+    if (before.windowId === process.windowId && before.status === "complete" && !before.discarded && !before.frozen) {
+      await ensureContentBridgeVersion(before.id);
+      const observed = await bridgeMessage(before.id, { type:"EIC_GF_GET_PAGE_STATE",
+        source:"legacy-rotation-blocked-recheck",expectedUserTurnId:"",expectedUserIndex:null });
+      if (observed?.ok) {
+        page = observed.state;
+        tab = await chrome.tabs.get(before.id);
+      }
+    }
+  } catch {}
+  const operationId = randomId("legacy-rotation-recovery");
+  if (page && tab) await audit(process,"LEGACY_ROTATION_BLOCKED_RECHECK_INTENT","migration",{
+    reason,from:PHASES.BLOCKED,to:PHASES.ROTATING,rotationId:process.sessionRotation.rotationId,
+    sourcePromptHash:process.pendingPrompt.hash,automaticResend:false
+  },operationId);
+  // Also read back after failed browser calls. Normal controls share this
+  // process queue; no late observation may replace STOP or a revised record.
+  const currentQueue = await loadMissionWorkQueue(process.windowId,chrome.storage.local,{workerId:process.workerId});
+  const currentSafety = await readSafety();
+  const current = await loadProcessForWindow(process.windowId);
+  if (!isCurrentToken(current,ownerToken(process)) || JSON.stringify(current) !== JSON.stringify(process)) return current || process;
+  if (!page || !tab || !legacyRotationBlockedCandidate(current) ||
+      currentSafety.admissionPaused || currentSafety.providerHold || currentQueue.enabled ||
+      tab.windowId !== current.windowId || tab.id !== current.tabId ||
+      tab.status !== "complete" || tab.discarded || tab.frozen || page.url !== tab.url ||
+      page.bridgeVersion !== APP_VERSION || page.userCount !== 0 || page.assistantCount !== 0 ||
+      page.lastUserId || page.lastUserText || page.lastUserHash ||
+      page.composerReady !== true || page.composerEmpty !== true || page.generating !== false ||
+      page.rateLimitWarning?.active || providerTransportPending(page)) return current;
+  const proof = Safety.evaluateModel(page.modelEvidence,currentSafety.policy,{url:page.url,gptRoot:current.gptRoot});
+  const landing = Safety.eicSurfaceProof(page.modelEvidence,page.url,current.gptRoot);
+  if (!proof.allowed || !landing.ok) return current;
+
+  const next = { ...current,version:APP_VERSION,phase:PHASES.ROTATING,generation:current.generation+1,
+    completedAt:null,updatedAt:nowIso(),lastError:null,pendingPrompt,
+    safety:{ ...current.safety,proof,evidence:page.modelEvidence,
+      lastObservationAtMs:Date.now(),persistedObservationAtMs:Date.now() },
+    legacyRotationRecovery:{ version:1,atMs:Date.now(),rotationId:current.sessionRotation.rotationId,
+      priorError:deepClone(current.lastError),priorCompletedAt:current.completedAt,
+      priorGeneration:current.generation,sourcePromptHash:current.pendingPrompt.hash,
+      reboundPromptHash:pendingPrompt.hash,reason:"LEGACY_UNSENT_COLD_ROTATION_READY" }
+  };
+  // A classified migration can only reopen rotation checks. Generic terminal
+  // transitions stay closed; tickRotating and the send gate verify again.
+  await saveProcess(next);
+  const readback = await loadProcessForWindow(next.windowId);
+  if (!isCurrentToken(readback,ownerToken(next)) || readback.phase !== PHASES.ROTATING ||
+      readback.legacyRotationRecovery?.rotationId !== next.legacyRotationRecovery.rotationId ||
+      readback.pendingPrompt?.hash !== pendingPrompt.hash) throw Error("LEGACY_ROTATION_RECOVERY_READBACK_MISMATCH");
+  await audit(next,"LEGACY_ROTATION_BLOCKED_RECHECK_COMMIT","migration",{
+    reason,rotationId:next.sessionRotation.rotationId,priorGeneration:current.generation,
+    generation:next.generation,promptIdentityRebound:true,automaticResend:false,modelProof:proof.code
+  },operationId);
+  return next;
+}
+
 async function hydrateBoundProcesses(reason) {
   const processes = await loadAllProcesses();
   const migrated = await Promise.all(processes.map(async (process) => {
+    if (legacyRotationBlockedCandidate(process)) {
+      return queues.enqueue(process.processId,async () => {
+        const current = await loadProcessForWindow(process.windowId);
+        if (!isCurrentToken(current,ownerToken(process))) return current || process;
+        return recoverLegacyRotationBlocked(current,reason);
+      });
+    }
+    if (legacyAdvisoryBlockedCandidate(process)) {
+      return queues.enqueue(process.processId,async () => {
+        const current = await loadProcessForWindow(process.windowId);
+        if (!isCurrentToken(current,ownerToken(process))) return current || process;
+        return recoverLegacyAdvisoryBlocked(current,reason);
+      });
+    }
     if (TERMINAL_PHASES.has(process.phase)) return process;
     let current = process;
 
@@ -10161,17 +11833,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return syncWorkModeForWorker(process, { force: true });
       }));
     case "EIC_GF_SET_QUEUE_SETTINGS":
-      return respond(withVerifiedWorkerMessage(message, sender, async (bound) => {
-        const settings = await saveOperatorSettings({
-          defaultMissionQuantumInteractions: bound.defaultMissionQuantumInteractions,
-          queuePriorityAgingSeconds: bound.queuePriorityAgingSeconds,
-          queueSwitchHardReload: bound.queueSwitchHardReload === true,
-          queueSwitchDelaySeconds: bound.queueSwitchDelaySeconds,
-          queueSwitchSettleSeconds: bound.queueSwitchSettleSeconds,
-          ...(typeof bound.warmQueueResume === "boolean" ? { warmQueueResume: bound.warmQueueResume } : {})
-        }, chrome.storage.local, { restoreSavedMissions: false, bookmarks: null });
-        return { ok: true, operatorSettings: settings };
-      }));
+      return respond(withVerifiedWorkerMessage(message, sender, saveQueueSettingsFromPanel));
+    case "EIC_GF_SET_POST_DELAY":
+      return respond(savePostDelayFromPanel(message, sender));
     case "EIC_GF_OPERATOR_READ_RESPONSE":
       return respond(withVerifiedWorkerMessage(message, sender, (bound) => operatorReadResponse({
         windowId: bound.windowId,

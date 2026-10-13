@@ -1,7 +1,7 @@
 (() => {
   const BRIDGE = "__EIC_GF_CONTENT_V2__";
   const OVERLAY_ID = "eic-gf-linked-overlay";
-  const CONTENT_VERSION = "1.9.0";
+  const CONTENT_VERSION = "1.9.12";
   const previousBridge = globalThis[BRIDGE] || null;
   const DOCUMENT_ID = previousBridge?.documentId || crypto.randomUUID();
   const dispatchRecords = previousBridge?.dispatchRecords instanceof Map
@@ -17,6 +17,65 @@
   let overlayInfo = null;
   let overlayTimer = null;
   let overlaySignature = "";
+  let disposed = false;
+  let contextInvalidated = false;
+  // Capture this generation: disposing an old bridge must not dispose the
+  // replacement Thinking adapter that was injected immediately before us.
+  const thinkingControl = globalThis.GreenfieldThinkingControl;
+
+  function disposeContent() {
+    if (disposed) return;
+    disposed = true;
+    if (dirtyTimer) clearTimeout(dirtyTimer);
+    dirtyTimer = null;
+    stopOverlayTimer();
+    overlayInfo = null;
+    observer?.disconnect();
+    observer = null;
+    document.getElementById(OVERLAY_ID)?.remove();
+    thinkingControl?.dispose?.();
+    for (const cleanup of listeners.splice(0)) {
+      try { cleanup(); } catch {}
+    }
+  }
+
+  function invalidatedError(error) {
+    return error?.code === "EXTENSION_CONTEXT_INVALIDATED" ||
+      /extension context invalidated/i.test(String(error?.message || error || ""));
+  }
+
+  function invalidateContext() {
+    contextInvalidated = true;
+    disposeContent();
+    return Object.assign(new Error("Extension context invalidated. Reload the ChatGPT tab."), {
+      code: "EXTENSION_CONTEXT_INVALIDATED"
+    });
+  }
+
+  function assertContentActive() {
+    if (contextInvalidated) throw invalidateContext();
+    if (disposed) throw Object.assign(new Error("Content bridge disposed."), {code:"CONTENT_BRIDGE_DISPOSED"});
+    try {
+      if (!chrome.runtime?.id) throw invalidateContext();
+    } catch (error) {
+      if (invalidatedError(error)) throw invalidateContext();
+      throw error;
+    }
+  }
+
+  // async captures both a synchronous API throw and a rejected Promise.
+  // Transport failures still reject: they cannot authorize a prompt click.
+  async function sendRuntimeMessage(message) {
+    assertContentActive();
+    try {
+      const result = await chrome.runtime.sendMessage(message);
+      assertContentActive();
+      return result;
+    } catch (error) {
+      if (invalidatedError(error)) throw invalidateContext();
+      throw error;
+    }
+  }
 
   function normalizeText(value) {
     return String(value ?? "")
@@ -119,7 +178,7 @@
 
   function forensic(kind, payload = {}, severity = "INFO") {
     try {
-      chrome.runtime.sendMessage({
+      sendRuntimeMessage({
         type: "EIC_GF_FORENSIC_EVENT",
         event: { kind, component: "content", severity, payload }
       }).catch?.(() => undefined);
@@ -332,6 +391,7 @@
 
   async function rateLimitRecoveryPreflight() {
     const warning = await detectRateLimitWarning();
+    assertContentActive();
     const publicWarning = publicRateLimitWarning(warning);
     if (!warning.active || !warning.safeButton) {
       return {
@@ -360,6 +420,7 @@
     while (Date.now() - started < 2500) {
       await new Promise((resolve) => setTimeout(resolve, 120));
       const current = await detectRateLimitWarning();
+      assertContentActive();
       if (!current.active && getComposer()) {
         forensic("RATE_LIMIT_WARNING_DISMISSED_SAFE", {
           detector: publicWarning.detector,
@@ -770,6 +831,80 @@
     return null;
   }
 
+  // v1.9.3: ChatGPT transport notices as page state, never as text.
+  // - Background processing: the notice sits in the in-progress turn after
+  //   the last user message, often in a turn without an assistant role node
+  //   (real DOM 2026-09-25, tools/verify-processing-notice.mjs fixtures A/B).
+  //   It counts only while no substantive answer (> 80 chars) is visible.
+  // - Connection lost: "Anslutningen bröts. Väntar på hela svaret" (operator
+  //   screenshot 2026-10-07; English wording assumed), possibly a toast
+  //   outside <main>.
+  // Both are searched only in short visible elements outside user messages,
+  // answer prose (markdown), code, forms and Greenfield's own UI, and inside
+  // the thread only after the last user message, so a quoted sentence in an
+  // answer or a prompt is never mistaken for the notice.
+  const PROVIDER_PROCESSING_NOTICE_PROBE = /Våra system bearbetar|Our systems are/iu;
+  const PROVIDER_CONNECTION_NOTICE = /^(?:Anslutningen bröts|Connection (?:lost|interrupted|was lost|dropped))(?![\p{L}\p{N}])/iu;
+  const PROVIDER_CONNECTION_NOTICE_PROBE = /Anslutningen bröts|Connection (?:lost|interrupted|was lost|dropped)/iu;
+  const PROVIDER_CONNECTION_NOTICE_MAX_CHARS = 160;
+  const NOTICE_EXCLUDED_ANCESTORS = "pre, code, blockquote, .markdown, [class*='markdown'], .prose, [data-message-author-role='user'], [data-eic-gf-ui='true'], #" + OVERLAY_ID + ", form";
+
+  function noticeElementMatches(start, matches, maxChars) {
+    let element = start;
+    for (let i = 0; i < 4 && element && element !== document.body; i += 1) {
+      const value = String(element.textContent || "").replace(/\s+/g, " ").trim();
+      if (value.length > maxChars) return false;
+      if (matches(value)) return true;
+      element = element.parentElement;
+    }
+    return false;
+  }
+
+  function findTransportNotice(probe, matches, maxChars, lastUserOwner, excludedAncestors = NOTICE_EXCLUDED_ANCESTORS) {
+    const body = document.body;
+    if (!body || !probe.test(String(body.textContent || ""))) return false;
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => probe.test(String(node.nodeValue || ""))
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_SKIP
+    });
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const start = node.parentElement;
+      if (!start || start.closest(excludedAncestors) || !visible(start)) continue;
+      // Inside the thread only the turn after the last user message counts.
+      if (start.closest(MESSAGE_TURN_SELECTOR) || start.closest("[data-testid^='conversation-turn-'], [data-turn]")) {
+        if (lastUserOwner && !(lastUserOwner.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+      }
+      if (noticeElementMatches(start, matches, maxChars)) return true;
+    }
+    return false;
+  }
+
+  function providerTransportNotices(lastUserEntry, lastAssistantEntry, lastAssistantText) {
+    const lastUserOwner = lastUserEntry?.owner || null;
+    // Only an answer after the last user message is this turn's answer.
+    const assistantOwner = lastAssistantEntry?.owner || null;
+    const currentAnswer = assistantOwner && (!lastUserOwner ||
+      (lastUserOwner.compareDocumentPosition(assistantOwner) & Node.DOCUMENT_POSITION_FOLLOWING))
+      ? String(lastAssistantText || "")
+      : "";
+    const processingNotice = currentAnswer.trim().length <= 80 &&
+      findTransportNotice(PROVIDER_PROCESSING_NOTICE_PROBE, providerProcessingNoticeText,
+        PROVIDER_PROCESSING_NOTICE_MAX_CHARS, lastUserOwner);
+    const connectionInterrupted = findTransportNotice(PROVIDER_CONNECTION_NOTICE_PROBE,
+      (value) => PROVIDER_CONNECTION_NOTICE.test(value), PROVIDER_CONNECTION_NOTICE_MAX_CHARS, lastUserOwner);
+    // R5A: real page errors, never quoted text in a prompt, answer or overlay.
+    const conversationUnavailable = findTransportNotice(
+      /Det gick inte att läsa in den här ChatGPT-konversationen|Unable to load conversation|Could(?:n't| not) load (?:this |the )?(?:ChatGPT )?conversation/iu,
+      (value) => /^(?:Det gick inte att läsa in den här ChatGPT-konversationen|Unable to load conversation|Could(?:n't| not) load (?:this |the )?(?:ChatGPT )?conversation)(?![\p{L}\p{N}])/iu.test(value),
+      240, null, NOTICE_EXCLUDED_ANCESTORS + ", " + MESSAGE_TURN_SELECTOR);
+    const deliveryTimeout = findTransportNotice(
+      /Meddelandet kunde inte levereras inom tidsgränsen|Message (?:could not|couldn't) be delivered (?:within the time limit|in time)/iu,
+      (value) => /^(?:Meddelandet kunde inte levereras inom tidsgränsen|Message (?:could not|couldn't) be delivered (?:within the time limit|in time))(?![\p{L}\p{N}])/iu.test(value),
+      240, lastUserOwner, NOTICE_EXCLUDED_ANCESTORS + ", [data-message-author-role='assistant'], " + SHELL_MESSAGE_SELECTOR);
+    return { processingNotice, connectionInterrupted, conversationUnavailable, deliveryTimeout };
+  }
+
   function pageHealthState(entries, anchorEntry) {
     const now = Date.now();
     return {
@@ -828,6 +963,7 @@
       composerReady: Boolean(composer),
       composerEmpty: !composerText,
       composerTextHash: composerText ? await sha256Hex(composerText) : "",
+      providerNotices: providerTransportNotices(lastUser, lastAssistant, assistantText),
       rateLimitWarning,
       modelEvidence: globalThis.GreenfieldModelObservation?.observe() || null,
       pageHealth: pageHealthState(entries, autonomous.userEntry || lastUser),
@@ -929,7 +1065,7 @@
   async function publishDispatchMaterialization(dispatchId, promptHash, before, state, evidence) {
     const receipt = materializedUserTurnReceipt(before, state);
     if (!receipt) return null;
-    const result = await chrome.runtime.sendMessage({
+    const result = await sendRuntimeMessage({
       type: "EIC_GF_DISPATCH_MATERIALIZED",
       dispatchId: String(dispatchId || ""),
       promptHash: String(promptHash || ""),
@@ -949,7 +1085,9 @@
     let firstEvidence = null;
     const read = () => pageState({ expectedPromptMarker: promptMarker });
     while (Date.now() - started < timeoutMs) {
+      assertContentActive();
       const state = await read();
+      assertContentActive();
       const evidence = materializationEvidence(before, state, promptHash);
       if (evidence || state.autonomousTurn?.resolvedBy === "PROMPT_MARKER") {
         if (materializedUserTurnReceipt(before, state)) {
@@ -1042,9 +1180,10 @@
 
     record.promise = (async () => {
       try {
+        assertContentActive();
         const before = await pageState();
         const S = globalThis.GreenfieldSafetyPolicy;
-        const modelCheck = S?.evaluateModel(before.modelEvidence, safetyContext?.policy, { url:location.href, gptRoot:safetyContext?.gptRoot });
+        const modelCheck = S?.evaluateModel(before.modelEvidence, safetyContext?.policy, { url:location.href, gptRoot:safetyContext?.gptRoot, requireHighestEffort:true });
         if (!safetyContext || !modelCheck?.allowed) throw Object.assign(new Error(modelCheck?.code || "MODEL_PROOF_REQUIRED"), {code:modelCheck?.code || "MODEL_PROOF_REQUIRED"});
         if (before.rateLimitWarning?.active === true) {
           record.status = "NO_EFFECT_RATE_LIMIT_WARNING_ACTIVE";
@@ -1092,15 +1231,33 @@
         if (!before.composerEmpty && before.composerTextHash !== await sha256Hex(normalizeText(prompt))) {
           throw Object.assign(new Error("OPERATOR_DRAFT_PRESENT"), {code:"OPERATOR_DRAFT_PRESENT"});
         }
+        assertContentActive();
         composer.focus();
         setNativeValue(composer, prompt);
         await new Promise((resolve) => setTimeout(resolve, 120));
 
-        const authorization = await chrome.runtime.sendMessage({
+        const authorization = await sendRuntimeMessage({
           type:"EIC_GF_AUTHORIZE_DISPATCH", dispatchId:id, promptHash
         });
         if (!authorization?.ok) throw Object.assign(new Error(authorization?.code || "DISPATCH_AUTHORIZATION_FAILED"), {code:authorization?.code || "DISPATCH_AUTHORIZATION_FAILED"});
-        const finalProof = S.evaluateModel(globalThis.GreenfieldModelObservation.observe(), authorization.policy, {url:location.href,gptRoot:authorization.gptRoot});
+        const transport = authorization.transportContext || {};
+        const finalPage = await pageState();
+        const threadId = location.pathname.match(/\/c\/([a-z0-9-]+)(?:\/|$)/i)?.[1] || "";
+        const currentConversationKey = threadId ? `${location.origin}/c/${threadId}` : "";
+        if (transport.requiredConversationKey && currentConversationKey !== transport.requiredConversationKey) {
+          throw Object.assign(new Error("PROVIDER_TRANSPORT_CONVERSATION_CHANGED"), {code:"PROVIDER_TRANSPORT_CONVERSATION_CHANGED"});
+        }
+        if (finalPage.generating || finalPage.providerNotices?.conversationUnavailable) {
+          throw Object.assign(new Error("PROVIDER_TRANSPORT_TARGET_BUSY"), {code:"PROVIDER_TRANSPORT_TARGET_BUSY"});
+        }
+        if (transport.kind === "DELIVERY_CONTINUATION" &&
+            (finalPage.lastUserId !== transport.sourceUserTurnId ||
+             finalPage.lastUserHash !== transport.sourcePromptHash ||
+             finalPage.providerNotices?.deliveryTimeout !== true ||
+             finalPage.assistantHash && finalPage.assistantHash !== transport.baselineAssistantHash)) {
+          throw Object.assign(new Error("PROVIDER_DELIVERY_SOURCE_CHANGED"), {code:"PROVIDER_DELIVERY_SOURCE_CHANGED"});
+        }
+        const finalProof = S.evaluateModel(globalThis.GreenfieldModelObservation.observe(), authorization.policy, {url:location.href,gptRoot:authorization.gptRoot,requireHighestEffort:true});
         if (!finalProof.allowed) throw Object.assign(new Error(finalProof.code), {code:finalProof.code});
         const finalComposer = getComposer();
         const finalComposerText = finalComposer instanceof HTMLTextAreaElement || finalComposer instanceof HTMLInputElement
@@ -1113,6 +1270,7 @@
           throw Object.assign(new Error("SEND_CONTROL_UNAVAILABLE"), {code:"SEND_CONTROL_UNAVAILABLE"});
         }
         // No await from the final UI check through the click. No Enter-key fallback.
+        assertContentActive();
         const method = "send-button";
         record.effectIssued = true;
         record.status = "EFFECT_ISSUED";
@@ -1267,7 +1425,7 @@
   }
 
   function renderOverlay() {
-    if (!overlayInfo) return;
+    if (disposed || !overlayInfo) return;
     const root = overlayElement();
     const text = overlayLines(overlayInfo).join("\n");
     if (root.textContent !== text) root.textContent = text;
@@ -1279,6 +1437,7 @@
   }
 
   function updateOverlay(info) {
+    if (disposed) return false;
     if (!info?.linked) {
       stopOverlayTimer();
       overlayInfo = null;
@@ -1316,10 +1475,11 @@
   }
 
   function scheduleDirty(reason = "dom") {
+    if (disposed) return;
     if (dirtyTimer) clearTimeout(dirtyTimer);
     dirtyTimer = setTimeout(() => {
       dirtyTimer = null;
-      chrome.runtime.sendMessage({
+      sendRuntimeMessage({
         type: "EIC_GF_OBSERVATION_DIRTY",
         reason
       }).catch?.(() => undefined);
@@ -1347,11 +1507,15 @@
   }
 
   async function handle(message) {
+    assertContentActive();
     if (!message || typeof message.type !== "string") return null;
     if (message.type === "EIC_GF_PING") {
       return { ok: true, version: CONTENT_VERSION, url: location.href };
     }
     if (message.type === "EIC_GF_GET_PAGE_STATE") {
+      if (/^operator-model-recheck(?:-after-bridge-refresh)?$/u.test(message.source || "")) {
+        globalThis.GreenfieldThinkingControl?.retry?.();
+      }
       return {
         ok: true,
         state: await pageState({
@@ -1363,6 +1527,30 @@
     }
     if (message.type === "EIC_GF_RATE_LIMIT_RECOVERY_PREFLIGHT") {
       return rateLimitRecoveryPreflight();
+    }
+    if (message.type === "EIC_GF_ENSURE_HIGHEST_THINKING") {
+      const adapter = globalThis.GreenfieldThinkingControl;
+      if (!adapter) return {ok:false,code:"THINKING_ADAPTER_UNAVAILABLE"};
+      return adapter.ensureHighest({
+        expectedUrl:message.expectedUrl,
+        guard:async({ownedPopup}={})=>{
+          assertContentActive();
+          if (message.documentId !== DOCUMENT_ID) return {ok:false,code:"THINKING_SELECTION_DOCUMENT_CHANGED"};
+          const page = await pageState();
+          assertContentActive();
+          if (page.generating || page.providerNotices?.processingNotice || page.providerNotices?.connectionInterrupted) return {ok:false,code:"TARGET_BUSY"};
+          if (!page.composerReady || !page.composerEmpty && page.composerTextHash !== message.promptHash) return {ok:false,code:"OPERATOR_DRAFT_PRESENT"};
+          const S = globalThis.GreenfieldSafetyPolicy;
+          const evidence = {...page.modelEvidence};
+          if (evidence.blockingUi && ownedPopup) {
+            const dialogs = [...document.querySelectorAll("[role='dialog'],[role='alertdialog'],[aria-modal='true']")].filter(visible);
+            if (dialogs.length && dialogs.every(el=>el===ownedPopup || el.contains(ownedPopup) || ownedPopup.contains(el))) evidence.blockingUi=false;
+          }
+          const proof = S.evaluateModel(evidence,message.policy,{url:location.href,gptRoot:message.gptRoot});
+          const repairable = ["THINKING_EFFORT_TOO_LOW","THINKING_EFFORT_UNKNOWN","THINKING_MODE_UNVERIFIED"];
+          return {ok:proof.allowed || repairable.includes(proof.code),code:proof.code};
+        }
+      });
     }
     if (message.type === "EIC_GF_SUBMIT_PROMPT") {
       const prompt = String(message.prompt || "");
@@ -1435,13 +1623,18 @@
   }
 
   const onMessage = (message, _sender, sendResponse) => {
+    if (disposed) return false;
+    const reply = (result) => {
+      if (disposed || result === null) return;
+      try { sendResponse(result); } catch (error) {
+        if (invalidatedError(error)) invalidateContext();
+        // A closed reply channel cannot change the dispatch's effect status.
+      }
+    };
     handle(message)
-      .then((result) => {
-        if (result !== null) sendResponse(result);
-      })
-      .catch((error) => {
+      .then(reply, (error) => {
         forensic("CONTENT_MESSAGE_ERROR", { error: serializeError(error), messageType: message?.type || "" }, "ERROR");
-        sendResponse({
+        reply({
           ok: false,
           effectPossible: false,
           code: error?.code || error?.name || "CONTENT_ERROR",
@@ -1462,7 +1655,20 @@
     }, "ERROR");
   };
 
-  chrome.runtime.onMessage.addListener(onMessage);
+  globalThis[BRIDGE] = {
+    version: CONTENT_VERSION,
+    documentId: DOCUMENT_ID,
+    dispatchRecords,
+    dispose: disposeContent
+  };
+  try {
+    assertContentActive();
+    chrome.runtime.onMessage.addListener(onMessage);
+  } catch (error) {
+    disposeContent();
+    if (!invalidatedError(error)) throw error;
+    return;
+  }
   listeners.push(() => chrome.runtime.onMessage.removeListener(onMessage));
   window.addEventListener("error", onError);
   window.addEventListener("unhandledrejection", onRejection);
@@ -1471,27 +1677,10 @@
 
   startObserver();
   scheduleDirty("bridge-ready");
-  chrome.runtime.sendMessage({ type: "EIC_GF_CONTENT_READY" })
+  sendRuntimeMessage({ type: "EIC_GF_CONTENT_READY" })
     .then((result) => {
       if (result?.overlay) updateOverlay(result.overlay);
     })
     .catch(() => undefined);
 
-  globalThis[BRIDGE] = {
-    version: CONTENT_VERSION,
-    documentId: DOCUMENT_ID,
-    dispatchRecords,
-    dispose() {
-      if (dirtyTimer) clearTimeout(dirtyTimer);
-      dirtyTimer = null;
-      stopOverlayTimer();
-      overlayInfo = null;
-      observer?.disconnect();
-      observer = null;
-      document.getElementById(OVERLAY_ID)?.remove();
-      for (const dispose of listeners.splice(0)) {
-        try { dispose(); } catch {}
-      }
-    }
-  };
 })();

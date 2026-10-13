@@ -1,0 +1,33 @@
+{
+  "at": "2026-10-13T08:55:11.184099+00:00",
+  "node": "v24.19.0",
+  "jsdom": "26.1.0",
+  "baselineAdapterSha256": "c9be17964c29cec8f443f64d5bf46ea412b45917702d547a14e8572b29c19d45",
+  "candidateAdapterSha256": "8716a84b902e7a69164c7872a25c0b75f15fd4f6f337c75b5d9ff9aea376b1f5",
+  "localBrowserCommands": {
+    "chromium": null,
+    "chromium-browser": null,
+    "google-chrome": null,
+    "firefox": null
+  },
+  "chromeLoggedInSessionTested": false,
+  "changedExistingFiles": [
+    "README.md",
+    "VERSION",
+    "content.js",
+    "lib/contracts.mjs",
+    "lib/model-observation.js",
+    "lib/safety-policy.js",
+    "lib/thinking-control.js",
+    "manifest.json",
+    "package-lock.json",
+    "package.json",
+    "sidepanel.html",
+    "tests/thinking-control.test.mjs"
+  ],
+  "addedFiles": [
+    "QUEUE_STARTUP_CHANGELOG.md",
+    "UPPDATERA_TILL_1_9_11.md",
+    "tests/thinking-ordinal.test.mjs"
+  ]
+}

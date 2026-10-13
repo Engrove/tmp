@@ -16,7 +16,11 @@ registerLegacyCheckpointCodec(SAFETY_KEY,value=>{
   return v;
 });
 export function usageIdentity(process, prompt) {
-  return [process.runId, process.sessionSeq, process.turn, prompt?.hash || ""].join(":");
+  const identity = [process.runId, process.sessionSeq, process.turn, prompt?.hash || ""];
+  // Distinct short retries carry identical text but each is a real provider
+  // message. Charge each durable transport operation exactly once.
+  if (prompt?.transportId) identity.push(prompt.transportId);
+  return identity.join(":");
 }
 export async function readSafety(storage = chrome.storage.local) {
   const record = await readCheckpoint(SAFETY_KEY, storage);
@@ -51,7 +55,8 @@ export function usageSummary(v, now = Date.now()) {
     chargedTokens24h: day.reduce((n,e) => n + e.inputTokens + Math.max(e.outputTokens, e.reserveTokens), 0),
     pendingCount: v.entries.filter(e => !e.completedAtMs).length,
     lastDispatchAtMs: Math.max(0, ...v.entries.map(e => e.atMs)),
-    policy: v.policy, admissionPaused: v.admissionPaused, providerHold: v.providerHold,
+    policy: v.policy, policyUpdatedAtMs: Number(v.policyUpdatedAtMs || 0) || null, policyOrigin: v.policyOrigin || "",
+    admissionPaused: v.admissionPaused, providerHold: v.providerHold,
     createdAtMs: v.createdAtMs, events: v.events.slice(-40)
   };
 }
@@ -158,11 +163,31 @@ export async function probeProviderRecovery(proof, storage = chrome.storage.loca
 export function safetyPolicyChanges(before = {}, after = {}) {
   return Object.keys(after).filter((key) => before[key] !== after[key]).map((key) => `${key} ${before[key] ?? "–"}→${after[key]}`);
 }
-export async function updateSafetyPolicy(patch, storage = chrome.storage.local) {
+export function equalSafetyPolicy(a, b) {
+  return Object.keys(S.defaults).every((key) => a?.[key] === b?.[key]);
+}
+// v1.9.1: an operator save carries its own time, so the newest save in the
+// Chrome profile can win over an older or never-saved installation
+// (safety-policy-vault.mjs).
+export async function updateSafetyPolicy(patch, storage = chrome.storage.local, now = Date.now()) {
   return change(storage, v => {
     const before = { ...v.policy };
     v.policy = S.normalizePolicy({...v.policy,...patch});
-    event(v,"SAFETY_POLICY_UPDATED",safetyPolicyChanges(before, v.policy).join(", ") || "unchanged");
+    v.policyUpdatedAtMs = now;
+    v.policyOrigin = "OPERATOR";
+    event(v,"SAFETY_POLICY_UPDATED",safetyPolicyChanges(before, v.policy).join(", ") || "unchanged",now);
+  });
+}
+// Re-checked inside the journal lock: a save that landed after the startup
+// plan was made is newer than the vault and is never overwritten.
+export async function adoptSafetyPolicyFromVault(vault, storage = chrome.storage.local, now = Date.now()) {
+  return change(storage, v => {
+    if (!(Number(vault?.savedAtMs) > Number(v.policyUpdatedAtMs || 0)) || equalSafetyPolicy(vault.policy, v.policy)) return { unchanged: true };
+    const before = { ...v.policy };
+    v.policy = S.normalizePolicy(vault.policy);
+    v.policyUpdatedAtMs = vault.savedAtMs;
+    v.policyOrigin = "VAULT";
+    event(v,"SAFETY_POLICY_RESTORED",`bookmark vault ${new Date(vault.savedAtMs).toISOString()}: ${safetyPolicyChanges(before, v.policy).join(", ")}`,now);
   });
 }
 export async function pauseAdmission(paused, storage = chrome.storage.local) {

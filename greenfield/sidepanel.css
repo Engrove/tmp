@@ -519,6 +519,7 @@ body[data-active-tab="workmode"] [data-ui-tab="workmode"] {
 .queue-schedule-days input { margin: 0; }
 .queue-schedule-times { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 6px; align-items: center; font-size: 10px; }
 .queue-schedule-times input,
+.queue-schedule-interval-fields input,
 .queue-schedule-pause input {
   min-width: 0;
   border: 1px solid var(--line);
@@ -530,6 +531,10 @@ body[data-active-tab="workmode"] [data-ui-tab="workmode"] {
   font-size: 10px;
 }
 .queue-schedule-pause { display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 8px; }
+.queue-schedule-interval { display: grid; gap: 6px; margin-top: 12px; }
+.queue-schedule-interval-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.queue-schedule-interval-fields input,
+.queue-schedule-interval-fields select { width: 100%; min-width: 0; }
 .queue-schedule-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
 .queue-history-details { margin-top: 14px; }
 .queue-history-row {
@@ -691,6 +696,25 @@ button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-v
   margin-top: 8px;
 }
 .saved-admin-actions button { font-size: 10px; }
+.saved-launcher-fields {
+  display: grid;
+  grid-template-columns: minmax(65px, .4fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 7px 10px;
+  margin: 12px 0;
+}
+.saved-launcher-fields label { margin: 0; }
+.saved-launcher-fields input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #11221f;
+  color: var(--text);
+  font: inherit;
+  box-sizing: border-box;
+}
 .saved-import-preview {
   margin-top: 8px;
   font-size: 10px;
@@ -716,4 +740,10 @@ button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-v
 .gf-unsaved {
   outline: 2px dashed #ffd27a;
   outline-offset: 2px;
+}
+#runtimeVersionStatus[data-mismatch="true"] {
+  padding: 10px;
+  border-left: 3px solid #e9b85b;
+  color: #ffe0a0;
+  background: #3c3020;
 }

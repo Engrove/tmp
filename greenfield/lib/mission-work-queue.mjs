@@ -6,9 +6,11 @@ import {
   normalizeGreenfieldPriority
 } from "./global-capacity-scheduler.mjs";
 import { queuePlanningFields } from "./queue-planning.mjs";
+import { interactionPosition, planningHint } from "./interaction-slicing.mjs";
 import {
   nextScheduleOpenAtMs,
   normalizeQueueSchedule,
+  normalizeMinIntervalMinutes,
   scheduleAllows,
   scheduleBlockReason,
   scheduleClosesAtMs,
@@ -35,6 +37,7 @@ export const MAX_MISSION_QUANTUM_INTERACTIONS = 50;
 export const DEFAULT_QUEUE_PRIORITY_AGING_SECONDS = 180;
 export const MIN_QUEUE_PRIORITY_AGING_SECONDS = 30;
 export const MAX_QUEUE_PRIORITY_AGING_SECONDS = 3600;
+const MAX_QUEUE_BLOCKED_RETRY_SECONDS = 6 * 60 * 60;
 export const DEFAULT_QUEUE_SWITCH_HARD_RELOAD = true;
 // v1.9.0: resume a parked GFW in its own conversation when eligible (lib/warm-resume.mjs).
 export const DEFAULT_WARM_QUEUE_RESUME = true;
@@ -101,6 +104,18 @@ export function normalizeQueuePriorityAgingSeconds(value) {
   if (!Number.isFinite(n)) return DEFAULT_QUEUE_PRIORITY_AGING_SECONDS;
   return Math.max(MIN_QUEUE_PRIORITY_AGING_SECONDS, Math.min(MAX_QUEUE_PRIORITY_AGING_SECONDS, Math.round(n)));
 }
+function normalizeBlockedCount(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(n))) : 0;
+}
+function logicalMissionBlockedCount(items) {
+  return items.reduce((count, item) => Math.max(count, normalizeBlockedCount(item.blockedCount)), 0);
+}
+function blockedRetryDelaySeconds(base, count) {
+  const seconds = normalizeQueuePriorityAgingSeconds(base);
+  const exponent = Math.min(count - 1, Math.ceil(Math.log2(MAX_QUEUE_BLOCKED_RETRY_SECONDS / seconds)));
+  return Math.min(MAX_QUEUE_BLOCKED_RETRY_SECONDS, seconds * 2 ** exponent);
+}
 export function normalizeQueueSwitchDelaySeconds(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return DEFAULT_QUEUE_SWITCH_DELAY_SECONDS;
@@ -134,6 +149,8 @@ export function normalizeMissionWorkItem(value = {}, { now = Date.now(), default
     maxInteractions: normalizeMissionQuantumInteractions(value.maxInteractions ?? defaultMaxInteractions),
     // v1.8.1: weekly run windows (local time) + one-shot pauseUntil; null = always.
     schedule: normalizeQueueSchedule(value.schedule, { now }),
+    ...(Number.isSafeInteger(value.lastQuantumCompletedAtMs) && value.lastQuantumCompletedAtMs > 0
+      ? { lastQuantumCompletedAtMs: value.lastQuantumCompletedAtMs } : {}),
     quantumProgress: Math.max(
       0,
       Math.min(
@@ -161,7 +178,7 @@ export function normalizeMissionWorkItem(value = {}, { now = Date.now(), default
     pauseUntilMs: Number(value.pauseUntilMs || 0),
     blockedSinceMs: Number(value.blockedSinceMs || 0),
     blockedRetryAtMs: Number(value.blockedRetryAtMs || 0),
-    blockedCount: Math.max(0, Number(value.blockedCount || 0)),
+    blockedCount: normalizeBlockedCount(value.blockedCount),
     createdAt,
     updatedAt: String(value.updatedAt || createdAt),
     activatedAt: String(value.activatedAt || ""),
@@ -260,10 +277,11 @@ export function publicMissionWorkQueue(queueValue, now = Date.now()) {
       priority: item.priority,
       maxInteractions: item.maxInteractions,
       schedule: item.schedule ? deepClone(item.schedule) : null,
+      lastQuantumCompletedAtMs: item.lastQuantumCompletedAtMs || 0,
       scheduleSummary: scheduleSummarySv(item.schedule, { now }),
-      scheduleBlockReason: scheduleBlockReason(item.schedule, now),
-      scheduleNextOpenAtMs: item.schedule && scheduleBlockReason(item.schedule, now)
-        ? nextScheduleOpenAtMs(item.schedule, now)
+      scheduleBlockReason: scheduleBlockReason(item.schedule, now, item.status === QUEUE_STATUS.ACTIVE ? {} : item),
+      scheduleNextOpenAtMs: item.schedule && scheduleBlockReason(item.schedule, now, item.status === QUEUE_STATUS.ACTIVE ? {} : item)
+        ? nextScheduleOpenAtMs(item.schedule, now, item)
         : null,
       scheduleClosesAtMs: scheduleClosesAtMs(item.schedule, now),
       quantumProgress: item.quantumProgress,
@@ -319,7 +337,7 @@ function isRunnableByStatus(item, now) {
 export function isRunnableQueueItem(item, now = Date.now()) {
   if (!item) return false;
   // v1.8.1: a slot outside its run windows or inside its pauseUntil is skipped.
-  return isRunnableByStatus(item, now) && scheduleAllows(item.schedule || null, now);
+  return isRunnableByStatus(item, now) && scheduleAllows(item.schedule || null, now, item);
 }
 export function selectNextMissionItem(queueValue, {
   now = Date.now(),
@@ -385,6 +403,7 @@ export function createQueueContext(queue, item, { interactionCount = null, now =
     operatorPriority: normalizeGreenfieldPriority(item?.operatorPriority || item?.priority),
     activationCount: Math.max(0, Math.floor(Number(item?.activationCount || 0))),
     schedule: item?.schedule ? deepClone(item.schedule) : null,
+    lastQuantumCompletedAtMs: item?.lastQuantumCompletedAtMs || 0,
     responseRoundTripApproxMs: item?.lastSelfRoundTripMs !== null &&
         item?.lastSelfRoundTripMs !== undefined &&
         item?.lastSelfRoundTripMs !== "" &&
@@ -409,6 +428,9 @@ export function queueTurnControl(process, { now = Date.now() } = {}) {
     now,
     estimatedTurnMs: planning.responseRoundTripApproxMs
   });
+  // v1.8.1: a response that will likely arrive after the run window closes is
+  // the last one used before the slot parks, exactly like quantum end.
+  const checkpointRequired = planning.finalInteractionInQuantum || schedule.likelyLastTurnInWindow;
   return {
     schema: "eic.greenfield.queue-turn-control.v2",
     managed: true,
@@ -422,12 +444,16 @@ export function queueTurnControl(process, { now = Date.now() } = {}) {
     maxInteractions: planning.maxInteractions,
     remainingInteractionsIncludingCurrent: planning.remainingInteractionsIncludingCurrent,
     finalInteractionInQuantum: planning.finalInteractionInQuantum,
-    // v1.8.1: a response that will likely arrive after the run window closes is
-    // the last one used before the slot parks, exactly like quantum end.
-    checkpointRequired: planning.finalInteractionInQuantum || schedule.likelyLastTurnInWindow,
+    checkpointRequired,
     schedule,
     operatorDisplay: planning.operatorDisplay,
-    planningHint: planning.planningHint,
+    planningHint: planningHint(interactionPosition({
+      interactionInQuantum: planning.interactionInQuantum,
+      maxInteractions: planning.maxInteractions,
+      remainingInteractionsIncludingCurrent: planning.remainingInteractionsIncludingCurrent,
+      finalInteractionInQuantum: planning.finalInteractionInQuantum,
+      checkpointRequired
+    })),
     responseRoundTripApproxMs: planning.responseRoundTripApproxMs,
     loopRoundTripApproxMs: planning.loopRoundTripApproxMs,
     activationCount: planning.activationCount
@@ -509,7 +535,11 @@ export function requeueBlockedMissionWorkItem(queueValue, itemId, {
   const sameLogicalMission = (item) =>
     item.itemId === target.itemId ||
     Boolean(logicalSavedMissionId && String(item.savedMissionId || "").trim() === logicalSavedMissionId);
-  const retryAtMs = Number(now) + normalizeQueuePriorityAgingSeconds(retryAfterSeconds) * 1000;
+  // Retry history belongs to the logical saved mission, across slot activation
+  // and process identity changes. Increment once, then publish it to every copy.
+  const blockedCount = Math.min(Number.MAX_SAFE_INTEGER,
+    logicalMissionBlockedCount(queue.items.filter(sameLogicalMission)) + 1);
+  const retryAtMs = Number(now) + blockedRetryDelaySeconds(retryAfterSeconds, blockedCount) * 1000;
   const quantumProgress = Math.max(0, Number(processSnapshot?.queueContext?.interactionCount ?? target.quantumProgress ?? 0));
 
   queue.items = queue.items.map((item) => {
@@ -521,7 +551,7 @@ export function requeueBlockedMissionWorkItem(queueValue, itemId, {
       pauseUntilMs: 0,
       blockedSinceMs: now,
       blockedRetryAtMs: retryAtMs,
-      blockedCount: Math.max(0, Number(item.blockedCount || 0)) + 1,
+      blockedCount,
       completedAt: "",
       quantumProgress: item.itemId === target.itemId
         ? Math.min(
@@ -681,16 +711,20 @@ export async function addMissionWorkItem(windowId, mission, {
   // itemId owns the slot; savedMissionId owns logical mission continuity.
   // Delegation request IDs remain exactly-once and are still deduplicated above.
   const logicalSavedMissionId = String(savedMissionId || "").trim();
-  const continuationSource = logicalSavedMissionId
-    ? queue.items
-        .filter((item) => String(item.savedMissionId || "").trim() === logicalSavedMissionId)
-        .slice()
-        .sort((a, b) => {
-          const at = Date.parse(a.processSnapshot?.updatedAt || a.updatedAt || 0);
-          const bt = Date.parse(b.processSnapshot?.updatedAt || b.updatedAt || 0);
-          return bt - at;
-        })[0] || null
-    : null;
+  const logicalItems = logicalSavedMissionId
+    ? queue.items.filter((item) => String(item.savedMissionId || "").trim() === logicalSavedMissionId)
+    : [];
+  const continuationSource = logicalItems
+    .slice()
+    .sort((a, b) => {
+      const at = Date.parse(a.processSnapshot?.updatedAt || a.updatedAt || 0);
+      const bt = Date.parse(b.processSnapshot?.updatedAt || b.updatedAt || 0);
+      return bt - at;
+    })[0] || null;
+  // A new scheduling slot must not bypass an existing mission cooldown. Its
+  // priority and quantum remain independent; the retry history is shared.
+  const blockedSource = logicalItems.filter((item) => item.status === QUEUE_STATUS.BLOCKED)
+    .sort((a, b) => b.blockedRetryAtMs - a.blockedRetryAtMs)[0] || null;
   if (queue.items.length >= MAX_QUEUE_ITEMS) throw new Error("MISSION_WORK_QUEUE_FULL");
   const order = queue.items.reduce((max, item) => Math.max(max, Number(item.order || 0)), -1) + 1;
   const item = normalizeMissionWorkItem({
@@ -700,9 +734,18 @@ export async function addMissionWorkItem(windowId, mission, {
     goal: mission,
     priority,
     maxInteractions,
-    status: QUEUE_STATUS.READY,
+    status: blockedSource ? QUEUE_STATUS.BLOCKED : QUEUE_STATUS.READY,
+    schedule: continuationSource?.schedule?.minIntervalMinutes
+      ? { minIntervalMinutes: continuationSource.schedule.minIntervalMinutes } : null,
+    lastQuantumCompletedAtMs: logicalItems.reduce((at, row) => Math.max(at, row.lastQuantumCompletedAtMs || 0), 0),
     order,
-    readySinceMs: now,
+    readySinceMs: blockedSource ? blockedSource.blockedRetryAtMs : now,
+    blockedSinceMs: blockedSource?.blockedSinceMs || 0,
+    blockedRetryAtMs: blockedSource?.blockedRetryAtMs || 0,
+    blockedCount: logicalMissionBlockedCount(logicalItems),
+    lastOutcome: blockedSource?.lastOutcome || "",
+    lastSummary: blockedSource?.lastSummary || "",
+    lastError: blockedSource?.lastError || null,
     quantumProgress: 0,
     processSnapshot: continuationSource?.processSnapshot ? deepClone(continuationSource.processSnapshot) : null,
     resume: continuationSource?.resume ? deepClone(continuationSource.resume) : null,
@@ -755,6 +798,17 @@ export async function updateMissionWorkItem(windowId, itemId, patch = {}, storag
   if (patch.priority != null) next.operatorPriority = next.priority;
   next.operatorEditedAtMs = Math.max(0, Math.floor(Number(now)));
   queue.items[index] = next;
+  // The interval is for a logical GFW in this queue. Duplicate slots keep
+  // their own windows/priority/quantum, but cannot bypass the interval.
+  if (Object.prototype.hasOwnProperty.call(patch, "schedule") && current.savedMissionId &&
+      normalizeMinIntervalMinutes(current.schedule?.minIntervalMinutes) !== normalizeMinIntervalMinutes(next.schedule?.minIntervalMinutes)) {
+    queue.items = queue.items.map((row) => {
+      if (row.itemId === next.itemId || row.savedMissionId !== current.savedMissionId) return row;
+      return { ...row, schedule: normalizeQueueSchedule({ ...row.schedule,
+        minIntervalMinutes: next.schedule?.minIntervalMinutes || 0,
+        updatedBy: "OPERATOR", updatedAtMs: now }, { now }), operatorEditedAtMs: now, updatedAt: nowIso(now) };
+    });
+  }
   return saveMissionWorkQueue(queue, storage);
 }
 export async function moveMissionWorkItem(windowId, itemId, direction, storage = null, { workerId = "" } = {}) {

@@ -3,6 +3,8 @@
 // A queue slot may carry weekly run windows in the operator's local time zone
 // plus an optional one-shot pauseUntil. A slot is runnable only when it is not
 // paused and, if it has windows, the current local time is inside one of them.
+// v1.9.7: minIntervalMinutes adds an elapsed-time wait after a complete quantum.
+// The completion timestamp belongs to the queue item, not this schedule.
 // An in-flight turn is never interrupted: the gate is evaluated before a slot is
 // activated and after each captured response (see background.js).
 //
@@ -13,8 +15,10 @@ export const QUEUE_SCHEDULE_SCHEMA = "eic.greenfield.queue-schedule.v1";
 export const MAX_SCHEDULE_WINDOWS = 7;
 export const MAX_SCHEDULE_PAUSE_DAYS = 30;
 export const MAX_SCHEDULE_PAUSE_MS = MAX_SCHEDULE_PAUSE_DAYS * 24 * 60 * 60 * 1000;
+export const MAX_MIN_INTERVAL_MINUTES = 30 * 24 * 60;
 export const SCHEDULE_BLOCK = Object.freeze({
   PAUSED: "SCHEDULE_PAUSED",
+  INTERVAL: "MIN_INTERVAL_WAIT",
   OUTSIDE_WINDOW: "OUTSIDE_RUN_WINDOW"
 });
 // GREENFIELD: a runtime pause set by Greenfield itself (v1.8.3 provider content block).
@@ -26,6 +30,18 @@ const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Coverage chains longer than this are treated as "open" for closesAt purposes.
 const MAX_CHAIN_DAYS = 8;
+
+export function normalizeMinIntervalMinutes(value) {
+  return Number.isInteger(value) && value >= 0 && value <= MAX_MIN_INTERVAL_MINUTES ? value : 0;
+}
+
+/** Elapsed-time gate, independent of local clock windows and DST. */
+export function intervalOpensAtMs(schedule, lastQuantumCompletedAtMs = 0) {
+  const minutes = normalizeMinIntervalMinutes(schedule?.minIntervalMinutes);
+  const completed = Number(lastQuantumCompletedAtMs);
+  return minutes > 0 && Number.isSafeInteger(completed) && completed > 0
+    ? completed + minutes * 60_000 : 0;
+}
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value) &&
@@ -102,11 +118,13 @@ export function normalizeQueueSchedule(value, { now = Date.now() } = {}) {
   const pauseUntilMs = Number.isFinite(pause) && pause > Number(now) && pause <= Number(now) + MAX_SCHEDULE_PAUSE_MS
     ? pause
     : 0;
-  if (!windows.length && !pauseUntilMs) return null;
+  const minIntervalMinutes = normalizeMinIntervalMinutes(value.minIntervalMinutes);
+  if (!windows.length && !pauseUntilMs && !minIntervalMinutes) return null;
   return {
     schema: QUEUE_SCHEDULE_SCHEMA,
     windows,
     pauseUntilMs,
+    ...(minIntervalMinutes ? { minIntervalMinutes } : {}),
     updatedBy: SCHEDULE_EDITORS.includes(value.updatedBy) ? value.updatedBy : "OPERATOR",
     updatedAtMs: Math.max(0, Math.floor(Number(value.updatedAtMs || 0)))
   };
@@ -116,17 +134,23 @@ export function normalizeQueueSchedule(value, { now = Date.now() } = {}) {
  * Strict parse of an operator/AI schedule edit. Fields:
  *   windows:    array (replaces all windows; [] clears) - optional
  *   pauseUntil: ISO-8601 timestamp, or "" / null to clear - optional
+ *   minIntervalMinutes: integer 0..43200, wait after each complete quantum
  * At least one field must be present. Absent fields keep the current value.
  */
 export function parseScheduleEdit(raw, { now = Date.now(), current = null, editor = "OPERATOR" } = {}) {
   if (!isPlainObject(raw)) return { ok: false, error: "SCHEDULE_NOT_OBJECT" };
-  const extra = Object.keys(raw).find((key) => !["windows", "pauseUntil"].includes(key));
+  const extra = Object.keys(raw).find((key) => !["windows", "pauseUntil", "minIntervalMinutes"].includes(key));
   if (extra) return { ok: false, error: `SCHEDULE_UNKNOWN_FIELD:${String(extra).slice(0, 32)}` };
   const hasWindows = Object.prototype.hasOwnProperty.call(raw, "windows");
   const hasPause = Object.prototype.hasOwnProperty.call(raw, "pauseUntil");
-  if (!hasWindows && !hasPause) return { ok: false, error: "SCHEDULE_EMPTY_EDIT" };
+  const hasInterval = Object.prototype.hasOwnProperty.call(raw, "minIntervalMinutes");
+  if (!hasWindows && !hasPause && !hasInterval) return { ok: false, error: "SCHEDULE_EMPTY_EDIT" };
 
   const base = normalizeQueueSchedule(current, { now });
+  const minIntervalMinutes = hasInterval ? raw.minIntervalMinutes : base?.minIntervalMinutes || 0;
+  if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 0 || minIntervalMinutes > MAX_MIN_INTERVAL_MINUTES) {
+    return { ok: false, error: "SCHEDULE_MIN_INTERVAL_INVALID" };
+  }
   let windows = base?.windows || [];
   if (hasWindows) {
     if (!Array.isArray(raw.windows)) return { ok: false, error: "SCHEDULE_WINDOWS_NOT_ARRAY" };
@@ -154,11 +178,12 @@ export function parseScheduleEdit(raw, { now = Date.now(), current = null, edito
     }
   }
 
-  const schedule = windows.length || pauseUntilMs
+  const schedule = windows.length || pauseUntilMs || minIntervalMinutes
     ? {
         schema: QUEUE_SCHEDULE_SCHEMA,
         windows,
         pauseUntilMs,
+        ...(minIntervalMinutes ? { minIntervalMinutes } : {}),
         updatedBy: SCHEDULE_EDITORS.includes(editor) ? editor : "OPERATOR",
         updatedAtMs: Math.max(0, Math.floor(Number(now)))
       }
@@ -200,24 +225,25 @@ export function containingWindow(schedule, atMs) {
 }
 
 /** "" when the schedule allows the slot to run at atMs, else the block reason. */
-export function scheduleBlockReason(schedule, atMs) {
+export function scheduleBlockReason(schedule, atMs, { lastQuantumCompletedAtMs = 0 } = {}) {
   if (!schedule) return "";
   if (Number(schedule.pauseUntilMs || 0) > Number(atMs)) return SCHEDULE_BLOCK.PAUSED;
+  if (intervalOpensAtMs(schedule, lastQuantumCompletedAtMs) > Number(atMs)) return SCHEDULE_BLOCK.INTERVAL;
   const windows = Array.isArray(schedule.windows) ? schedule.windows : [];
   if (windows.length && !containingWindow(schedule, atMs)) return SCHEDULE_BLOCK.OUTSIDE_WINDOW;
   return "";
 }
 
-export function scheduleAllows(schedule, atMs) {
-  return scheduleBlockReason(schedule, atMs) === "";
+export function scheduleAllows(schedule, atMs, timing = {}) {
+  return scheduleBlockReason(schedule, atMs, timing) === "";
 }
 
 /**
  * Earliest time >= fromMs at which the schedule allows running, or null when
  * no window occurs within the next 8 days (cannot happen for a valid window).
  */
-export function nextScheduleOpenAtMs(schedule, fromMs) {
-  const start = Math.max(Number(fromMs), Number(schedule?.pauseUntilMs || 0));
+export function nextScheduleOpenAtMs(schedule, fromMs, { lastQuantumCompletedAtMs = 0 } = {}) {
+  const start = Math.max(Number(fromMs), Number(schedule?.pauseUntilMs || 0), intervalOpensAtMs(schedule, lastQuantumCompletedAtMs));
   if (!schedule) return Number(fromMs);
   const windows = Array.isArray(schedule.windows) ? schedule.windows : [];
   if (!windows.length) return start;
@@ -269,7 +295,7 @@ export function queueItemNextRunnableAtMs(item, now = Date.now()) {
     base = retryAt > 0 ? Math.max(Number(now), retryAt) : null;
   }
   if (base === null) return null;
-  return nextScheduleOpenAtMs(item.schedule || null, base);
+  return nextScheduleOpenAtMs(item.schedule || null, base, item);
 }
 
 function pad(value) {
@@ -324,6 +350,8 @@ export function scheduleSummarySv(schedule, { now = Date.now() } = {}) {
   if (!schedule) return "";
   const parts = (schedule.windows || []).map((window) =>
     `${dayRange(window.days, DAY_NAMES_SV)} ${window.start}–${window.end}`);
+  const minutes = normalizeMinIntervalMinutes(schedule.minIntervalMinutes);
+  if (minutes) parts.push(`minst ${minutes % 60 === 0 ? `${minutes / 60} tim` : `${minutes} min`} mellan kvanter`);
   if (Number(schedule.pauseUntilMs || 0) > Number(now)) {
     const d = new Date(Number(schedule.pauseUntilMs));
     parts.push(`paus till ${d.getDate()}/${d.getMonth() + 1} ${pad(d.getHours())}:${pad(d.getMinutes())}`);
@@ -331,7 +359,7 @@ export function scheduleSummarySv(schedule, { now = Date.now() } = {}) {
   return parts.join(" · ");
 }
 
-function scheduleSummaryEn(schedule) {
+export function scheduleSummaryEn(schedule) {
   return (schedule?.windows || []).map((window) =>
     `${dayRange(window.days, DAY_NAMES_EN)} ${window.start}-${window.end}`).join("; ");
 }
@@ -358,6 +386,10 @@ export function schedulePromptState(schedule, { now = Date.now(), estimatedTurnM
     localWeekday: DAY_NAMES_EN[isoWeekday(new Date(Number(now)))],
     windows: normalized?.windows?.map((window) => ({ ...window, days: [...window.days] })) || [],
     windowsText: scheduleSummaryEn(normalized) || "NONE_ALWAYS_OPEN",
+    ...(normalized?.minIntervalMinutes ? {
+      minIntervalMinutes: normalized.minIntervalMinutes,
+      intervalRule: "Minimum wait starts after the complete quantum, not between its interactions; other runnable missions continue. First quantum has no interval wait."
+    } : {}),
     pauseUntil: normalized?.pauseUntilMs ? localIso(normalized.pauseUntilMs) : "",
     openNow: !block,
     blockReason: block,

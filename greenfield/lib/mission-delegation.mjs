@@ -10,6 +10,9 @@ export const MISSION_DELEGATION_REGISTRY_SCHEMA = "eic.greenfield.mission-delega
 export const MISSION_DELEGATION_SCHEMA = "eic.greenfield.mission-delegation.v1";
 export const MAX_MISSION_DELEGATIONS = 128;
 export const MAX_RESPONSE_MISSION_DELEGATIONS = 3;
+export const MISSION_DELEGATION_RETRY_BASE_MS = 60000;
+export const MISSION_DELEGATION_RETRY_MAX_MS = 900000;
+export const MAX_MISSION_DELEGATION_RECEIPTS = 32;
 
 export const MISSION_DELEGATION_RELATION = Object.freeze({
   SUPPORTS_CURRENT: "SUPPORTS_CURRENT",
@@ -20,11 +23,13 @@ export const MISSION_DELEGATION_STATE = Object.freeze({
   PENDING: "PENDING",
   ASSIGNED: "ASSIGNED",
   APPLIED: "APPLIED",
-  COMPLETED: "COMPLETED"
+  COMPLETED: "COMPLETED",
+  REJECTED: "REJECTED"
 });
 
 const VALID_RELATIONS = new Set(Object.values(MISSION_DELEGATION_RELATION));
 const VALID_STATES = new Set(Object.values(MISSION_DELEGATION_STATE));
+const TERMINAL_STATES = new Set([MISSION_DELEGATION_STATE.COMPLETED, MISSION_DELEGATION_STATE.REJECTED]);
 
 function storageOrDefault(storage) {
   return storage || globalThis.chrome?.storage?.local || null;
@@ -124,12 +129,14 @@ export function normalizeMissionDelegation(value = {}, { now = Date.now() } = {}
     targetWindowId: normalizeOptionalInt(value.targetWindowId),
     targetQueueId: text(value.targetQueueId, 200).trim(),
     targetItemId: text(value.targetItemId, 200).trim(),
-    attempts: Math.max(0, Number(value.attempts || 0)),
+    attempts: Number.isFinite(Number(value.attempts)) ? Math.max(0, Math.floor(Number(value.attempts))) : 0,
+    nextAttemptAtMs: Number.isFinite(Number(value.nextAttemptAtMs)) ? Math.max(0, Number(value.nextAttemptAtMs)) : 0,
     lastError: value.lastError && typeof value.lastError === "object" ? deepClone(value.lastError) : null,
     createdAt,
     updatedAt: String(value.updatedAt || createdAt),
     appliedAt: String(value.appliedAt || ""),
-    completedAt: String(value.completedAt || "")
+    completedAt: String(value.completedAt || ""),
+    rejectedAt: String(value.rejectedAt || "")
   };
 }
 
@@ -144,10 +151,10 @@ export function normalizeMissionDelegationRegistry(value = {}, { now = Date.now(
     items.push(item);
   }
   const active = items
-    .filter((item) => item.state !== MISSION_DELEGATION_STATE.COMPLETED)
+    .filter((item) => !TERMINAL_STATES.has(item.state))
     .sort((a, b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0));
   const completed = items
-    .filter((item) => item.state === MISSION_DELEGATION_STATE.COMPLETED)
+    .filter((item) => TERMINAL_STATES.has(item.state))
     .sort((a, b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0));
   const completedBudget = Math.max(0, MAX_MISSION_DELEGATIONS - active.length);
   return {
@@ -179,6 +186,10 @@ export async function saveMissionDelegationRegistry(registryValue, storage = nul
         item.targetWindowId !== next.items[index]?.targetWindowId ||
         item.targetQueueId !== next.items[index]?.targetQueueId ||
         item.targetItemId !== next.items[index]?.targetItemId ||
+        item.attempts !== next.items[index]?.attempts ||
+        item.nextAttemptAtMs !== next.items[index]?.nextAttemptAtMs ||
+        JSON.stringify(item.lastError) !== JSON.stringify(next.items[index]?.lastError) ||
+        item.rejectedAt !== next.items[index]?.rejectedAt ||
         item.updatedAt !== next.items[index]?.updatedAt
       )) {
     throw new Error("MISSION_DELEGATION_READBACK_MISMATCH");
@@ -233,7 +244,7 @@ export async function registerMissionDelegationRequests(requests, source, storag
       continue;
     }
     const unfinishedCount = registry.items.filter((item) =>
-      item.state !== MISSION_DELEGATION_STATE.COMPLETED
+      !TERMINAL_STATES.has(item.state)
     ).length;
     if (unfinishedCount >= MAX_MISSION_DELEGATIONS) {
       const error = new Error("MISSION_DELEGATION_REGISTRY_FULL");
@@ -251,7 +262,9 @@ export async function registerMissionDelegationRequests(requests, source, storag
 
 export async function claimPendingMissionDelegationForWorker(worker, storage = null, {
   now = Date.now(),
-  liveTargetQueueIds = null
+  liveTargetQueueIds = null,
+  queueFull = null,
+  targetQueueRequestIds = []
 } = {}) {
   const registry = await loadMissionDelegationRegistry(storage);
   const targetWindowId = Number(worker?.targetWindowId);
@@ -261,21 +274,46 @@ export async function claimPendingMissionDelegationForWorker(worker, storage = n
   const liveQueues = Array.isArray(liveTargetQueueIds)
     ? new Set(liveTargetQueueIds.map((item) => String(item || "")).filter(Boolean))
     : null;
+  // v1.9.3 (operator rule 2026-10-07): work a GFW delegates lands in the queue
+  // of the same Chrome window as the delegating GFW. The stable source queue
+  // id is the key (a window id can change after a Chrome restart). Insertion
+  // still happens on a later worker/recovery pass, never inside the delegating answer.
+  const ownedBySource = (item) => String(item.sourceQueueId || "") === targetQueueId;
+  const existing = new Set(targetQueueRequestIds);
+  const retryDue = (item) => Number(item.nextAttemptAtMs || 0) <= now ||
+    existing.has(item.requestId) || (queueFull === false && item.lastError?.code === "MISSION_WORK_QUEUE_FULL");
+  if (queueFull === true) {
+    let deferred = false;
+    registry.items = registry.items.map((item) => {
+      const pendingHere = item.state === MISSION_DELEGATION_STATE.PENDING && ownedBySource(item);
+      const assignedHere = item.state === MISSION_DELEGATION_STATE.ASSIGNED &&
+        (String(item.targetQueueId || "") === targetQueueId ||
+          liveQueues && !liveQueues.has(String(item.targetQueueId || "")) && ownedBySource(item));
+      if ((!pendingHere && !assignedHere) || existing.has(item.requestId) || !retryDue(item)) return item;
+      deferred = true;
+      return delegationFailure(item, { code: "MISSION_WORK_QUEUE_FULL", message: "Queue capacity is full; the request remains pending." }, now, true);
+    });
+    if (deferred) Object.assign(registry, await saveMissionDelegationRegistry(registry, storage));
+  }
+  const eligible = (item) => retryDue(item) && (queueFull !== true || existing.has(item.requestId));
+  // An assignment this queue already holds (including a pre-1.9.3 one made to
+  // another window) is reconciled here, never duplicated elsewhere.
   const assignedToThisWorker = registry.items
     .filter((item) => item.state === MISSION_DELEGATION_STATE.ASSIGNED)
     .filter((item) => String(item.targetQueueId || "") === targetQueueId)
-    .filter((item) => String(item.sourceQueueId || "") !== targetQueueId)
+    .filter(eligible)
     .sort((a, b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0))[0] || null;
   const pending = registry.items
     .filter((item) => item.state === MISSION_DELEGATION_STATE.PENDING)
-    .filter((item) => Number(item.sourceWindowId) !== targetWindowId)
-    .filter((item) => String(item.sourceQueueId || "") !== targetQueueId)
+    .filter(ownedBySource)
+    .filter(eligible)
     .sort((a, b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0))[0] || null;
   const orphanedAssignment = liveQueues
     ? registry.items
         .filter((item) => item.state === MISSION_DELEGATION_STATE.ASSIGNED)
         .filter((item) => !liveQueues.has(String(item.targetQueueId || "")))
-        .filter((item) => String(item.sourceQueueId || "") !== targetQueueId)
+        .filter(ownedBySource)
+        .filter(eligible)
         .sort((a, b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0))[0] || null
     : null;
   const candidate = assignedToThisWorker || pending || orphanedAssignment;
@@ -290,6 +328,7 @@ export async function claimPendingMissionDelegationForWorker(worker, storage = n
       ? Number(candidate.attempts || 0)
       : Number(candidate.attempts || 0) + 1,
     lastError: null,
+    nextAttemptAtMs: 0,
     updatedAt: nowIso(now)
   }, { now });
   registry.items = registry.items.map((item) => item.requestId === updated.requestId ? updated : item);
@@ -300,21 +339,47 @@ export async function claimPendingMissionDelegationForWorker(worker, storage = n
   };
 }
 
+function delegationFailure(item, errorRecord, now, countAttempt = false) {
+  const attempts = Math.max(0, Number(item.attempts || 0)) + (countAttempt ? 1 : 0);
+  const permanent = errorRecord?.code === "MISSION_WORK_QUEUE_DELEGATION_CONFLICT" ||
+    errorRecord?.code === "MISSION_DELEGATION_REQUEST_ID_CONFLICT";
+  const delay = Math.min(MISSION_DELEGATION_RETRY_MAX_MS,
+    MISSION_DELEGATION_RETRY_BASE_MS * (2 ** Math.min(20, Math.max(0, attempts - 1))));
+  return normalizeMissionDelegation({ ...item, attempts,
+    state: permanent ? MISSION_DELEGATION_STATE.REJECTED : MISSION_DELEGATION_STATE.PENDING,
+    targetWindowId: null, targetQueueId: "", targetItemId: "",
+    lastError: errorRecord && typeof errorRecord === "object" ? deepClone(errorRecord) : null,
+    nextAttemptAtMs: permanent ? 0 : now + delay,
+    rejectedAt: permanent ? nowIso(now) : "", updatedAt: nowIso(now)
+  }, { now });
+}
+
+export function missionDelegationPromptState(registryValue, { sourceQueueId = "", sourceItemId = "" } = {}) {
+  const all = normalizeMissionDelegationRegistry(registryValue).items
+    .filter(item => item.sourceQueueId === String(sourceQueueId || ""));
+  const ranked = all.slice().sort((a, b) =>
+    Number(b.sourceItemId === sourceItemId) - Number(a.sourceItemId === sourceItemId) ||
+    Number(Boolean(b.lastError)) - Number(Boolean(a.lastError)) ||
+    Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  return { schema: "eic.greenfield.mission-delegation-status.v1", sourceQueueId,
+    counts: Object.fromEntries([...VALID_STATES].map(state => [state, all.filter(item => item.state === state).length])),
+    receipts: ranked.slice(0, MAX_MISSION_DELEGATION_RECEIPTS).map(item => ({
+      requestId: item.requestId, state: item.state, sourceItemId: item.sourceItemId,
+      targetItemId: item.targetItemId, attempts: item.attempts, nextAttemptAtMs: item.nextAttemptAtMs,
+      lastError: item.lastError ? { code: text(item.lastError.code, 200), message: text(item.lastError.message, 240) } : null
+    })),
+    omittedCount: Math.max(0, all.length - MAX_MISSION_DELEGATION_RECEIPTS)
+  };
+}
+
 export async function releaseMissionDelegation(requestId, errorRecord, storage = null, { now = Date.now() } = {}) {
   const registry = await loadMissionDelegationRegistry(storage);
   let found = false;
   registry.items = registry.items.map((item) => {
     if (item.requestId !== String(requestId || "")) return item;
+    if (item.state === MISSION_DELEGATION_STATE.APPLIED || TERMINAL_STATES.has(item.state)) return item;
     found = true;
-    return normalizeMissionDelegation({
-      ...item,
-      state: MISSION_DELEGATION_STATE.PENDING,
-      targetWindowId: null,
-      targetQueueId: "",
-      targetItemId: "",
-      lastError: errorRecord && typeof errorRecord === "object" ? deepClone(errorRecord) : null,
-      updatedAt: nowIso(now)
-    }, { now });
+    return delegationFailure(item, errorRecord, now);
   });
   if (!found) return registry;
   return saveMissionDelegationRegistry(registry, storage);
@@ -331,6 +396,7 @@ export async function markMissionDelegationApplied(requestId, targetItemId, stor
       state: MISSION_DELEGATION_STATE.APPLIED,
       targetItemId: text(targetItemId, 200).trim(),
       lastError: null,
+      nextAttemptAtMs: 0,
       appliedAt: item.appliedAt || nowIso(now),
       updatedAt: nowIso(now)
     }, { now });
@@ -350,6 +416,7 @@ export async function markMissionDelegationCompleted(requestId, storage = null, 
       state: MISSION_DELEGATION_STATE.COMPLETED,
       completedAt: item.completedAt || nowIso(now),
       lastError: null,
+      nextAttemptAtMs: 0,
       updatedAt: nowIso(now)
     }, { now });
   });
