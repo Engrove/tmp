@@ -1,0 +1,113 @@
+TAP version 13
+# Subtest: field menu (describedby) from 4/4 is verified at the announced maximum
+not ok 1 - field menu (describedby) from 4/4 is verified at the announced maximum
+  ---
+  duration_ms: 268.651877
+  type: 'test'
+  location: '/home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:17:75'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"seed":1,"result":{"ok":false,"changed":false,"code":"THINKING_CONTROL_AMBIGUOUS","detail":"SELECT_MAXIMUM"},"diagnostics":{"ok":false,"changed":false,"code":"THINKING_CONTROL_AMBIGUOUS","detail":"SELECT_MAXIMUM","stage":"SELECT_MAXIMUM","openingMethod":"KEYBOARD","recoveredOpenMenu":false,"strategy":"","chosenControl":null,"actions":[],"observedSurfaces":[{"stage":"OPEN_REASONING_HOVER","trigger":{"tag":"BUTTON","role":"","label":"Extra hög","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"false","state":"closed","min":null,"max":null,"now":null},"popups":[{"tag":"DIV","role":"tooltip","label":"ResonemangsansträngningCtrl+Shift+M","id":"_r_2b_","tabIndex":null,"ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null}],"sliders":[]},{"stage":"OPEN_REASONING_MENU","trigger":{"tag":"BUTTON","role":"","label":"Resonemangsansträngning","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"true","state":"open","min":null,"max":null,"now":null},"popups":[{"tag":"DIV","role":"","label":"Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"gf-field-wrapper","tabIndex":null,"ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null},{"tag":"DIV","role":"menu","label":"Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"radix-_r_29_","tabIndex":"-1","ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":"open","min":null,"max":null,"now":null}],"sliders":[]}],"atMs":1791888501269,"controls":[{"tag":"DIV","role":"menuitem","label":"Extra hög","id":"","tabIndex":"0","ariaLabel":"Välj modell","valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null},{"tag":"DIV","role":"menuitem","label":"","id":"","tabIndex":"-1","ariaLabel":"Prestanda","valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null}],"trigger":{"tag":"BUTTON","role":"","label":"Resonemangsansträngning","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"true","state":"open","min":null,"max":null,"now":null},"popup":{"tag":"DIV","role":"menu","label":"Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"radix-_r_29_","tabIndex":"-1","ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":"open","min":null,"max":null,"now":null},"sliders":[]}}
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:20:44)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: field menu (describedby) from 1/4 is verified at the announced maximum
+not ok 2 - field menu (describedby) from 1/4 is verified at the announced maximum
+  ---
+  duration_ms: 137.071832
+  type: 'test'
+  location: '/home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:17:75'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"seed":1,"result":{"ok":false,"changed":false,"code":"THINKING_CONTROL_AMBIGUOUS","detail":"SELECT_MAXIMUM"},"diagnostics":{"ok":false,"changed":false,"code":"THINKING_CONTROL_AMBIGUOUS","detail":"SELECT_MAXIMUM","stage":"SELECT_MAXIMUM","openingMethod":"KEYBOARD","recoveredOpenMenu":false,"strategy":"","chosenControl":null,"actions":[],"observedSurfaces":[{"stage":"OPEN_REASONING_HOVER","trigger":{"tag":"BUTTON","role":"","label":"Balanserad","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"false","state":"closed","min":null,"max":null,"now":null},"popups":[{"tag":"DIV","role":"tooltip","label":"ResonemangsansträngningCtrl+Shift+M","id":"_r_2b_","tabIndex":null,"ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null}],"sliders":[]},{"stage":"OPEN_REASONING_MENU","trigger":{"tag":"BUTTON","role":"","label":"Resonemangsansträngning","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"true","state":"open","min":null,"max":null,"now":null},"popups":[{"tag":"DIV","role":"","label":"BalanseradBalanserad, 1 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"gf-field-wrapper","tabIndex":null,"ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null},{"tag":"DIV","role":"menu","label":"BalanseradBalanserad, 1 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"radix-_r_29_","tabIndex":"-1","ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":"open","min":null,"max":null,"now":null}],"sliders":[]}],"atMs":1791888501269,"controls":[{"tag":"DIV","role":"menuitem","label":"Balanserad","id":"","tabIndex":"0","ariaLabel":"Välj modell","valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null},{"tag":"DIV","role":"menuitem","label":"","id":"","tabIndex":"-1","ariaLabel":"Prestanda","valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null}],"trigger":{"tag":"BUTTON","role":"","label":"Resonemangsansträngning","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"true","state":"open","min":null,"max":null,"now":null},"popup":{"tag":"DIV","role":"menu","label":"BalanseradBalanserad, 1 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"radix-_r_29_","tabIndex":"-1","ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":"open","min":null,"max":null,"now":null},"sliders":[]}}
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:20:44)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: field menu (arialabel) from 4/4 is verified at the announced maximum
+not ok 3 - field menu (arialabel) from 4/4 is verified at the announced maximum
+  ---
+  duration_ms: 120.538496
+  type: 'test'
+  location: '/home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:17:75'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"seed":1,"result":{"ok":false,"changed":false,"code":"THINKING_CONTROL_AMBIGUOUS","detail":"SELECT_MAXIMUM"},"diagnostics":{"ok":false,"changed":false,"code":"THINKING_CONTROL_AMBIGUOUS","detail":"SELECT_MAXIMUM","stage":"SELECT_MAXIMUM","openingMethod":"KEYBOARD","recoveredOpenMenu":false,"strategy":"","chosenControl":null,"actions":[],"observedSurfaces":[{"stage":"OPEN_REASONING_HOVER","trigger":{"tag":"BUTTON","role":"","label":"Extra hög","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"false","state":"closed","min":null,"max":null,"now":null},"popups":[{"tag":"DIV","role":"tooltip","label":"ResonemangsansträngningCtrl+Shift+M","id":"_r_2b_","tabIndex":null,"ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null}],"sliders":[]},{"stage":"OPEN_REASONING_MENU","trigger":{"tag":"BUTTON","role":"","label":"Resonemangsansträngning","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"true","state":"open","min":null,"max":null,"now":null},"popups":[{"tag":"DIV","role":"","label":"Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"gf-field-wrapper","tabIndex":null,"ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null},{"tag":"DIV","role":"menu","label":"Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"radix-_r_29_","tabIndex":"-1","ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":"open","min":null,"max":null,"now":null}],"sliders":[]}],"atMs":1791888501269,"controls":[{"tag":"DIV","role":"menuitem","label":"Extra hög","id":"","tabIndex":"0","ariaLabel":"Välj modell","valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null},{"tag":"DIV","role":"menuitem","label":"","id":"","tabIndex":"-1","ariaLabel":"Prestanda","valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null}],"trigger":{"tag":"BUTTON","role":"","label":"Resonemangsansträngning","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"true","state":"open","min":null,"max":null,"now":null},"popup":{"tag":"DIV","role":"menu","label":"Extra högExtra hög, 4 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"radix-_r_29_","tabIndex":"-1","ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":"open","min":null,"max":null,"now":null},"sliders":[]}}
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:20:44)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: field menu (arialabel) from 1/4 is verified at the announced maximum
+not ok 4 - field menu (arialabel) from 1/4 is verified at the announced maximum
+  ---
+  duration_ms: 114.147247
+  type: 'test'
+  location: '/home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:17:75'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"seed":1,"result":{"ok":false,"changed":false,"code":"THINKING_CONTROL_AMBIGUOUS","detail":"SELECT_MAXIMUM"},"diagnostics":{"ok":false,"changed":false,"code":"THINKING_CONTROL_AMBIGUOUS","detail":"SELECT_MAXIMUM","stage":"SELECT_MAXIMUM","openingMethod":"KEYBOARD","recoveredOpenMenu":false,"strategy":"","chosenControl":null,"actions":[],"observedSurfaces":[{"stage":"OPEN_REASONING_HOVER","trigger":{"tag":"BUTTON","role":"","label":"Balanserad","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"false","state":"closed","min":null,"max":null,"now":null},"popups":[{"tag":"DIV","role":"tooltip","label":"ResonemangsansträngningCtrl+Shift+M","id":"_r_2b_","tabIndex":null,"ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null}],"sliders":[]},{"stage":"OPEN_REASONING_MENU","trigger":{"tag":"BUTTON","role":"","label":"Resonemangsansträngning","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"true","state":"open","min":null,"max":null,"now":null},"popups":[{"tag":"DIV","role":"","label":"BalanseradBalanserad, 1 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"gf-field-wrapper","tabIndex":null,"ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null},{"tag":"DIV","role":"menu","label":"BalanseradBalanserad, 1 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"radix-_r_29_","tabIndex":"-1","ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":"open","min":null,"max":null,"now":null}],"sliders":[]}],"atMs":1791888501269,"controls":[{"tag":"DIV","role":"menuitem","label":"Balanserad","id":"","tabIndex":"0","ariaLabel":"Välj modell","valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null},{"tag":"DIV","role":"menuitem","label":"","id":"","tabIndex":"-1","ariaLabel":"Prestanda","valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":null,"min":null,"max":null,"now":null}],"trigger":{"tag":"BUTTON","role":"","label":"Resonemangsansträngning","id":"radix-_r_7b_","tabIndex":null,"ariaLabel":"Välj ChatGPT-modell","valueText":null,"selected":null,"checked":null,"hasPopup":"menu","expanded":"true","state":"open","min":null,"max":null,"now":null},"popup":{"tag":"DIV","role":"menu","label":"BalanseradBalanserad, 1 av 4.Använd vänster- och högerpiltangenterna för att justera prestandan","id":"radix-_r_29_","tabIndex":"-1","ariaLabel":null,"valueText":null,"selected":null,"checked":null,"hasPopup":null,"expanded":null,"state":"open","min":null,"max":null,"now":null},"sliders":[]}}
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:20:44)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: two keyboard controls with identical announcements stay ambiguous and report their candidates
+not ok 5 - two keyboard controls with identical announcements stay ambiguous and report their candidates
+  ---
+  duration_ms: 173.700272
+  type: 'test'
+  location: '/home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:28:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'length')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:33:26)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 0
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1295.501755

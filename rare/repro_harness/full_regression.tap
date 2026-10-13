@@ -1,0 +1,541 @@
+
+> eic-autonom-agent-greenfield@1.9.13 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: sync-invalid: dirty notification stops the old bridge without an uncaught error
+ok 1 - sync-invalid: dirty notification stops the old bridge without an uncaught error
+  ---
+  duration_ms: 109.530255
+  type: 'test'
+  ...
+# Subtest: async-invalid: dirty notification stops the old bridge without an uncaught error
+ok 2 - async-invalid: dirty notification stops the old bridge without an uncaught error
+  ---
+  duration_ms: 18.940293
+  type: 'test'
+  ...
+# Subtest: synchronous CONTENT_READY invalidation disposes startup timers
+ok 3 - synchronous CONTENT_READY invalidation disposes startup timers
+  ---
+  duration_ms: 7.898371
+  type: 'test'
+  ...
+# Subtest: missing runtime id stops notifications without calling the invalid API
+ok 4 - missing runtime id stops notifications without calling the invalid API
+  ---
+  duration_ms: 10.509212
+  type: 'test'
+  ...
+# Subtest: ordinary receiver failure retains a bridge that can notify again
+ok 5 - ordinary receiver failure retains a bridge that can notify again
+  ---
+  duration_ms: 14.126461
+  type: 'test'
+  ...
+# Subtest: reinjection preserves dispatch records, cancels old work and ignores a delayed old ready response
+ok 6 - reinjection preserves dispatch records, cancels old work and ignores a delayed old ready response
+  ---
+  duration_ms: 10.059428
+  type: 'test'
+  ...
+# Subtest: an invalidated response channel never attempts a second response
+ok 7 - an invalidated response channel never attempts a second response
+  ---
+  duration_ms: 20.109292
+  type: 'test'
+  ...
+# Subtest: synchronous invalidation during authorization prevents a send
+ok 8 - synchronous invalidation during authorization prevents a send
+  ---
+  duration_ms: 137.833616
+  type: 'test'
+  ...
+# Subtest: asynchronous invalidation during authorization prevents a send
+ok 9 - asynchronous invalidation during authorization prevents a send
+  ---
+  duration_ms: 139.548352
+  type: 'test'
+  ...
+# Subtest: disposal while the final page read is pending prevents a stale send
+ok 10 - disposal while the final page read is pending prevents a stale send
+  ---
+  duration_ms: 135.680409
+  type: 'test'
+  ...
+# Subtest: loss after the click retains possible effect and prevents idempotent replay
+ok 11 - loss after the click retains possible effect and prevents idempotent replay
+  ---
+  duration_ms: 137.383271
+  type: 'test'
+  ...
+# Subtest: queue start error explains which tab and window to activate
+ok 12 - queue start error explains which tab and window to activate
+  ---
+  duration_ms: 0.62532
+  type: 'test'
+  ...
+# Subtest: captured label passes ordinary inspection but cannot prove highest available level
+ok 13 - captured label passes ordinary inspection but cannot prove highest available level
+  ---
+  duration_ms: 8.630398
+  type: 'test'
+  ...
+# Subtest: breaking only ordinary approval removes false success with the same failed maximum control
+ok 14 - breaking only ordinary approval removes false success with the same failed maximum control
+  ---
+  duration_ms: 22.020578
+  type: 'test'
+  ...
+# Subtest: manual recheck performs maximum verification before reporting success and waking initialization
+ok 15 - manual recheck performs maximum verification before reporting success and waking initialization
+  ---
+  duration_ms: 16.128807
+  type: 'test'
+  ...
+# Subtest: failed maximum check is reported as failed and the hold is retained
+ok 16 - failed maximum check is reported as failed and the hold is retained
+  ---
+  duration_ms: 2.350268
+  type: 'test'
+  ...
+# Subtest: a missing sibling tab cannot cancel the healthy worker check
+ok 17 - a missing sibling tab cannot cancel the healthy worker check
+  ---
+  duration_ms: 2.90639
+  type: 'test'
+  ...
+# Subtest: a paused worker keeps its hold and phase while another worker resumes
+ok 18 - a paused worker keeps its hold and phase while another worker resumes
+  ---
+  duration_ms: 2.859515
+  type: 'test'
+  ...
+# Subtest: model recheck cannot clear ADMISSION_PAUSED
+ok 19 - model recheck cannot clear ADMISSION_PAUSED
+  ---
+  duration_ms: 2.090954
+  type: 'test'
+  ...
+# Subtest: model recheck cannot clear PROVIDER_QUOTA_HOLD
+ok 20 - model recheck cannot clear PROVIDER_QUOTA_HOLD
+  ---
+  duration_ms: 2.076732
+  type: 'test'
+  ...
+# Subtest: model recheck cannot clear LOCAL_MESSAGE_BUDGET
+ok 21 - model recheck cannot clear LOCAL_MESSAGE_BUDGET
+  ---
+  duration_ms: 3.837806
+  type: 'test'
+  ...
+# Subtest: STOP while the UI check awaits cannot be overwritten or restarted
+ok 22 - STOP while the UI check awaits cannot be overwritten or restarted
+  ---
+  duration_ms: 2.555278
+  type: 'test'
+  ...
+# Subtest: an uncertain previous dispatch remains owned by reconciliation
+ok 23 - an uncertain previous dispatch remains owned by reconciliation
+  ---
+  duration_ms: 1.839311
+  type: 'test'
+  ...
+# Subtest: automatic start reaches dispatch and WAITING through real runtime functions
+ok 24 - automatic start reaches dispatch and WAITING through real runtime functions
+  ---
+  duration_ms: 8.033294
+  type: 'test'
+  ...
+# Subtest: manual recheck reaches dispatch and WAITING through real runtime functions
+ok 25 - manual recheck reaches dispatch and WAITING through real runtime functions
+  ---
+  duration_ms: 3.796947
+  type: 'test'
+  ...
+# Subtest: closed schedule parks one worker while the other initializes
+ok 26 - closed schedule parks one worker while the other initializes
+  ---
+  duration_ms: 4.012473
+  type: 'test'
+  ...
+# Subtest: explicit quota recovery still works when its source and every live worker have fresh approved UI
+ok 27 - explicit quota recovery still works when its source and every live worker have fresh approved UI
+  ---
+  duration_ms: 7.48243
+  type: 'test'
+  ...
+# Subtest: captured old runtime is detected even when manifest and imported constants are old
+ok 28 - captured old runtime is detected even when manifest and imported constants are old
+  ---
+  duration_ms: 9.132468
+  type: 'test'
+  ...
+# Subtest: consistent builds are ready, missing runtime is not a successful version check
+ok 29 - consistent builds are ready, missing runtime is not a successful version check
+  ---
+  duration_ms: 0.263131
+  type: 'test'
+  ...
+# Subtest: recheck feedback distinguishes resumed, blocked and paused workers
+ok 30 - recheck feedback distinguishes resumed, blocked and paused workers
+  ---
+  duration_ms: 0.404945
+  type: 'test'
+  ...
+# Subtest: captured composer without prompt-textarea resolves selected Extra hög and rejects Balanced
+ok 31 - captured composer without prompt-textarea resolves selected Extra hög and rejects Balanced
+  ---
+  duration_ms: 278.747222
+  type: 'test'
+  ...
+# Subtest: unranked control no longer grants Extended permission
+ok 32 - unranked control no longer grants Extended permission
+  ---
+  duration_ms: 42.836362
+  type: 'test'
+  ...
+# Subtest: slider: Balanced becomes Pro and highest receipt is required
+ok 33 - slider: Balanced becomes Pro and highest receipt is required
+  ---
+  duration_ms: 2689.13861
+  type: 'test'
+  ...
+# Subtest: range: Balanced becomes Pro and highest receipt is required
+ok 34 - range: Balanced becomes Pro and highest receipt is required
+  ---
+  duration_ms: 2553.447875
+  type: 'test'
+  ...
+# Subtest: options: Balanced becomes Pro and highest receipt is required
+ok 35 - options: Balanced becomes Pro and highest receipt is required
+  ---
+  duration_ms: 1946.679967
+  type: 'test'
+  ...
+# Subtest: Extra hög is upgraded when Pro exists; no hard-coded slider maximum
+ok 36 - Extra hög is upgraded when Pro exists; no hard-coded slider maximum
+  ---
+  duration_ms: 2429.05551
+  type: 'test'
+  ...
+# Subtest: Extra hög is retained when it is the maximum actually exposed
+ok 37 - Extra hög is retained when it is the maximum actually exposed
+  ---
+  duration_ms: 2491.813964
+  type: 'test'
+  ...
+# Subtest: disabled Pro option is skipped; highest available option is selected
+ok 38 - disabled Pro option is skipped; highest available option is selected
+  ---
+  duration_ms: 1967.585943
+  type: 'test'
+  ...
+# Subtest: own dialog popup is allowed; unrelated blocking dialog is not
+ok 39 - own dialog popup is allowed; unrelated blocking dialog is not
+  ---
+  duration_ms: 2574.66803
+  type: 'test'
+  ...
+# Subtest: disabled trigger, operator draft, active generation and wrong document do not change UI
+ok 40 - disabled trigger, operator draft, active generation and wrong document do not change UI
+  ---
+  duration_ms: 120.473428
+  type: 'test'
+  ...
+# Subtest: model submenu and conversation text never count as effort options
+ok 41 - model submenu and conversation text never count as effort options
+  ---
+  duration_ms: 2376.58461
+  type: 'test'
+  ...
+# Subtest: slider movement without selected-control readback fails within deadline
+ok 42 - slider movement without selected-control readback fails within deadline
+  ---
+  duration_ms: 2500.335151
+  type: 'test'
+  ...
+# Subtest: new session and reset to Balanced require a fresh selection
+ok 43 - new session and reset to Balanced require a fresh selection
+  ---
+  duration_ms: 5014.398941
+  type: 'test'
+  ...
+# Subtest: opening model picker invalidates old maximum even after closing it
+ok 44 - opening model picker invalidates old maximum even after closing it
+  ---
+  duration_ms: 4900.78573
+  type: 'test'
+  ...
+# Subtest: expired receipt is rejected and refreshed; another document has no receipt
+ok 45 - expired receipt is rejected and refreshed; another document has no receipt
+  ---
+  duration_ms: 5003.37982
+  type: 'test'
+  ...
+# Subtest: two independent documents select independently
+ok 46 - two independent documents select independently
+  ---
+  duration_ms: 2550.651858
+  type: 'test'
+  ...
+# Subtest: navigation during selection cancels operation
+ok 47 - navigation during selection cancels operation
+  ---
+  duration_ms: 1810.311073
+  type: 'test'
+  ...
+# Subtest: background preflight respects uncertain effects and owner changes
+ok 48 - background preflight respects uncertain effects and owner changes
+  ---
+  duration_ms: 2446.663778
+  type: 'test'
+  ...
+# Subtest: real submitPrompt never clicks if level resets after background authorization
+ok 49 - real submitPrompt never clicks if level resets after background authorization
+  ---
+  duration_ms: 2685.757563
+  type: 'test'
+  ...
+# Subtest: verified maximum allows one real submitPrompt click and its receipt prevents replay
+ok 50 - verified maximum allows one real submitPrompt click and its receipt prevents replay
+  ---
+  duration_ms: 2589.132404
+  type: 'test'
+  ...
+# Subtest: quota notice and wrong GPT stop selection before any click
+ok 51 - quota notice and wrong GPT stop selection before any click
+  ---
+  duration_ms: 53.017503
+  type: 'test'
+  ...
+# Subtest: ambiguous controls are left unchanged; a related open menu is recovered
+ok 52 - ambiguous controls are left unchanged; a related open menu is recovered
+  ---
+  duration_ms: 3119.732724
+  type: 'test'
+  ...
+# Subtest: already selected option is verified after a generic open-menu label closes
+ok 53 - already selected option is verified after a generic open-menu label closes
+  ---
+  duration_ms: 2505.076529
+  type: 'test'
+  ...
+# Subtest: field menu (describedby) from 4/4 is verified at the announced maximum
+ok 54 - field menu (describedby) from 4/4 is verified at the announced maximum
+  ---
+  duration_ms: 664.371887
+  type: 'test'
+  ...
+# Subtest: field menu (describedby) from 1/4 is verified at the announced maximum
+ok 55 - field menu (describedby) from 1/4 is verified at the announced maximum
+  ---
+  duration_ms: 599.193037
+  type: 'test'
+  ...
+# Subtest: field menu (arialabel) from 4/4 is verified at the announced maximum
+ok 56 - field menu (arialabel) from 4/4 is verified at the announced maximum
+  ---
+  duration_ms: 412.433035
+  type: 'test'
+  ...
+# Subtest: field menu (arialabel) from 1/4 is verified at the announced maximum
+ok 57 - field menu (arialabel) from 1/4 is verified at the announced maximum
+  ---
+  duration_ms: 537.76423
+  type: 'test'
+  ...
+# Subtest: two keyboard controls with identical announcements stay ambiguous and report their candidates
+ok 58 - two keyboard controls with identical announcements stay ambiguous and report their candidates
+  ---
+  duration_ms: 115.488376
+  type: 'test'
+  ...
+# Error: Not implemented: HTMLFormElement.prototype.requestSubmit
+#     at module.exports (/home/user/tmp/greenfield/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+#     at HTMLFormElementImpl.requestSubmit (/home/user/tmp/greenfield/node_modules/jsdom/lib/jsdom/living/nodes/HTMLFormElement-impl.js:130:5)
+#     at HTMLFormElementImpl._doRequestSubmit (/home/user/tmp/greenfield/node_modules/jsdom/lib/jsdom/living/nodes/HTMLFormElement-impl.js:100:10)
+#     at HTMLButtonElementImpl._activationBehavior (/home/user/tmp/greenfield/node_modules/jsdom/lib/jsdom/living/nodes/HTMLButtonElement-impl.js:23:14)
+#     at HTMLButtonElementImpl._dispatch (/home/user/tmp/greenfield/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:252:26)
+#     at fireAnEvent (/home/user/tmp/greenfield/node_modules/jsdom/lib/jsdom/living/helpers/events.js:18:36)
+#     at HTMLButtonElementImpl.click (/home/user/tmp/greenfield/node_modules/jsdom/lib/jsdom/living/nodes/HTMLElement-impl.js:85:5)
+#     at HTMLButtonElement.click (/home/user/tmp/greenfield/node_modules/jsdom/lib/jsdom/living/generated/HTMLElement.js:108:34)
+#     at eval (eval at <anonymous> (file:///home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:59:7), <anonymous>:134:20)
+#     at async TestContext.<anonymous> (file:///home/user/tmp/greenfield/tests/thinking-field-menu.test.mjs:61:19) undefined
+# Subtest: field menu: real background preflight releases initialization; real submit sends exactly once
+ok 59 - field menu: real background preflight releases initialization; real submit sends exactly once
+  ---
+  duration_ms: 187.489159
+  type: 'test'
+  ...
+# Subtest: dual-purpose picker: hover reaches maximum without opening or selecting a model
+ok 60 - dual-purpose picker: hover reaches maximum without opening or selecting a model
+  ---
+  duration_ms: 536.280773
+  type: 'test'
+  ...
+# Subtest: open model menu from a previous attempt is closed before opening the reasoning surface
+ok 61 - open model menu from a previous attempt is closed before opening the reasoning surface
+  ---
+  duration_ms: 378.933704
+  type: 'test'
+  ...
+# Subtest: replaced trigger can be closed after selection and yields a valid maximum receipt
+ok 62 - replaced trigger can be closed after selection and yields a valid maximum receipt
+  ---
+  duration_ms: 308.93044
+  type: 'test'
+  ...
+# Subtest: model-only list never selects its bare Pro item and does not repeat UI actions on unchanged retries
+ok 63 - model-only list never selects its bare Pro item and does not repeat UI actions on unchanged retries
+  ---
+  duration_ms: 2648.512592
+  type: 'test'
+  ...
+# Subtest: unlinked already-open menu is left untouched and unchanged retries do not click it
+ok 64 - unlinked already-open menu is left untouched and unchanged retries do not click it
+  ---
+  duration_ms: 33.232691
+  type: 'test'
+  ...
+# Subtest: failure after DOM replacement cleans up the owned surface and prevents a timeout/open-menu cycle
+ok 65 - failure after DOM replacement cleans up the owned surface and prevents a timeout/open-menu cycle
+  ---
+  duration_ms: 626.422113
+  type: 'test'
+  ...
+# Subtest: a menu that refuses dismissal is not repeatedly toggled by later retries
+ok 66 - a menu that refuses dismissal is not repeatedly toggled by later retries
+  ---
+  duration_ms: 2161.694898
+  type: 'test'
+  ...
+# Subtest: unrelated pre-existing menus are preserved when the composer hover is used
+ok 67 - unrelated pre-existing menus are preserved when the composer hover is used
+  ---
+  duration_ms: 297.16997
+  type: 'test'
+  ...
+# Subtest: a guard rejection forbids menu recovery and maximum selection
+ok 68 - a guard rejection forbids menu recovery and maximum selection
+  ---
+  duration_ms: 42.230749
+  type: 'test'
+  ...
+# Subtest: operator recheck resets the failed attempt through the real content handler
+ok 69 - operator recheck resets the failed attempt through the real content handler
+  ---
+  duration_ms: 17.212858
+  type: 'test'
+  ...
+# Subtest: text: advertised maximum succeeds without clicking model navigation
+ok 70 - text: advertised maximum succeeds without clicking model navigation
+  ---
+  duration_ms: 311.639786
+  type: 'test'
+  ...
+# Subtest: aria: advertised maximum succeeds without clicking model navigation
+ok 71 - aria: advertised maximum succeeds without clicking model navigation
+  ---
+  duration_ms: 161.705105
+  type: 'test'
+  ...
+# Subtest: description: advertised maximum succeeds without clicking model navigation
+ok 72 - description: advertised maximum succeeds without clicking model navigation
+  ---
+  duration_ms: 120.538757
+  type: 'test'
+  ...
+# Subtest: numeric: advertised maximum succeeds without clicking model navigation
+ok 73 - numeric: advertised maximum succeeds without clicking model navigation
+  ---
+  duration_ms: 137.79942
+  type: 'test'
+  ...
+# Subtest: text: Balanced reaches discovered maximum with arrow-only control
+ok 74 - text: Balanced reaches discovered maximum with arrow-only control
+  ---
+  duration_ms: 205.231436
+  type: 'test'
+  ...
+# Subtest: aria: Balanced reaches discovered maximum with arrow-only control
+ok 75 - aria: Balanced reaches discovered maximum with arrow-only control
+  ---
+  duration_ms: 150.548891
+  type: 'test'
+  ...
+# Subtest: description: Balanced reaches discovered maximum with arrow-only control
+ok 76 - description: Balanced reaches discovered maximum with arrow-only control
+  ---
+  duration_ms: 169.948017
+  type: 'test'
+  ...
+# Subtest: numeric: Balanced reaches discovered maximum with arrow-only control
+ok 77 - numeric: Balanced reaches discovered maximum with arrow-only control
+  ---
+  duration_ms: 161.181421
+  type: 'test'
+  ...
+# Subtest: six seeded failures become six successes without changing the modeled external menu
+ok 78 - six seeded failures become six successes without changing the modeled external menu
+  ---
+  duration_ms: 705.162988
+  type: 'test'
+  ...
+# Subtest: the maximum is discovered rather than hard-coded to four
+ok 79 - the maximum is discovered rather than hard-coded to four
+  ---
+  duration_ms: 164.582574
+  type: 'test'
+  ...
+# Subtest: unknown singleton named button is never clicked or accepted as maximum
+ok 80 - unknown singleton named button is never clicked or accepted as maximum
+  ---
+  duration_ms: 119.323763
+  type: 'test'
+  ...
+# Subtest: conflicting ordinal controls cannot authorize a send
+ok 81 - conflicting ordinal controls cannot authorize a send
+  ---
+  duration_ms: 131.547749
+  type: 'test'
+  ...
+# Subtest: rejected input stays blocked and unchanged retries make no new actions
+ok 82 - rejected input stays blocked and unchanged retries make no new actions
+  ---
+  duration_ms: 419.546252
+  type: 'test'
+  ...
+# Subtest: maximum announcement with stale closed selection is rejected
+ok 83 - maximum announcement with stale closed selection is rejected
+  ---
+  duration_ms: 179.192071
+  type: 'test'
+  ...
+# Subtest: new session invalidates ordinal receipt and maximizes Balanced again
+ok 84 - new session invalidates ordinal receipt and maximizes Balanced again
+  ---
+  duration_ms: 283.091202
+  type: 'test'
+  ...
+# Subtest: a paused or rejected context does not hold another context
+ok 85 - a paused or rejected context does not hold another context
+  ---
+  duration_ms: 130.394624
+  type: 'test'
+  ...
+# Subtest: real background maximum preflight releases initialization; real submit sends exactly once
+ok 86 - real background maximum preflight releases initialization; real submit sends exactly once
+  ---
+  duration_ms: 151.349171
+  type: 'test'
+  ...
+1..86
+# tests 86
+# suites 0
+# pass 86
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 55241.988547

@@ -1,15 +1,13 @@
-# Installera Greenfield 1.9.12
+# Installera Greenfield 1.9.13
 
 1. Packa upp paketet. Kopiera **hela innehållet i greenfield** till samma tilläggsmapp som Chrome använder för Greenfield.
-2. Öppna `chrome://extensions` och klicka **Läs in igen** på Greenfield. Öppna därefter sidopanelen på nytt. I bifogad logg körde motorn fortfarande 1.9.10 medan panelen visade 1.9.11. [E201,E202]
-3. Ladda om de ChatGPT-flikar som tillägget styr för att ersätta äldre innehållsskript. Den senare bilagans fel gäller en invaliderad tilläggskontext. [E208,E209]
-4. Kontrollera raden **Körande motor v1.9.12** under panelrubriken. Om versionerna skiljer sig visar panelen nu en varning. [E206,E207]
-5. I den aktiva EIC-fliken: välj **Kontrollera modell igen**. Den nya kontrollen verifierar maximum och köar återupptagningen för en sändande worker. Resultatet visar om kontrollen lyckades eller vilken spärr som återstår. [E206]
+2. Öppna `chrome://extensions` och välj **Läs in igen** för Greenfield. Öppna sedan sidopanelen på nytt.
+3. Ladda om de ChatGPT-flikar som tillägget styr. Bakgrunden byter då ut sidkoden, eftersom bryggversionen inte längre är `APP_VERSION` (`background.js:662–676`).
+4. Kontrollera att panelen visar **Körande motor v1.9.13**.
+5. En worker som står kvar i `SENDING` med spärren `THINKING_CONTROL_AMBIGUOUS` kontrolleras igen automatiskt inom cirka 30 s. Vill du inte vänta väljer du **Kontrollera modell igen**. [E310]
 
-Om den gamla starten inte längre är ansluten till en flik: öppna avsedd EIC-flik, välj din uppdragskö och **Starta arbetskö**. En historisk frånkopplad process utan konversations-ID kan inte återanslutas enbart genom modellknappen. De två sådana posterna i bifogad logg är separata från den aktiva SENDING-processen. [E201; `lib/restart-recovery.mjs`]
+Om spärren ändå återkommer: välj **Exportera diagnostik**. Exporten innehåller nu `ordinalCandidates` med `describedBy`, och det avgör det öppna antagandet A301.
 
-För en ny installation väljer du **Läs in okomprimerat tillägg** och mappen greenfield. Ingen byggning behövs för användning; alla manifestfiler och runtime-moduler finns i paketet. [E207]
-
-Verifierat här: 80/80 automatiska tester. Din inloggade Chrome-session har inte körts i testmiljön. [E206,A201]
+**Verifierat här:** 86/86 automatiska tester och en fältbaserad rigg (0/10 fel efter åtgärden mot 10/10 före). Din inloggade Chrome-session har inte körts. [E317, E319, A303]
 
 Evidens-ID finns i `rare/evidence_log.md`.

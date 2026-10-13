@@ -1,0 +1,914 @@
+{
+  "scope": "FIELD_DERIVED_DOM_JSDOM_NOT_LIVE_CHROME",
+  "node": "v22.22.0",
+  "adapter": "rare/repro_harness/thinking-control-1.9.12.js",
+  "initialPosition": 1,
+  "n": 10,
+  "summary": {
+    "describedby:THINKING_CONTROL_AMBIGUOUS": 10,
+    "arialabel:THINKING_CONTROL_AMBIGUOUS": 10,
+    "plain:THINKING_SELECTION_TIMEOUT": 10
+  },
+  "rows": [
+    {
+      "variant": "describedby",
+      "seed": 1,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "describedby",
+      "seed": 2,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "describedby",
+      "seed": 3,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "describedby",
+      "seed": 4,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "describedby",
+      "seed": 5,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "describedby",
+      "seed": 6,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "describedby",
+      "seed": 7,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "describedby",
+      "seed": 8,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "describedby",
+      "seed": 9,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "describedby",
+      "seed": 10,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "arialabel",
+      "seed": 1,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "arialabel",
+      "seed": 2,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "arialabel",
+      "seed": 3,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "arialabel",
+      "seed": 4,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "arialabel",
+      "seed": 5,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "arialabel",
+      "seed": 6,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "arialabel",
+      "seed": 7,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "arialabel",
+      "seed": 8,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "arialabel",
+      "seed": 9,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "arialabel",
+      "seed": 10,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "plain",
+      "seed": 1,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "ORDINAL_MAXIMUM",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "plain",
+      "seed": 2,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "ORDINAL_MAXIMUM",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "plain",
+      "seed": 3,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "ORDINAL_MAXIMUM",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "plain",
+      "seed": 4,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "ORDINAL_MAXIMUM",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "plain",
+      "seed": 5,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "ORDINAL_MAXIMUM",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "plain",
+      "seed": 6,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "ORDINAL_MAXIMUM",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "plain",
+      "seed": 7,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "ORDINAL_MAXIMUM",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "plain",
+      "seed": 8,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "ORDINAL_MAXIMUM",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "plain",
+      "seed": 9,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "ORDINAL_MAXIMUM",
+      "ordinalCandidates": null
+    },
+    {
+      "variant": "plain",
+      "seed": 10,
+      "ok": false,
+      "code": "THINKING_SELECTION_TIMEOUT",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 1,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Balanserad",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "ORDINAL_MAXIMUM",
+      "ordinalCandidates": null
+    }
+  ]
+}

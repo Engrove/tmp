@@ -1,0 +1,372 @@
+{
+  "scope": "FIELD_DERIVED_DOM_JSDOM_NOT_LIVE_CHROME",
+  "node": "v22.22.0",
+  "adapter": "greenfield/lib/thinking-control.js",
+  "initialPosition": 4,
+  "n": 10,
+  "summary": {
+    "twin:THINKING_CONTROL_AMBIGUOUS": 10
+  },
+  "rows": [
+    {
+      "variant": "twin",
+      "seed": 1,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 4,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Extra hög",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": 4
+    },
+    {
+      "variant": "twin",
+      "seed": 2,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 4,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Extra hög",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": 4
+    },
+    {
+      "variant": "twin",
+      "seed": 3,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 4,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Extra hög",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": 4
+    },
+    {
+      "variant": "twin",
+      "seed": 4,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 4,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Extra hög",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": 4
+    },
+    {
+      "variant": "twin",
+      "seed": 5,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 4,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Extra hög",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": 4
+    },
+    {
+      "variant": "twin",
+      "seed": 6,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 4,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Extra hög",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": 4
+    },
+    {
+      "variant": "twin",
+      "seed": 7,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 4,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Extra hög",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": 4
+    },
+    {
+      "variant": "twin",
+      "seed": 8,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 4,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Extra hög",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": 4
+    },
+    {
+      "variant": "twin",
+      "seed": 9,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 4,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Extra hög",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": 4
+    },
+    {
+      "variant": "twin",
+      "seed": 10,
+      "ok": false,
+      "code": "THINKING_CONTROL_AMBIGUOUS",
+      "detail": "SELECT_MAXIMUM",
+      "sendAllowed": false,
+      "finalPosition": 4,
+      "inputs": 0,
+      "navigationClicks": 0,
+      "menuLeftOpen": false,
+      "openingMethod": "KEYBOARD",
+      "stages": "OPEN_REASONING_HOVER:tooltip OPEN_REASONING_MENU:-+menu",
+      "controls": [
+        {
+          "role": "menuitem",
+          "ariaLabel": "Välj modell",
+          "label": "Extra hög",
+          "tabIndex": "0"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        },
+        {
+          "role": "menuitem",
+          "ariaLabel": "Prestanda",
+          "label": "",
+          "tabIndex": "-1"
+        }
+      ],
+      "strategy": "",
+      "ordinalCandidates": 4
+    }
+  ]
+}

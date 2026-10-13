@@ -1,0 +1,1 @@
+{"result": "PASS", "versions": {"manifest": "1.9.13", "package": "1.9.13", "lock": "1.9.13", "lockRoot": "1.9.13", "VERSION": "1.9.13", "worker": "1.9.13", "bridge": "1.9.13", "panel": "1.9.13", "panelHeading": "1.9.13"}, "adapterVersion": 9, "syntaxChecked": 93, "manifestReferences": 10, "relativeImports": "PASS", "panelIds": "PASS", "node": "v22.22.0"}

@@ -1,3 +1,20 @@
+# Greenfield 1.9.13 – fältmenyns tänkenivå
+
+Komplett Chrome-tillägg. Installera enligt `UPPDATERA_TILL_1_9_13.md` och kontrollera att panelen visar **Körande motor v1.9.13**.
+
+**Fel i 1.9.12.** Kön startade, men initieringen skickades aldrig. Processen stod kvar i `SENDING` med `THINKING_CONTROL_AMBIGUOUS`, trots att "Extra hög, 4 av 4" redan var vald. Det hände i 2/2 starter, i två fönster. ChatGPT:s nya modellmeny visar nivåannonsen i två noder: texten och reglaget `Prestanda`, som refererar till den. Adaptern räknade det som två kontroller. Upprepningsskyddet gjorde sedan spärren permanent. [`../rare/root_cause_proof.md`]
+
+**Ändrat.** Identiska annonser som leder till exakt ett tangentbordsmål räknas nu som en kontroll. Olika värden eller flera mål är fortfarande tvetydiga. Vid fel loggas kandidaterna i diagnostiken. `adapterVersion` är 9.
+
+**Verifiering.** 86/86 tester. Fältriggen ger 10/10 fel före åtgärden och 0/10 efter. Riktig bakgrundsförkontroll och `submitPrompt` ger exakt ett utskick. Ingen livekörning i inloggad Chrome. [`../rare/evidence_log.md` E316–E321]
+
+```sh
+node rare/repro_harness/field_menu_repro.mjs --adapter=rare/repro_harness/thinking-control-1.9.12.js   # från paketroten: 10/10 fel
+node rare/repro_harness/field_menu_repro.mjs   # 0/10
+```
+
+---
+
 # Greenfield 1.9.12 – verifierad återkontroll och återupptagning
 
 Komplett Chrome-tillägg. Installera enligt `UPPDATERA_TILL_1_9_12.md` och kontrollera **Körande motor v1.9.12** i panelen. Manifest, motor, innehållsbrygga och panel har samstämmiga versionsfält. [E207]

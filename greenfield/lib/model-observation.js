@@ -228,7 +228,7 @@
       ambiguityKind:resolvedModel.ambiguous ? "model" : resolvedEffort.ambiguous ? "effort" : "",
       mode, quota,
       blockingUi:notices.some(e=>e.matches("[role='dialog'],[role='alertdialog'],[aria-modal='true']") && !S.quotaSignal(e.innerText || e.textContent || "")),
-      adapterVersion:8,
+      adapterVersion:9,
       highestEffort:globalThis.GreenfieldThinkingControl?.proof() || null,
       thinkingControl:globalThis.GreenfieldThinkingControl?.diagnostics?.() || null,
       effortEvidenceSource,

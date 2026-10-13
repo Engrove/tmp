@@ -129,6 +129,18 @@
       el.matches("[role='menuitemradio'],[role='radio'],[role='option'],[aria-checked],[aria-selected],[data-reasoning-effort],[data-effort]")));
   }
   function ordinalControls(popup) {
+    return collapseAnnouncement(ordinalCandidates(popup),popup);
+  }
+  // One announced position can be exposed by several nodes: the value text and
+  // a control that references it (aria-describedby) or repeats it (aria-label).
+  // Identical values with exactly one keyboard target are one control; any
+  // other combination stays ambiguous.
+  function collapseAnnouncement(found,popup) {
+    if (found.length<2 || new Set(found.map(v=>`${v.now}/${v.max}/${v.rank}`)).size!==1) return found;
+    const targets=new Set(found.map(v=>ordinalTarget(v,popup)).filter(el=>el!==popup));
+    return targets.size===1 ? [{...found[0],el:[...targets][0]}] : found;
+  }
+  function ordinalCandidates(popup) {
     if (!popup || modelSurface(popup)) return [];
     const found=[];
     for (const el of [popup,...popup.querySelectorAll("[aria-label],[aria-valuetext],[aria-describedby],span,div,p,button,[role]")]) {
@@ -396,6 +408,8 @@
       outcome = {ok:false,changed:false,code:error?.code || "THINKING_SELECTION_FAILED",detail:stage};
       lastAttempt={...outcome,stage,openingMethod,recoveredOpenMenu,strategy:selectionStrategy,chosenControl,actions,observedSurfaces,atMs:Date.now(),
         controls:currentPopup()?[...currentPopup().querySelectorAll(optionSelector+",[tabindex],[aria-valuetext],[aria-describedby]")].filter(visible).slice(0,24).map(controlSummary):[],
+        ordinalCandidates:ordinalCandidates(currentPopup()).slice(0,8).map(c=>({...controlSummary(c.el),
+          describedBy:c.el.getAttribute("aria-describedby"),now:c.now,max:c.max,level:c.label})),
         trigger:controlSummary(trigger()),popup:controlSummary(currentPopup()),sliders:allVisible(sliderSelector).map(controlSummary)};
     } finally {
       if (opened && !disposed && location.href === url) {
