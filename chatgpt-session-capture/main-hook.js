@@ -547,7 +547,11 @@
       if (type === 'number' || type === 'boolean') return value;
       if (type === 'bigint') return { __type__: 'BigInt', value: value.toString() };
       if (type === 'symbol') return { __type__: 'Symbol', value: String(value) };
-      if (type === 'function') return { __type__: 'Function', name: value.name || null, source: String(value) };
+      if (type === 'function') {
+        // Function sources in a React tree are bundle code; a prefix identifies them.
+        const source = Function.prototype.toString.call(value);
+        return { __type__: 'Function', name: value.name || null, sourceLength: source.length, sourcePrefix: source.slice(0, 300) };
+      }
 
       if (seen.has(value)) return { __ref__: seen.get(value) };
       seen.set(value, path);
@@ -583,11 +587,18 @@
           };
         }
         if (value instanceof Node) {
+          // Every host fiber references its DOM node. Serializing outerHTML here
+          // repeats the whole subtree for each fiber; the page-state snapshot
+          // already contains the document HTML once.
+          const text = value.textContent || '';
           return {
             __type__: value.constructor?.name || 'Node',
             nodeName: value.nodeName,
-            textContent: value.textContent,
-            outerHTML: value.outerHTML || null
+            id: value.id || null,
+            className: typeof value.className === 'string' ? value.className : null,
+            dataTestId: value.getAttribute?.('data-testid') || null,
+            textLength: text.length,
+            textSample: text.slice(0, 200)
           };
         }
         if (Array.isArray(value)) {

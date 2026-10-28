@@ -26,7 +26,7 @@
     <label><input id="aggressiveRuntime" type="checkbox"> Aggressiv runtime-snapshot</label>
     <label class="danger"><input id="includeSensitive" type="checkbox"> Ta med cookies och känsliga headers</label>
     <label class="number-row">Stabilisering per steg <input id="settleMs" type="number" min="250" max="5000" step="50" value="1000"> ms</label>
-    <p class="hint">När endast detaljexpansion är aktiv används kompakt AI-transkriptläge. Ingen sidstatus, lagring eller nätverkstrafik exporteras.</p>
+    <p class="hint">När endast detaljexpansion är aktiv används kompakt AI-transkriptläge. Ingen sidstatus, lagring eller nätverkstrafik exporteras. Inställningarna sparas; under en aktiv fångst visas de inställningar den startades med.</p>
   </section>
 
   <section class="panel actions">
@@ -45,6 +45,7 @@
       <dt>Poster</dt><dd id="recordCount">0</dd>
       <dt>Start</dt><dd id="startedAt">—</dd>
       <dt>Senaste helsvepning</dt><dd id="fullAt">—</dd>
+      <dt>Svepning</dt><dd id="sweepProgress">—</dd>
     </dl>
     <progress id="activity" max="100" value="0"></progress>
     <p id="message" class="message"></p>

@@ -6,25 +6,26 @@
 
   const PAGE_SOURCE = 'CGSC_PAGE_V1';
   const BRIDGE_SOURCE = 'CGSC_BRIDGE_V1';
+  const MAX_CHUNK = 320 * 1024;
+  // Record kinds the MAIN-world hook is allowed to submit. Anything else from
+  // the page (for example a forged conversation-turn) is discarded.
+  const PAGE_RECORD_KIND = /^(?:page-(?:fetch|xhr|websocket|eventsource)-[a-z-]+|page-navigation|page-runtime-snapshot)$/;
   const token = crypto.randomUUID();
-  const port = chrome.runtime.connect({ name: 'cgsc-stream' });
   const commandWaiters = new Map();
+  // Capture state is owned by the background service worker. It is delivered
+  // over the port, by SYNC_STATE and with every RUN_SWEEP/CAPTURE_PAGE_STATE
+  // request, and it survives a port disconnect (service-worker restart).
   let enabled = false;
   let sessionId = null;
   let captureOptions = {};
   let pageHookReady = false;
   let sweepRunning = false;
+  let abortReason = null;
+  let port = null;
+  let portGeneration = 0;
+  const transport = { posted: 0, failed: 0, reconnects: 0, lastError: null };
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-  function fnv1a(text) {
-    let hash = 0x811c9dc5;
-    for (let index = 0; index < text.length; index += 1) {
-      hash ^= text.charCodeAt(index);
-      hash = Math.imul(hash, 0x01000193);
-    }
-    return (hash >>> 0).toString(16).padStart(8, '0');
-  }
 
   function timestamp() {
     return Date.now();
@@ -52,16 +53,80 @@
     else sendPageInit();
   }, 500);
 
-  function portPost(message) {
+  function applyState(state) {
+    enabled = Boolean(state?.enabled);
+    sessionId = enabled ? (state.sessionId || null) : null;
+    captureOptions = enabled ? (state.options || {}) : {};
+    if (!enabled && sweepRunning) abortReason = abortReason || 'capture-stopped';
+    sendPageConfig();
+  }
+
+  function onPortMessage(message) {
+    if (message?.type === 'capture-status') applyState(message);
+  }
+
+  function connectPort() {
     try {
-      port.postMessage(message);
+      const next = chrome.runtime.connect({ name: 'cgsc-stream' });
+      next.onMessage.addListener(onPortMessage);
+      next.onDisconnect.addListener(() => {
+        void chrome.runtime.lastError;
+        if (port === next) port = null;
+      });
+      port = next;
+      portGeneration += 1;
+      if (portGeneration > 1) transport.reconnects += 1;
+      next.postMessage({ type: 'hello', url: location.href, title: document.title });
+      return next;
     } catch (error) {
-      console.warn('[CGSC] Port send failed', error);
+      // "Extension context invalidated" after the extension was reloaded.
+      transport.lastError = String(error);
+      return null;
     }
   }
 
+  // The port is reopened lazily: a disconnect only means the service worker
+  // was stopped, and reconnecting starts it again.
+  function postWithReconnect(build) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const current = port || connectPort();
+      if (!current) break;
+      try {
+        build(current);
+        return true;
+      } catch (error) {
+        transport.lastError = String(error);
+        if (port === current) port = null;
+      }
+    }
+    return false;
+  }
+
+  function transmitJson(json) {
+    if (json.length <= MAX_CHUNK) {
+      return postWithReconnect((current) => current.postMessage({ type: 'record-json', sessionId, json }));
+    }
+    const chunkCount = Math.ceil(json.length / MAX_CHUNK);
+    // All parts of one transfer go through the same port; a failure restarts
+    // the whole transfer on a new port.
+    return postWithReconnect((current) => {
+      const transferId = crypto.randomUUID();
+      current.postMessage({ type: 'record-begin', sessionId, transferId, charLength: json.length, chunkCount });
+      for (let index = 0; index < chunkCount; index += 1) {
+        current.postMessage({
+          type: 'record-chunk',
+          sessionId,
+          transferId,
+          index,
+          data: json.slice(index * MAX_CHUNK, (index + 1) * MAX_CHUNK)
+        });
+      }
+      current.postMessage({ type: 'record-end', sessionId, transferId });
+    });
+  }
+
   function transmitRecord(record) {
-    if (!enabled || !sessionId || !record) return;
+    if (!enabled || !sessionId || !record) return false;
     const normalized = {
       ...record,
       id: record.id || crypto.randomUUID(),
@@ -80,37 +145,16 @@
         pageUrl: location.href
       });
     }
-
-    const maxChunk = 320 * 1024;
-    if (json.length <= maxChunk) {
-      portPost({ type: 'record', sessionId, record: JSON.parse(json) });
-      return;
-    }
-
-    const transferId = crypto.randomUUID();
-    const chunkCount = Math.ceil(json.length / maxChunk);
-    portPost({
-      type: 'record-begin',
-      sessionId,
-      transferId,
-      charLength: json.length,
-      chunkCount
-    });
-    for (let index = 0; index < chunkCount; index += 1) {
-      portPost({
-        type: 'record-chunk',
-        sessionId,
-        transferId,
-        index,
-        data: json.slice(index * maxChunk, (index + 1) * maxChunk)
-      });
-    }
-    portPost({ type: 'record-end', sessionId, transferId });
+    const ok = transmitJson(json);
+    if (ok) transport.posted += 1;
+    else transport.failed += 1;
+    return ok;
   }
 
   function shouldAcceptPageRecord(record) {
     const kind = String(record?.kind || '');
-    if (/runtime/i.test(kind)) return Boolean(captureOptions.captureRuntime);
+    if (!PAGE_RECORD_KIND.test(kind)) return false;
+    if (kind === 'page-runtime-snapshot') return Boolean(captureOptions.captureRuntime);
     return Boolean(captureOptions.pageNetwork);
   }
 
@@ -135,7 +179,8 @@
     }
 
     if (event.data.type === 'RECORD') {
-      if (enabled && shouldAcceptPageRecord(event.data.payload)) transmitRecord(event.data.payload);
+      const payload = event.data.payload;
+      if (enabled && shouldAcceptPageRecord(payload)) transmitRecord({ ...payload, origin: 'page-main-world' });
       return;
     }
 
@@ -151,24 +196,7 @@
     }
   });
 
-  port.onMessage.addListener((message) => {
-    if (!message) return;
-    if (message.type === 'capture-status') {
-      enabled = Boolean(message.enabled);
-      sessionId = message.sessionId || null;
-      captureOptions = message.options || {};
-      sendPageConfig();
-    }
-  });
-
-  port.onDisconnect.addListener(() => {
-    enabled = false;
-    sessionId = null;
-    captureOptions = {};
-    sendPageConfig();
-  });
-
-  portPost({ type: 'hello', url: location.href, title: document.title });
+  connectPort();
 
   function pageCommand(type, options = {}) {
     const commandId = crypto.randomUUID();
@@ -293,33 +321,37 @@
     return candidates[0]?.element || document.scrollingElement || document.documentElement;
   }
 
+  function isDocumentScroller(container) {
+    return container === document.documentElement || container === document.body || container === document.scrollingElement;
+  }
+
   function setScrollTop(container, value) {
-    if (container === document.documentElement || container === document.body || container === document.scrollingElement) {
-      window.scrollTo(0, value);
-    } else {
-      container.scrollTop = value;
-    }
+    if (isDocumentScroller(container)) window.scrollTo(0, value);
+    else container.scrollTop = value;
   }
 
   function getScrollTop(container) {
-    if (container === document.documentElement || container === document.body || container === document.scrollingElement) {
-      return window.scrollY || document.documentElement.scrollTop || 0;
-    }
+    if (isDocumentScroller(container)) return window.scrollY || document.documentElement.scrollTop || 0;
     return container.scrollTop;
   }
 
   function getScrollHeight(container) {
-    if (container === document.documentElement || container === document.body || container === document.scrollingElement) {
-      return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-    }
+    if (isDocumentScroller(container)) return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
     return container.scrollHeight;
   }
 
   function getClientHeight(container) {
-    if (container === document.documentElement || container === document.body || container === document.scrollingElement) {
-      return window.innerHeight;
-    }
+    if (isDocumentScroller(container)) return window.innerHeight;
     return container.clientHeight;
+  }
+
+  async function waitForExpanded(button, timeoutMs = 480) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (button.getAttribute('aria-expanded') === 'true') return true;
+      await sleep(40);
+    }
+    return button.getAttribute('aria-expanded') === 'true';
   }
 
   async function expandSafeContent() {
@@ -348,20 +380,21 @@
       }
     }
 
-    const safePattern = /^(show more|read more|continue|visa mer|läs mer|fortsätt|analyzing|analysis|thought|thinking|worked for|analyserar|analys|tanke|tänker|arbetade)\b/i;
     for (const button of document.querySelectorAll('main button[aria-expanded], article button[aria-expanded]')) {
-      const label = CgscCaptureCore.normalizePlainText(button.innerText || button.getAttribute('aria-label') || '');
-      if (!safePattern.test(label)) continue;
+      const label = CgscCaptureCore.normalizeInline(button.innerText || button.getAttribute('aria-label') || '');
+      if (!CgscCaptureCore.isSafeExpandLabel(label)) continue;
       result.found += 1;
-      if (button.getAttribute('aria-expanded') === 'true') {
+      const state = button.getAttribute('aria-expanded');
+      if (state === 'true') {
         result.alreadyOpen += 1;
         continue;
       }
+      // Only an explicit "false" is clicked, so a toggle is never closed.
+      if (state !== 'false') continue;
       result.attempted += 1;
       try {
         button.click();
-        await sleep(80);
-        if (button.getAttribute('aria-expanded') === 'true') result.opened += 1;
+        if (await waitForExpanded(button)) result.opened += 1;
         else {
           result.failed += 1;
           result.failedLabels.push(label || '[button without label]');
@@ -374,26 +407,8 @@
     return result;
   }
 
-  function captureVisibleTurns(scanIndex, sweepRunId) {
-    const elements = getConversationElements();
-    const summaries = [];
-    elements.forEach((element, domIndex) => {
-      const record = extractTurn(element, scanIndex, domIndex, sweepRunId);
-      transmitRecord(record);
-      summaries.push({
-        stableKey: record.data.stableKey,
-        turnIndex: record.data.turnIndex,
-        role: record.data.role,
-        reasoningPanels: record.data.reasoning?.length || 0,
-        reasoningExpanded: (record.data.reasoning || []).filter((item) => item.expanded).length,
-        reasoningMissingContent: (record.data.reasoning || []).filter((item) => !item.contentFound).length
-      });
-    });
-    return { count: elements.length, summaries };
-  }
-
   function emitProgress(stage, data = {}) {
-    transmitRecord({
+    return transmitRecord({
       id: crypto.randomUUID(),
       kind: 'sweep-progress',
       capturedAt: timestamp(),
@@ -418,24 +433,90 @@
     return missing;
   }
 
-  async function prepareTop(container, sweepRunId, options, aggregate) {
+  class SweepAbortedError extends Error {
+    constructor(reason) {
+      super(`Sweep aborted: ${reason}`);
+      this.name = 'SweepAbortedError';
+      this.reason = reason;
+    }
+  }
+
+  function createSweepContext(options) {
+    const expectedConversationId = options.expectedConversationId || CgscCaptureCore.conversationIdFromUrl(location.href);
+    const sweepRunId = crypto.randomUUID();
+    const sentHashes = new Map();
+    const aggregate = {
+      uniqueKeys: new Set(),
+      turnIndices: new Set(),
+      renderedCounts: [],
+      reasoningPanels: 0,
+      reasoningExpanded: 0,
+      reasoningMissingContent: 0,
+      unclassifiedToggleLabels: new Set(),
+      turnRecordsSent: 0,
+      turnRecordsUnchanged: 0,
+      turnRecordsFailed: 0,
+      expansion: { found: 0, alreadyOpen: 0, attempted: 0, opened: 0, failed: 0, failedLabels: [] }
+    };
+
+    function checkpoint() {
+      if (abortReason) throw new SweepAbortedError(abortReason);
+      if (!enabled || !sessionId) throw new SweepAbortedError('capture-not-active');
+      const current = CgscCaptureCore.conversationIdFromUrl(location.href);
+      if (expectedConversationId && current !== expectedConversationId) {
+        throw new SweepAbortedError(`conversation changed from ${expectedConversationId} to ${current || 'none'}`);
+      }
+    }
+
+    // Extracts every rendered turn, transmits only turns whose content changed
+    // since the last transmission in this sweep and records what was observed.
+    function captureVisibleTurns(scanIndex, { countReasoning = true } = {}) {
+      const elements = getConversationElements();
+      const summaries = [];
+      elements.forEach((element, domIndex) => {
+        const record = extractTurn(element, scanIndex, domIndex, sweepRunId);
+        const data = record.data;
+        if (sentHashes.get(data.stableKey) === data.contentHash) {
+          aggregate.turnRecordsUnchanged += 1;
+        } else if (transmitRecord(record)) {
+          sentHashes.set(data.stableKey, data.contentHash);
+          aggregate.turnRecordsSent += 1;
+        } else {
+          aggregate.turnRecordsFailed += 1;
+        }
+        aggregate.uniqueKeys.add(data.stableKey);
+        if (Number.isFinite(data.turnIndex)) aggregate.turnIndices.add(data.turnIndex);
+        for (const label of data.unclassifiedToggles || []) aggregate.unclassifiedToggleLabels.add(label);
+        if (countReasoning) {
+          aggregate.reasoningPanels += data.reasoning?.length || 0;
+          aggregate.reasoningExpanded += (data.reasoning || []).filter((item) => item.expanded).length;
+          aggregate.reasoningMissingContent += (data.reasoning || []).filter((item) => !item.contentFound).length;
+        }
+        summaries.push({ stableKey: data.stableKey, turnIndex: data.turnIndex });
+      });
+      aggregate.renderedCounts.push(elements.length);
+      return { count: elements.length, summaries };
+    }
+
+    return { sweepRunId, expectedConversationId, aggregate, checkpoint, captureVisibleTurns };
+  }
+
+  async function prepareTop(container, sweep, options) {
     let stableRounds = 0;
     let previousHeight = -1;
     let previousFirstKey = '';
+    let firstTurnIndex = null;
     const maxRounds = options.maxTopLoadRounds || 80;
     let rounds = 0;
 
     for (let round = 0; round < maxRounds && stableRounds < 4; round += 1) {
+      sweep.checkpoint();
       rounds = round + 1;
       setScrollTop(container, 0);
       await sleep(options.settleMs || 1000);
-      if (options.expandDetails !== false) mergeExpansionStats(aggregate.expansion, await expandSafeContent());
-      const captured = captureVisibleTurns(-maxRounds + round, sweepRunId);
-      for (const item of captured.summaries) {
-        aggregate.uniqueKeys.add(item.stableKey);
-        if (Number.isFinite(item.turnIndex)) aggregate.turnIndices.add(item.turnIndex);
-      }
-      aggregate.renderedCounts.push(captured.count);
+      sweep.checkpoint();
+      if (options.expandDetails !== false) mergeExpansionStats(sweep.aggregate.expansion, await expandSafeContent());
+      const captured = sweep.captureVisibleTurns(-maxRounds + round, { countReasoning: false });
       const firstKey = captured.summaries[0]?.stableKey || '';
       const height = getScrollHeight(container);
       const atTop = getScrollTop(container) <= 2;
@@ -445,22 +526,26 @@
 
       previousHeight = height;
       previousFirstKey = firstKey;
+      firstTurnIndex = captured.summaries[0]?.turnIndex ?? null;
       emitProgress('loading-oldest', {
-        sweepRunId,
+        sweepRunId: sweep.sweepRunId,
         round: round + 1,
         stableRounds,
         scrollHeight: height,
         firstKey,
         renderedTurns: captured.count,
+        uniqueTurnsSoFar: sweep.aggregate.uniqueKeys.size,
         atTop
       });
     }
 
+    const topVerified = stableRounds >= 4 && getScrollTop(container) <= 2;
     return {
-      topVerified: stableRounds >= 4 && getScrollTop(container) <= 2,
+      topVerified,
       stableRounds,
       rounds,
       firstKey: previousFirstKey,
+      firstTurnIndex: topVerified ? firstTurnIndex : null,
       scrollHeight: previousHeight
     };
   }
@@ -469,61 +554,48 @@
     if (sweepRunning) throw new Error('A sweep is already running in this tab.');
     if (!enabled || !sessionId) throw new Error('Capture is not active for this tab.');
     sweepRunning = true;
-    const sweepRunId = crypto.randomUUID();
+    abortReason = null;
+    const sweep = createSweepContext(options);
+    const { sweepRunId, aggregate } = sweep;
+    const transportAtStart = { ...transport };
     const container = findScrollContainer();
     const originalTop = getScrollTop(container);
     const originalHeight = getScrollHeight(container);
     const originalRatio = originalHeight > getClientHeight(container)
       ? originalTop / Math.max(1, originalHeight - getClientHeight(container))
       : 0;
-    const aggregate = {
-      uniqueKeys: new Set(),
-      turnIndices: new Set(),
-      renderedCounts: [],
-      reasoningPanels: 0,
-      reasoningExpanded: 0,
-      reasoningMissingContent: 0,
-      expansion: { found: 0, alreadyOpen: 0, attempted: 0, opened: 0, failed: 0, failedLabels: [] }
-    };
-
-    function consumeCapture(captured) {
-      aggregate.renderedCounts.push(captured.count);
-      for (const item of captured.summaries) {
-        aggregate.uniqueKeys.add(item.stableKey);
-        if (Number.isFinite(item.turnIndex)) aggregate.turnIndices.add(item.turnIndex);
-        aggregate.reasoningPanels += item.reasoningPanels;
-        aggregate.reasoningExpanded += item.reasoningExpanded;
-        aggregate.reasoningMissingContent += item.reasoningMissingContent;
-      }
-    }
 
     try {
+      sweep.checkpoint();
       emitProgress('sweep-start', {
         sweepRunId,
         containerTag: container.tagName || 'document',
+        conversationId: sweep.expectedConversationId,
         originalTop,
         originalHeight
       });
 
-      const topResult = await prepareTop(container, sweepRunId, options, aggregate);
+      const topResult = await prepareTop(container, sweep, options);
       setScrollTop(container, 0);
       await sleep(options.settleMs || 1000);
 
       let position = 0;
       let scanIndex = 0;
       let previousPosition = -1;
-      let stagnantRounds = 0;
+      let bottomRounds = 0;
+      let stuckRounds = 0;
       let bottomVerified = false;
       const maxSteps = options.maxSweepSteps || 10000;
 
       while (scanIndex < maxSteps) {
+        sweep.checkpoint();
         setScrollTop(container, position);
         await sleep(options.settleMs || 1000);
+        sweep.checkpoint();
         const expansion = options.expandDetails === false ? null : await expandSafeContent();
         mergeExpansionStats(aggregate.expansion, expansion);
         if (expansion?.opened) await sleep(250);
-        const captured = captureVisibleTurns(scanIndex, sweepRunId);
-        consumeCapture(captured);
+        const captured = sweep.captureVisibleTurns(scanIndex);
         const actualTop = getScrollTop(container);
         const scrollHeight = getScrollHeight(container);
         const clientHeight = getClientHeight(container);
@@ -542,17 +614,20 @@
         });
 
         if (actualTop >= maxTop - 3) {
-          stagnantRounds += 1;
-          if (stagnantRounds >= 3) {
+          stuckRounds = 0;
+          bottomRounds += 1;
+          if (bottomRounds >= 3) {
             bottomVerified = true;
             break;
           }
           await sleep(options.settleMs || 1000);
         } else if (Math.abs(actualTop - previousPosition) < 2) {
-          stagnantRounds += 1;
-          if (stagnantRounds >= 6) break;
+          bottomRounds = 0;
+          stuckRounds += 1;
+          if (stuckRounds >= 6) break;
         } else {
-          stagnantRounds = 0;
+          bottomRounds = 0;
+          stuckRounds = 0;
         }
 
         previousPosition = actualTop;
@@ -560,11 +635,12 @@
         scanIndex += 1;
       }
 
+      sweep.checkpoint();
       setScrollTop(container, getScrollHeight(container));
       await sleep(options.settleMs || 1000);
+      sweep.checkpoint();
       if (options.expandDetails !== false) mergeExpansionStats(aggregate.expansion, await expandSafeContent());
-      const finalCapture = captureVisibleTurns(scanIndex + 1, sweepRunId);
-      consumeCapture(finalCapture);
+      sweep.captureVisibleTurns(scanIndex + 1);
       const finalMaxTop = Math.max(0, getScrollHeight(container) - getClientHeight(container));
       bottomVerified = bottomVerified || getScrollTop(container) >= finalMaxTop - 3;
 
@@ -578,13 +654,17 @@
       const renderedMax = aggregate.renderedCounts.length ? Math.max(...aggregate.renderedCounts) : 0;
       const summary = {
         sweepRunId,
+        bridgeVersion: chrome.runtime.getManifest().version,
+        conversationId: sweep.expectedConversationId,
         scans: scanIndex + 2,
         finalHeight,
         restoredTop: restoreTop,
         topVerified: topResult.topVerified,
         bottomVerified,
         firstStableKey: topResult.firstKey || null,
+        firstTurnIndexAtVerifiedTop: topResult.firstTurnIndex,
         uniqueTurnCount: aggregate.uniqueKeys.size,
+        observedStableKeys: [...aggregate.uniqueKeys],
         turnIndices,
         minimumTurnIndex: turnIndices[0] ?? null,
         maximumTurnIndex: turnIndices.at(-1) ?? null,
@@ -601,13 +681,33 @@
           panelsSeenAcrossScans: aggregate.reasoningPanels,
           panelsExpandedAcrossScans: aggregate.reasoningExpanded,
           panelsMissingContentAcrossScans: aggregate.reasoningMissingContent
+        },
+        unclassifiedToggleLabels: [...aggregate.unclassifiedToggleLabels].slice(0, 100),
+        transport: {
+          turnRecordsSent: aggregate.turnRecordsSent,
+          turnRecordsUnchanged: aggregate.turnRecordsUnchanged,
+          turnRecordsFailed: aggregate.turnRecordsFailed,
+          recordsFailed: transport.failed - transportAtStart.failed,
+          portReconnects: transport.reconnects - transportAtStart.reconnects,
+          lastError: transport.failed > transportAtStart.failed ? transport.lastError : null
         }
       };
 
-      emitProgress('sweep-complete', summary);
+      // The completion record is the export's proof of a finished sweep; if it
+      // cannot be delivered the sweep is reported as failed.
+      if (!emitProgress('sweep-complete', summary)) {
+        throw new Error(`Sweep finished but its completion record could not be delivered: ${transport.lastError || 'unknown transport error'}`);
+      }
       return summary;
+    } catch (error) {
+      if (error instanceof SweepAbortedError) {
+        setScrollTop(container, originalRatio * Math.max(0, getScrollHeight(container) - getClientHeight(container)));
+        emitProgress('sweep-aborted', { sweepRunId, reason: error.reason, uniqueTurnsSoFar: aggregate.uniqueKeys.size });
+      }
+      throw error;
     } finally {
       sweepRunning = false;
+      abortReason = null;
     }
   }
 
@@ -825,7 +925,9 @@
   }
 
   async function capturePageState(options = {}) {
+    if (!enabled || !sessionId) throw new Error('Capture is not active for this tab.');
     const capturedKinds = [];
+    const failedBefore = transport.failed;
 
     if (options.captureRuntime) {
       const doctype = document.doctype
@@ -955,22 +1057,55 @@
       }
     }
 
+    const recordsFailed = transport.failed - failedBefore;
+    if (recordsFailed) {
+      throw new Error(`${recordsFailed} page-state record(s) could not be delivered to the extension: ${transport.lastError || 'unknown transport error'}`);
+    }
     return { ok: true, skipped: capturedKinds.length === 0, capturedKinds };
+  }
+
+  function adoptRequestState(message) {
+    if (message?.sessionId) {
+      applyState({ enabled: true, sessionId: message.sessionId, options: message.options || captureOptions });
+    }
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message) return false;
     if (message.type === 'PING_CONTENT') {
-      sendResponse({ ok: true, enabled, sessionId, pageHookReady, sweepRunning, url: location.href });
+      sendResponse({
+        ok: true,
+        enabled,
+        sessionId,
+        pageHookReady,
+        sweepRunning,
+        url: location.href,
+        conversationId: CgscCaptureCore.conversationIdFromUrl(location.href),
+        version: chrome.runtime.getManifest().version,
+        transport: { ...transport }
+      });
+      return false;
+    }
+    if (message.type === 'SYNC_STATE') {
+      applyState(message);
+      sendResponse({ ok: true, enabled, sessionId, sweepRunning });
+      return false;
+    }
+    if (message.type === 'ABORT_SWEEP') {
+      const wasRunning = sweepRunning;
+      if (sweepRunning) abortReason = message.reason || 'aborted';
+      sendResponse({ ok: true, wasRunning });
       return false;
     }
     if (message.type === 'RUN_SWEEP') {
-      runSweep({ ...captureOptions, ...(message.options || {}) })
+      adoptRequestState(message);
+      runSweep({ ...captureOptions, ...(message.options || {}), expectedConversationId: message.expectedConversationId || null })
         .then((result) => sendResponse({ ok: true, result }))
-        .catch((error) => sendResponse({ ok: false, error: String(error), stack: error?.stack || null }));
+        .catch((error) => sendResponse({ ok: false, aborted: error?.name === 'SweepAbortedError', error: String(error), stack: error?.stack || null }));
       return true;
     }
     if (message.type === 'CAPTURE_PAGE_STATE') {
+      adoptRequestState(message);
       capturePageState({ ...captureOptions, ...(message.options || {}) })
         .then((result) => sendResponse({ ok: true, result }))
         .catch((error) => sendResponse({ ok: false, error: String(error), stack: error?.stack || null }));

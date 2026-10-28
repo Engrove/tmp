@@ -6,8 +6,13 @@
   const SESSIONS = 'sessions';
   const RECORDS = 'records';
 
+  // One connection per context is reused for all operations; opening a new
+  // connection for every record was the dominant cost during a sweep.
+  let connection = null;
+
   function open() {
-    return new Promise((resolve, reject) => {
+    if (connection) return connection;
+    connection = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
         const db = request.result;
@@ -24,9 +29,40 @@
           records.createIndex('capturedAt', 'capturedAt', { unique: false });
         }
       };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        db.onversionchange = () => {
+          db.close();
+          connection = null;
+        };
+        db.onclose = () => {
+          connection = null;
+        };
+        resolve(db);
+      };
+      request.onerror = () => {
+        connection = null;
+        reject(request.error);
+      };
     });
+    return connection;
+  }
+
+  // Runs an operation on the shared connection and retries once on a
+  // connection that was closed underneath it.
+  async function withDb(operation) {
+    for (let attempt = 0; ; attempt += 1) {
+      const db = await open();
+      try {
+        return await operation(db);
+      } catch (error) {
+        if (attempt === 0 && error?.name === 'InvalidStateError') {
+          connection = null;
+          continue;
+        }
+        throw error;
+      }
+    }
   }
 
   function requestAsPromise(request) {
@@ -36,121 +72,74 @@
     });
   }
 
+  function transactionDone(tx, label) {
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error(`${label} transaction aborted`));
+    });
+  }
+
   async function putSession(session) {
-    const db = await open();
-    try {
+    return withDb(async (db) => {
       const tx = db.transaction(SESSIONS, 'readwrite');
       tx.objectStore(SESSIONS).put(session);
-      await new Promise((resolve, reject) => {
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error || new Error('Session transaction aborted'));
-      });
+      await transactionDone(tx, 'Session');
       return session;
-    } finally {
-      db.close();
-    }
+    });
   }
 
   async function getSession(id) {
-    const db = await open();
-    try {
-      const tx = db.transaction(SESSIONS, 'readonly');
-      return await requestAsPromise(tx.objectStore(SESSIONS).get(id));
-    } finally {
-      db.close();
-    }
+    return withDb((db) => requestAsPromise(db.transaction(SESSIONS, 'readonly').objectStore(SESSIONS).get(id)));
   }
 
   async function getLatestSessionForTab(tabId) {
-    const db = await open();
-    try {
-      const tx = db.transaction(SESSIONS, 'readonly');
-      const index = tx.objectStore(SESSIONS).index('tabId');
-      const all = await requestAsPromise(index.getAll(IDBKeyRange.only(tabId)));
-      all.sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
-      return all[0] || null;
-    } finally {
-      db.close();
-    }
+    const all = await withDb((db) => requestAsPromise(
+      db.transaction(SESSIONS, 'readonly').objectStore(SESSIONS).index('tabId').getAll(IDBKeyRange.only(tabId))
+    ));
+    all.sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+    return all[0] || null;
   }
 
   async function listSessions() {
-    const db = await open();
-    try {
-      const tx = db.transaction(SESSIONS, 'readonly');
-      const all = await requestAsPromise(tx.objectStore(SESSIONS).getAll());
-      return all.sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
-    } finally {
-      db.close();
-    }
+    const all = await withDb((db) => requestAsPromise(db.transaction(SESSIONS, 'readonly').objectStore(SESSIONS).getAll()));
+    return all.sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
   }
 
   async function putRecord(record) {
-    const db = await open();
-    try {
+    return withDb(async (db) => {
       const tx = db.transaction(RECORDS, 'readwrite');
       tx.objectStore(RECORDS).put(record);
-      await new Promise((resolve, reject) => {
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error || new Error('Record transaction aborted'));
-      });
+      await transactionDone(tx, 'Record');
       return record;
-    } finally {
-      db.close();
-    }
+    });
   }
 
   async function getRecord(id) {
-    const db = await open();
-    try {
-      const tx = db.transaction(RECORDS, 'readonly');
-      return await requestAsPromise(tx.objectStore(RECORDS).get(id));
-    } finally {
-      db.close();
-    }
+    return withDb((db) => requestAsPromise(db.transaction(RECORDS, 'readonly').objectStore(RECORDS).get(id)));
   }
 
   async function getRecords(sessionId, kind = null) {
-    const db = await open();
-    try {
-      const tx = db.transaction(RECORDS, 'readonly');
-      const store = tx.objectStore(RECORDS);
-      let records;
-      if (kind) {
-        records = await requestAsPromise(
-          store.index('sessionKind').getAll(IDBKeyRange.only([sessionId, kind]))
-        );
-      } else {
-        records = await requestAsPromise(
-          store.index('sessionId').getAll(IDBKeyRange.only(sessionId))
-        );
-      }
-      return records.sort((a, b) => (a.capturedAt || 0) - (b.capturedAt || 0));
-    } finally {
-      db.close();
-    }
+    const records = await withDb((db) => {
+      const store = db.transaction(RECORDS, 'readonly').objectStore(RECORDS);
+      return requestAsPromise(kind
+        ? store.index('sessionKind').getAll(IDBKeyRange.only([sessionId, kind]))
+        : store.index('sessionId').getAll(IDBKeyRange.only(sessionId)));
+    });
+    return records.sort((a, b) => (a.capturedAt || 0) - (b.capturedAt || 0));
   }
 
   async function countRecords(sessionId) {
-    const db = await open();
-    try {
-      const tx = db.transaction(RECORDS, 'readonly');
-      const index = tx.objectStore(RECORDS).index('sessionId');
-      return await requestAsPromise(index.count(IDBKeyRange.only(sessionId)));
-    } finally {
-      db.close();
-    }
+    return withDb((db) => requestAsPromise(
+      db.transaction(RECORDS, 'readonly').objectStore(RECORDS).index('sessionId').count(IDBKeyRange.only(sessionId))
+    ));
   }
 
   async function deleteSession(id) {
-    const db = await open();
-    try {
+    return withDb(async (db) => {
       const tx = db.transaction([SESSIONS, RECORDS], 'readwrite');
       tx.objectStore(SESSIONS).delete(id);
-      const index = tx.objectStore(RECORDS).index('sessionId');
-      const cursorRequest = index.openCursor(IDBKeyRange.only(id));
+      const cursorRequest = tx.objectStore(RECORDS).index('sessionId').openCursor(IDBKeyRange.only(id));
       cursorRequest.onsuccess = () => {
         const cursor = cursorRequest.result;
         if (cursor) {
@@ -158,29 +147,17 @@
           cursor.continue();
         }
       };
-      await new Promise((resolve, reject) => {
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error || new Error('Delete transaction aborted'));
-      });
-    } finally {
-      db.close();
-    }
+      await transactionDone(tx, 'Delete');
+    });
   }
 
   async function clearAll() {
-    const db = await open();
-    try {
+    return withDb(async (db) => {
       const tx = db.transaction([SESSIONS, RECORDS], 'readwrite');
       tx.objectStore(SESSIONS).clear();
       tx.objectStore(RECORDS).clear();
-      await new Promise((resolve, reject) => {
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error);
-      });
-    } finally {
-      db.close();
-    }
+      await transactionDone(tx, 'Clear');
+    });
   }
 
   globalThis.CgscDB = {

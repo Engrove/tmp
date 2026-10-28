@@ -1,24 +1,44 @@
 'use strict';
 
-importScripts('lib/db.js');
+importScripts('lib/db.js', 'lib/sanitize.js', 'lib/turn-merge.js', 'lib/capture-core.js');
 
 const ACTIVE_KEY = 'cgscActiveByTab';
+const PROGRESS_KEY = 'cgscProgressByTab';
+const SW_BOOT_TIME = Date.now();
 const portsByTab = new Map();
 const chunkAssemblies = new WeakMap();
 const debuggerRequestMeta = new Map();
+const sessionQueues = new Map();
+const pendingRevocations = new Map();
+const { sanitizeUrl, sanitizeHeaders } = CgscSanitize;
+const conversationIdFromUrl = CgscCaptureCore.conversationIdFromUrl;
 let creatingOffscreen = null;
+let activeMapCache = null;
+let activeLock = Promise.resolve();
 
 function now() {
   return Date.now();
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function randomId(prefix = 'record') {
   return `${prefix}-${now()}-${crypto.randomUUID()}`;
 }
 
+// The active-capture map lives in chrome.storage.session so it survives a
+// service-worker restart; it is cached in memory because every port and
+// debugger event needs it. This worker is the only writer, so the cache is
+// updated together with every write and never from storage events, which can
+// arrive after a newer write.
 async function getActiveMap() {
-  const result = await chrome.storage.session.get(ACTIVE_KEY);
-  return result[ACTIVE_KEY] || {};
+  if (!activeMapCache) {
+    const result = await chrome.storage.session.get(ACTIVE_KEY);
+    activeMapCache = activeMapCache || result[ACTIVE_KEY] || {};
+  }
+  return activeMapCache;
 }
 
 async function getActive(tabId) {
@@ -26,12 +46,17 @@ async function getActive(tabId) {
   return map[String(tabId)] || null;
 }
 
-async function setActive(tabId, info) {
-  const map = await getActiveMap();
-  if (info) map[String(tabId)] = info;
-  else delete map[String(tabId)];
-  await chrome.storage.session.set({ [ACTIVE_KEY]: map });
-  notifyPorts(tabId, info);
+function setActive(tabId, info) {
+  const run = activeLock.then(async () => {
+    const map = { ...(await getActiveMap()) };
+    if (info) map[String(tabId)] = info;
+    else delete map[String(tabId)];
+    activeMapCache = map;
+    await chrome.storage.session.set({ [ACTIVE_KEY]: map });
+    notifyPorts(tabId, info);
+  });
+  activeLock = run.catch(() => {});
+  return run;
 }
 
 function notifyPorts(tabId, info) {
@@ -49,6 +74,34 @@ function notifyPorts(tabId, info) {
   }
 }
 
+// Delivers the authoritative capture state to the tab even when no port is
+// open (the content script reopens its port lazily).
+async function syncTabState(tabId, info) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, {
+      type: 'SYNC_STATE',
+      enabled: Boolean(info),
+      sessionId: info?.sessionId || null,
+      options: info?.options || {}
+    });
+  } catch (_) {
+    return null;
+  }
+}
+
+async function setProgress(tabId, progress) {
+  const result = await chrome.storage.session.get(PROGRESS_KEY);
+  const map = result[PROGRESS_KEY] || {};
+  if (progress) map[String(tabId)] = progress;
+  else delete map[String(tabId)];
+  await chrome.storage.session.set({ [PROGRESS_KEY]: map });
+}
+
+async function getProgress(tabId) {
+  const result = await chrome.storage.session.get(PROGRESS_KEY);
+  return result[PROGRESS_KEY]?.[String(tabId)] || null;
+}
+
 function isSupportedUrl(url = '') {
   try {
     const parsed = new URL(url);
@@ -58,77 +111,32 @@ function isSupportedUrl(url = '') {
   }
 }
 
-const SENSITIVE_KEY_PATTERN = /(?:authorization|proxy[-_]?authorization|cookie|set[-_]?cookie|x[-_]?api[-_]?key|api[-_]?key|csrf|xsrf|oai[-_]?session[-_]?id|oai[-_]?device[-_]?id|device[-_]?id|deviceid|session[-_]?id|sessionid|access[-_]?token|refresh[-_]?token|id[-_]?token|signature|credential|secret)/i;
-const SENSITIVE_URL_PARAM_PATTERN = /^(?:token|access_token|id_token|refresh_token|auth|authorization|session|session_id|signature|sig|key|api_key|secret|credential|policy|expires|x-amz-signature|x-amz-credential|x-amz-security-token|x-goog-signature|x-goog-credential)$/i;
-
-function sanitizeHeaders(headers, includeSensitive) {
-  if (!headers || typeof headers !== 'object' || includeSensitive) return headers;
-  const output = {};
-  for (const [key, value] of Object.entries(headers)) {
-    output[key] = SENSITIVE_KEY_PATTERN.test(key)
-      ? '[REDACTED BY CGSC: sensitive capture disabled]'
-      : sanitizeValue(value, false, key);
-  }
-  return output;
+// Writes for one capture session are serialized: the turn merge and the
+// chunk assembly are read-modify-write operations.
+function enqueueForSession(sessionId, task) {
+  const previous = sessionQueues.get(sessionId) || Promise.resolve();
+  const next = previous.then(task, task);
+  sessionQueues.set(sessionId, next);
+  const cleanup = () => {
+    if (sessionQueues.get(sessionId) === next) sessionQueues.delete(sessionId);
+  };
+  next.then(cleanup, cleanup);
+  return next;
 }
 
-function sanitizeUrl(url, includeSensitive) {
-  if (includeSensitive || !url) return url;
-  const raw = String(url);
-  if (/^(?:blob|data|javascript):/i.test(raw)) return '[local-or-active-resource-omitted]';
-  try {
-    const htmlEncoded = raw.includes('&amp;');
-    const parsed = new URL(raw.replaceAll('&amp;', '&'));
-    for (const key of [...parsed.searchParams.keys()]) {
-      if (SENSITIVE_URL_PARAM_PATTERN.test(key)) parsed.searchParams.set(key, '[REDACTED]');
-    }
-    const output = parsed.href;
-    return htmlEncoded ? output.replaceAll('&', '&amp;') : output;
-  } catch (_) {
-    return raw;
-  }
+async function flushSessionQueue(sessionId) {
+  const pending = sessionQueues.get(sessionId);
+  if (pending) await pending.catch(() => {});
 }
 
-function sanitizeString(value, includeSensitive) {
-  if (includeSensitive) return value;
-  return String(value).replace(/https?:\/\/[^\s"'<>]+/gi, (candidate) => {
-    const trailing = candidate.match(/[),.;:!?]+$/)?.[0] || '';
-    const core = trailing ? candidate.slice(0, -trailing.length) : candidate;
-    return `${sanitizeUrl(core, false)}${trailing}`;
-  });
+function normalizeAndStore(sessionId, rawRecord) {
+  if (!sessionId || !rawRecord) return Promise.resolve(null);
+  return enqueueForSession(sessionId, () => storeRecord(sessionId, rawRecord));
 }
 
-function sanitizeValue(value, includeSensitive, keyHint = '', seen = new WeakMap(), depth = 0) {
-  if (includeSensitive || value == null) return value;
-  if (SENSITIVE_KEY_PATTERN.test(String(keyHint))) return '[REDACTED BY CGSC: sensitive capture disabled]';
-  if (typeof value === 'string') {
-    if (/url|href|src|uri/i.test(String(keyHint))) return sanitizeUrl(value, false);
-    return sanitizeString(value, false);
-  }
-  if (typeof value !== 'object') return value;
-  if (depth > 100) return '[CGSC sanitizer depth limit]';
-  if (seen.has(value)) return seen.get(value);
-  if (Array.isArray(value)) {
-    const output = [];
-    seen.set(value, output);
-    for (let index = 0; index < value.length; index += 1) {
-      output.push(sanitizeValue(value[index], false, String(index), seen, depth + 1));
-    }
-    return output;
-  }
-  const output = {};
-  seen.set(value, output);
-  for (const [key, item] of Object.entries(value)) {
-    if (/headers?/i.test(key) && item && typeof item === 'object') output[key] = sanitizeHeaders(item, false);
-    else output[key] = sanitizeValue(item, false, key, seen, depth + 1);
-  }
-  return output;
-}
-
-async function normalizeAndStore(sessionId, rawRecord) {
-  if (!sessionId || !rawRecord) return;
+async function storeRecord(sessionId, rawRecord) {
   const session = await CgscDB.getSession(sessionId);
-  if (!session) return;
+  if (!session) return null;
   const includeSensitive = Boolean(session.options?.includeSensitive);
   const finalId = `${sessionId}:${rawRecord.id || randomId()}`;
   const existing = await CgscDB.getRecord(finalId);
@@ -140,32 +148,19 @@ async function normalizeAndStore(sessionId, rawRecord) {
     kind: rawRecord.kind || 'unknown',
     capturedAt: rawRecord.capturedAt || now()
   };
-
-  if (record.kind === 'conversation-turn' && existing?.data && record.data) {
-    const previousFirst = Number.isFinite(existing.data.firstSeenScanIndex)
-      ? existing.data.firstSeenScanIndex
-      : existing.data.scanIndex;
-    const currentScan = record.data.scanIndex;
-    record.data.firstSeenScanIndex = Number.isFinite(previousFirst) && Number.isFinite(currentScan)
-      ? Math.min(previousFirst, currentScan)
-      : (Number.isFinite(previousFirst) ? previousFirst : currentScan);
-    record.data.firstSeenAt = existing.data.firstSeenAt || existing.capturedAt || record.capturedAt;
-  } else if (record.kind === 'conversation-turn' && record.data) {
-    record.data.firstSeenScanIndex = record.data.scanIndex;
-    record.data.firstSeenAt = record.capturedAt;
-  }
-
+  if (record.pageUrl) record.pageUrl = sanitizeUrl(record.pageUrl, includeSensitive);
   if (record.data && typeof record.data === 'object') {
-    record.data = sanitizeValue(record.data, includeSensitive, 'data');
+    const mode = record.kind === 'conversation-turn' ? 'transcript' : 'evidence';
+    record.data = CgscSanitize.sanitizeValue(record.data, includeSensitive, 'data', undefined, 0, mode);
   }
-
+  if (record.kind === 'conversation-turn' && record.data) {
+    record.data = CgscTurnMerge.mergeTurnData(existing?.data || null, record.data, {
+      capturedAt: record.capturedAt,
+      previousCapturedAt: existing?.capturedAt
+    });
+  }
   await CgscDB.putRecord(record);
-  const updated = {
-    ...session,
-    recordCount: Math.max(0, Number(session.recordCount) || 0) + (existing ? 0 : 1),
-    updatedAt: now()
-  };
-  await CgscDB.putSession(updated);
+  return record;
 }
 
 async function attachDebugger(tabId, sessionId) {
@@ -233,6 +228,9 @@ async function detachDebugger(tabId, sessionId, reason = 'stopped') {
       });
     }
   }
+  for (const key of debuggerRequestMeta.keys()) {
+    if (key.startsWith(`${tabId}:`)) debuggerRequestMeta.delete(key);
+  }
   if (sessionId) {
     await normalizeAndStore(sessionId, {
       id: randomId('debugger-detached'),
@@ -281,6 +279,7 @@ async function startCapture(tab, options) {
     title: tab.title || 'ChatGPT session',
     startUrl: tab.url,
     currentUrl: tab.url,
+    conversationId: conversationIdFromUrl(tab.url),
     startedAt: now(),
     updatedAt: now(),
     stoppedAt: null,
@@ -295,15 +294,20 @@ async function startCapture(tab, options) {
 
   const activeInfo = { sessionId, options: session.options, startedAt: session.startedAt };
   await setActive(tab.id, activeInfo);
+  await setProgress(tab.id, null);
 
   await normalizeAndStore(sessionId, {
     id: randomId('capture-start'),
     kind: 'capture-lifecycle',
     capturedAt: now(),
-    data: { state: 'started', tabId: tab.id, url: tab.url, title: tab.title, options: session.options }
+    data: { state: 'started', tabId: tab.id, url: tab.url, title: tab.title, conversationId: session.conversationId, options: session.options }
   });
 
   try {
+    const synced = await syncTabState(tab.id, activeInfo);
+    if (!synced?.ok || synced.sessionId !== sessionId) {
+      throw new Error('The ChatGPT tab did not confirm the new capture state.');
+    }
     if (session.options.deepNetwork) await attachDebugger(tab.id, sessionId);
     if (session.options.reloadAfterStart) {
       if (session.options.deepNetwork) {
@@ -311,12 +315,13 @@ async function startCapture(tab, options) {
       } else {
         await chrome.tabs.reload(tab.id, { bypassCache: false });
       }
-    } else {
-      notifyPorts(tab.id, activeInfo);
     }
   } catch (error) {
     await setActive(tab.id, null);
-    const failed = { ...session, status: 'failed', stoppedAt: now(), updatedAt: now(), error: String(error) };
+    await syncTabState(tab.id, null);
+    if (session.options.deepNetwork) await detachDebugger(tab.id, sessionId, 'start-failed');
+    await flushSessionQueue(sessionId);
+    const failed = { ...(await CgscDB.getSession(sessionId)), status: 'failed', stoppedAt: now(), updatedAt: now(), error: String(error) };
     await CgscDB.putSession(failed);
     throw error;
   }
@@ -328,7 +333,21 @@ async function stopCapture(tabId, reason = 'user') {
   const active = await getActive(tabId);
   if (!active) return null;
   await setActive(tabId, null);
+  // The content script aborts a running sweep as soon as it learns that the
+  // capture is no longer active, so a stopped capture never ends with a
+  // partially transmitted sweep that reports itself complete.
+  await syncTabState(tabId, null);
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'ABORT_SWEEP', reason: `capture-stopped:${reason}` });
+  } catch (_) {}
   if (active.options?.deepNetwork) await detachDebugger(tabId, active.sessionId, reason);
+  await normalizeAndStore(active.sessionId, {
+    id: randomId('capture-stop'),
+    kind: 'capture-lifecycle',
+    capturedAt: now(),
+    data: { state: 'stopped', reason }
+  });
+  await flushSessionQueue(active.sessionId);
   const session = await CgscDB.getSession(active.sessionId);
   if (session) {
     const count = await CgscDB.countRecords(active.sessionId);
@@ -346,14 +365,48 @@ async function stopCapture(tabId, reason = 'user') {
   return null;
 }
 
+// Sessions left 'active' by a browser restart or an extension reload (both
+// clear chrome.storage.session) are marked as interrupted.
+async function reconcileOrphanedSessions() {
+  const map = await getActiveMap();
+  for (const tabId of Object.keys(map)) {
+    try {
+      await chrome.tabs.get(Number(tabId));
+    } catch (_) {
+      await stopCapture(Number(tabId), 'tab-missing');
+    }
+  }
+  const activeIds = new Set(Object.values(await getActiveMap()).map((info) => info.sessionId));
+  for (const session of await CgscDB.listSessions()) {
+    if (session.status === 'active' && !activeIds.has(session.id) && (session.startedAt || 0) < SW_BOOT_TIME) {
+      await CgscDB.putSession({
+        ...session,
+        status: 'interrupted',
+        stoppedAt: session.stoppedAt || session.updatedAt || now(),
+        stopReason: 'extension-reloaded-or-browser-restarted',
+        updatedAt: now()
+      });
+    }
+  }
+}
+
+const reconciled = reconcileOrphanedSessions().catch((error) => console.warn('[CGSC] Session reconciliation failed', error));
+
 async function getStatus(tabId) {
   const active = tabId ? await getActive(tabId) : null;
   const current = active ? await CgscDB.getSession(active.sessionId) : null;
   const latest = current || (tabId ? await CgscDB.getLatestSessionForTab(tabId) : null);
   const count = latest ? await CgscDB.countRecords(latest.id) : 0;
-  return { active: Boolean(active), activeInfo: active, session: latest ? { ...latest, recordCount: count } : null };
+  const ping = tabId ? await pingContentScript(tabId) : null;
+  return {
+    active: Boolean(active),
+    activeInfo: active,
+    session: latest ? { ...latest, recordCount: count } : null,
+    contentReady: Boolean(ping),
+    sweepRunning: Boolean(ping?.sweepRunning),
+    progress: tabId ? await getProgress(tabId) : null
+  };
 }
-
 
 async function pingContentScript(tabId) {
   try {
@@ -407,52 +460,73 @@ async function ensureContentScripts(tabId, attempts = 12, delayMs = 250) {
     } catch (error) {
       lastError = error;
     }
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    await sleep(delayMs);
   }
 
   throw new Error(`Injected content scripts did not become ready: ${lastError || 'unknown error'}`);
 }
 
+const NOT_DELIVERED = /Receiving end does not exist|Could not establish connection|did not become ready|Could not inject/i;
+
+// Retries only while the message could not be delivered. A delivered message
+// whose response channel closed (for example after a navigation) is not
+// re-sent, because RUN_SWEEP and CAPTURE_PAGE_STATE are not idempotent.
 async function sendToTabWithRetry(tabId, message, attempts = 40, delayMs = 500) {
   let lastError = null;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      if (attempt === 0 || /Receiving end does not exist|Could not establish connection/i.test(String(lastError || ''))) {
-        await ensureContentScripts(tabId);
-      }
+      await ensureContentScripts(tabId);
       const response = await chrome.tabs.sendMessage(tabId, message);
       if (response) return response;
       lastError = new Error('Content script returned no response.');
     } catch (error) {
       lastError = error;
+      if (!NOT_DELIVERED.test(String(error))) throw error;
     }
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    await sleep(delayMs);
   }
   throw new Error(`Content script did not respond after automatic reinjection: ${lastError || 'unknown error'}`);
 }
 
-async function runFullCapture(tabId) {
+async function captureRequestFor(tabId) {
   const active = await getActive(tabId);
   if (!active) throw new Error('Capture is not active for this tab.');
+  const session = await CgscDB.getSession(active.sessionId);
+  if (!session) throw new Error('The active capture session no longer exists.');
+  const tab = await chrome.tabs.get(tabId);
+  const currentConversationId = conversationIdFromUrl(tab.url);
+  if (session.conversationId && currentConversationId !== session.conversationId) {
+    throw new Error(`The tab now shows conversation ${currentConversationId || '(none)'}, but this capture belongs to ${session.conversationId}. Stop it and start a new capture for the current conversation.`);
+  }
+  if (!session.conversationId && currentConversationId) {
+    await CgscDB.putSession({ ...session, conversationId: currentConversationId, updatedAt: now() });
+  }
+  return {
+    active,
+    request: {
+      sessionId: active.sessionId,
+      options: active.options || {},
+      expectedConversationId: session.conversationId || currentConversationId || null
+    }
+  };
+}
+
+async function runFullCapture(tabId) {
+  const { active, request } = await captureRequestFor(tabId);
 
   let pageState = { ok: true, skipped: true, result: { skipped: true, capturedKinds: [] } };
   if (active.options?.includeStorage || active.options?.captureRuntime) {
-    pageState = await sendToTabWithRetry(tabId, {
-      type: 'CAPTURE_PAGE_STATE',
-      options: active.options || {}
-    });
+    pageState = await sendToTabWithRetry(tabId, { type: 'CAPTURE_PAGE_STATE', ...request });
     if (!pageState?.ok) throw new Error(pageState?.error || 'Optional page-state capture failed.');
   }
 
-  const sweep = await sendToTabWithRetry(tabId, {
-    type: 'RUN_SWEEP',
-    options: active.options || {}
-  }, 5, 1000);
+  const sweep = await sendToTabWithRetry(tabId, { type: 'RUN_SWEEP', ...request }, 5, 1000);
   if (!sweep?.ok) throw new Error(sweep?.error || 'Virtualization sweep failed.');
 
   const debuggerSnapshots = active.options?.deepNetwork
     ? await captureDebuggerSnapshots(tabId, active.sessionId)
     : { ok: true, skipped: true, reason: 'deep-debugger-disabled' };
+  await flushSessionQueue(active.sessionId);
   const session = await CgscDB.getSession(active.sessionId);
   if (session) {
     await CgscDB.putSession({
@@ -510,7 +584,20 @@ async function captureDebuggerSnapshots(tabId, sessionId) {
   await command('debugger-layout-metrics', 'Page.getLayoutMetrics', {});
   await command('debugger-frame-tree', 'Page.getFrameTree', {});
   await command('debugger-navigation-history', 'Page.getNavigationHistory', {});
-  await command('debugger-mhtml-snapshot', 'Page.captureSnapshot', { format: 'mhtml' });
+  if (active.options.includeSensitive) {
+    await command('debugger-mhtml-snapshot', 'Page.captureSnapshot', { format: 'mhtml' });
+  } else {
+    // MHTML is a byte-exact page archive; redacting URLs inside it would
+    // corrupt its quoted-printable encoding, so it is only captured when
+    // sensitive capture is enabled.
+    await normalizeAndStore(sessionId, {
+      id: randomId('debugger-mhtml-snapshot-skipped'),
+      kind: 'debugger-mhtml-snapshot-skipped',
+      capturedAt: now(),
+      data: { method: 'Page.captureSnapshot', reason: 'MHTML cannot be redacted without corrupting it; enable sensitive capture to include it.' }
+    });
+    results['Page.captureSnapshot'] = 'skipped: sensitive capture disabled';
+  }
 
   return { ok: true, results };
 }
@@ -520,16 +607,119 @@ async function updateSessionUrl(tabId, changeInfo, tab) {
   if (!active) return;
   const session = await CgscDB.getSession(active.sessionId);
   if (!session) return;
+  const url = changeInfo.url || tab?.url || session.currentUrl;
   await CgscDB.putSession({
     ...session,
-    currentUrl: changeInfo.url || tab?.url || session.currentUrl,
+    currentUrl: url,
     title: tab?.title || session.title,
     updatedAt: now()
   });
+  if (changeInfo.url) {
+    const conversationId = conversationIdFromUrl(changeInfo.url);
+    await normalizeAndStore(active.sessionId, {
+      id: randomId('tab-navigation'),
+      kind: 'tab-navigation',
+      capturedAt: now(),
+      data: {
+        url: changeInfo.url,
+        conversationId,
+        captureConversationId: session.conversationId || null,
+        conversationChanged: Boolean(session.conversationId && conversationId !== session.conversationId)
+      }
+    });
+  }
 }
 
 function portSession(port) {
   return chunkAssemblies.get(port) || new Map();
+}
+
+async function recordPortError(tabId, operation, details) {
+  const active = await getActive(tabId);
+  if (!active) return;
+  await normalizeAndStore(active.sessionId, {
+    id: randomId('bridge-transport-error'),
+    kind: 'bridge-transport-error',
+    capturedAt: now(),
+    data: { operation, ...details }
+  });
+}
+
+async function storeFromPort(tabId, sessionId, record) {
+  await normalizeAndStore(sessionId, record);
+  if (record?.kind === 'sweep-progress' && record.data) {
+    const data = record.data;
+    await setProgress(tabId, {
+      sessionId,
+      stage: data.stage,
+      sweepRunId: data.sweepRunId || null,
+      round: data.round ?? null,
+      scanIndex: data.scanIndex ?? null,
+      uniqueTurns: data.uniqueTurnsSoFar ?? data.uniqueTurnCount ?? null,
+      reason: data.reason || null,
+      at: now()
+    });
+  }
+}
+
+async function handlePortMessage(port, tabId, message) {
+  const active = await getActive(tabId);
+  if (!active) return;
+  if (message?.sessionId && message.sessionId !== active.sessionId) return;
+
+  if (message.type === 'hello') {
+    port.postMessage({ type: 'capture-status', enabled: true, sessionId: active.sessionId, options: active.options || {} });
+    return;
+  }
+  if (message.type === 'record-json') {
+    await storeFromPort(tabId, active.sessionId, JSON.parse(message.json));
+    return;
+  }
+  if (message.type === 'record') {
+    await storeFromPort(tabId, active.sessionId, message.record);
+    return;
+  }
+  const assemblies = portSession(port);
+  if (message.type === 'record-begin') {
+    assemblies.set(message.transferId, {
+      sessionId: active.sessionId,
+      chunkCount: message.chunkCount,
+      charLength: message.charLength,
+      chunks: new Array(message.chunkCount),
+      received: 0
+    });
+    return;
+  }
+  if (message.type === 'record-chunk') {
+    const assembly = assemblies.get(message.transferId);
+    if (!assembly) {
+      await recordPortError(tabId, 'chunk-without-begin', { transferId: message.transferId, index: message.index });
+      return;
+    }
+    if (assembly.chunks[message.index] !== undefined) return;
+    assembly.chunks[message.index] = message.data;
+    assembly.received += 1;
+    return;
+  }
+  if (message.type === 'record-end') {
+    const assembly = assemblies.get(message.transferId);
+    if (!assembly) {
+      // The begin message was processed by a previous service-worker instance.
+      await recordPortError(tabId, 'end-without-begin', { transferId: message.transferId });
+      return;
+    }
+    assemblies.delete(message.transferId);
+    if (assembly.received !== assembly.chunkCount) {
+      await normalizeAndStore(active.sessionId, {
+        id: randomId('chunk-error'),
+        kind: 'bridge-chunk-error',
+        capturedAt: now(),
+        data: { transferId: message.transferId, expected: assembly.chunkCount, received: assembly.received }
+      });
+      return;
+    }
+    await storeFromPort(tabId, active.sessionId, JSON.parse(assembly.chunks.join('')));
+  }
 }
 
 chrome.runtime.onConnect.addListener((port) => {
@@ -546,67 +736,15 @@ chrome.runtime.onConnect.addListener((port) => {
       sessionId: active?.sessionId || null,
       options: active?.options || {}
     });
-  });
+  }).catch(() => {});
 
-  port.onMessage.addListener(async (message) => {
-    try {
-      const active = await getActive(tabId);
-      if (!active) return;
-      if (message.sessionId && message.sessionId !== active.sessionId) return;
-
-      if (message.type === 'hello') {
-        port.postMessage({ type: 'capture-status', enabled: true, sessionId: active.sessionId, options: active.options || {} });
-        return;
-      }
-      if (message.type === 'record') {
-        await normalizeAndStore(active.sessionId, message.record);
-        return;
-      }
-      const assemblies = portSession(port);
-      if (message.type === 'record-begin') {
-        assemblies.set(message.transferId, {
-          sessionId: active.sessionId,
-          chunkCount: message.chunkCount,
-          charLength: message.charLength,
-          chunks: new Array(message.chunkCount),
-          received: 0
-        });
-        return;
-      }
-      if (message.type === 'record-chunk') {
-        const assembly = assemblies.get(message.transferId);
-        if (!assembly || assembly.chunks[message.index] !== undefined) return;
-        assembly.chunks[message.index] = message.data;
-        assembly.received += 1;
-        return;
-      }
-      if (message.type === 'record-end') {
-        const assembly = assemblies.get(message.transferId);
-        if (!assembly) return;
-        assemblies.delete(message.transferId);
-        if (assembly.received !== assembly.chunkCount) {
-          await normalizeAndStore(active.sessionId, {
-            id: randomId('chunk-error'),
-            kind: 'bridge-chunk-error',
-            capturedAt: now(),
-            data: { transferId: message.transferId, expected: assembly.chunkCount, received: assembly.received }
-          });
-          return;
-        }
-        const json = assembly.chunks.join('');
-        await normalizeAndStore(active.sessionId, JSON.parse(json));
-      }
-    } catch (error) {
-      const active = await getActive(tabId);
-      if (active) {
-        await normalizeAndStore(active.sessionId, {
-          id: randomId('background-port-error'),
-          kind: 'background-error',
-          capturedAt: now(),
-          data: { operation: 'port-message', error: String(error), stack: error?.stack || null }
-        });
-      }
-    }
+  // Messages of one port are handled strictly in arrival order so that
+  // record-begin, record-chunk and record-end can never be reordered.
+  let queue = Promise.resolve();
+  port.onMessage.addListener((message) => {
+    queue = queue
+      .then(() => handlePortMessage(port, tabId, message))
+      .catch((error) => recordPortError(tabId, 'port-message', { error: String(error), stack: error?.stack || null }).catch(() => {}));
   });
 
   port.onDisconnect.addListener(() => {
@@ -885,21 +1023,34 @@ async function ensureOffscreenDocument() {
   return creatingOffscreen;
 }
 
+function revokeExportUrl(blobUrl) {
+  return chrome.runtime.sendMessage({ type: 'OFFSCREEN_REVOKE_URL', target: 'offscreen', blobUrl }).catch(() => {});
+}
+
+function exportFilename(session) {
+  const safeTitle = (session.title || 'chatgpt-session')
+    .replace(/[<>:"/\\|?*\x00-\x1F\x7F]/g, '_')
+    .replace(/\s+/g, ' ')
+    .replace(/^[.\s_~-]+/, '')
+    .trim()
+    .slice(0, 100)
+    .replace(/[.\s]+$/, '') || 'chatgpt-session';
+  const reserved = /^(?:con|prn|aux|nul|com\d|lpt\d)$/i.test(safeTitle) ? `${safeTitle}_` : safeTitle;
+  return `${reserved}-${new Date(session.startedAt).toISOString().replace(/[:.]/g, '-')}.zip`;
+}
+
 async function exportSession(sessionId) {
   const session = await CgscDB.getSession(sessionId);
   if (!session) throw new Error('Capture session not found.');
+  await flushSessionQueue(sessionId);
   await ensureOffscreenDocument();
   const response = await chrome.runtime.sendMessage({ type: 'OFFSCREEN_EXPORT', target: 'offscreen', sessionId });
   if (!response?.ok || !response.blobUrl) throw new Error(response?.error || 'Offscreen export failed.');
-  const safeTitle = (session.title || 'chatgpt-session')
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 100) || 'chatgpt-session';
-  const filename = `${safeTitle}-${new Date(session.startedAt).toISOString().replace(/[:.]/g, '-')}.zip`;
+  const filename = exportFilename(session);
   let downloadId = null;
   try {
     downloadId = await chrome.downloads.download({ url: response.blobUrl, filename, saveAs: true, conflictAction: 'uniquify' });
+    pendingRevocations.set(downloadId, response.blobUrl);
   } catch (error) {
     const fallback = await chrome.runtime.sendMessage({
       type: 'OFFSCREEN_DIRECT_DOWNLOAD',
@@ -909,14 +1060,31 @@ async function exportSession(sessionId) {
     });
     if (!fallback?.ok) throw new Error(`Download failed: ${error}; fallback failed: ${fallback?.error || 'unknown'}`);
   }
-  setTimeout(() => chrome.runtime.sendMessage({ type: 'OFFSCREEN_REVOKE_URL', target: 'offscreen', blobUrl: response.blobUrl }).catch(() => {}), 60000);
-  return { downloadId, filename };
+  return { downloadId, filename, size: response.size || null, summary: response.summary || null };
+}
+
+// The ZIP's object URL is released when its download finishes; the offscreen
+// document also releases it after a timeout if this worker was stopped.
+chrome.downloads.onChanged.addListener((delta) => {
+  const blobUrl = pendingRevocations.get(delta.id);
+  const state = delta.state?.current;
+  if (!blobUrl || (state !== 'complete' && state !== 'interrupted')) return;
+  pendingRevocations.delete(delta.id);
+  revokeExportUrl(blobUrl);
+});
+
+function isExtensionPage(sender) {
+  return sender?.id === chrome.runtime.id && String(sender?.url || '').startsWith(chrome.runtime.getURL(''));
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.target === 'offscreen') return false;
   (async () => {
     if (!message) return { ok: false, error: 'Empty message' };
+    // Control messages are accepted only from the extension's own pages, not
+    // from content scripts running inside chatgpt.com.
+    if (!isExtensionPage(sender)) return { ok: false, error: 'Control messages are accepted only from extension pages.' };
+    await reconciled;
 
     if (message.type === 'GET_STATUS') {
       return { ok: true, status: await getStatus(message.tabId) };
@@ -929,17 +1097,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return { ok: true, session: await stopCapture(message.tabId, 'user') };
     }
     if (message.type === 'CAPTURE_PAGE_STATE') {
-      const active = await getActive(message.tabId);
-      if (!active) throw new Error('Capture is not active for this tab.');
-      const result = await sendToTabWithRetry(message.tabId, {
-        type: 'CAPTURE_PAGE_STATE',
-        options: active.options || {}
-      }, 8, 500);
+      const { request } = await captureRequestFor(message.tabId);
+      const result = await sendToTabWithRetry(message.tabId, { type: 'CAPTURE_PAGE_STATE', ...request }, 8, 500);
       if (!result?.ok) throw new Error(result?.error || 'Optional page-state capture failed.');
       return { ok: true, result: result.result || result };
     }
     if (message.type === 'CAPTURE_DEBUGGER_SNAPSHOTS') {
-      return { ok: true, result: await captureDebuggerSnapshots(message.tabId, message.sessionId) };
+      const sessionId = message.sessionId || (await getActive(message.tabId))?.sessionId;
+      return { ok: true, result: await captureDebuggerSnapshots(message.tabId, sessionId) };
     }
     if (message.type === 'RUN_FULL_CAPTURE') {
       return { ok: true, result: await runFullCapture(message.tabId) };
@@ -951,18 +1116,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return { ok: true, sessions: await CgscDB.listSessions() };
     }
     if (message.type === 'DELETE_SESSION') {
-      const sessions = await CgscDB.listSessions();
-      const session = sessions.find((item) => item.id === message.sessionId);
+      const session = await CgscDB.getSession(message.sessionId);
       if (session && (await getActive(session.tabId))?.sessionId === session.id) await stopCapture(session.tabId, 'deleted');
+      await flushSessionQueue(message.sessionId);
       await CgscDB.deleteSession(message.sessionId);
       return { ok: true };
     }
     if (message.type === 'CLEAR_ALL') {
-      const activeMap = await getActiveMap();
-      for (const [tabId, info] of Object.entries(activeMap)) {
-        if (info.options?.deepNetwork) await detachDebugger(Number(tabId), info.sessionId, 'clear-all');
-      }
-      await chrome.storage.session.set({ [ACTIVE_KEY]: {} });
+      for (const tabId of Object.keys(await getActiveMap())) await stopCapture(Number(tabId), 'clear-all');
+      for (const sessionId of [...sessionQueues.keys()]) await flushSessionQueue(sessionId);
+      await activeLock;
+      activeMapCache = {};
+      await chrome.storage.session.set({ [ACTIVE_KEY]: {}, [PROGRESS_KEY]: {} });
       await CgscDB.clearAll();
       return { ok: true };
     }
@@ -977,4 +1142,5 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   stopCapture(tabId, 'tab-closed').catch(() => {});
+  setProgress(tabId, null).catch(() => {});
 });
