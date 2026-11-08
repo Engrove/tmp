@@ -2,7 +2,6 @@ import { randomId, normalizeText, sha256Hex, nowIso } from "./common.mjs";
 import { conversationKey } from "./restart-recovery.mjs";
 import { savedMissionProject } from "./saved-mission-catalog.mjs";
 import { autonomousUserTurnProof } from "./turn-causality.mjs";
-import { buildA2AEnvelope } from "./a2a.mjs";
 
 export const SESSION_INITIALIZATION = "SESSION_INITIALIZATION";
 export const DELIVERY_CONTINUATION = "DELIVERY_CONTINUATION";
@@ -76,15 +75,35 @@ export function legacyToolForbiddenInitialization(process) {
     String(source.a2a?.instruction || "").startsWith("Session initialization only. Do not call tools or change any state.");
 }
 
-function fullInitializationContext(process, workPrompt) {
-  // Carry every session-wide section from the real FULL packet. Operative
-  // objective/one-shot commands stay in the held packet until a paired ACK.
-  // COMPACT or legacy callers are expanded by the existing contract owner.
-  const source = workPrompt.a2a?.promptProfile?.profile === "FULL" ? workPrompt.a2a
-    : buildA2AEnvelope({ process, objective: "Initialize the EIC session only.", messageType: "MISSION_START" });
-  return Object.fromEntries(["schema", "protocol", "process", "sender", "recipient", "languageContext",
-    "mission", "continuity", "control", "responseContract", "sessionHealth", "promptProfile"]
-    .filter(key => source[key] !== undefined).map(key => [key, source[key]]));
+function initializationBrief(process, workPrompt) {
+  // v2.0.0: the initialization turn no longer carries a copy of the FULL
+  // operative contract (about 70k characters that the held work prompt sends
+  // again one turn later). It carries only the identity, the mission and the
+  // Greenfield progress state, so the receiving session knows what it is
+  // bootstrapping for without reading the contract twice.
+  const source = workPrompt?.a2a && typeof workPrompt.a2a === "object" ? workPrompt.a2a : {};
+  const full = source.promptProfile?.profile === "FULL";
+  const progress = source.progress && typeof source.progress === "object" ? source.progress : null;
+  return {
+    schema: source.schema,
+    protocol: source.protocol,
+    process: source.process,
+    sender: source.sender ? {
+      actor: source.sender.actor, applicationId: source.sender.applicationId,
+      name: source.sender.name, version: source.sender.version, role: source.sender.role
+    } : undefined,
+    mission: full && source.mission ? source.mission : String(process?.goal || ""),
+    progress: progress ? {
+      schema: progress.schema,
+      stages: progress.stages,
+      currentStage: progress.currentStage,
+      planRequired: progress.planRequired,
+      acceptedEvidence: progress.acceptedEvidence,
+      deadEnds: progress.deadEnds,
+      knownLimitations: progress.knownLimitations,
+      counters: progress.counters
+    } : null
+  };
 }
 
 export async function prepareSessionInitialization(process, workPrompt, page = {}, { acknowledgementOnly = false } = {}) {
@@ -103,7 +122,7 @@ export async function prepareSessionInitialization(process, workPrompt, page = {
   const opening = acknowledgementOnly
     ? `Session acknowledgement upgrade${projectBound ? ` for project ${projectId}` : ""}. The preceding initialization response has been observed. Do not repeat project opening or other tool actions. Confirm only if that initialization succeeded.`
     : `${bootstrapRepair ? "Correct the preceding tool-forbidden initialization instruction. " : ""}Initialize this EIC session using its required live bootstrap: getMe, global.get and the applicable current runtime/knowledge/skill payloads. Read-only bootstrap tools are allowed and required; respect current owner authority and report unavailable capabilities. ${projectBound ? `Open project ${projectId} for this session and read its current owner state.` : "Resolve the mission's project/owner from its explicit identity and current owner state; do not guess a project from unrelated body references."}`;
-  const context = acknowledgementOnly ? "" : `\nFULL SESSION PRE-PROMPT — reference context for this session and subsequent operative prompts:\n${JSON.stringify(fullInitializationContext(process, workPrompt))}\nEND FULL SESSION PRE-PROMPT. For this initialization turn, perform only the read-only bootstrap above. Work-queue actions, operative objectives, learning writes and terminal controls are not authorized by this transport message. The operative response schema in the context applies to subsequent work prompts; this turn uses the acknowledgement instruction below.\n`;
+  const context = acknowledgementOnly ? "" : `\nSESSION BRIEF — mission identity and Greenfield progress state for this session:\n${JSON.stringify(initializationBrief(process, workPrompt))}\nEND SESSION BRIEF. The complete operating contract and response schema arrive with the first work prompt; do not pre-load or restate them now. For this initialization turn, perform only the read-only bootstrap above, plus reading the mission's latest checkpoint if it is cheap. Work-queue actions, operative objectives, learning writes and terminal controls are not authorized by this transport message; this turn uses the acknowledgement instruction below.\n`;
   const instruction = `${opening}${context} When initialization has succeeded, include this exact acknowledgement hash as a separate token in your final response: ${ackHash}. Preserve all 64 hexadecimal characters; surrounding text, Markdown and required status/project/time footers are allowed. If initialization is blocked or incomplete, omit the hash and explain the blocker without quoting this instruction. Do not start mission work or change project data. Await the next work prompt.`;
   const a2a = { messageId, messageType: SESSION_INITIALIZATION,
     instruction };

@@ -1,0 +1,68 @@
+Greenfield v2.0.0 — Progress Engine — verifieringsrapport
+Datum: 2026-11-08
+
+ROTORSAK (sammanfattning; full analys: ../analys/ANALYS_Greenfield_stagnation.md)
+1. AI:ns nextSuggestedAction vidarebefordrades ordagrant som nästa objective
+   (18/18 uppmätta övergångar, difflib-ratio 1.000); förbud ackumulerades.
+2. Ingen kontroll läste blockers[]; no-delta jämförde hash av fritext, så varje
+   omformulering räknades som nytt. blockerStreak påverkade bara inlärningskrav.
+3. Ingen eskalering till operatören; BLOCKED blev backoff-omförsök.
+4. Rotation efter antal (6 promptar) kostade ~138 000 tecken och raderade
+   sandlådan; rotationsmålet bar inte med arbetsminnet.
+5. Kunskapen saknade definition av framsteg och prissatte inte stagnation.
+
+ÄNDRAT
+- lib/progress-engine.mjs (ny): ledger, turklassning, eskalering, kapsel, objective.
+- lib/progress-store.mjs (ny): lagring + index.
+- background.js: progressForPrompt/observeProgressTurn/parkOperatorWait/
+  progressOperatorResponse/progressSnapshotForWindow; injektion i buildPendingA2A;
+  hook i tickAnalyzing; meddelande EIC_GF_PROGRESS_OPERATOR_RESPONSE.
+- lib/a2a.mjs: progress i kuvert och svarsschema; omskriven GFW-policynot;
+  COMPACT-sammanfattning; goalProgress-texter.
+- lib/response-contract.mjs, lib/prompt-lint.mjs: fältet progress tillåtet (C18).
+- lib/session-transport.mjs: SESSION BRIEF i stället för FULL-kopia vid init.
+- lib/session-broker.mjs: tak 10 promptar / 4 kvanta. lib/focus-cycle.mjs: 10 faser,
+  ledger-medvetet rotationsmål.
+- lib/learning-control.mjs: AIK-discovery vid nyckelpunkter; ej igen i sessionen
+  efter DISCOVERY_UNAVAILABLE_SCOPED.
+- lib/mission-work-queue.mjs: operatorWait i publik köprojektion.
+- sidepanel.*: panelen Framsteg, svarsformulär, "Väntar på operatör" i kön.
+- tools/update-integrity.mjs (ny): regenererar installed-integrity.json och build-identity.
+
+TESTER (node v22.23.4, jsdom 26.1.0)
+Baslinje v1.9.53 (oförändrad kod, katalog 'base'): 1096 tester, 1086 pass, 10 fail.
+  - 3 laddningsfel: testerna antar katalognamnet 'greenfield' (2 löstes av rätt
+    namn) och kräver ../eic-integration/owner_progress_adapter.mjs (ej levererad).
+  - 7 föråldrade tester mot avsiktligt ändrat beteende i 1.9.51–1.9.53
+    (BLOCKED→PAUSED, processgenerationsstaket, objekt i liveMissionWorkerIds,
+    borttagen manuell retry-knapp). Ingen produktionsdefekt hittad.
+v2.0.0: 1158 tester, 1156 pass, 0 fail, 2 skipped.
+  - Skippade: frozen-root och goal-continuity när eic-integration-fixturen saknas
+    (registreras som en tydligt märkt skip i stället för laddningsfel).
+  - Nya: progress-engine (15), progress-integration (18), progress-panel (8).
+  - Uppdaterade för ny design: focus-cycle (tak 10/4), lifecycle-matrix (15
+    rotationer över 150 turer i stället för 24), initialization-bootstrap
+    (SESSION BRIEF; FULL-kontraktet ligger i den hållna arbetsprompten),
+    requested-session-start (ny beroendefunktion i harness), samt de 7
+    föråldrade testerna ovan.
+Syntax: node --check på 192 JS/MJS-filer, 0 fel.
+Release: node tools/verify-release-coherence.mjs → ready=true, 131 filer,
+  0 versionsavvikelser, 0 byteavvikelser, buildMatch=true.
+
+PROMPTSTORLEK (samma fixtur, utan kö; mätskript ej i paketet)
+  Initieringsprompt:   49 322 → 2 086 tecken
+  COMPACT-prompt:      15 344 → 13 453 tecken (inkl. 2 086 teckens progresskapsel)
+  GFW-not i COMPACT:    4 972 → 455 tecken
+  FULL-prompt:         46 312 → 49 551 tecken (+ progresskapsel och svarsschema)
+
+KALIBRERING (fångade svar 2026-11-08, legacy-läge utan progress-fält; data ej i repot)
+  GF-1.71.1021 (fastlåst):  STRATEGY_SWITCH tur 4, OPERATOR_REQUIRED tur 5 (förr: aldrig)
+  GF-4.59.1030 (friskt):    NONE alla 6 turer
+  GF-1.2.1022:              NONE alla 6 turer
+  Parametrar: BLOCKER_REPEAT_THRESHOLD 0.30, LEGACY_MIN_NEW_IDS 1, maxTurnsPerStage 6.
+
+INTE VERIFIERAT
+- Körning i riktig Chrome mot ChatGPT; panelen är testad i jsdom, inte visuellt.
+- Att EIC-GPT:n fyller progress-fältet (kräver aktiverat kunskapspaket v2 och
+  justerade Global Skills).
+- Beteendeförbättring i drift (kräver matchad jämförelse före/efter).

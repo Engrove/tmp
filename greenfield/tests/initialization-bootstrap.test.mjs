@@ -76,16 +76,19 @@ test('project resolution preserves old headers and rejects contradictory, zero a
     '102 Name - GFW: GF-2.71.1026', 'Projekt: 102 - Name - GFW: GF-2.71.1026']) assert.equal(savedMissionProject(header), null, header);
 });
 for (const goal of ['102 Research fixture - GFW: GF-2.102.1026', 'Projekt: 71 - Fixture - GFW: GF-0.71.1008.', 'Unbound mission']) {
-  test(`fresh initialization contains complete session context and permits required bootstrap: ${goal}`, async () => {
+  test(`fresh initialization carries a compact session brief and permits required bootstrap: ${goal}`, async () => {
     const p = worker(); p.goal = goal; const work = workFor(p), before = clone(work);
     const packet = await transport.prepareSessionInitialization(p, work, { url: p.lastManagedUrl });
     const instruction = packet.pendingPrompt.a2a.instruction;
     assert.doesNotMatch(instruction, /Do not call tools/);
     assert.match(instruction, /getMe/); assert.match(instruction, /global\.get/);
     assert.ok(instruction.includes(p.goal));
-    assert.ok(instruction.includes('FRESH_READ_BEFORE_FIRST_BOUNDED_WORK_PACKAGE'), 'full owner-state contract reaches the first session turn');
-    assert.ok(instruction.includes('eic.a2a.response.v1'), 'operative response schema is available as context');
-    assert.ok(instruction.includes('selfContinuationAuthority'), 'full controller boundary is present');
+    // v2.0.0: the FULL contract is no longer duplicated into the initialization
+    // turn; it stays in the held work prompt, which is the next message.
+    assert.match(instruction, /SESSION BRIEF/);
+    assert.doesNotMatch(instruction, /FRESH_READ_BEFORE_FIRST_BOUNDED_WORK_PACKAGE|learningControlContract/);
+    assert.ok(instruction.length < 20000, `initialization stays compact (${instruction.length})`);
+    assert.ok(packet.sessionInitialization.workPrompt.text.includes('selfContinuationAuthority'), 'full controller boundary is in the held work prompt');
     assert.doesNotMatch(instruction, /Preserve full objective/, 'operative objective is still held for the next work prompt');
     assert.deepEqual(packet.sessionInitialization.workPrompt, before); assert.deepEqual(work, before);
     assert.deepEqual(Object.keys(packet.pendingPrompt.a2a).sort(), ['instruction', 'messageId', 'messageType']);
@@ -268,7 +271,8 @@ for (const response of ['matching-hash', 'bare-READY', 'previous-session-hash', 
     await ready(current, current.sessionRotation, { id: 2 }, { url: 'https://chatgpt.com/g/g-test', userCount: 0, composerReady: true },
       'https://chatgpt.com/g/g-test', { kind: 'URL_GPT_ID' });
     assert.equal(current.pendingPrompt.transportKind, 'SESSION_INITIALIZATION');
-    assert.match(current.pendingPrompt.a2a.instruction, /FULL SESSION PRE-PROMPT/);
+    assert.match(current.pendingPrompt.a2a.instruction, /SESSION BRIEF/);
+    assert.doesNotMatch(current.pendingPrompt.a2a.instruction, /learningControlContract|runtimeControlContract/);
     assert.match(current.pendingPrompt.a2a.instruction, /Open project 102/);
     assert.equal(current.sessionInitialization.workPrompt.hash, originalWork.hash);
     assert.equal(current.turn, 11);

@@ -295,6 +295,13 @@ export function publicMissionWorkQueue(queueValue, now = Date.now()) {
         : item.pauseUntilMs,
       needsOwnerReconciliation: item.status === QUEUE_STATUS.BLOCKED &&
         !(Number(item.pauseUntilMs || 0) > 0 || Number(item.blockedRetryAtMs || 0) > 0),
+      // v2.0.0: a slot parked by the progress engine waits for the operator.
+      operatorWait: item.resume?.operatorWait?.state === "WAIT" ? {
+        missionKey: String(item.resume.operatorWait.missionKey || ""),
+        requestId: String(item.resume.operatorWait.requestId || ""),
+        ask: String(item.resume.operatorWait.ask || "").slice(0, 1000),
+        since: String(item.resume.operatorWait.since || "")
+      } : null,
       blockedSinceMs: item.blockedSinceMs,
       blockedRetryAtMs: item.blockedRetryAtMs,
       blockedCount: 0,

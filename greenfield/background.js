@@ -150,6 +150,19 @@ import { workModeStartupPatch, workModeSupervisorDecision } from "./lib/work-mod
 import { applyGreenfieldControlToDecision, eicHandoffWithoutNanoTask, resolveGreenfieldControl } from "./lib/greenfield-control.mjs";
 import { advanceNoDeltaState } from "./lib/no-delta.mjs";
 import {
+  PROGRESS_ALERT,
+  applyTurn as applyProgressTurn,
+  buildProgressCapsule,
+  cancelOperatorRequest,
+  composeProgressObjective,
+  consumeOperatorAnswer,
+  progressAlertInstruction,
+  progressMissionKey,
+  progressSummaryForUi,
+  recordOperatorAnswer
+} from "./lib/progress-engine.mjs";
+import { listProgressRecords, loadProgressRecord, openOperatorRequests, saveProgressRecord } from "./lib/progress-store.mjs";
+import {
   autonomousResponseObservation,
   autonomousUserTurnProof,
   expectedAutonomousUserTurn,
@@ -2919,6 +2932,207 @@ async function delegationStatusForPrompt(process) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// v2.0.0 progress engine glue. Greenfield owns a per-mission progress ledger
+// (stages, accepted evidence, dead ends, alert). Every operative prompt carries
+// it; every analysed response updates it; a mission that stops advancing is
+// redirected (CHANGE_ROUTE / STRATEGY_SWITCH) and finally parked for the
+// operator (OPERATOR_REQUIRED) instead of spending turns on the same blocker.
+// Ledger failures never block the existing control loop: they are audited and
+// the prompt is built exactly as before.
+const PROGRESS_OPERATOR_WAIT_PARK_MS = 30 * 24 * 60 * 60 * 1000;
+
+function progressObjectiveFor(ledger, baseObjective) {
+  const base = String(baseObjective || "").trim();
+  const request = ledger?.operatorRequest;
+  if (request && ["ANSWERED", "CANCELLED"].includes(request.status) && request.answer) {
+    return composeProgressObjective({ ledger, handoff: base }) || base;
+  }
+  const alert = ledger?.alert || PROGRESS_ALERT.NONE;
+  if (alert === PROGRESS_ALERT.NONE) return base || composeProgressObjective({ ledger, handoff: "" }) || base;
+  if (alert === PROGRESS_ALERT.STRATEGY_SWITCH && base && base !== String(ledger.lastHandoff || "").trim()) {
+    // A Greenfield-authored objective (rotation, owner NEXT, operator) is kept
+    // as context; only the AI's own stalled handoff is dropped.
+    return `${progressAlertInstruction(ledger)}\nContext objective: ${base}`;
+  }
+  return composeProgressObjective({ ledger, handoff: base }) || base;
+}
+
+async function progressForPrompt(process, objective) {
+  const missionKey = progressMissionKey(process);
+  if (!missionKey) return { progress: null, objective };
+  try {
+    const record = await loadProgressRecord(missionKey);
+    return {
+      progress: buildProgressCapsule(record.ledger),
+      objective: progressObjectiveFor(record.ledger, objective) || objective
+    };
+  } catch (error) {
+    await audit(process, "PROGRESS_LEDGER_UNAVAILABLE", "progress", { missionKey, error: String(error?.message || error) }).catch(() => undefined);
+    return { progress: null, objective };
+  }
+}
+
+async function observeProgressTurn(process, result) {
+  const missionKey = progressMissionKey(process);
+  if (!missionKey) return null;
+  try {
+    const record = await loadProgressRecord(missionKey);
+    const responseKey = `${process.processId}:${process.runId}:${process.turn}:${process.lastResponse?.hash || ""}`;
+    // An analysis retry of the same captured turn is not a second turn.
+    if (record.lastAppliedResponseKey === responseKey) return record.lastResult;
+    let ledger = record.ledger;
+    // The previous prompt delivered the operator answer: it is consumed now.
+    if (process.lastPrompt?.a2a?.progress?.operatorAnswer) ledger = consumeOperatorAnswer(ledger);
+    const applied = applyProgressTurn(ledger, { targetResponse: result?.targetResponse || null, turn: Number(process.turn || 0) });
+    const lastResult = {
+      verdict: applied.classification.verdict,
+      alert: applied.alert,
+      alertReason: applied.ledger.alertReason,
+      parkRequest: applied.parkRequest
+    };
+    await saveProgressRecord({ missionKey, ledger: applied.ledger, lastAppliedResponseKey: responseKey, lastResult });
+    await audit(process, "PROGRESS_TURN_CLASSIFIED", "progress", {
+      missionKey,
+      verdict: lastResult.verdict,
+      reasons: applied.classification.reasons,
+      newIds: applied.classification.newIds.length,
+      blockerSimilarity: applied.classification.blockerSimilarity,
+      alert: lastResult.alert,
+      alertReason: lastResult.alertReason,
+      currentStageId: applied.ledger.currentStageId,
+      counters: applied.ledger.counters
+    }).catch(() => undefined);
+    if (applied.parkRequest) await refreshOperatorAttentionBadge();
+    return lastResult;
+  } catch (error) {
+    await audit(process, "PROGRESS_LEDGER_UNAVAILABLE", "progress", { missionKey, error: String(error?.message || error) }).catch(() => undefined);
+    return null;
+  }
+}
+
+async function refreshOperatorAttentionBadge() {
+  try {
+    const open = await openOperatorRequests();
+    await chrome.action?.setBadgeBackgroundColor?.({ color: "#b45309" });
+    await chrome.action?.setBadgeText?.({ text: open.length ? String(Math.min(open.length, 9)) : "" });
+    await chrome.action?.setTitle?.({ title: open.length
+      ? `EIC Autonom Agent Greenfield — ${open.length} uppdrag väntar på operatörens svar`
+      : "EIC Autonom Agent Greenfield" });
+  } catch {
+    // Badge is a convenience; the side panel shows the same requests.
+  }
+}
+
+async function parkOperatorWait(process, progressTurn) {
+  const fresh = await findProcessById(process.processId);
+  if (!fresh || fresh.generation !== process.generation || fresh.phase !== PHASES.ANALYZING) return fresh;
+  if (queuePendingEffectNeedsReconciliation(process) || process.pendingPrompt?.dispatch || Number(process.pendingPrompt?.sendAttempts || 0) > 0)
+    return holdForSafety(process, { code: "DISPATCH_EFFECT_UNRESOLVED" });
+  if (await readNextInstruction(process.processId)) { scheduleFast(process.processId, 100); return fresh; }
+  const request = progressTurn?.parkRequest?.operatorRequest || {};
+  const ask = String(request.ask || "Operator decision required.").slice(0, 1000);
+  const missionKey = progressMissionKey(process);
+  const completed = Math.max(0, Number(process.queueContext?.interactionCount || 0)) + 1;
+  const quantum = normalizeMissionQuantumInteractions(process.queueContext?.maxInteractions);
+  const quantumCompleted = Boolean(process.queueContext?.itemId && completed >= quantum);
+  const lastError = { code: "PROGRESS_OPERATOR_REQUIRED", message: ask };
+  const current = await saveObserved(process, {
+    pendingPrompt: null,
+    sessionBroker: completeBrokerTurn(process, { quantumCompleted }),
+    lastError
+  });
+  await refreshOperatorAttentionBadge();
+  if (current.queueContext?.itemId) {
+    const { queue, settings } = await missionQueueForWindow(current.windowId);
+    const item = queueItemForProcess(queue, current);
+    if (item && queue.enabled) {
+      const progress = quantumCompleted ? 0 : completed;
+      const snapshot = { ...deepClone(current), queueContext: { ...current.queueContext, interactionCount: progress } };
+      const resume = {
+        ...queueResumeRecordFromAnalysis({
+          current,
+          effectiveNextPrompt: current.lastResponse?.contract?.value?.nextSuggestedAction || "",
+          previousDisposition: "BLOCKED"
+        }),
+        operatorWait: { state: "WAIT", missionKey, requestId: String(request.requestId || ""), ask, since: nowIso() }
+      };
+      return parkSlotAndActivateNext({
+        current, queue, settings, item, parkedSnapshot: snapshot, resume,
+        outcome: "PROGRESS_OPERATOR_WAIT", summary: ask.slice(0, 300), resumedQuantumProgress: progress,
+        pauseUntilMs: Date.now() + PROGRESS_OPERATOR_WAIT_PARK_MS,
+        idleWhenNoNext: true, quantumCompleted, instructionLockProcessId: current.processId
+      });
+    }
+  }
+  return commitTransition(current, PHASES.BLOCKED, { pendingPrompt: null, lastError }, {
+    kind: "PROGRESS_OPERATOR_REQUIRED",
+    component: "progress",
+    beforeSave: () => goalTransitionBoundary(current),
+    detail: { missionKey, requestId: String(request.requestId || ""), source: String(request.source || "") }
+  });
+}
+
+async function progressOperatorResponse({ windowId, missionKey, answer = "", mode = "ANSWER", auditSessionId = "" }) {
+  const key = String(missionKey || "").trim();
+  if (!key) throw Object.assign(new Error("PROGRESS_MISSION_KEY_REQUIRED"), { code: "PROGRESS_MISSION_KEY_REQUIRED" });
+  const record = await loadProgressRecord(key);
+  const ledger = String(mode || "").toUpperCase() === "CONTINUE"
+    ? cancelOperatorRequest(record.ledger)
+    : recordOperatorAnswer(record.ledger, { answer: String(answer || "") });
+  await saveProgressRecord({ ...record, ledger });
+  // Release every parked slot of this logical mission in this window's queue.
+  let released = 0;
+  const state = await missionQueueForWindow(windowId).catch(() => null);
+  if (state?.queue?.items?.length) {
+    const now = Date.now();
+    const queue = state.queue;
+    queue.items = queue.items.map((item) => {
+      const waiting = item.resume?.operatorWait?.state === "WAIT" &&
+        (item.resume.operatorWait.missionKey === key || String(item.savedMissionId || "") === key);
+      if (!waiting) return item;
+      released += 1;
+      return {
+        ...item,
+        status: QUEUE_STATUS.READY,
+        pauseUntilMs: 0,
+        readySinceMs: now,
+        resume: { ...item.resume, operatorWait: { ...item.resume.operatorWait, state: "ANSWERED", answeredAt: nowIso(now) } },
+        lastOutcome: "PROGRESS_OPERATOR_ANSWERED",
+        updatedAt: nowIso(now)
+      };
+    });
+    if (released) {
+      await persistMissionQueue(queue, state.settings, null, "MISSION_QUEUE_PROGRESS_OPERATOR_ANSWERED", { missionKey: key, released });
+      void enqueueMissionQueueWake(windowId, "PROGRESS_OPERATOR_ANSWERED").catch(() => undefined);
+    }
+  }
+  await refreshOperatorAttentionBadge();
+  await appendAudit({
+    scope: "WINDOW",
+    auditSessionId: auditSessionId || BACKGROUND_AUDIT_SESSION_ID,
+    kind: "PROGRESS_OPERATOR_RESPONSE",
+    component: "progress",
+    payload: { windowId, missionKey: key, mode: String(mode || "ANSWER").toUpperCase(), released }
+  }).catch(() => undefined);
+  return { ok: true, released, progress: progressSummaryForUi(ledger) };
+}
+
+async function progressSnapshotForWindow(process, missionQueue) {
+  try {
+    const keys = new Set();
+    const active = progressMissionKey(process);
+    if (active) keys.add(active);
+    for (const item of missionQueue?.items || []) {
+      if (item?.savedMissionId) keys.add(String(item.savedMissionId));
+    }
+    const records = await listProgressRecords({ keys: [...keys] });
+    return records.map((record) => progressSummaryForUi(record.ledger));
+  } catch {
+    return [];
+  }
+}
+
 async function buildPendingA2A(process, {
   objective,
   objectiveId = "",
@@ -2937,6 +3151,9 @@ async function buildPendingA2A(process, {
 }) {
   const virtual = { ...process, turn, continuationContext: messageType === "SESSION_ROTATION" ? null : retainedObjectiveContext(process) };
   objective = withoutStaleQueueLabel(objective);
+  // v2.0.0: progress capsule and alert-aware objective for every operative prompt.
+  const progressState = await progressForPrompt(process, objective);
+  objective = progressState.objective;
   const windowQueue = await windowQueueForPrompt(process, windowQueueSource);
   const processStatus = String(processStatusMode || "").toUpperCase() === PROCESS_STATUS_REQUEST
     ? buildFullProcessStatus(virtual, { at: Date.now() })
@@ -2967,7 +3184,8 @@ async function buildPendingA2A(process, {
     sessionRotation,
     pauseResume,
     windowQueue,
-    delegationStatus: await delegationStatusForPrompt(process)
+    delegationStatus: await delegationStatusForPrompt(process),
+    progress: progressState.progress
   };
   const composed = composeA2APrompt({ ...composeArgs, promptProfile });
   const hash = await sha256Hex(composed.text);
@@ -9784,6 +10002,12 @@ async function tickAnalyzing(process) {
     const persistedNoDeltaPause = await observeNoDelta(current, result, {
       delegationResult, operatorInstructionPending: Boolean(latestInstruction)
     });
+    // v2.0.0: Greenfield's own progress measurement. OPERATOR_REQUIRED parks the
+    // mission with a concrete operator request instead of another prompt.
+    const progressTurn = await observeProgressTurn(current, result);
+    if (progressTurn?.parkRequest && !latestInstruction && !ownerNext && result.targetDisposition !== 'DONE' &&
+        !runtimeControl.terminal?.requested)
+      return parkOperatorWait(current, progressTurn);
     if (persistedNoDeltaPause && !latestInstruction && !ownerNext && result.targetDisposition !== 'DONE')
       return parkOwnerWait(current, current.ownerProgressResult || {ok:false,code:'NO_NEW_OWNER_EVIDENCE'});
     if (runtimeControl.terminal?.requested && !runtimeControl.terminal.accepted && !runtimeControl.terminal.nextObjective && !latestInstruction)
@@ -11725,6 +11949,7 @@ async function snapshotForWindow(windowId) {
     globalPromptGate,
     globalCapacityScheduler: schedulerView.scheduler,
     missionQueue: missionQueueState ? publicMissionWorkQueue(missionQueueState.queue) : null,
+    progress: await progressSnapshotForWindow(process, missionQueueState?.queue || null),
     missionQueueSets: publicMissionQueueSets(missionQueueSetStore),
     fleetStatus: await fleetStatusSnapshot(),
     audit: await auditSnapshotForWindow(windowId, process)
@@ -13599,6 +13824,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return respond(snapshotForWindow(message.windowId));
     case "EIC_GF_SET_NEXT_INSTRUCTION":
       return respond(withVerifiedWorkerMessage(message, sender, (bound) => setNextInstruction(bound)));
+    case "EIC_GF_PROGRESS_OPERATOR_RESPONSE":
+      return respond(withVerifiedWorkerMessage(message, sender, (bound) => progressOperatorResponse({
+        windowId: bound.windowId,
+        missionKey: String(bound.missionKey || ""),
+        answer: String(bound.answer || "").slice(0, 4000),
+        mode: String(bound.mode || "ANSWER"),
+        auditSessionId: String(bound.auditSessionId || "")
+      })));
     case "EIC_GF_UI_EVENT":
       return respond(auditUiEvent(
         message.windowId,

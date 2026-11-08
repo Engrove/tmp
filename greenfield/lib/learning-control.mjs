@@ -541,10 +541,25 @@ export function buildLearningControlContext({
   const discoveryFresh = sameWorkBlock &&
     Boolean(previousResult && !previousResult.malformed && previousResult.aik.discovery);
   const closureRequired = checkpointRequired === true;
+  // v2.0.0: AIK discovery is a keypoint check, not a per-turn ritual. Once the
+  // AIK owner reported it unavailable in this chat session (for example
+  // aik_trusted_session_required), it is not demanded again in that session.
+  const sessionSeq = Number(process?.sessionSeq || 1);
+  const reportedUnavailable = Boolean(previousResult && !previousResult.malformed &&
+    previousResult.aik.discovery === "DISCOVERY_UNAVAILABLE_SCOPED");
+  const aikUnavailableSessionSeq = reportedUnavailable
+    ? sessionSeq
+    : (followUp && Number(previousContext?.trace?.aikUnavailableSessionSeq || 0) === sessionSeq ? sessionSeq : 0);
+  const aikUnavailable = aikUnavailableSessionSeq === sessionSeq && aikUnavailableSessionSeq > 0;
+  const aikDiscovery = aikUnavailable
+    ? OBLIGATION.REQUIRED_AT_DECLARED_KEYPOINT
+    : carriedOverObligations.includes("AIK_DISCOVERY")
+      ? OBLIGATION.REQUIRED
+      : discoveryFresh
+        ? OBLIGATION.FRESH_RESULT_REUSABLE
+        : atKeypoint ? OBLIGATION.REQUIRED : OBLIGATION.REQUIRED_AT_DECLARED_KEYPOINT;
   const obligations = {
-    AIK_DISCOVERY: discoveryFresh && !carriedOverObligations.includes("AIK_DISCOVERY")
-      ? OBLIGATION.FRESH_RESULT_REUSABLE
-      : OBLIGATION.REQUIRED,
+    AIK_DISCOVERY: aikDiscovery,
     KAIZEN_RETRIEVAL: atKeypoint || carriedOverObligations.includes("KAIZEN_RETRIEVAL")
       ? OBLIGATION.REQUIRED
       : OBLIGATION.REQUIRED_AT_DECLARED_KEYPOINT,
@@ -577,7 +592,7 @@ export function buildLearningControlContext({
       aikDiscovery: obligations.AIK_DISCOVERY === OBLIGATION.FRESH_RESULT_REUSABLE
     },
     previousResult: previousResultSummary(previousResult),
-    trace: { blockerStreak }
+    trace: { blockerStreak, ...(aikUnavailable ? { aikUnavailableSessionSeq } : {}) }
   };
 }
 

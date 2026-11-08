@@ -1,6 +1,6 @@
 import { conversationKey } from './restart-recovery.mjs';
-export const SESSION_BROKER_MAX_QUANTA = 3;
-export const SESSION_BROKER_MAX_PROMPTS = 6;
+export const SESSION_BROKER_MAX_QUANTA = 4;
+export const SESSION_BROKER_MAX_PROMPTS = 10;
 // Counts belong to a proven conversation, not process.turn or queue activation.
 // Operative dispatches count once; initialization and transport continuation do not.
 export function completeBrokerTurn(process, { quantumCompleted = false } = {}) {

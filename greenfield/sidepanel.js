@@ -88,6 +88,9 @@ const state = {
   globalCapacityScheduler: null,
   missionQueue: null,
   missionQueueSets: [],
+  progress: [],
+  progressBusy: {},
+  progressNotices: {},
   fleetStatus: null,
   activeUiTab: "overview",
   queueBusy: false,
@@ -1377,6 +1380,8 @@ function renderMissionQueue({ refocus = null } = {}) {
           : "";
         const progress = processCtx
           ? `${Number(processCtx.interactionCount || 0)}/${Number(processCtx.maxInteractions || item.maxInteractions || 0)} slutförda i kvanten`
+          : item.operatorWait
+            ? "Väntar på operatör"
           : blocked
             ? item.lastOutcome === "DELIVERY_CONTINUATION_LIMIT"
               ? "väntar på ägaravstämning av originalsvaret före säker fortsättning"
@@ -1411,7 +1416,7 @@ function renderMissionQueue({ refocus = null } = {}) {
               <button class="ghost" data-queue-action="remove" ${active ? "disabled" : ""} title="Ta bort">×</button>
               <button class="ghost schedule-btn" data-queue-action="schedule" title="Körtider och resonemangsnivå">Schema / nivå</button>
             </div>
-            <div class="queue-row-meta">${escapeHtml(priorityLabel(item.priority))} · ${Number(item.maxInteractions || 0)} interaktioner/kvant · ${escapeHtml(progress)}${escapeHtml(delegationMeta)}</div>
+            <div class="queue-row-meta"${item.operatorWait ? ` title="${escapeHtml(item.operatorWait.ask || "")}"` : ""}>${escapeHtml(priorityLabel(item.priority))} · ${Number(item.maxInteractions || 0)} interaktioner/kvant · ${escapeHtml(progress)}${escapeHtml(delegationMeta)}</div>
             <div class="queue-row-schedule">Resonemang: ${escapeHtml(reasoningLabels[normalizeReasoningLevel(item.reasoningLevel)])}</div>
             <div class="queue-row-schedule ${item.scheduleBlockReason ? "closed" : ""}">${escapeHtml(queueScheduleText(item))}</div>
           </div>`;
@@ -1907,8 +1912,219 @@ async function handleQueueListChange(event) {
 }
 
 
+// ---- Framsteg (progress ledger) panel -------------------------------------
+const PROGRESS_STAGE_MARK = { DONE: "✓", ACTIVE: "▶", PENDING: "·", BLOCKED: "⚠", DROPPED: "–" };
+const PROGRESS_ALERT_LABEL = { CHANGE_ROUTE: "Byter väg", STRATEGY_SWITCH: "Strategibyte", OPERATOR_REQUIRED: "Väntar på dig" };
+
+function progressEl(doc, tag, className, text) {
+  const el = doc.createElement(tag);
+  if (className) el.className = className;
+  if (text !== undefined && text !== null) el.textContent = String(text);
+  return el;
+}
+
+function progressMissionLabel(entry, queueItems) {
+  const key = String(entry?.missionKey || "");
+  const item = (Array.isArray(queueItems) ? queueItems : []).find((i) => i && i.savedMissionId && i.savedMissionId === key);
+  return String(item?.label || key || "Uppdrag");
+}
+
+// Rebuilds the read-only part of a card. Uses textContent only.
+function buildProgressBody(doc, entry, label, openKeys) {
+  const frag = doc.createDocumentFragment();
+  const stages = Array.isArray(entry.stages) ? entry.stages : [];
+  const c = entry.counters || {};
+  const done = stages.filter((s) => s.state === "DONE").length;
+  const head = progressEl(doc, "div", "progress-head");
+  head.append(progressEl(doc, "strong", "", label));
+  if (PROGRESS_ALERT_LABEL[entry.alert]) {
+    const chip = progressEl(doc, "span", `progress-alert-chip alert-${String(entry.alert).toLowerCase().replace(/_/g, "-")}`, PROGRESS_ALERT_LABEL[entry.alert]);
+    if (entry.alertReason) chip.title = String(entry.alertReason);
+    head.append(chip);
+  }
+  frag.append(head);
+  const ol = progressEl(doc, "ul", "progress-stages");
+  for (const s of stages) {
+    const li = progressEl(doc, "li", `progress-stage stage-${String(s.state || "PENDING").toLowerCase()}`);
+    li.dataset.state = String(s.state || "PENDING");
+    if (s.id === entry.currentStageId) li.classList.add("current");
+    li.append(progressEl(doc, "span", "stage-mark", PROGRESS_STAGE_MARK[s.state] || "·"), progressEl(doc, "span", "stage-title", s.title || s.id || ""));
+    ol.append(li);
+  }
+  frag.append(ol);
+  frag.append(progressEl(doc, "div", "progress-done", `Etapper klara: ${done}/${stages.length}`));
+  frag.append(progressEl(doc, "div", "progress-counters",
+    `${Number(c.turns || 0)} turer · ${Number(c.advanced || 0)} framsteg · ${Number(c.churnStreak || 0)} turer utan framsteg i rad`));
+  const verdicts = Array.isArray(entry.lastVerdicts) ? entry.lastVerdicts : [];
+  if (verdicts.length) {
+    const row = progressEl(doc, "div", "progress-verdicts");
+    for (const v of verdicts) row.append(progressEl(doc, "span", "progress-verdict", v));
+    frag.append(row);
+  }
+  const dead = Array.isArray(entry.deadEnds) ? entry.deadEnds : [];
+  if (dead.length) {
+    const det = progressEl(doc, "details", "progress-deadends");
+    det.dataset.progressKey = `${entry.missionKey}::dead`;
+    if (openKeys.has(det.dataset.progressKey)) det.open = true;
+    det.append(progressEl(doc, "summary", "", `Återvändsgränder (${dead.length})`));
+    for (const d of dead) det.append(progressEl(doc, "p", "progress-deadend", `${d.route || ""}${d.reason ? ` — ${d.reason}` : ""}`));
+    frag.append(det);
+  }
+  return frag;
+}
+
+function buildProgressForm(doc, entry) {
+  const req = entry.operatorRequest;
+  const box = progressEl(doc, "div", "progress-op-box");
+  box.dataset.requestId = String(req.requestId || "");
+  box.dataset.missionKey = String(entry.missionKey || "");
+  box.append(progressEl(doc, "div", "label", "Greenfield behöver dig"));
+  box.append(progressEl(doc, "p", "progress-op-ask", req.ask || ""));
+  if (req.why) box.append(progressEl(doc, "p", "progress-op-why", `Varför: ${req.why}`));
+  if (req.then) box.append(progressEl(doc, "p", "progress-op-then", `Sedan: ${req.then}`));
+  const ta = progressEl(doc, "textarea", "progress-op-answer");
+  ta.rows = 3; ta.maxLength = 4000; ta.placeholder = "Skriv ditt svar";
+  ta.setAttribute("aria-label", "Svar till Greenfield");
+  ta.dataset.progressAnswer = "1";
+  const opts = Array.isArray(req.options) ? req.options : [];
+  if (opts.length) {
+    const row = progressEl(doc, "div", "progress-op-options");
+    for (const o of opts) {
+      const b = progressEl(doc, "button", "ghost progress-op-option", o);
+      b.type = "button"; b.dataset.progressOption = String(o);
+      row.append(b);
+    }
+    box.append(row);
+  }
+  box.append(ta);
+  const actions = progressEl(doc, "div", "progress-op-actions");
+  const send = progressEl(doc, "button", "primary", "Skicka svar");
+  send.type = "button"; send.dataset.progressSend = "ANSWER";
+  const cont = progressEl(doc, "button", "ghost", "Fortsätt utan svar");
+  cont.type = "button"; cont.dataset.progressSend = "CONTINUE";
+  actions.append(send, cont);
+  box.append(actions);
+  box.append(progressEl(doc, "p", "progress-op-error", ""));
+  return box;
+}
+
+// Re-render on every snapshot. The operator form (and its textarea) is kept
+// as-is while the same request stays OPEN, so typing is never wiped; the
+// read-only body is rebuilt with <details> open state carried over.
+function renderProgress() {
+  const root = $("progressRows");
+  if (!root) return;
+  const doc = root.ownerDocument;
+  const list = (Array.isArray(state.progress) ? state.progress : []).filter((e) => e && e.missionKey);
+  const queueItems = state.missionQueue?.items || [];
+  const existing = new Map([...root.querySelectorAll(":scope > .progress-card")].map((c) => [c.dataset.missionKey, c]));
+  const wanted = new Set(list.map((e) => String(e.missionKey)));
+  for (const [key, card] of existing) if (!wanted.has(key)) card.remove();
+  root.querySelector(":scope > .empty")?.remove();
+  if ($("progressSummary")) $("progressSummary").textContent = list.length
+    ? `${list.length} uppdrag${list.some((e) => e.operatorRequest?.status === "OPEN") ? " · väntar på dig" : ""}` : "—";
+  if (!list.length) {
+    root.append(progressEl(doc, "div", "empty", "Inga uppdrag med framstegsdata ännu."));
+    return;
+  }
+  for (const entry of list) {
+    const key = String(entry.missionKey);
+    let card = existing.get(key);
+    if (!card) {
+      card = progressEl(doc, "div", "progress-card");
+      card.dataset.missionKey = key;
+      card.append(progressEl(doc, "div", "progress-body"), progressEl(doc, "div", "progress-op"));
+    }
+    root.append(card);
+    const bodyEl = card.querySelector(":scope > .progress-body");
+    const open = new Set([...bodyEl.querySelectorAll("details[open]")].map((d) => d.dataset.progressKey));
+    bodyEl.replaceChildren(buildProgressBody(doc, entry, progressMissionLabel(entry, queueItems), open));
+    card.classList.toggle("needs-operator", entry.operatorRequest?.status === "OPEN");
+    const opEl = card.querySelector(":scope > .progress-op");
+    const req = entry.operatorRequest;
+    if (req && req.status === "OPEN") {
+      const current = opEl.firstElementChild;
+      if (!current || current.dataset.requestId !== String(req.requestId || "")) {
+        const form = buildProgressForm(doc, entry);
+        opEl.replaceChildren(form);
+        releaseControl(form.querySelector("textarea"));
+      }
+      const busy = state.progressBusy[key] === true;
+      for (const b of opEl.querySelectorAll("button")) b.disabled = busy;
+      const err = opEl.querySelector(".progress-op-error");
+      if (err) err.textContent = state.progressNotices[key] || "";
+    } else {
+      opEl.replaceChildren();
+    }
+  }
+}
+
+function progressResponseMessage({ windowId, workerId, auditSessionId, missionKey, answer, mode }) {
+  return {
+    type: "EIC_GF_PROGRESS_OPERATOR_RESPONSE",
+    windowId,
+    workerId,
+    auditSessionId,
+    missionKey,
+    answer,
+    mode
+  };
+}
+
+async function submitProgressResponse(missionKey, mode) {
+  const card = [...$("progressRows").querySelectorAll(".progress-card")].find((c) => c.dataset.missionKey === missionKey);
+  const ta = card?.querySelector("textarea.progress-op-answer");
+  const answer = String(ta?.value || "").trim();
+  if (state.progressBusy[missionKey]) return false;
+  if (mode === "ANSWER" && !answer) {
+    state.progressNotices[missionKey] = "Skriv ett svar först, eller välj Fortsätt utan svar.";
+    renderProgress();
+    return false;
+  }
+  state.progressBusy[missionKey] = true;
+  state.progressNotices[missionKey] = "";
+  renderProgress();
+  let ok = false;
+  try {
+    const result = await chrome.runtime.sendMessage(progressResponseMessage({
+      windowId: state.windowId,
+      workerId: state.workerId,
+      auditSessionId: state.auditSessionId,
+      missionKey,
+      answer,
+      mode
+    }));
+    if (!result?.ok) throw new Error(result?.error || result?.code || "Svaret kunde inte skickas.");
+    if (Array.isArray(result.progress)) state.progress = result.progress;
+    if (ta) releaseControl(ta);
+    ok = true;
+  } catch (error) {
+    state.progressNotices[missionKey] = `Svaret kunde inte skickas: ${error?.message || String(error)}`;
+  } finally {
+    state.progressBusy[missionKey] = false;
+  }
+  renderProgress();
+  if (ok) await snapshot();
+  return ok;
+}
+
+function onProgressClick(event) {
+  const target = event.target?.closest?.("button");
+  if (!target) return;
+  const card = target.closest(".progress-card");
+  if (!card) return;
+  if (target.dataset.progressOption !== undefined) {
+    const ta = card.querySelector("textarea.progress-op-answer");
+    if (ta) { ta.value = target.dataset.progressOption; ta.focus?.(); }
+    return;
+  }
+  if (target.dataset.progressSend) void submitProgressResponse(card.dataset.missionKey, target.dataset.progressSend);
+}
+$("progressRows")?.addEventListener("click", onProgressClick);
+
 async function render() {
   renderFleetStatus();
+  renderProgress();
   const process = state.process;
   const active = activeProcess(process);
   if (active) state.queueStartNotice = null;
@@ -2045,6 +2261,7 @@ async function snapshot() {
     state.globalPromptGate = result.globalPromptGate || null;
     state.globalCapacityScheduler = result.globalCapacityScheduler || null;
     state.missionQueue = result.missionQueue || null;
+    state.progress = Array.isArray(result.progress) ? result.progress : [];
     state.missionQueueSets = Array.isArray(result.missionQueueSets) ? result.missionQueueSets : [];
     state.fleetStatus = result.fleetStatus || null;
     if (result.audit) state.audit = result.audit;

@@ -1,2 +1,2 @@
 // Generated from the shipped runtime files, excluding this identity module.
-export const RUNTIME_BUILD_SHA256 = "bb45708d80fd8640501311268b3f4979f90f3d780662c294447a3fb6e3539a21";
+export const RUNTIME_BUILD_SHA256 = "9fc4d90e2d4f51cad232782613c74603015b99e503edc787c3ad08b5913867e6";

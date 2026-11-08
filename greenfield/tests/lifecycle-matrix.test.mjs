@@ -145,7 +145,8 @@ test('five-worker schedule/capacity composition over 150 turns: stopped workers 
     p.turn++;assert.equal(p.queueContext.savedMissionId,`m${p.windowId}`);
     await capacity.releaseGlobalTurnSlot({processId:p.processId,promptHash:p.lastPrompt.hash,capacity:3,now:at+100,storage:local});}
  }
- assert.equal(posts,150);assert.equal(rotations,24);assert.equal((await capacity.readGlobalCapacityScheduler(local)).activeCount,0);
+ // v2.0.0 ceilings (10 prompts / 4 quanta): 50 posts per admitted worker rotate every 10 posts.
+ assert.equal(posts,150);assert.equal(rotations,15);assert.equal((await capacity.readGlobalCapacityScheduler(local)).activeCount,0);
 });
 test('bounded request aborts timeout, ignores late success, enforces body size and does not retry mutation',async()=>{
  let resolve,calls=0,signal;const pending=boundedJsonRequest('https://example.invalid',{method:'POST'},{timeoutMs:5,fetchImpl:(_u,o)=>{calls++;signal=o.signal;return new Promise(r=>resolve=r);}});

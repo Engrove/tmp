@@ -21,7 +21,9 @@ const REQUIRED = Object.freeze([
 // runtimeControl is admitted structurally here and validated per action by
 // runtime-control.mjs, so a malformed control block yields INVALID receipts
 // instead of hiding the response's status/sessionAction from Greenfield.
-const ALLOWED = new Set([...REQUIRED, "sessionAction", "sessionReason", "pauseSeconds", "missionDelegations", "greenfieldStatusRequest", RUNTIME_CONTROL_FIELD, LEARNING_RESULT_FIELD]);
+// v2.0.0: "progress" is admitted structurally and normalized by
+// progress-engine.mjs; a malformed progress block never hides status/control.
+const ALLOWED = new Set([...REQUIRED, "sessionAction", "sessionReason", "pauseSeconds", "missionDelegations", "greenfieldStatusRequest", RUNTIME_CONTROL_FIELD, LEARNING_RESULT_FIELD, "progress"]);
 const STATUSES = new Set(["CONTINUE", "DONE", "BLOCKED"]);
 const SESSION_ACTIONS = new Set(["KEEP", "ROTATE_SESSION_NOW", MISSION_PAUSE_ACTION, "BACKGROUND_SLEEP", "YIELD_TO_QUEUE", "STOP_PROCESS"]);
 const PARSE_MODE = Object.freeze({
@@ -55,6 +57,9 @@ export function validateTargetResponse(value) {
   if (!boundedString(v.nextSuggestedAction, 12000)) errors.push("NEXT_SUGGESTED_ACTION");
   if ("sessionAction" in v && !SESSION_ACTIONS.has(String(v.sessionAction || "").toUpperCase())) errors.push("SESSION_ACTION");
   if ("sessionReason" in v && !boundedString(v.sessionReason, 2000)) errors.push("SESSION_REASON");
+  if ("progress" in v && (v.progress === null || typeof v.progress !== "object" || Array.isArray(v.progress))) {
+    errors.push("PROGRESS");
+  }
   if ("greenfieldStatusRequest" in v &&
       String(v.greenfieldStatusRequest || "").toUpperCase() !== "FULL_NEXT_PROMPT") {
     errors.push("GREENFIELD_STATUS_REQUEST");

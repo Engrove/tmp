@@ -5,7 +5,7 @@ import {
   FOCUS_CYCLE_OPERATIVE_PROMPTS, FOCUS_CYCLE_PHASES, focusCycleForPrompt,
   missionFocusCapsule, focusRotationObjective
 } from '../lib/focus-cycle.mjs';
-import { SESSION_BROKER_MAX_PROMPTS, completeBrokerTurn, sessionBrokerLimit } from '../lib/session-broker.mjs';
+import { SESSION_BROKER_MAX_PROMPTS, SESSION_BROKER_MAX_QUANTA, completeBrokerTurn, sessionBrokerLimit } from '../lib/session-broker.mjs';
 import { buildA2AEnvelope, validateA2AEnvelope, composeA2APrompt } from '../lib/a2a.mjs';
 import { createProcess } from '../lib/state.mjs';
 import { SESSION_ROTATION_STATES } from '../lib/session-rotation.mjs';
@@ -38,31 +38,32 @@ function receipt(now = NOW) {
       objective:'Validate the persisted SQLite schema, then proceed.',dependencyReady:true,authorized:true,risk:'R0'}};
 }
 
-for(let ordinal=1;ordinal<=6;ordinal++){
-  test(`work prompt ${ordinal}/6 has the exact focus phase and bounded instruction`,()=>{
+for(let ordinal=1;ordinal<=FOCUS_CYCLE_OPERATIVE_PROMPTS;ordinal++){
+  test(`work prompt ${ordinal}/${FOCUS_CYCLE_OPERATIVE_PROMPTS} has the exact focus phase and bounded instruction`,()=>{
     const p=makeProcess();
     const full=focusCycleForPrompt(p,{messageType:'CONTINUATION',promptProfile:{ordinal},now:NOW});
     assert.equal(full.operativePromptIndex,ordinal);
-    assert.equal(full.operativePromptLimit,6);
+    assert.equal(full.operativePromptLimit,FOCUS_CYCLE_OPERATIVE_PROMPTS);
     assert.equal(full.phase,FOCUS_CYCLE_PHASES[ordinal-1]);
     assert.match(full.instruction,/bounded|verifiable|testable/);
     assert.equal(Boolean(full.mission), ordinal === 1);
     assert.equal(full.mission?.missionRef,ordinal===1?'GF-1.71.1021':undefined);
   });
 }
-test('six operative prompts are counted exactly once, including retry/restart, before rotation',()=>{
+test('the operative prompt ceiling is counted exactly once, including retry/restart, before rotation',()=>{
   assert.equal(SESSION_BROKER_MAX_PROMPTS,FOCUS_CYCLE_OPERATIVE_PROMPTS);
   let p=makeProcess();p.sessionSeq=1;p.sessionBroker=null;
-  for(let turn=1;turn<=6;turn++){
+  for(let turn=1;turn<=SESSION_BROKER_MAX_PROMPTS;turn++){
     p.turn=turn;p.lastPrompt.hash=`hash-${turn}`;p.lastPrompt.promptProfile.ordinal=turn;
     p.sessionBroker=completeBrokerTurn(p);
     assert.deepEqual(completeBrokerTurn(p),p.sessionBroker);
-    assert.equal(sessionBrokerLimit(p.sessionBroker),turn===6?'SESSION_PROMPT_CEILING':'');
+    assert.equal(sessionBrokerLimit(p.sessionBroker),turn===SESSION_BROKER_MAX_PROMPTS?'SESSION_PROMPT_CEILING':'');
   }
   p.sessionSeq=2;p.lastResponse.observation.conversationKey='https://chatgpt.com/c/new';p.lastPrompt.promptProfile.ordinal=1;
   assert.equal(completeBrokerTurn(p).operativePrompts,1);
   assert.equal(p.queueContext.savedMissionId,'saved-1');
-  assert.equal(sessionBrokerLimit({completedQuanta:3,operativePrompts:3}),'SESSION_QUANTUM_CEILING');
+  assert.equal(sessionBrokerLimit({completedQuanta:SESSION_BROKER_MAX_QUANTA,operativePrompts:3}),'SESSION_QUANTUM_CEILING');
+  assert.equal(sessionBrokerLimit({completedQuanta:SESSION_BROKER_MAX_QUANTA-1,operativePrompts:3}),'');
 });
 test('owner capsule uses fresh verified readback, not previous AI nextSuggestedAction',()=>{
   const p=makeProcess();p.ownerProgressResult={ok:true,receipt:receipt()};
@@ -112,14 +113,14 @@ test('cached owner receipt must match mission, exact response and queue slot',()
 });
 test('FULL and COMPACT A2A carry the changing focus without adding response fields',()=>{
   const p=makeProcess();
-  for(let n=1;n<=6;n++) {
+  for(let n=1;n<=FOCUS_CYCLE_OPERATIVE_PROMPTS;n++) {
     const pp={schema:'eic.greenfield.prompt-profile.v1',profile:n===1?'FULL':'COMPACT',ordinal:n,lastFullOrdinal:1};
     const composed=composeA2APrompt({process:p,objective:'The next bounded owner task',messageType:n===1?'SESSION_ROTATION':'CONTINUATION',promptProfile:pp,at:NOW});
     assert.equal(validateA2AEnvelope(composed.envelope).ok,true);
     assert.equal(composed.envelope.control.focusCycle.operativePromptIndex,n);
-    assert.equal(composed.envelope.control.goalProgress.session.maxOperativePrompts,6);
+    assert.equal(composed.envelope.control.goalProgress.session.maxOperativePrompts,SESSION_BROKER_MAX_PROMPTS);
     assert.equal(composed.envelope.control.focusCycle.phase,FOCUS_CYCLE_PHASES[n-1]);
-    if(n===6)assert.match(composed.envelope.control.focusCycle.instruction,/checkpoint/);
+    if(n===FOCUS_CYCLE_OPERATIVE_PROMPTS)assert.match(composed.envelope.control.focusCycle.instruction,/checkpoint/);
     assert.ok(composed.text.length<120000);
     assert.equal(composed.envelope.responseContract.schema,'eic.a2a.response.v1');
   }
@@ -132,14 +133,14 @@ function backgroundFunction(name, deps) {
   const end=background.indexOf('\n}\n',start)+2;
   return Function(...Object.keys(deps), background.slice(start,end)+`;return ${name};`)(...Object.values(deps));
 }
-test('sending gate rotates an unposted next prompt at six; no seventh operative prompt is dispatched',async()=>{
-  const p=makeProcess();p.phase='SENDING';p.sessionBroker={...p.sessionBroker,operativePrompts:6};
+test('sending gate rotates an unposted next prompt at the ceiling; no further operative prompt is dispatched',async()=>{
+  const p=makeProcess();p.phase='SENDING';p.sessionBroker={...p.sessionBroker,operativePrompts:SESSION_BROKER_MAX_PROMPTS};
   p.pendingPrompt={text:'next',hash:'new-hash',sendAttempts:0,dispatch:null,a2a:{objective:'Unverified AI next step'}};
   let calls=0,reason;
   const tick=backgroundFunction('tickSending',{
     sessionBrokerLimit,isTransportPrompt:()=>false,
     armSessionRotation:async(_p,args)=>{calls++;reason=args.reasonCode;return {phase:'ROTATING'};},
-    SESSION_BROKER_MAX_QUANTA:3, SESSION_BROKER_MAX_PROMPTS:6
+    SESSION_BROKER_MAX_QUANTA:4, SESSION_BROKER_MAX_PROMPTS
   });
   const result=await tick(p);
   assert.equal(result.phase,'ROTATING');assert.equal(calls,1);assert.equal(reason,'SESSION_PROMPT_CEILING');

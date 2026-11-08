@@ -1,7 +1,7 @@
 (() => {
   const BRIDGE = "__EIC_GF_CONTENT_V2__";
   const OVERLAY_ID = "eic-gf-linked-overlay";
-  const CONTENT_VERSION = "1.9.53";
+  const CONTENT_VERSION = "2.0.0";
   const previousBridge = globalThis[BRIDGE] || null;
   const DOCUMENT_ID = previousBridge?.documentId || crypto.randomUUID();
   let observationSequence = Number(previousBridge?.observationSequence || 0);

@@ -753,3 +753,30 @@ button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-v
 .worker-reconciliation-form textarea { width:100%; box-sizing:border-box; }
 #workerConflicts summary { cursor:pointer; padding:8px 0; }
 #workerConflicts .recovery-row { overflow-wrap:anywhere; }
+
+/* Framsteg */
+.progress-rows { display: grid; gap: 8px; margin-top: 8px; }
+.progress-card { border: 1px solid rgba(255,255,255,.065); border-radius: 12px; padding: 9px 10px; background: rgba(0,0,0,.12); font-size: 11px; }
+.progress-card.needs-operator { border-color: rgba(255,196,102,.45); }
+.progress-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.progress-alert-chip { font-size: 10px; padding: 2px 7px; border-radius: 999px; background: rgba(113,183,255,.14); color: var(--accent2); white-space: nowrap; }
+.progress-alert-chip.alert-operator-required { background: rgba(255,196,102,.16); color: #ffe3b3; }
+.progress-stages { list-style: none; margin: 6px 0 4px; padding: 0; display: grid; gap: 2px; }
+.progress-stage { display: flex; gap: 6px; color: var(--muted); }
+.progress-stage.current, .progress-stage.stage-active { color: var(--text); font-weight: 650; }
+.progress-stage.stage-done .stage-mark { color: var(--accent); }
+.progress-stage.stage-blocked .stage-mark { color: var(--danger); }
+.stage-mark { width: 1.2em; text-align: center; flex: none; }
+.progress-done, .progress-counters { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.progress-verdicts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.progress-verdict { font-size: 9px; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,.06); color: var(--muted); }
+.progress-deadends { margin-top: 6px; color: var(--muted); }
+.progress-deadends summary { cursor: pointer; font-size: 10px; }
+.progress-deadend { margin: 3px 0 0; font-size: 10px; overflow-wrap: anywhere; }
+.progress-op-box { margin-top: 8px; padding: 9px; border-radius: 10px; border: 1px solid rgba(255,196,102,.4); background: rgba(255,196,102,.08); }
+.progress-op-box p { margin: 5px 0 0; line-height: 1.45; overflow-wrap: anywhere; }
+.progress-op-ask { font-weight: 650; }
+.progress-op-options, .progress-op-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.progress-op-box textarea { margin-top: 6px; width: 100%; }
+.progress-op-error { color: var(--danger); font-size: 10px; min-height: 0; }
+.progress-op-error:empty { display: none; }

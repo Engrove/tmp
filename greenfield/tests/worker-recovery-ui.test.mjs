@@ -87,11 +87,12 @@ test('a returning superseded worker cannot reclaim a mission',async()=>{
   const local=storage({[MISSION_OWNERSHIP_KEY]:owned(),'eic.gf.process.worker.old':process()});
   const next=process('new');await claimMissionOwnership(next,{storage:local,allowTakeover:true});
   local.data['eic.gf.process.worker.new']=next;
-  const returning={...process(),processId:'replacement-old'};
+  const returning={...process(),processId:'process-old'}; // the superseded generation itself
   assert.equal((await claimMissionOwnership(returning,{storage:local,allowTakeover:true})).allowed,false);
 });
 test('partial ownership write quarantines permissions instead of clearing the error',async()=>{
-  const local=storage({[MISSION_OWNERSHIP_KEY]:owned()});
+  const local=storage();
+  await writeCheckpoint(MISSION_OWNERSHIP_KEY,owned(),local);
   delete local.data[MISSION_OWNERSHIP_KEY];
   await assert.rejects(claimMissionOwnership(process('new'),{storage:local,allowTakeover:true}),/RECOVERY_REQUIRED/);
 });
@@ -128,7 +129,7 @@ test('live owner detection ignores stopped disabled workers and reused numeric t
   const live=fn('liveMissionWorkerIds',background,{loadPersistedProcessInventory:async()=>({processes:rows}),
     workerBindingMatches:async(w,id)=>id!=='c',chrome:{storage:{local:{},session:{}},tabs:{get:async()=>({windowId:2})}},
     loadMissionWorkQueue:async()=>({enabled:false}),TERMINAL_PHASES:new Set(['STOPPED'])});
-  assert.deepEqual(await live(),['b']);
+  assert.deepEqual(await live(),[{workerId:'b',processId:'process-b'}]);
 });
 test('recovery mutations reject content scripts and non-panel senders',()=>{
   const guard=fn('requireRecoveryPanel',background,{chrome:{runtime:{id:'ext',getURL:()=> 'chrome-extension://ext/sidepanel.html'}}});

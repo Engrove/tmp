@@ -23,7 +23,9 @@ export const PROMPT_LINT_NOT_TEXT_RULES = Object.freeze(["C08", "C09", "C10", "C
 const ALLOWED_RESPONSE_ROOT_FIELDS = new Set([
   "schema", "status", "sessionAction", "greenfieldStatusRequest", "sessionReason", "pauseSeconds",
   "summary", "workPerformed", "evidence", "blockers", "nextSuggestedAction",
-  "missionDelegations", "runtimeControl", "learningControl"
+  "missionDelegations", "runtimeControl", "learningControl",
+  // v2.0.0: the progress report is the one admitted protocol extension.
+  "progress"
 ]);
 
 const METHOD_PRECEDENCE = /unless superseded by the current always-fetch owner method/;
@@ -103,6 +105,11 @@ export function authoredPromptStrings(envelope = {}) {
   stringsUnder(e.sender?.presentation, "sender.presentation", out);
   stringsUnder(e.responseContract, "responseContract", out);
   stringsUnder(e.promptProfile?.rule, "promptProfile.rule", out);
+  // v2.0.0: Greenfield-authored progress doctrine and field guide. Stage
+  // titles, dead ends and alert instructions quote AI-reported data and are
+  // therefore not linted (a phrase in them must never stop a prompt).
+  stringsUnder(e.progress?.rule, "progress.rule", out);
+  stringsUnder(e.progress?.responseField, "progress.responseField", out);
   stringsUnder(control.ownerState, "control.ownerState", out);
   stringsUnder(control.interactionSlicing, "control.interactionSlicing", out);
   stringsUnder(control.windowQueue?.rule, "control.windowQueue.rule", out);

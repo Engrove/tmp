@@ -2,18 +2,23 @@
 // Only the existing session broker decides when to rotate a completed chat.
 // A previous EIC nextSuggestedAction is never the owner of the next mission step.
 export const FOCUS_CYCLE_SCHEMA = "eic.greenfield.focus-cycle.v1";
-export const FOCUS_CYCLE_OPERATIVE_PROMPTS = 6;
+export const FOCUS_CYCLE_OPERATIVE_PROMPTS = 10;
+// v2.0.0: ten operative prompts per chat. A rotation costs an initialization
+// turn plus a FULL prompt and loses the ChatGPT sandbox, so the chat is kept
+// while it is producing; the progress ledger, not the prompt count, carries
+// mission state across a rotation.
 export const FOCUS_CYCLE_PHASES = Object.freeze([
-  "START", "PRODUCE", "PRODUCE", "REANCHOR", "COMPLETE_STEP", "CHECKPOINT_ROTATE"
+  "START", "PRODUCE", "PRODUCE", "PRODUCE", "REANCHOR",
+  "PRODUCE", "PRODUCE", "PRODUCE", "COMPLETE_STEP", "CHECKPOINT_ROTATE"
 ]);
-const FOCUS_INSTRUCTIONS = Object.freeze([
-  "Read the canonical mission owner and its current, dependency-ready step. Identify this session's specific testable deliverable. Do one bounded useful slice; a technical side issue gets only its smallest necessary fix. Do not create a new mission.",
-  "Produce the next bounded result for the current owner step. Prefer a concrete change and required test over speculative investigation. Record only actual evidence.",
-  "Continue the same owner step with one bounded, verifiable result. If the prior approach yielded no verified progress, change the method instead of extending the investigation.",
-  "Re-anchor to the canonical mission and open owner obligations. Park unrelated work; select one bounded owner-supported slice. If two consecutive interactions genuinely lacked verified progress, reassess the method; unavailable owner evidence is UNKNOWN, not proof of no progress. Do not let the previous AI's suggested next step become an independent mission.",
-  "Converge on the current bounded step's required tests, correction and verifiable evidence. Open no optional cleanup, infrastructure work or new subproject. Keep mandatory incomplete work visible; do not invent PASS.",
-  "Perform one bounded useful slice and checkpoint its owner-verifiable outcome. Record the current owner step, proof locators, unresolved effects and next executable owner action; report unknowns honestly. Greenfield rotates this chat after the completed response, not the logical mission. Do not request a second handoff solely for rotation."
-]);
+const FOCUS_PHASE_INSTRUCTIONS = Object.freeze({
+  START: "Read the progress capsule and the canonical mission owner. If progress.planRequired is true, return progress.plan (3-8 dependency-ordered stages with observable acceptance) and start the first stage in this same turn. Otherwise deliver the current stage's next verifiable result. A technical side issue gets only its smallest necessary fix. Do not create a new mission.",
+  PRODUCE: "Deliver the next verifiable result for progress.currentStage: a concrete change, executed test or effect with its evidence. Chain quick steps when they finish the deliverable. If the prior attempt produced no delta, change the route instead of extending the investigation.",
+  REANCHOR: "Re-anchor to progress.currentStage and the canonical mission and select its next verifiable deliverable. Park unrelated work as progress.sideFindings. If two consecutive interactions produced no delta, apply the stuck protocol: different route, independent stage, or progress.operatorRequest. Do not let a previous suggested step become an independent mission.",
+  COMPLETE_STEP: "Converge on the current stage's acceptance check and report progress.stageUpdate with its verifiable evidence when it is observed. Open no optional cleanup, infrastructure work or new subproject. Do not invent PASS.",
+  CHECKPOINT_ROTATE: "Deliver one more verifiable result, then checkpoint at the mission's canonical owner: current stage, evidence locators, unresolved effects, dead ends and the next executable action. Persist any sandbox file you will need to an owner. Greenfield rotates this chat after the completed response, not the logical mission."
+});
+const FOCUS_INSTRUCTIONS = Object.freeze(FOCUS_CYCLE_PHASES.map((phase) => FOCUS_PHASE_INSTRUCTIONS[phase]));
 const truncate = (value, max) => String(value || "").replace(/\s+/g, " ").trim().slice(0, max);
 // The owner adapter validates the signed-in endpoint response at read time.
 // Recheck that this *cached* receipt still names this exact mission, issued
@@ -93,7 +98,7 @@ export function focusCycleForPrompt(process, { promptProfile = null, messageType
     instruction: FOCUS_INSTRUCTIONS[index - 1],
     currentWork: "ONE_BOUNDED_VERIFIABLE_SLICE",
     sessionBoundary: "ROTATE_CHAT_ONLY_KEEP_LOGICAL_MISSION_AND_OWNER_AUTHORITY",
-    drift: "After two genuinely unproductive turns, replan the method. Request early ROTATE_SESSION_NOW only for corroborated context drift, not merely absent evidence; avoid repeated rotations without changed owner facts.",
+    drift: "Greenfield measures progress every turn (progress.counters, progress.alert). After a turn without delta change the route; after two, switch stage or return progress.operatorRequest. Request early ROTATE_SESSION_NOW only for corroborated context drift, not merely absent evidence; avoid repeated rotations without changed owner facts.",
     mission: messageType === "SESSION_ROTATION" || index === 1
       ? missionFocusCapsule(process, now) : null
   };
@@ -102,7 +107,7 @@ export function focusCycleForPrompt(process, { promptProfile = null, messageType
 export function focusRotationObjective(process, { now = Date.now() } = {}) {
   const receipt = verifiedOwnerReceipt(process, now);
   const next = receipt?.disposition === "NEXT" ? receipt.next : null;
-  const base = "RESUME_CANONICAL_OWNER_STATE: Re-read the current Greenfield Works mission and exact subject-project owner state. Reconcile current_focus as a steering hint only. Preserve verified completed work and effect identities; choose the next dependency-ready bounded slice. Never create a new mission from prior chat suggestions.";
+  const base = "RESUME_CANONICAL_OWNER_STATE: Re-read the current Greenfield Works mission and exact subject-project owner state. Reconcile current_focus as a steering hint only. Continue progress.currentStage from the Greenfield progress capsule: treat progress.acceptedEvidence as completed unless an owner read shows a concrete invalidation, and do not retry progress.deadEnds without a changed input. Preserve verified completed work and effect identities; deliver the next verifiable result. Never create a new mission from prior chat suggestions.";
   if (next) {
     return `${base} Last verified owner snapshot proposed action ${truncate(next.actionId, 100)} on obligation ${truncate(next.obligationRef, 100)}: ${truncate(next.objective, 600)}. This is a checkpoint reference, not authorization to replay an effect; revalidate before acting.`;
   }

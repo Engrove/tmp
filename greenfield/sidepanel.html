@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
   <meta charset="utf-8">
-  <meta name="greenfield-version" content="1.9.53">
+  <meta name="greenfield-version" content="2.0.0">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>EIC Autonom Agent Greenfield</title>
   <link rel="stylesheet" href="sidepanel.css">
@@ -12,8 +12,8 @@
     <header class="hero">
       <div>
         <div class="eyebrow">EIC AUTONOM AGENT</div>
-        <h1>Greenfield <span>v1.9.53</span></h1>
-        <div class="micro">1.9.53 · Vald resonemangsnivå verifieras före sändning · Pro används inte · En avgränsad slice per interaktion · Sessionstak: 3 kvantum / 15 promptar · Delegerat arbete i samma fönster · Kööversikt i varje prompt</div>
+        <h1>Greenfield <span>v2.0.0</span></h1>
+        <div class="micro">2.0.0 · Progressmotor: etapper, stagnationsdetektion och operatörsfrågor · Vald resonemangsnivå verifieras före sändning · Pro används inte · Sessionstak: 4 kvanta / 10 promptar · Delegerat arbete i samma fönster · Kööversikt i varje prompt</div>
       </div>
       <div id="continuityLamp" class="lamp" title="Continuity"></div>
     </header>
@@ -69,6 +69,13 @@
       <div id="fleetWorkers" class="fleet-workers">
         <div class="fleet-empty">Ingen aktiv Greenfield-process.</div>
       </div>
+    </section>
+
+    <section class="card progress-card-section" data-ui-tab="overview">
+      <div class="section-head">
+        <div><div class="label">Framsteg</div><strong id="progressSummary">—</strong></div>
+      </div>
+      <div id="progressRows" class="progress-rows"><div class="empty">Inga uppdrag med framstegsdata ännu.</div></div>
     </section>
 
     <section class="card fleet-secondary" data-ui-tab="overview">
@@ -337,7 +344,7 @@
     </section>
 
     <section class="card" data-ui-tab="runtime">
-      <div class="label">Verifierad uppdragsfortsättning · v1.9.53</div>
+      <div class="label">Verifierad uppdragsfortsättning · v2.0.0</div>
       <label for="ownerProgressEndpoint">EIC:s ägarläsning (HTTPS)</label>
       <input id="ownerProgressEndpoint" type="url" placeholder="https://api.elho.fi/greenfield/owner-progress/v1" autocomplete="off">
       <button id="saveOwnerProgress" type="button">Spara ägaranslutning</button>

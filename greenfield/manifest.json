@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "EIC Autonom Agent Greenfield",
-  "description": "EIC i Chat med modellkrav, lokal förbrukningsbudget, beständiga körkvitton, skydd mot dubbla utskick och tydlig driftstatus.",
-  "version": "1.9.53",
+  "description": "EIC i Chat med etappstyrd progressmotor, stagnationsdetektion och operatörsfrågor, modellkrav, lokal förbrukningsbudget, beständiga körkvitton och skydd mot dubbla utskick.",
+  "version": "2.0.0",
   "minimum_chrome_version": "138",
   "permissions": [
     "sidePanel",
@@ -57,5 +57,5 @@
     "128": "icons/icon128.png"
   },
   "incognito": "not_allowed",
-  "version_name": "1.9.53 Automatic Worker Takeover and No-Block Queue Start"
+  "version_name": "2.0.0 Progress Engine"
 }

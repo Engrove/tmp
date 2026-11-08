@@ -161,8 +161,8 @@ for (const mutation of ['stop', 'objective', 'receipt', 'revision', 'worker']) t
 test('BLOCKED publication survives reordered storage and saves a bounded retry instead of an ACTIVE orphan', async () => {
   const p = blockedRotation(), h = queueHarness(p, { next: false });
   await h.deps.finalizeQueueTerminalAndMaybeAdvance(p);
-  assert.equal(h.queue.activeItemId, ''); assert.equal(h.queue.items[0].status, 'BLOCKED');
-  assert.ok(h.queue.items[0].blockedRetryAtMs > h.clock); assert.equal(h.queue.items[0].blockedCount, 1);
+  assert.equal(h.queue.activeItemId, ''); assert.equal(h.queue.items[0].status, 'PAUSED');
+  assert.ok(h.queue.items[0].pauseUntilMs > h.clock); assert.equal(h.queue.items[0].blockedCount, 1);
   assert.deepEqual(h.queue.items[0].processSnapshot.pendingPrompt, p.pendingPrompt);
   assert.deepEqual(h.queue.items[0].processSnapshot.ownerProgress, p.ownerProgress);
   assert.equal(h.queue.items[0].resume.objective, p.objectiveState.objective); assert.equal(h.activations, 0);
@@ -173,7 +173,7 @@ test('startup repairs the completed-response rotation orphan once, then resumes 
   assert.equal(h.queue.items[0].blockedCount, 1); assert.equal(h.writes, 1);
   await h.deps.wakeMissionQueue(1, 'RESTART_QUEUE_RECONCILE');
   assert.equal(h.writes, 1, 'recovery cannot extend the cooldown on each scan');
-  h.advance(h.queue.items[0].blockedRetryAtMs - h.clock + 1); await h.deps.wakeMissionQueue(1, 'QUEUE_WAKE_ALARM');
+  h.advance(h.queue.items[0].pauseUntilMs - h.clock + 1); await h.deps.wakeMissionQueue(1, 'QUEUE_WAKE_ALARM');
   assert.equal(h.activations, 1); assert.equal(h.current.queueContext.itemId, p.queueContext.itemId);
   assert.equal(h.current.queueContext.savedMissionId, p.queueContext.savedMissionId);
 });
@@ -183,7 +183,7 @@ test('rotation orphan yields to an independent slot after the documented five-mi
   assert.equal(h.queue.cooldownUntilMs - h.clock, 300000);
   h.advance(300001); await h.deps.wakeMissionQueue(1, 'QUEUE_WAKE_ALARM');
   assert.equal(h.activations, 1); assert.equal(h.current.queueContext.itemId, 'item-b');
-  assert.equal(h.queue.items[0].status, 'BLOCKED');
+  assert.equal(h.queue.items[0].status, 'PAUSED');
 });
 for (const kind of ['unknown', 'untrusted', 'cross-turn', 'cross-run', 'pause', 'quota', 'hash', 'stopped', 'hard-stop'])
 test(`rotation orphan recovery refuses ${kind}`, async () => {
@@ -322,7 +322,7 @@ test('UI describes a parked ACK as blocked and exposes a scoped retry, not a fal
   const panel = await readFile(new URL('sidepanel.js', root), 'utf8');
   assert.match(reasonLabel('SESSION_INITIALIZATION_ACK_EXHAUSTED'), /andra körbara uppdrag/);
   assert.match(workerReason({ phase: 'WAITING', sessionInitialization: { status: 'AWAITING_ACK' } }), /högst en gång/);
-  assert.match(panel, /data-queue-action="retry-initialization"/);
+  assert.match(panel, /initieringen återförsöks automatiskt/); // v1.9.51/53: automatic retry, no manual button
   assert.match(panel, /const processCtx = active && state\.process/);
   assert.match(background, /RETRY_INITIALIZATION"\) requireRecoveryPanel\(sender\)/);
 });
