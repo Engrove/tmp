@@ -1,0 +1,100 @@
+TAP version 13
+# Subtest: captured label passes ordinary inspection but cannot prove highest available level
+ok 1 - captured label passes ordinary inspection but cannot prove highest available level
+  ---
+  duration_ms: 5.719153
+  type: 'test'
+  ...
+# Subtest: breaking only ordinary approval removes false success with the same failed maximum control
+ok 2 - breaking only ordinary approval removes false success with the same failed maximum control
+  ---
+  duration_ms: 14.18744
+  type: 'test'
+  ...
+# Subtest: manual recheck performs maximum verification before reporting success and waking initialization
+ok 3 - manual recheck performs maximum verification before reporting success and waking initialization
+  ---
+  duration_ms: 10.717315
+  type: 'test'
+  ...
+# Subtest: failed maximum check is reported as failed and the hold is retained
+ok 4 - failed maximum check is reported as failed and the hold is retained
+  ---
+  duration_ms: 1.287314
+  type: 'test'
+  ...
+# Subtest: a missing sibling tab cannot cancel the healthy worker check
+ok 5 - a missing sibling tab cannot cancel the healthy worker check
+  ---
+  duration_ms: 2.451396
+  type: 'test'
+  ...
+# Subtest: a paused worker keeps its hold and phase while another worker resumes
+ok 6 - a paused worker keeps its hold and phase while another worker resumes
+  ---
+  duration_ms: 1.932933
+  type: 'test'
+  ...
+# Subtest: model recheck cannot clear ADMISSION_PAUSED
+ok 7 - model recheck cannot clear ADMISSION_PAUSED
+  ---
+  duration_ms: 1.482842
+  type: 'test'
+  ...
+# Subtest: model recheck cannot clear PROVIDER_QUOTA_HOLD
+ok 8 - model recheck cannot clear PROVIDER_QUOTA_HOLD
+  ---
+  duration_ms: 1.331118
+  type: 'test'
+  ...
+# Subtest: model recheck cannot clear LOCAL_MESSAGE_BUDGET
+ok 9 - model recheck cannot clear LOCAL_MESSAGE_BUDGET
+  ---
+  duration_ms: 1.416844
+  type: 'test'
+  ...
+# Subtest: STOP while the UI check awaits cannot be overwritten or restarted
+ok 10 - STOP while the UI check awaits cannot be overwritten or restarted
+  ---
+  duration_ms: 1.806567
+  type: 'test'
+  ...
+# Subtest: an uncertain previous dispatch remains owned by reconciliation
+ok 11 - an uncertain previous dispatch remains owned by reconciliation
+  ---
+  duration_ms: 1.218362
+  type: 'test'
+  ...
+# Subtest: automatic start reaches dispatch and WAITING through real runtime functions
+ok 12 - automatic start reaches dispatch and WAITING through real runtime functions
+  ---
+  duration_ms: 6.917666
+  type: 'test'
+  ...
+# Subtest: manual recheck reaches dispatch and WAITING through real runtime functions
+ok 13 - manual recheck reaches dispatch and WAITING through real runtime functions
+  ---
+  duration_ms: 1.979031
+  type: 'test'
+  ...
+# Subtest: closed schedule parks one worker while the other initializes
+ok 14 - closed schedule parks one worker while the other initializes
+  ---
+  duration_ms: 2.291902
+  type: 'test'
+  ...
+# Subtest: explicit quota recovery still works when its source and every live worker have fresh approved UI
+ok 15 - explicit quota recovery still works when its source and every live worker have fresh approved UI
+  ---
+  duration_ms: 2.192044
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 177.654982

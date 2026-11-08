@@ -1,0 +1,405 @@
+{
+  "inputSha256": "b1e636cc7c75689ea2c6c5c844244e891207758f6f76ee25df9714dcf4fe559b",
+  "appVersion": "1.9.25",
+  "exportAt": "2026-10-20T04:26:30.315Z",
+  "items": [
+    {
+      "itemId": "queue-item-b44f0d72-c949-4c29-9a5b-86d19a92e8e7",
+      "savedMissionId": "mission-1791533486695-sue7n4gm",
+      "status": "READY",
+      "schedule": null,
+      "maxInteractions": 5,
+      "order": 0,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792431438747,
+      "lastQuantumCompletedAtMs": 1792431438747,
+      "workerId": "worker-2fcd6d31-c7ef-4308-9357-03ca04e27eec"
+    },
+    {
+      "itemId": "queue-item-50724b5d-0e02-4e1d-a527-844990a7a640",
+      "savedMissionId": "mission-1791533486696-kmf1g3ho",
+      "status": "READY",
+      "schedule": null,
+      "maxInteractions": 5,
+      "order": 1,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792435354233,
+      "lastQuantumCompletedAtMs": 1792435354233,
+      "workerId": "worker-2fcd6d31-c7ef-4308-9357-03ca04e27eec"
+    },
+    {
+      "itemId": "queue-item-b79e9406-6bc1-499b-86b4-938456b2ad98",
+      "savedMissionId": "mission-1791533486693-i7h121v7",
+      "status": "READY",
+      "schedule": null,
+      "maxInteractions": 5,
+      "order": 2,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792438218157,
+      "lastQuantumCompletedAtMs": 1792438218157,
+      "workerId": "worker-2fcd6d31-c7ef-4308-9357-03ca04e27eec"
+    },
+    {
+      "itemId": "queue-item-3468d848-e5c2-4305-92b5-07042fbcd0b8",
+      "savedMissionId": "mission-1791533486694-pjipmu42",
+      "status": "ACTIVE",
+      "schedule": null,
+      "maxInteractions": 5,
+      "order": 3,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792428544040,
+      "lastQuantumCompletedAtMs": 1792428544040,
+      "workerId": "worker-2fcd6d31-c7ef-4308-9357-03ca04e27eec"
+    },
+    {
+      "itemId": "queue-item-896fd7f3-960d-43c6-900d-1321c759a3d6",
+      "savedMissionId": "mission-1791533486679-dnwhto13",
+      "status": "READY",
+      "schedule": {
+        "pauseUntilMs": 0,
+        "schema": "eic.greenfield.queue-schedule.v1",
+        "updatedAtMs": 1792411511080,
+        "updatedBy": "OPERATOR",
+        "windows": [
+          {
+            "days": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "end": "07:30",
+            "start": "16:00"
+          },
+          {
+            "days": [
+              5
+            ],
+            "end": "00:00",
+            "start": "16:00"
+          },
+          {
+            "days": [
+              6,
+              7
+            ],
+            "end": "23:59",
+            "start": "00:00"
+          }
+        ]
+      },
+      "maxInteractions": 5,
+      "order": 0,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792470267576,
+      "lastQuantumCompletedAtMs": 1792458698157,
+      "workerId": "worker-349835f2-215d-4c7c-b13f-dae2fb55cf19"
+    },
+    {
+      "itemId": "queue-item-b209cd3e-7e69-49b0-a514-35985834c577",
+      "savedMissionId": "mission-1791536678246-4kbcw217",
+      "status": "ACTIVE",
+      "schedule": {
+        "pauseUntilMs": 0,
+        "schema": "eic.greenfield.queue-schedule.v1",
+        "updatedAtMs": 1792411511080,
+        "updatedBy": "OPERATOR",
+        "windows": [
+          {
+            "days": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "end": "07:30",
+            "start": "16:00"
+          },
+          {
+            "days": [
+              5
+            ],
+            "end": "00:00",
+            "start": "16:00"
+          },
+          {
+            "days": [
+              6,
+              7
+            ],
+            "end": "23:59",
+            "start": "00:00"
+          }
+        ]
+      },
+      "maxInteractions": 5,
+      "order": 1,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792462380527,
+      "lastQuantumCompletedAtMs": 1792462380527,
+      "workerId": "worker-349835f2-215d-4c7c-b13f-dae2fb55cf19"
+    },
+    {
+      "itemId": "queue-item-f2c92b78-f87d-457c-a731-bae689e5cbcb",
+      "savedMissionId": "mission-1791533486685-4pworrqf",
+      "status": "READY",
+      "schedule": {
+        "pauseUntilMs": 0,
+        "schema": "eic.greenfield.queue-schedule.v1",
+        "updatedAtMs": 1792411511080,
+        "updatedBy": "OPERATOR",
+        "windows": [
+          {
+            "days": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "end": "07:30",
+            "start": "16:00"
+          },
+          {
+            "days": [
+              5
+            ],
+            "end": "00:00",
+            "start": "16:00"
+          },
+          {
+            "days": [
+              6,
+              7
+            ],
+            "end": "23:59",
+            "start": "00:00"
+          }
+        ]
+      },
+      "maxInteractions": 3,
+      "order": 2,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792465299253,
+      "lastQuantumCompletedAtMs": 1792465299253,
+      "workerId": "worker-349835f2-215d-4c7c-b13f-dae2fb55cf19"
+    },
+    {
+      "itemId": "queue-item-52ac007a-70f9-4027-8dbe-d5914c5769e9",
+      "savedMissionId": "mission-1792313561765-g0y0zbr6",
+      "status": "READY",
+      "schedule": {
+        "pauseUntilMs": 0,
+        "schema": "eic.greenfield.queue-schedule.v1",
+        "updatedAtMs": 1792411511080,
+        "updatedBy": "OPERATOR",
+        "windows": [
+          {
+            "days": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "end": "03:00",
+            "start": "20:00"
+          }
+        ]
+      },
+      "maxInteractions": 5,
+      "order": 3,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792445387151,
+      "lastQuantumCompletedAtMs": 1792445387151,
+      "workerId": "worker-349835f2-215d-4c7c-b13f-dae2fb55cf19"
+    },
+    {
+      "itemId": "queue-item-3fc0b645-0904-4ca4-8c61-a4962653d717",
+      "savedMissionId": "mission-1791533486691-ha3fm5n4",
+      "status": "READY",
+      "schedule": {
+        "pauseUntilMs": 0,
+        "schema": "eic.greenfield.queue-schedule.v1",
+        "updatedAtMs": 1792411602271,
+        "updatedBy": "OPERATOR",
+        "windows": [
+          {
+            "days": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "end": "16:00",
+            "start": "07:30"
+          }
+        ]
+      },
+      "maxInteractions": 5,
+      "order": 0,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792415222975,
+      "workerId": "worker-63238790-e505-4ed9-a372-864a05b9f15a"
+    },
+    {
+      "itemId": "queue-item-af860f02-daf4-4bbd-ac3a-d11f20521713",
+      "savedMissionId": "mission-1791533486692-krragnwa",
+      "status": "READY",
+      "schedule": {
+        "pauseUntilMs": 0,
+        "schema": "eic.greenfield.queue-schedule.v1",
+        "updatedAtMs": 1792411602271,
+        "updatedBy": "OPERATOR",
+        "windows": [
+          {
+            "days": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "end": "16:00",
+            "start": "07:30"
+          }
+        ]
+      },
+      "maxInteractions": 5,
+      "order": 1,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792411602271,
+      "workerId": "worker-63238790-e505-4ed9-a372-864a05b9f15a"
+    },
+    {
+      "itemId": "queue-item-1366fd15-7a5b-4fde-9486-1f90298950fe",
+      "savedMissionId": "mission-1791533486690-nnrhwbwg",
+      "status": "READY",
+      "schedule": {
+        "pauseUntilMs": 0,
+        "schema": "eic.greenfield.queue-schedule.v1",
+        "updatedAtMs": 1792411602271,
+        "updatedBy": "OPERATOR",
+        "windows": [
+          {
+            "days": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "end": "16:00",
+            "start": "07:30"
+          }
+        ]
+      },
+      "maxInteractions": 5,
+      "order": 2,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792411602271,
+      "workerId": "worker-63238790-e505-4ed9-a372-864a05b9f15a"
+    },
+    {
+      "itemId": "queue-item-4c4287c9-434a-4b73-ac2f-4d264e11a2fb",
+      "savedMissionId": "mission-1791533486689-5jatq7r3",
+      "status": "READY",
+      "schedule": null,
+      "maxInteractions": 5,
+      "order": 0,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792461634190,
+      "lastQuantumCompletedAtMs": 1792461634190,
+      "workerId": "worker-7b618f3a-8a1a-4f68-9c9f-907ccc8e7f3b"
+    },
+    {
+      "itemId": "queue-item-7f44ff4c-907e-45cc-acd7-b9de7ebbcd35",
+      "savedMissionId": "mission-1791533486683-2tq84xt0",
+      "status": "READY",
+      "schedule": null,
+      "maxInteractions": 5,
+      "order": 1,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792465673636,
+      "lastQuantumCompletedAtMs": 1792465673636,
+      "workerId": "worker-7b618f3a-8a1a-4f68-9c9f-907ccc8e7f3b"
+    },
+    {
+      "itemId": "queue-item-22fff60f-dd05-4a64-96a4-7f98f58ae56d",
+      "savedMissionId": "mission-1792232935498-xisikt13",
+      "status": "READY",
+      "schedule": null,
+      "maxInteractions": 5,
+      "order": 2,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792469550264,
+      "lastQuantumCompletedAtMs": 1792469550264,
+      "workerId": "worker-7b618f3a-8a1a-4f68-9c9f-907ccc8e7f3b"
+    },
+    {
+      "itemId": "queue-item-5c371675-fa3c-4818-a92f-9eef0a100371",
+      "savedMissionId": "mission-1791533486681-1mtavrve",
+      "status": "ACTIVE",
+      "schedule": null,
+      "maxInteractions": 5,
+      "order": 3,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792457243566,
+      "lastQuantumCompletedAtMs": 1792457243566,
+      "workerId": "worker-7b618f3a-8a1a-4f68-9c9f-907ccc8e7f3b"
+    },
+    {
+      "itemId": "queue-item-a18ea0d5-7297-4102-ac93-520ec8779964",
+      "savedMissionId": "mission-1791533486698-kjmxq6cm",
+      "status": "READY",
+      "schedule": null,
+      "maxInteractions": 5,
+      "order": 4,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792458965423,
+      "lastQuantumCompletedAtMs": 1792458965423,
+      "workerId": "worker-7b618f3a-8a1a-4f68-9c9f-907ccc8e7f3b"
+    },
+    {
+      "itemId": "queue-item-b7a95115-2db4-4a90-a4e4-2ba1b02dc37e",
+      "savedMissionId": "mission-1791533486697-xs9hltd1",
+      "status": "READY",
+      "schedule": {
+        "minIntervalMinutes": 180,
+        "pauseUntilMs": 0,
+        "schema": "eic.greenfield.queue-schedule.v1",
+        "updatedAtMs": 1792411574080,
+        "updatedBy": "OPERATOR",
+        "windows": []
+      },
+      "maxInteractions": 2,
+      "order": 0,
+      "pauseUntilMs": 0,
+      "blockedRetryAtMs": 0,
+      "readySinceMs": 1792463495237,
+      "lastQuantumCompletedAtMs": 1792463495237,
+      "workerId": "worker-be65371a-3680-4315-9dbd-85c0f320a8d5"
+    }
+  ]
+}

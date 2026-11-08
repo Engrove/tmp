@@ -1,0 +1,19 @@
+{
+  "provenance": {
+    "note": "Transcript text is supplied evidence. HTML is a reconstruction of Markdown block structure, not captured production DOM. Logged response digests are not asserted to equal the reconstruction.",
+    "transcriptSHA256": "5a9c25921c1edef681312103acace8dfeb2d6b86ac5d7959814fa52f44b89f1d",
+    "diagnosticsSHA256": "6cdf2c03c0d3ef63b99382b765661145ee6270f0273d462c8e140baba1245cc5"
+  },
+  "initial": {
+    "expectedHash": "906b6b4f387bced2cef0a7e84ed93c5ea32c9db1e0e787f6939c571d733a8f16",
+    "html": "<p><strong>EIC session initialization: READY</strong></p><p>Read-only bootstrap completed successfully.</p><ul><li><strong><code>getMe</code></strong> identity and Core access verified.</li><li><strong><code>global.get</code></strong> catalog completed: 94 of 94 entries.</li><li>Required session, Greenfield, Self-learn and AIK policies retrieved.</li><li>Project 103 opened. Current project state, recent updates, milestones and scoped semantic context read.</li><li>Latest project instructions distinguished from the older <strong><code>current_focus</code></strong> steering pointer.</li><li>No mission execution, project mutations, learning writes or queue controls performed.</li></ul><p>The Greenfield session contract reserves canonical mission resolution and operative policy checks for the next work prompt.</p><p><strong>Acknowledgment:</strong></p><p><strong><code>906b6b4f387bced2cef0a7e84ed93c5ea32c9db1e0e787f6939c571d733a8f16</code></strong></p><p>Awaiting the next operative prompt.</p><p>Status: READY — read-only initialization complete Project: 103 — Elli Lab / EXP8 – Elli-Maria 4B API Testbed Time: 2026-10-23T12:08:09.378527Z</p>",
+    "loggedTextLength": 886,
+    "loggedResponseHash": "8f265990e856dc76017f5b2b23a56c6d762ac513f3beefd0d821800fe147cbd6"
+  },
+  "repair": {
+    "expectedHash": "b2b0a34eaf7688fe53cee4b6c69821c350383b05ae03342a0a774ac4c0d29768",
+    "html": "<p><strong>EIC session acknowledgment: CONFIRMED</strong></p><p>Previous initialization succeeded for project 103. No project work or data changes performed. Awaiting the next operative prompt.</p><p><strong><code>b2b0a34eaf7688fe53cee4b6c69821c350383b05ae03342a0a774ac4c0d29768</code></strong></p><p>Status: READY — initialization acknowledged Project: 103 — Elli Lab / EXP8 – Elli-Maria 4B API Testbed Time: 2026-10-23T12:15:04.510193Z</p>",
+    "loggedTextLength": 366,
+    "loggedResponseHash": "589052a481ce64316deab56cf8889a6ad478dd9e4f0269e90f0a4ac721524c3b"
+  }
+}

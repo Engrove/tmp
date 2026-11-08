@@ -1,0 +1,73 @@
+{
+  "sourceFile": "Greenfield-diagnostics-2026-10-17T09-36-03-418Z.json",
+  "sourceSHA256": "0b8e72277601f1553e0bed9aeb9c166d2c3a304049406f99bef75c44d8e0c5dc",
+  "appVersion": "1.9.18",
+  "runtimeFault": "",
+  "p38": {
+    "processId": "process-5570e6cf-b9fc-41f0-98d1-05ed01a62e16",
+    "phase": "WAITING",
+    "turn": 8,
+    "holdCode": "DELIVERY_SOURCE_TURN_UNPROVEN",
+    "promptHash": "fa864382854206047e36dfb47e56507f3e9c6356dbfc5b78f6d5dd03501c11b8",
+    "userTurnId": "92ad1a67-1f75-46f4-b14c-a3d48747a00a",
+    "acknowledged": true,
+    "sessionSeq": 1,
+    "interactionCount": 2,
+    "retry": null
+  },
+  "p59": {
+    "processId": "process-3af6e7aa-2e71-4f69-b78f-74cc5d4f3f22",
+    "holdCode": "THINKING_EFFORT_UNKNOWN",
+    "evidence": {
+      "source": "CHATGPT_UI_CONTROLS_V1",
+      "observedAtMs": 1792229742786,
+      "modelLabel": "",
+      "effortLabel": "",
+      "ambiguous": true,
+      "ambiguityKind": "effort",
+      "highestEffort": {
+        "label": "Pro",
+        "modelKey": "[[\"Pro\",\"Välj ChatGPT-modell\"]]",
+        "selectionKey": "{\"label\":\"Pro\",\"value\":\"medium\",\"model\":\"\"}",
+        "status": "VERIFIED",
+        "strategy": "ORDINAL_MAXIMUM",
+        "target": "5",
+        "url": "https://chatgpt.com/g/g-test/c/night-replay",
+        "value": "medium",
+        "verifiedAtMs": 1792229742746
+      },
+      "receiptStatus": {
+        "ageMs": 40,
+        "currentReceiptValid": true,
+        "expiresAtMs": 1792229802746,
+        "receiptInvalidReason": "",
+        "ttlMs": 60000
+      },
+      "reasoningControlSeen": true,
+      "effortControlSeen": true,
+      "controlsSeen": {
+        "currentUseNotices": [],
+        "effort": [
+          "Pro",
+          "Balanserad"
+        ],
+        "model": [
+          "Pro"
+        ],
+        "modelControls": [
+          {
+            "ariaLabel": "Välj ChatGPT-modell",
+            "text": "Pro"
+          }
+        ],
+        "recommendations": []
+      }
+    }
+  },
+  "p2": {
+    "phase": "SENDING",
+    "sendAttempts": 0,
+    "priority": "URGENT"
+  },
+  "notes": "Only diagnostic fields needed for regression; P59 URL replaced with synthetic test URL. DOM below is reconstructed, not a captured page. P38 final DOM hash is not in the log; collapsed-hash mismatch is a regression scenario, not a proven recorded hash."
+}

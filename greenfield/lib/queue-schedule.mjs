@@ -1,0 +1,375 @@
+// v1.8.1 per-slot queue scheduler.
+//
+// A queue slot may carry weekly run windows in the operator's local time zone
+// plus an optional one-shot pauseUntil. A slot is runnable only when it is not
+// paused and, if it has windows, the current local time is inside one of them.
+// v1.9.7: minIntervalMinutes adds an elapsed-time wait after a complete quantum.
+// The completion timestamp belongs to the queue item, not this schedule.
+// An in-flight turn is never interrupted: the gate is evaluated before a slot is
+// activated and after each captured response (see background.js).
+//
+// Pure module: every function takes explicit times; local-time arithmetic uses
+// the runtime's time zone (the Chrome profile's OS zone).
+
+export const QUEUE_SCHEDULE_SCHEMA = "eic.greenfield.queue-schedule.v1";
+export const MAX_SCHEDULE_WINDOWS = 7;
+export const MAX_SCHEDULE_PAUSE_DAYS = 30;
+export const MAX_SCHEDULE_PAUSE_MS = MAX_SCHEDULE_PAUSE_DAYS * 24 * 60 * 60 * 1000;
+export const MAX_MIN_INTERVAL_MINUTES = 30 * 24 * 60;
+export const SCHEDULE_BLOCK = Object.freeze({
+  PAUSED: "SCHEDULE_PAUSED",
+  INTERVAL: "MIN_INTERVAL_WAIT",
+  OUTSIDE_WINDOW: "OUTSIDE_RUN_WINDOW",
+  INVALID: "SCHEDULE_INVALID"
+});
+// GREENFIELD: a runtime pause set by Greenfield itself (v1.8.3 provider content block).
+export const SCHEDULE_EDITORS = Object.freeze(["OPERATOR", "AI", "GREENFIELD"]);
+
+const DAY_NAMES_EN = Object.freeze(["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+const DAY_NAMES_SV = Object.freeze(["", "Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"]);
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Coverage chains longer than this are treated as "open" for closesAt purposes.
+const MAX_CHAIN_DAYS = 8;
+
+export function normalizeMinIntervalMinutes(value) {
+  return Number.isInteger(value) && value >= 0 && value <= MAX_MIN_INTERVAL_MINUTES ? value : 0;
+}
+
+/** Elapsed-time gate, independent of local clock windows and DST. */
+export function intervalOpensAtMs(schedule, lastQuantumCompletedAtMs = 0) {
+  const minutes = normalizeMinIntervalMinutes(schedule?.minIntervalMinutes);
+  const completed = Number(lastQuantumCompletedAtMs);
+  return minutes > 0 && Number.isSafeInteger(completed) && completed > 0
+    ? completed + minutes * 60_000 : 0;
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function minutesOf(value, { allowEndOfDay = false } = {}) {
+  if (allowEndOfDay && value === "24:00") return 1440;
+  const match = TIME_RE.exec(String(value ?? ""));
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+/** ISO weekday of a local date: 1 = Monday .. 7 = Sunday. */
+export function isoWeekday(date) {
+  const day = date.getDay();
+  return day === 0 ? 7 : day;
+}
+
+function localAt(date, dayOffset, minuteOfDay) {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate() + dayOffset,
+    Math.floor(minuteOfDay / 60),
+    minuteOfDay % 60,
+    0,
+    0
+  ).getTime();
+}
+
+/**
+ * Strict parse of one window {days, start, end}. Returns { ok, window } or
+ * { ok:false, error }. end < start crosses midnight into the next day; end
+ * "24:00" is the end of the start day; start === end is rejected.
+ */
+export function parseScheduleWindow(raw) {
+  if (!isPlainObject(raw)) return { ok: false, error: "WINDOW_NOT_OBJECT" };
+  const extra = Object.keys(raw).find((key) => !["days", "start", "end"].includes(key));
+  if (extra) return { ok: false, error: `WINDOW_UNKNOWN_FIELD:${String(extra).slice(0, 32)}` };
+  if (!Array.isArray(raw.days) || raw.days.length === 0 || raw.days.length > 7) {
+    return { ok: false, error: "WINDOW_DAYS_INVALID" };
+  }
+  if (!raw.days.every((day) => Number.isInteger(day) && day >= 1 && day <= 7)) {
+    return { ok: false, error: "WINDOW_DAYS_INVALID" };
+  }
+  if (new Set(raw.days).size !== raw.days.length) return { ok: false, error: "WINDOW_DAYS_DUPLICATE" };
+  const start = minutesOf(raw.start);
+  const end = minutesOf(raw.end, { allowEndOfDay: true });
+  if (start === null) return { ok: false, error: "WINDOW_START_INVALID" };
+  if (end === null) return { ok: false, error: "WINDOW_END_INVALID" };
+  if (start === end) return { ok: false, error: "WINDOW_EMPTY" };
+  return {
+    ok: true,
+    window: {
+      days: [...raw.days].sort((a, b) => a - b),
+      start: raw.start,
+      end: raw.end
+    }
+  };
+}
+
+// Invalid persisted constraints are not permission to run. Preserve a sticky,
+// repairable marker; only an explicit complete schedule edit can clear it.
+function scheduleInvalidReason(value) {
+  if (value == null) return "";
+  if (!isPlainObject(value)) return "SCHEDULE_NOT_OBJECT";
+  if (value.invalidReason) return String(value.invalidReason);
+  if (value.schema && value.schema !== QUEUE_SCHEDULE_SCHEMA) return "SCHEDULE_SCHEMA";
+  if (value.windows !== undefined && !Array.isArray(value.windows)) return "SCHEDULE_WINDOWS_NOT_ARRAY";
+  if ((value.windows || []).length > MAX_SCHEDULE_WINDOWS) return "SCHEDULE_TOO_MANY_WINDOWS";
+  for (const row of value.windows || []) { const parsed = parseScheduleWindow(row); if (!parsed.ok) return parsed.error; }
+  if (value.pauseUntilMs !== undefined && (!Number.isSafeInteger(value.pauseUntilMs) || value.pauseUntilMs < 0 || value.pauseUntilMs > 8640000000000000)) return "SCHEDULE_PAUSE_INVALID";
+  if (value.minIntervalMinutes !== undefined && (!Number.isInteger(value.minIntervalMinutes) || value.minIntervalMinutes < 0 || value.minIntervalMinutes > MAX_MIN_INTERVAL_MINUTES)) return "SCHEDULE_MIN_INTERVAL_INVALID";
+  return "";
+}
+export function normalizeQueueSchedule(value, { now = Date.now() } = {}) {
+  if (value == null) return null;
+  const invalidReason = scheduleInvalidReason(value);
+  const windows = (Array.isArray(value?.windows) ? value.windows : [])
+    .map(row => parseScheduleWindow(row)).filter(row => row.ok).map(row => row.window).slice(0, MAX_SCHEDULE_WINDOWS);
+  // The 30-day bound applies at edit time, never at load time. A clock rollback
+  // must not erase a previously accepted operator pause.
+  const pause = value?.pauseUntilMs || 0;
+  const pauseUntilMs = Number.isSafeInteger(pause) && pause > Number(now) ? pause : 0;
+  const minIntervalMinutes = normalizeMinIntervalMinutes(value?.minIntervalMinutes);
+  if (!invalidReason && !windows.length && !pauseUntilMs && !minIntervalMinutes) return null;
+  return { schema: QUEUE_SCHEDULE_SCHEMA, windows, pauseUntilMs,
+    ...(minIntervalMinutes ? { minIntervalMinutes } : {}),
+    ...(invalidReason ? { invalidReason } : {}),
+    updatedBy: SCHEDULE_EDITORS.includes(value?.updatedBy) ? value.updatedBy : "OPERATOR",
+    updatedAtMs: Number.isSafeInteger(value?.updatedAtMs) && value.updatedAtMs >= 0 ? value.updatedAtMs : 0 };
+}
+
+/**
+ * Strict parse of an operator/AI schedule edit. Fields:
+ *   windows:    array (replaces all windows; [] clears) - optional
+ *   pauseUntil: ISO-8601 timestamp, or "" / null to clear - optional
+ *   minIntervalMinutes: integer 0..43200, wait after each complete quantum
+ * At least one field must be present. Absent fields keep the current value.
+ */
+export function parseScheduleEdit(raw, { now = Date.now(), current = null, editor = "OPERATOR" } = {}) {
+  if (!isPlainObject(raw)) return { ok: false, error: "SCHEDULE_NOT_OBJECT" };
+  const extra = Object.keys(raw).find((key) => !["windows", "pauseUntil", "minIntervalMinutes"].includes(key));
+  if (extra) return { ok: false, error: `SCHEDULE_UNKNOWN_FIELD:${String(extra).slice(0, 32)}` };
+  const hasWindows = Object.prototype.hasOwnProperty.call(raw, "windows");
+  const hasPause = Object.prototype.hasOwnProperty.call(raw, "pauseUntil");
+  const hasInterval = Object.prototype.hasOwnProperty.call(raw, "minIntervalMinutes");
+  if (!hasWindows && !hasPause && !hasInterval) return { ok: false, error: "SCHEDULE_EMPTY_EDIT" };
+
+  const base = normalizeQueueSchedule(current, { now });
+  if (base?.invalidReason && !(hasWindows && hasPause && hasInterval)) return { ok: false, error: "SCHEDULE_REPAIR_REQUIRES_COMPLETE_EDIT" };
+  const minIntervalMinutes = hasInterval ? raw.minIntervalMinutes : base?.minIntervalMinutes || 0;
+  if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 0 || minIntervalMinutes > MAX_MIN_INTERVAL_MINUTES) {
+    return { ok: false, error: "SCHEDULE_MIN_INTERVAL_INVALID" };
+  }
+  let windows = base?.windows || [];
+  if (hasWindows) {
+    if (!Array.isArray(raw.windows)) return { ok: false, error: "SCHEDULE_WINDOWS_NOT_ARRAY" };
+    if (raw.windows.length > MAX_SCHEDULE_WINDOWS) return { ok: false, error: "SCHEDULE_TOO_MANY_WINDOWS" };
+    const parsed = raw.windows.map((row) => parseScheduleWindow(row));
+    const bad = parsed.find((row) => !row.ok);
+    if (bad) return { ok: false, error: bad.error };
+    windows = parsed.map((row) => row.window);
+  }
+
+  let pauseUntilMs = base?.pauseUntilMs || 0;
+  if (hasPause) {
+    if (raw.pauseUntil === null || raw.pauseUntil === "") {
+      pauseUntilMs = 0;
+    } else {
+      if (typeof raw.pauseUntil !== "string" || raw.pauseUntil.length > 40 ||
+          !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/.test(raw.pauseUntil)) {
+        return { ok: false, error: "SCHEDULE_PAUSE_UNTIL_FORMAT" };
+      }
+      const at = Date.parse(raw.pauseUntil);
+      if (!Number.isFinite(at)) return { ok: false, error: "SCHEDULE_PAUSE_UNTIL_FORMAT" };
+      if (at <= Number(now)) return { ok: false, error: "SCHEDULE_PAUSE_UNTIL_NOT_FUTURE" };
+      if (at > Number(now) + MAX_SCHEDULE_PAUSE_MS) return { ok: false, error: "SCHEDULE_PAUSE_UNTIL_TOO_FAR" };
+      pauseUntilMs = at;
+    }
+  }
+
+  const schedule = windows.length || pauseUntilMs || minIntervalMinutes
+    ? {
+        schema: QUEUE_SCHEDULE_SCHEMA,
+        windows,
+        pauseUntilMs,
+        ...(minIntervalMinutes ? { minIntervalMinutes } : {}),
+        updatedBy: SCHEDULE_EDITORS.includes(editor) ? editor : "OPERATOR",
+        updatedAtMs: Math.max(0, Math.floor(Number(now)))
+      }
+    : null;
+  return { ok: true, schedule };
+}
+
+function windowMinutes(window) {
+  return {
+    start: minutesOf(window.start),
+    end: minutesOf(window.end, { allowEndOfDay: true })
+  };
+}
+
+// Compare wall time, but search boundaries along real elapsed minutes. This
+// covers both occurrences of a repeated DST hour and skips nonexistent times.
+// At most eight days (11,520 minutes) are inspected; never an unbounded loop.
+const MINUTE_MS = 60_000;
+function insideWindows(schedule, atMs) {
+  const date = new Date(Number(atMs));
+  const minute = date.getHours() * 60 + date.getMinutes();
+  const today = isoWeekday(date), yesterday = today === 1 ? 7 : today - 1;
+  return (schedule?.windows || []).some(window => {
+    const { start, end } = windowMinutes(window);
+    return end > start ? window.days.includes(today) && minute >= start && minute < end
+      : window.days.includes(today) && minute >= start || window.days.includes(yesterday) && minute < end;
+  });
+}
+function nextWindowChange(schedule, atMs, current) {
+  const limit = Number(atMs) + MAX_CHAIN_DAYS * DAY_MS;
+  for (let at = Math.floor(Number(atMs) / MINUTE_MS) * MINUTE_MS + MINUTE_MS; at <= limit; at += MINUTE_MS) {
+    if (insideWindows(schedule, at) !== current) return at;
+  }
+  return null;
+}
+/** Actual contiguous occurrence, including offset changes within a window. */
+export function containingWindow(schedule, atMs) {
+  if (scheduleInvalidReason(schedule) || !insideWindows(schedule, atMs)) return null;
+  let start = Math.floor(Number(atMs) / MINUTE_MS) * MINUTE_MS;
+  const limit = start - MAX_CHAIN_DAYS * DAY_MS;
+  while (start > limit && insideWindows(schedule, start - MINUTE_MS)) start -= MINUTE_MS;
+  return { startMs: start, endMs: nextWindowChange(schedule, atMs, true) };
+}
+export function scheduleBlockReason(schedule, atMs, { lastQuantumCompletedAtMs = 0 } = {}) {
+  if (!Number.isFinite(Number(atMs)) || scheduleInvalidReason(schedule)) return SCHEDULE_BLOCK.INVALID;
+  if (!schedule) return "";
+  if (Number(schedule.pauseUntilMs || 0) > Number(atMs)) return SCHEDULE_BLOCK.PAUSED;
+  if (intervalOpensAtMs(schedule, lastQuantumCompletedAtMs) > Number(atMs)) return SCHEDULE_BLOCK.INTERVAL;
+  if (schedule.windows?.length && !insideWindows(schedule, atMs)) return SCHEDULE_BLOCK.OUTSIDE_WINDOW;
+  return "";
+}
+export function scheduleAllows(schedule, atMs, timing = {}) {
+  return scheduleBlockReason(schedule, atMs, timing) === "";
+}
+export function nextScheduleOpenAtMs(schedule, fromMs, { lastQuantumCompletedAtMs = 0 } = {}) {
+  if (!Number.isFinite(Number(fromMs)) || scheduleInvalidReason(schedule)) return null;
+  const start = Math.max(Number(fromMs), Number(schedule?.pauseUntilMs || 0), intervalOpensAtMs(schedule, lastQuantumCompletedAtMs));
+  if (!schedule?.windows?.length || insideWindows(schedule, start)) return start;
+  return nextWindowChange(schedule, start, false);
+}
+export function scheduleClosesAtMs(schedule, atMs) {
+  if (!schedule?.windows?.length || !scheduleAllows(schedule, atMs)) return null;
+  return nextWindowChange(schedule, atMs, true);
+}
+
+/** Earliest time a queue item (status + schedule) may become runnable. */
+export function queueItemNextRunnableAtMs(item, now = Date.now()) {
+  if (!item || !["READY", "PAUSED", "BLOCKED"].includes(item.status)) return null;
+  if (item.resume?.ownerWait?.state === 'WAIT') return Math.max(Number(now)+1000,Number(item.resume.ownerWait.nextCheckAtMs || 0));
+  let base = null;
+  if (item.status === "READY") base = Number(now);
+  else if (item.status === "PAUSED") base = Math.max(Number(now), Number(item.pauseUntilMs || 0));
+  else if (item.status === "BLOCKED") {
+    const retryAt = Number(item.blockedRetryAtMs || 0);
+    base = retryAt > 0 ? Math.max(Number(now), retryAt) : null;
+  }
+  if (base === null) return null;
+  return nextScheduleOpenAtMs(item.schedule || null, base, item);
+}
+
+function pad(value) {
+  return String(value).padStart(2, "0");
+}
+
+export function localTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "LOCAL";
+  } catch {
+    return "LOCAL";
+  }
+}
+
+export function utcOffsetText(atMs) {
+  const offset = -new Date(Number(atMs)).getTimezoneOffset();
+  const sign = offset >= 0 ? "+" : "-";
+  const abs = Math.abs(offset);
+  return `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+}
+
+/** Local ISO-8601 with offset, e.g. 2026-09-24T08:15:00+02:00. */
+export function localIso(atMs) {
+  if (atMs === null || atMs === undefined || !Number.isFinite(Number(atMs))) return "";
+  const d = new Date(Number(atMs));
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${utcOffsetText(atMs)}`;
+}
+
+function dayRange(days, names) {
+  const sorted = [...days].sort((a, b) => a - b);
+  if (sorted.length === 7) return names === DAY_NAMES_SV ? "Alla dagar" : "Every day";
+  const parts = [];
+  let runStart = sorted[0];
+  let prev = sorted[0];
+  for (const day of [...sorted.slice(1), null]) {
+    if (day !== null && day === prev + 1) {
+      prev = day;
+      continue;
+    }
+    const dash = names === DAY_NAMES_SV ? "–" : "-";
+    parts.push(runStart === prev ? names[runStart] : prev === runStart + 1
+      ? `${names[runStart]},${names[prev]}`
+      : `${names[runStart]}${dash}${names[prev]}`);
+    runStart = day;
+    prev = day;
+  }
+  return parts.join(",");
+}
+
+/** Short operator text, e.g. "Mån–Fre 22:00–06:00 · paus till 25/9 08:00". */
+export function scheduleSummarySv(schedule, { now = Date.now() } = {}) {
+  if (!schedule) return "";
+  if (scheduleInvalidReason(schedule)) return "Ogiltigt schema – öppna Schema och spara samtliga fält på nytt";
+  const parts = (schedule.windows || []).map((window) =>
+    `${dayRange(window.days, DAY_NAMES_SV)} ${window.start}–${window.end}`);
+  const minutes = normalizeMinIntervalMinutes(schedule.minIntervalMinutes);
+  if (minutes) parts.push(`minst ${minutes % 60 === 0 ? `${minutes / 60} tim` : `${minutes} min`} mellan kvanter`);
+  if (Number(schedule.pauseUntilMs || 0) > Number(now)) {
+    const d = new Date(Number(schedule.pauseUntilMs));
+    parts.push(`paus till ${d.getDate()}/${d.getMonth() + 1} ${pad(d.getHours())}:${pad(d.getMinutes())}`);
+  }
+  return parts.join(" · ");
+}
+
+export function scheduleSummaryEn(schedule) {
+  return (schedule?.windows || []).map((window) =>
+    `${dayRange(window.days, DAY_NAMES_EN)} ${window.start}-${window.end}`).join("; ");
+}
+
+/**
+ * English machine state for the prompt capsule (control.workQueue.schedule).
+ * estimatedTurnMs sizes likelyLastTurnInWindow: a prompt sent now is expected
+ * to be answered after the window closes, so this response is the last one
+ * Greenfield will use before parking the slot.
+ */
+export function schedulePromptState(schedule, { now = Date.now(), estimatedTurnMs = null } = {}) {
+  const normalized = normalizeQueueSchedule(schedule, { now });
+  const block = scheduleBlockReason(normalized, now);
+  const closesAtMs = scheduleClosesAtMs(normalized, now);
+  const nextOpenMs = block ? nextScheduleOpenAtMs(normalized, now) : null;
+  const turnMs = Number.isFinite(Number(estimatedTurnMs)) && Number(estimatedTurnMs) > 0
+    ? Number(estimatedTurnMs)
+    : 10 * 60 * 1000;
+  return {
+    schema: QUEUE_SCHEDULE_SCHEMA,
+    timeZone: localTimeZone(),
+    utcOffset: utcOffsetText(now),
+    localNow: localIso(now),
+    localWeekday: DAY_NAMES_EN[isoWeekday(new Date(Number(now)))],
+    windows: normalized?.windows?.map((window) => ({ ...window, days: [...window.days] })) || [],
+    windowsText: normalized?.invalidReason ? "INVALID_SCHEDULE_HELD" : scheduleSummaryEn(normalized) || "NONE_ALWAYS_OPEN",
+    ...(normalized?.minIntervalMinutes ? {
+      minIntervalMinutes: normalized.minIntervalMinutes,
+      intervalRule: "Minimum wait starts after the complete quantum, not between its interactions; other runnable missions continue. First quantum has no interval wait."
+    } : {}),
+    pauseUntil: normalized?.pauseUntilMs ? localIso(normalized.pauseUntilMs) : "",
+    openNow: !block,
+    blockReason: block,
+    closesAt: closesAtMs ? localIso(closesAtMs) : "",
+    nextOpenAt: nextOpenMs ? localIso(nextOpenMs) : "",
+    likelyLastTurnInWindow: Boolean(closesAtMs && closesAtMs - Number(now) <= turnMs),
+    lastEditedBy: normalized?.updatedBy || ""
+  };
+}

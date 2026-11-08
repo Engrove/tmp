@@ -1,0 +1,30 @@
+{
+  "result": "PASS",
+  "versions": {
+    "manifest": "1.9.12",
+    "package": "1.9.12",
+    "lock": "1.9.12",
+    "lockRoot": "1.9.12",
+    "VERSION": "1.9.12",
+    "worker": "1.9.12",
+    "bridge": "1.9.12",
+    "panel": "1.9.12",
+    "panelHeading": "1.9.12"
+  },
+  "syntaxChecked": 91,
+  "manifestReferences": 10,
+  "relativeImports": "PASS",
+  "panelIds": "PASS",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "unlimitedStorage",
+    "bookmarks",
+    "tabs",
+    "scripting",
+    "alarms",
+    "offscreen"
+  ],
+  "node": "v24.19.0",
+  "runtimeChecks": "Node/JSDOM and simulated Chrome APIs; no live signed-in browser execution"
+}

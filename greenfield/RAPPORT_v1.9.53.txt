@@ -1,0 +1,52 @@
+GREENFIELD v1.9.53 — ROOT CAUSE AND RELEASE REPORT
+Date: 2026-11-06
+
+EXECUTIVE RESULT
+The worker-collision admission gate has been removed. A newly started process generation can automatically take ownership of the same logical GFW, including when a prior process is still represented as live, detached, or has an unverified response. The previous process generation and its exact queue slots are fenced. Unknown prior effects are carried into a fresh no-replay quarantine prompt; the previous prompt is never replayed.
+
+ROOT CAUSE
+1. The ownership ledger used workerId as a fencing identity. workerId is stable for a Chrome window and is not a process-generation identity. A new process in the same window could therefore be classified as superseded by an older process from that same worker.
+2. The ownership inspection treated the presence of a Chrome tab as evidence that a prior worker was live, even when its managed conversation could not be restored. A tab existing is not proof that the expected conversation or process is alive.
+3. Unresolved prior effects and legacy MISSION_OWNERSHIP_WAIT states required a manual operator reconciliation receipt. This converted stale worker state into a persistent admission gate.
+4. Duplicate queue slots for the same logical mission were not fenced at exact queue-slot granularity. Worker-wide fencing could both block new work and fail to retire the precise stale slot.
+
+ARCHITECTURAL CORRECTION
+- Ownership fencing is now process-generation scoped: (workerId, processId).
+- Queue-slot retirement is now scoped to (workerId, queueId, itemId, savedMissionId).
+- A new process claims ownership under the existing durable mission lock. Prior process generations are recorded as superseded and cannot perform further Greenfield-owned sends or writes.
+- The new owner is written with the exact current queue identity. Old duplicate queue slots are stopped by exact worker/queue/item/saved-mission identity; the current slot is preserved, including when the new process reuses the same workerId.
+- Worker collisions are informational/automatic. The worker-collision panel no longer asks for previous-conversation restoration or manual reconciliation receipts.
+- Legacy MISSION_OWNERSHIP_WAIT pauses and ownership-only BLOCKED items are made runnable again. The new claim path then applies automatic no-replay takeover.
+- Unknown previous prompts are represented by a compact source-set hash plus all prior prompt hashes. A fresh prompt is rejected if its hash reuses any prior prompt hash.
+- A fresh quarantine prompt explicitly directs the new session to read current owner state, reconcile external effects, not replay prior prompts, and continue independent authorized work.
+
+SAFETY BOUNDARIES RETAINED
+- A prior prompt with unknown effect is never replayed.
+- A new prompt with a dispatch already attempted or an old prompt hash is not admitted as a recovery prompt.
+- Corrupt/unproven queue state is classified separately as MISSION_QUEUE_STATE_UNPROVEN. Only that queue item is deferred; independent runnable slots continue.
+- A just-written owner claim has a short publication window so a concurrent claimant cannot steal ownership before the process checkpoint is published.
+- Operator schedule/stop controls, provider availability/quotas, and genuine data-integrity checks remain authoritative. They are not worker-collision gates.
+
+ACTUAL USER DIAGNOSTIC REPLAY
+Input: Greenfield-diagnostics-2026-11-06T12-50-48-155Z.json (v1.9.52).
+- Loaded the diagnostic storage snapshot into the durable checkpoint reader.
+- Loaded the user's active queue. Both legacy MISSION_OWNERSHIP_WAIT items were converted to READY in memory.
+- Preflight for GF-4.59.1030 generated a no-replay quarantine source from the old process and its prior prompt hash.
+- Automatic ownership claim returned MISSION_PRIOR_EFFECT_QUARANTINED / allowed=true.
+- The new owner was assigned to the new process in the current queue.
+- Seven prior queue slots for the same savedMissionId were recorded for exact retirement.
+- Reloading old queue records marked the prior duplicate slots STOPPED with MISSION_OWNERSHIP_TRANSFERRED. The current queue slot remained runnable.
+This is a deterministic replay of the uploaded diagnostic snapshot, not a live Chrome installation or a live provider send.
+
+TESTS
+- Focused ownership, diagnostic-replay, queue-migration, archive-recovery and no-replay tests: 109 passed in the focused combined run; the worker-recovery UI test file could not execute because jsdom is not installed in this offline environment.
+- Full non-jsdom test selection: 468 passed. Six test files could not execute: four require the separate eic-integration/owner_progress_adapter.mjs fixture, which is not included in this package snapshot; two require jsdom.
+- The worker-recovery UI test file also could not execute because jsdom is unavailable. Its source and all runtime JavaScript files passed syntax checks.
+- npm ci --offline could not install jsdom because xmlchars-2.2.0.tgz is not present in the local npm cache.
+- JavaScript syntax: 186 JS/MJS files passed `node --check`.
+- Release coherence: 128 runtime files, zero byte mismatches, all version declarations 1.9.53, embedded/runtime build hash matches.
+
+NOT CLAIMED
+- The package has not been installed in the user's active Chrome profile.
+- No live queue send or live ChatGPT response is claimed.
+- The storage-retention overage from the supplied diagnostic is not addressed by this worker-ownership release.

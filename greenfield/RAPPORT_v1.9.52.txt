@@ -1,0 +1,41 @@
+GREENFIELD v1.9.52 — ROOT CAUSE AND VERIFICATION REPORT
+Date: 2026-11-06
+
+1. Diagnostic facts
+- The supplied 1.9.51 diagnostics reported 70 MISSION_OWNERSHIP_HELD events, including 51 MISSION_PRIOR_EFFECT_UNRESOLVED and 17 MISSION_PRIOR_OWNER_UNPROVEN.
+- It also reported 66 MISSION_QUEUE_CONFLICT_ISOLATED events.
+- Several queue workers had enabled queues and active/paused slots but no active process identifier at the captured instant.
+- Local storage was 24,940,964 bytes against the app's 10,485,760-byte maintenance target. The maintenance pass freed 0 bytes because worker bundles were retained as protected mission evidence.
+- The global capacity scheduler had no active turns and no waiters at the diagnostic snapshot. The global prompt-post gate had no active lease. This did not support a global-capacity deadlock as the primary cause.
+
+2. Confirmed source defects corrected
+A. QUEUE_WAIT recovery omission
+- contracts.mjs classifies QUEUE_WAIT as terminal for the process; the ownership recovery allowlist omitted QUEUE_WAIT.
+- A parked queue process with an observed response but a missing causal-pair receipt could therefore remain MISSION_PRIOR_EFFECT_UNRESOLVED even though it was no longer a live execution.
+- v1.9.52 includes QUEUE_WAIT in the dormant recovery path. Recovery starts a new conversation, records a no-replay quarantine and requires fresh owner reads. It does not replay the old prompt.
+- Existing safeguards remain: a live process, nonterminal WAITING process, missing observed response, pending dispatch, possible old send, unknown queue state or unreconciled storage checkpoint remains fenced.
+
+B. Process-generation collapse
+- Ownership inventory used workerId as the Map key. Distinct process generations and parked queue-slot snapshots belonging to one worker could overwrite each other. A newer healthy process record could hide an older unresolved queue snapshot.
+- v1.9.52 deduplicates identical records by workerId + processId instead. Distinct process generations remain visible to the effect fence.
+- Live process lookup now returns workerId + processId and compares the exact pair. This avoids treating a later process in the same worker as the old process, while still fencing an exact live old process.
+
+3. Storage pressure correction
+- The storage packer handled process, queue, mission-history, unsent-draft and safety records, but excluded session-start archives.
+- The supplied diagnostic contained 30 session-start archive records totalling 7,814,007 JSON bytes. Gzip estimates on those exact exported records totalled 2,283,257 bytes, a projected reduction of approximately 5.53 MB. This is a calculation on the diagnostic export, not a live Chrome storage mutation or measured post-install result.
+- v1.9.52 makes session-start archives eligible for the existing reversible gzip/checksum packing path. It does not delete archive contents or weaken evidence retention.
+
+4. Diagnostic improvements
+Queue progress now carries the GFW goal/identity, savedMissionId, last error code, pending dispatch status and effectPossible. Process progress includes last prompt/response hashes and whether the dispatched user-turn identity is present. These are diagnostic fields only; they do not grant activation authority.
+
+5. Verification
+- Focused ownership/recovery/storage regression tests: PASS.
+- Full available local test inventory: 522 tests passed across 34 test files.
+- 25 test files could not execute because jsdom is not installed in this offline environment. These are environment skips, not passing tests.
+- JavaScript/module syntax: 185 files checked, 0 syntax errors.
+- Release coherence: 128 runtime files, 0 byte mismatches; embedded and descriptor build hashes match.
+
+6. Scope and claim limits
+- No operator model requirements, daily/weekly quotas, minimum prompt interval, queue priorities, schedules or R3 restrictions were changed.
+- No live Chrome extension was installed or reloaded in this build environment. Queue startup after installation therefore remains to be confirmed by a fresh browser diagnostic.
+- A prior effect with no observed response or a missing owner/process checkpoint is still fenced. This is intentional no-replay safety, not an automatic queue-wide stop; independent missions remain eligible.

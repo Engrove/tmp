@@ -1,0 +1,44 @@
+{
+  "sourceFile": "Greenfield-diagnostics-2026-10-17T18-45-43-523Z.json",
+  "sourceSHA256": "6057fe8c2a42e24a3feeffce6b31c60c359fb38db12a14ac93d1c972af983b5c",
+  "appVersion": "1.9.19",
+  "createdAt": "2026-10-17T18:45:43.277Z",
+  "runtimeFault": "",
+  "minGapSeconds": 180,
+  "old": {
+    "processId": "process-0ef099dd-6944-4552-a9f2-4d982519f9ca",
+    "phase": "DETACHED",
+    "messageId": "a2a-b96b4be5-5868-4716-b7f1-92ab737e7b37",
+    "promptHash": "21fc1a39299cb4d7acb5ef7a82e2c300f01105b4185bca63a40fb11821d9793e",
+    "sendAttempts": 6,
+    "dispatchEffectPossible": false,
+    "dispatchStatus": "NO_EFFECT_CONFIRMED",
+    "dispatchError": "LOCAL_PACING_WAIT"
+  },
+  "rotating": [
+    {
+      "processId": "process-17ec8711-68a4-419f-9122-32d20694b9c3",
+      "phase": "ROTATING",
+      "state": "NAVIGATING",
+      "hardReloadState": "COMPLETED",
+      "hasLastPrompt": false,
+      "sendAttempts": 0
+    },
+    {
+      "processId": "process-0711a7c5-627d-416a-aa15-c84b1e465ffa",
+      "phase": "ROTATING",
+      "state": "NAVIGATING",
+      "hardReloadState": "COMPLETED",
+      "hasLastPrompt": false,
+      "sendAttempts": 0
+    },
+    {
+      "processId": "process-ab88443a-9467-48cb-9a7e-9f69c6f3a06d",
+      "phase": "ROTATING",
+      "state": "NAVIGATING",
+      "hardReloadState": "COMPLETED",
+      "hasLastPrompt": false,
+      "sendAttempts": 0
+    }
+  ]
+}

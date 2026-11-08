@@ -1,0 +1,13 @@
+{
+  "name": "eic-autonom-agent-greenfield",
+  "version": "1.9.53",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "verify:release": "node tools/verify-release-coherence.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}

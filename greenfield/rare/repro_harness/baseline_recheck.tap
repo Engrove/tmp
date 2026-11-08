@@ -1,0 +1,197 @@
+TAP version 13
+# Subtest: captured label passes ordinary inspection but cannot prove highest available level
+ok 1 - captured label passes ordinary inspection but cannot prove highest available level
+  ---
+  duration_ms: 4.905766
+  type: 'test'
+  ...
+# Subtest: breaking only ordinary approval removes false success with the same failed maximum control
+ok 2 - breaking only ordinary approval removes false success with the same failed maximum control
+  ---
+  duration_ms: 16.069348
+  type: 'test'
+  ...
+# Subtest: manual recheck performs maximum verification before reporting success and waking initialization
+not ok 3 - manual recheck performs maximum verification before reporting success and waking initialization
+  ---
+  duration_ms: 8.003623
+  type: 'test'
+  location: '/workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:76:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    [{"run":1,"ok":true,"maximumVerified":false,"attempts":0,"woken":true},{"run":2,"ok":true,"maximumVerified":false,"attempts":0,"woken":true},{"run":3,"ok":true,"maximumVerified":false,"attempts":0,"woken":true},{"run":4,"ok":true,"maximumVerified":false,"attempts":0,"woken":true},{"run":5,"ok":true,"maximumVerified":false,"attempts":0,"woken":true},{"run":6,"ok":true,"maximumVerified":false,"attempts":0,"woken":true}]
+    
+    6 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 6
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:83:10)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: failed maximum check is reported as failed and the hold is retained
+not ok 4 - failed maximum check is reported as failed and the hold is retained
+  ---
+  duration_ms: 1.593905
+  type: 'test'
+  location: '/workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:85:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:87:10)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: a missing sibling tab cannot cancel the healthy worker check
+not ok 5 - a missing sibling tab cannot cancel the healthy worker check
+  ---
+  duration_ms: 0.778816
+  type: 'test'
+  location: '/workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:90:1'
+  failureType: 'testCodeFailure'
+  error: 'MANAGED_TAB_MISSING'
+  code: 'MANAGED_TAB_MISSING'
+  stack: |-
+    tabState (file:///workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:35:119)
+    eval (eval at fixture (file:///workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:57:16), <anonymous>:124:26)
+  ...
+# Subtest: a paused worker keeps its hold and phase while another worker resumes
+not ok 6 - a paused worker keeps its hold and phase while another worker resumes
+  ---
+  duration_ms: 4.09249
+  type: 'test'
+  location: '/workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:95:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      assert.ok(f.store.get('paused').safety.hold)
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: ~
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:97:80)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: model recheck cannot clear ADMISSION_PAUSED
+not ok 7 - model recheck cannot clear ADMISSION_PAUSED
+  ---
+  duration_ms: 0.884291
+  type: 'test'
+  location: '/workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:101:85'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:103:37)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: model recheck cannot clear PROVIDER_QUOTA_HOLD
+not ok 8 - model recheck cannot clear PROVIDER_QUOTA_HOLD
+  ---
+  duration_ms: 1.032489
+  type: 'test'
+  location: '/workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:101:85'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:103:37)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: model recheck cannot clear LOCAL_MESSAGE_BUDGET
+not ok 9 - model recheck cannot clear LOCAL_MESSAGE_BUDGET
+  ---
+  duration_ms: 0.800818
+  type: 'test'
+  location: '/workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:101:85'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:103:37)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: STOP while the UI check awaits cannot be overwritten or restarted
+not ok 10 - STOP while the UI check awaits cannot be overwritten or restarted
+  ---
+  duration_ms: 1.047341
+  type: 'test'
+  location: '/workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:105:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'SENDING'
+    - 'STOPPED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'STOPPED'
+  actual: 'SENDING'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/scratch/acc6d5ae6dec/resume_fix/greenfield/tests/model-recheck.test.mjs:107:24)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: an uncertain previous dispatch remains owned by reconciliation
+ok 11 - an uncertain previous dispatch remains owned by reconciliation
+  ---
+  duration_ms: 0.922516
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 3
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 120.49675

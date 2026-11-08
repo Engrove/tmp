@@ -1,0 +1,212 @@
+{
+  "source": "Greenfield-diagnostics-2026-10-30T15-33-53-794Z.json",
+  "kind": "Exact metadata only. Prompt and response content omitted.",
+  "process": {
+    "processId": "process-b68ba1f7-aa36-480c-aeb3-858780e52772",
+    "runId": "run-1fb2b4e5-04c4-4756-9d25-d8e9ba7783c5",
+    "workerId": "worker-511282ee-97fc-4cae-9139-fb9332102f1e",
+    "windowId": 20854445,
+    "tabId": 20854446,
+    "generation": 1,
+    "phase": "WAITING",
+    "turn": 5,
+    "sessionSeq": 1,
+    "gptRoot": "https://chatgpt.com/g/g-69e0b4be34308191aa6c05db1908be1b-eic",
+    "lastManagedUrl": "https://chatgpt.com/g/g-69e0b4be34308191aa6c05db1908be1b-eic/c/6ae4a623-3ab4-83eb-aa6b-542f7a7a7470",
+    "safety": {
+      "evidence": {
+        "adapterVersion": 12,
+        "ambiguityKind": "",
+        "ambiguous": false,
+        "blockingUi": false,
+        "controlsSeen": {
+          "currentUseNotices": [],
+          "effort": [
+            "Extra hög"
+          ],
+          "model": [
+            "Extra hög"
+          ],
+          "modelControls": [
+            {
+              "ariaLabel": "Välj ChatGPT-modell",
+              "text": "Extra hög"
+            }
+          ],
+          "recommendations": []
+        },
+        "effortControlSeen": true,
+        "effortEvidenceSource": "COMPOSER_SELECTED_CONTROL",
+        "effortLabel": "Extra hög",
+        "gptSurface": {
+          "ambiguous": false,
+          "composerName": "",
+          "headerName": "EIC",
+          "version": 1
+        },
+        "highestEffort": null,
+        "mode": "CHAT",
+        "modelLabel": "",
+        "observedAtMs": 1793374404992,
+        "quota": {
+          "active": false
+        },
+        "reasoningControlSeen": true,
+        "receiptStatus": {
+          "ageMs": null,
+          "currentReceiptValid": false,
+          "expiresAtMs": null,
+          "receiptInvalidReason": "RECEIPT_MISSING_OR_INVALIDATED",
+          "ttlMs": 60000
+        },
+        "source": "CHATGPT_UI_CONTROLS_V1",
+        "thinkingControl": null
+      },
+      "hold": {
+        "code": "IN_FLIGHT_QUALITY_QUARANTINE",
+        "detail": "",
+        "retryAtMs": 1793374435112,
+        "savedAtMs": 1793374405112,
+        "sinceMs": 1793373967370
+      },
+      "lastObservationAtMs": 1793374405016,
+      "persistedObservationAtMs": 1793374405016,
+      "proof": {
+        "allowed": true,
+        "assurance": "VISIBLE_REASONING_CONTROL_MODEL_NAME_UNEXPOSED",
+        "code": "UI_MODEL_COMPATIBLE",
+        "currentReceiptValid": false,
+        "effort": "Extra hög",
+        "effortAssurance": "NAMED_EFFORT",
+        "eicSurface": "URL_GPT_ID",
+        "highestEffort": null,
+        "highestEffortVerified": false,
+        "minimumModelVersion": "5.6",
+        "model": "",
+        "modelNamePolicy": "NUMERIC_MINIMUM_FAMILY_AGNOSTIC",
+        "modelVersionVerified": false,
+        "observedAtMs": 1793374404992,
+        "observedModelVersion": "",
+        "receiptExpiresAtMs": null,
+        "receiptInvalidReason": "RECEIPT_MISSING_OR_INVALIDATED",
+        "visibleUiOnly": true
+      },
+      "qualityIncident": {
+        "atMs": 1793373966202,
+        "code": "IN_FLIGHT_QUALITY_QUARANTINE",
+        "reason": "THINKING_EFFORT_TOO_LOW",
+        "turn": 5
+      },
+      "turnProof": {
+        "allowed": true,
+        "assurance": "VISIBLE_REASONING_CONTROL_MODEL_NAME_UNEXPOSED",
+        "code": "UI_MODEL_COMPATIBLE",
+        "currentReceiptValid": true,
+        "effort": "Extra hög",
+        "effortAssurance": "NAMED_EFFORT",
+        "eicSurface": "URL_GPT_ID",
+        "highestEffort": {
+          "label": "Extra hög",
+          "modelKey": "[[\"Extra hög\",\"Välj ChatGPT-modell\"]]",
+          "selectionKey": "{\"label\":\"Extra hög\",\"value\":\"max\",\"model\":\"\"}",
+          "status": "VERIFIED",
+          "strategy": "ORDINAL_TARGET",
+          "target": "4",
+          "url": "https://chatgpt.com/g/g-69e0b4be34308191aa6c05db1908be1b-eic/c/6ae4a623-3ab4-83eb-aa6b-542f7a7a7470",
+          "value": "max",
+          "verifiedAtMs": 1793372904453
+        },
+        "highestEffortVerified": true,
+        "minimumModelVersion": "5.6",
+        "model": "",
+        "modelNamePolicy": "NUMERIC_MINIMUM_FAMILY_AGNOSTIC",
+        "modelVersionVerified": false,
+        "observedAtMs": 1793372906159,
+        "observedModelVersion": "",
+        "promptHash": "c274fea59fff8d207875a16f950b14e4e5d109e47b2f1cbc1cd70c3d04c2f09b",
+        "receiptExpiresAtMs": 1793372964453,
+        "receiptInvalidReason": "",
+        "usageId": "run-1fb2b4e5-04c4-4756-9d25-d8e9ba7783c5:1:5:c274fea59fff8d207875a16f950b14e4e5d109e47b2f1cbc1cd70c3d04c2f09b",
+        "visibleUiOnly": true
+      }
+    },
+    "lastPrompt": {
+      "acknowledged": true,
+      "acknowledgementEvidence": "MATERIALIZED_USER_TURN_ID",
+      "conversationKey": "https://chatgpt.com/c/6ae4a623-3ab4-83eb-aa6b-542f7a7a7470",
+      "dispatchId": "send-c879bdd3-8206-45da-9c8a-87f13a740751",
+      "dispatchedUserTurnId": "30611d90-859f-459f-910f-e595e9a6c154",
+      "dispatchedUserTurnIndex": 5,
+      "hash": "c274fea59fff8d207875a16f950b14e4e5d109e47b2f1cbc1cd70c3d04c2f09b",
+      "modelProof": {
+        "allowed": true,
+        "assurance": "VISIBLE_REASONING_CONTROL_MODEL_NAME_UNEXPOSED",
+        "code": "UI_MODEL_COMPATIBLE",
+        "currentReceiptValid": true,
+        "effort": "Extra hög",
+        "effortAssurance": "NAMED_EFFORT",
+        "eicSurface": "URL_GPT_ID",
+        "highestEffort": {
+          "label": "Extra hög",
+          "modelKey": "[[\"Extra hög\",\"Välj ChatGPT-modell\"]]",
+          "selectionKey": "{\"label\":\"Extra hög\",\"value\":\"max\",\"model\":\"\"}",
+          "status": "VERIFIED",
+          "strategy": "ORDINAL_TARGET",
+          "target": "4",
+          "url": "https://chatgpt.com/g/g-69e0b4be34308191aa6c05db1908be1b-eic/c/6ae4a623-3ab4-83eb-aa6b-542f7a7a7470",
+          "value": "max",
+          "verifiedAtMs": 1793372904453
+        },
+        "highestEffortVerified": true,
+        "minimumModelVersion": "5.6",
+        "model": "",
+        "modelNamePolicy": "NUMERIC_MINIMUM_FAMILY_AGNOSTIC",
+        "modelVersionVerified": false,
+        "observedAtMs": 1793372906159,
+        "observedModelVersion": "",
+        "promptHash": "c274fea59fff8d207875a16f950b14e4e5d109e47b2f1cbc1cd70c3d04c2f09b",
+        "receiptExpiresAtMs": 1793372964453,
+        "receiptInvalidReason": "",
+        "usageId": "run-1fb2b4e5-04c4-4756-9d25-d8e9ba7783c5:1:5:c274fea59fff8d207875a16f950b14e4e5d109e47b2f1cbc1cd70c3d04c2f09b",
+        "visibleUiOnly": true
+      },
+      "postedAtMs": 1793372913634,
+      "sentAt": "2026-10-30T15:08:26.110Z",
+      "transportId": "",
+      "transportKind": "",
+      "usageId": "run-1fb2b4e5-04c4-4756-9d25-d8e9ba7783c5:1:5:c274fea59fff8d207875a16f950b14e4e5d109e47b2f1cbc1cd70c3d04c2f09b"
+    },
+    "pendingPrompt": null,
+    "schema": "eic.greenfield.process.v1"
+  },
+  "lastTrace": {
+    "count": 7,
+    "countMeaning": "PERSISTED_TRACE_SAMPLES_NOT_POLL_COUNT",
+    "detail": {
+      "assistantFound": true,
+      "assistantHash": "7af40dabb813",
+      "assistantId": "38c1842e-c4ac-43c5-b827-81047e72378a",
+      "assistantTextLength": 8724,
+      "documentId": "9ef8fcb7-9672-462c-953e-0ea788f1fb1a",
+      "expectedUserTurnId": "30611d90-859f-459f-910f-e595e9a6c154",
+      "observationSequence": 15,
+      "observedAtMs": 1793374373478,
+      "ownerKind": "SHELL_MESSAGE",
+      "ownerTrusted": true,
+      "pageAssistantCount": 5,
+      "pageAssistantHash": "7af40dabb813",
+      "pageLastAssistantId": "38c1842e-c4ac-43c5-b827-81047e72378a",
+      "pageLastUserId": "30611d90-859f-459f-910f-e595e9a6c154",
+      "pageUserCount": 5,
+      "replicaCount": 1,
+      "resolvedBy": "USER_TURN_ID",
+      "resolvedUserTurnId": "30611d90-859f-459f-910f-e595e9a6c154",
+      "visibilityState": "visible"
+    },
+    "firstAt": "2026-10-30T15:26:38.481Z",
+    "lastAt": "2026-10-30T15:32:54.120Z",
+    "promptHash": "c274fea59fff8d20",
+    "reason": "SAFETY_HOLD:IN_FLIGHT_QUALITY_QUARANTINE",
+    "turn": 5
+  }
+}
