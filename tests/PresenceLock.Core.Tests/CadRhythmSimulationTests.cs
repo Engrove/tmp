@@ -32,6 +32,7 @@ namespace PresenceLock.Core.Tests
         private readonly bool _notice;
         private readonly UserSim.Lcg _rng;
         private long _now, _lastInput;
+        public long Now => _now;
         private FeatureVector _sig = new FeatureVector();
         private ModePolicy _policy = ModePolicy.Auto;
         private int _week;
@@ -173,6 +174,9 @@ namespace PresenceLock.Core.Tests
             _out.WriteLine($"  LEARNING: studies {L.Studies}, WRONG 'away' labels while studying/reading {L.WrongAwayLabels}, notices shown {L.NoticesShown}");
             _out.WriteLine($"  gate after 3 work weeks: {s.GateAtDay20}");
             _out.WriteLine($"  promoted on its own: day {s.PromotedDay?.ToString() ?? "no"}; at end: window FP rate {s.Profile.Modes.WindowFalsePositiveRate():P0}, upper95 {s.Profile.Modes.FalsePositiveUpperBound():P0}");
+            _out.WriteLine($"  ambiguous invisible decisions judged by the silence profile: away {s.Profile.Stats.AmbiguousScoredAway}, " +
+                           $"undecidable (counted as possible false dims) {s.Profile.Stats.AmbiguousScoredUnknown}; " +
+                           s.Profile.Silence.Fit(1, s.Now).Describe());
             _out.WriteLine($"  learned lock time t(90%): studying {tStudy:F0} s, reading mail {tMail:F0} s, coffee with leave cues {tCue:F0} s");
             string weekly = string.Join(" ", Enumerable.Range(3, 6).Select(w => E.StudiesByWeek[w] == 0 ? "-" : $"{E.StudiesDimmedByWeek[w] * 100 / E.StudiesByWeek[w]}%"));
             _out.WriteLine($"  ENFORCING: studies dimmed {E.StudiesDimmed}/{E.Studies}, per week: {weekly}; mails dimmed {E.MailsDimmed}/{E.Mails}; HARD locks on present {E.HardLocksOnPresent}");

@@ -78,6 +78,8 @@ namespace PresenceLock.Core
         public bool LearnedHorizon = true;
         /// <summary>Cap on the learned horizon (also bounds what an edited model can do). Clamped to HoldMax.</summary>
         public double MaxLearnedHorizonSeconds = 600.0;
+        /// <summary>When the per-user silence profile may judge an ambiguous learning-mode decision.</summary>
+        public SilencePolicy SilencePolicy = new SilencePolicy();
 
         // --- habits (null journal = habit learning off) --------------------------------
         public HabitJournal Habits;
@@ -129,6 +131,8 @@ namespace PresenceLock.Core
         private bool _sessionLocked;
         private bool _suspendedByDisconnect;
         private double _episodeHorizon = -1;     // cached per episode
+        private double _episodeT;                // last observed silence length of the model episode
+        private bool _episodeIntervened;         // a visible dim was shown in this episode
         // A Windows (not our, not Win+L) lock: the label waits for the unlock time.
         private FeatureVector _deferredSig;
         private bool _deferredFired;
@@ -199,7 +203,7 @@ namespace PresenceLock.Core
                         break;
                 }
                 _confirm = LockCause.None;
-                if (_engine.EpisodeActive) _engine.OnInputResumed(nowUtcTicks);
+                if (_engine.EpisodeActive) ResumeEpisode(nowUtcTicks);
                 _hold = HoldReason.None;
                 HabitReturnFromInput(nowUtcTicks, idleSeconds);
                 if (_dimShown) { r.Action = CoordinatorAction.CancelDim; _dimShown = false; }
@@ -274,7 +278,7 @@ namespace PresenceLock.Core
                 MarkPostHold(sig);
                 _engine.BeginEpisode(sig, nowUtcTicks);
                 _episodeOffset = idleSeconds;
-                _episodeHorizon = -1;
+                _episodeHorizon = -1; _episodeT = 0; _episodeIntervened = false;
                 _inputSinceEpisode = false;
             }
 
@@ -283,7 +287,7 @@ namespace PresenceLock.Core
             {
                 _engine.BeginEpisode(signature(), nowUtcTicks);
                 _episodeOffset = 0.0;
-                _episodeHorizon = -1;
+                _episodeHorizon = -1; _episodeT = 0; _episodeIntervened = false;
                 _inputSinceEpisode = false;
             }
 
@@ -293,6 +297,7 @@ namespace PresenceLock.Core
             {
                 double t = idleSeconds - _episodeOffset;
                 r.EpisodeSeconds = t;
+                _episodeT = t;
                 _engine.UpdateLive(t);
 
                 bool certain = idleSeconds >= _c.HoldMaxSeconds;
@@ -321,6 +326,7 @@ namespace PresenceLock.Core
                         r.Action = CoordinatorAction.SoftDim;
                         r.Cause = LockCause.Model;
                         _dimShown = true;
+                        _episodeIntervened = true;
                     }
                     else if (d.Action == DecisionAction.TriggerLock)
                     {
@@ -351,6 +357,28 @@ namespace PresenceLock.Core
             return _episodeHorizon = h;
         }
 
+        /// <summary>
+        /// The user touched the computer during a model episode. Feed the silence profile (only
+        /// silences that ended on their own: no dim shown, not after a media/meeting hold) and let it
+        /// judge an invisible learning-mode decision whose truth is unknown.
+        /// </summary>
+        private void ResumeEpisode(long nowUtcTicks)
+        {
+            var sig = _engine.CurrentSignature;
+            bool natural = !_episodeIntervened && sig != null && sig.X[FeatureSchema.PostHold] < 0.5;
+            int ctx = SilenceProfile.ContextOf(sig);
+            double d = _episodeT;
+            var silence = _p.Silence;
+            _engine.OnInputResumed(nowUtcTicks, () =>
+            {
+                bool away = natural && silence != null
+                            && silence.Fit(ctx, nowUtcTicks, _c.SilencePolicy).PosteriorAway(d) >= _c.SilencePolicy.DecideProbability;
+                if (away) _p.Stats.AmbiguousScoredAway++; else _p.Stats.AmbiguousScoredUnknown++;
+                return away;
+            });
+            if (natural && silence != null) silence.Record(ctx, d, nowUtcTicks);   // after judging: prequential
+        }
+
         private bool SilentWorkContext()
         {
             var sig = _engine.CurrentSignature;
@@ -372,6 +400,7 @@ namespace PresenceLock.Core
             r.Action = CoordinatorAction.SoftDim;
             r.Cause = cause;
             _dimShown = true;
+            _episodeIntervened = true;
         }
 
         private void IssueLock(ref CoordinatorResult r, LockCause cause, long now)

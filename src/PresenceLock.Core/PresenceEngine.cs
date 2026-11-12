@@ -181,7 +181,13 @@ namespace PresenceLock.Core
         // --- Ground-truth feedback hooks -----------------------------------------
 
         /// <summary>User produced input again. If we had just fired, that was a false positive.</summary>
-        public void OnInputResumed(long nowUtcTicks)
+        /// <param name="ambiguousIsAway">
+        /// Learning mode only, asked when an invisible decision fired and the user came back later
+        /// than the FP window (truth unknown). true = the user's own silence profile says this silence
+        /// belongs to their "away" population with high probability: scored as a correct decision for
+        /// the gate (still NO training label). null/false = counted as a possible false dim.
+        /// </param>
+        public void OnInputResumed(long nowUtcTicks, Func<bool> ambiguousIsAway = null)
         {
             if (!_episodeActive) return;
 
@@ -193,7 +199,10 @@ namespace PresenceLock.Core
                 rejected = sinceFired <= _cfg.FalsePositiveWindowSeconds;
             }
             if (fired && !rejected && _modes.Mode == OperatingMode.Learning)
-                _modes.RecordUnverifiedFire();       // invisible decision, truth unknown
+            {
+                if (ambiguousIsAway != null && ambiguousIsAway()) _modes.RecordEpisodeOutcome(true, false);
+                else _modes.RecordUnverifiedFire();  // invisible decision, truth unknown
+            }
             else
                 _modes.RecordEpisodeOutcome(fired, rejected);
 

@@ -54,6 +54,8 @@ namespace PresenceLock.Core
         [DataMember] public int HabitLocks;
         [DataMember] public int HabitQuickUnlocks;
         [DataMember] public int Disconnects;           // RDP/console session disconnects (no label)
+        [DataMember] public int AmbiguousScoredAway;   // learning: invisible decision in an ambiguous silence, judged "away" by the silence profile
+        [DataMember] public int AmbiguousScoredUnknown;// ... not decidable: counted as a possible false dim (conservative)
     }
 
     [DataContract]
@@ -78,6 +80,8 @@ namespace PresenceLock.Core
         [DataMember] public int[] OptionalAvailable;  // of those, sensor produced a value
 
         [DataMember] public CoordinatorStats Stats;
+        /// <summary>Learned per-activity silence lengths (decayed counters, no timestamps).</summary>
+        [DataMember] public SilenceProfile Silence;
 
         public UserProfile()
         {
@@ -85,6 +89,7 @@ namespace PresenceLock.Core
             Modes = new ModeController();
             Config = new EngineConfig();
             Stats = new CoordinatorStats();
+            Silence = new SilenceProfile();
             OptionalSeen = new int[FeatureSchema.Count];
             OptionalAvailable = new int[FeatureSchema.Count];
             CreatedUtcTicks = DateTime.UtcNow.Ticks;
