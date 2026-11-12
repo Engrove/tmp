@@ -29,6 +29,14 @@ namespace PresenceLock.Core.Tests
             public List<int> Exposure = new List<int>();          // unattended & unlocked seconds per departure
             public List<int> PlainDepartureExposure = new List<int>(); // departures with no media/meeting running
             public int WrongAbsenceLabels;                            // "away" label while the user was present
+            public int HabitDimsOnPresent;                            // habit-triggered dims shown to a present user
+            public Dictionary<string, List<int>> ExposureByTag = new Dictionary<string, List<int>>();
+            public void AddExposure(string tag, int seconds)
+            {
+                if (tag == null) return;
+                if (!ExposureByTag.TryGetValue(tag, out var l)) ExposureByTag[tag] = l = new List<int>();
+                l.Add(seconds);
+            }
         }
 
         public readonly Stats Learning = new Stats(), Enforcing = new Stats();
@@ -43,11 +51,15 @@ namespace PresenceLock.Core.Tests
         private PassiveSignals _sig;
         private FeatureVector _current = new FeatureVector();
 
-        public CoordinatorSim(bool useSignals, int forceEnforcingFromDay = -1, CoordinatorConfig cfg = null)
+        public CoordinatorSim(bool useSignals, int forceEnforcingFromDay = -1, CoordinatorConfig cfg = null,
+                              HabitJournal habits = null)
         {
             _useSignals = useSignals;
             _forceEnforcingFromDay = forceEnforcingFromDay;
-            Co = new PresenceCoordinator(new PresenceEngine(Profile), cfg ?? new CoordinatorConfig());
+            cfg = cfg ?? new CoordinatorConfig();
+            cfg.Habits = habits;
+            cfg.UtcOffsetMinutes = _ => 0;                   // simulated clock is local time
+            Co = new PresenceCoordinator(new PresenceEngine(Profile), cfg);
         }
 
         private double Idle => (_now - _lastInput) / (double)Sec;
@@ -66,7 +78,8 @@ namespace PresenceLock.Core.Tests
         /// <param name="awayFor">null: the user then simply resumes; else seconds away after leaving</param>
         /// <param name="signal">passive signal while active</param>
         /// <param name="signalFor">seconds (from episode start) the signal stays active</param>
-        private void Episode(FeatureVector sig, int presentFor, int? awayFor, PassiveSignals signal, int signalFor)
+        private void Episode(FeatureVector sig, int presentFor, int? awayFor, PassiveSignals signal, int signalFor,
+                             string tag = null)
         {
             var st = Phase;
             bool departing = awayFor.HasValue, media = signalFor > 0;
@@ -90,6 +103,7 @@ namespace PresenceLock.Core.Tests
                 {
                     st.DimsOnPresent++;
                     if (media) st.MediaDimsOnPresent++;
+                    if (r.Cause == LockCause.Habit) st.HabitDimsOnPresent++;
                     _now += Sec;
                     Input();                                   // 1 mm nudge, keeps working
                     return;
@@ -107,6 +121,7 @@ namespace PresenceLock.Core.Tests
                         st.LockedDepartures++;
                         int exposure = t - presentFor;
                         st.Exposure.Add(exposure);
+                        st.AddExposure(tag, exposure);
                         if (!media) st.PlainDepartureExposure.Add(exposure);
                         _now += Math.Max(1, presentFor + awayFor.Value - t) * Sec;
                     }
@@ -119,6 +134,7 @@ namespace PresenceLock.Core.Tests
                 {
                     st.UnlockedReturns++;                      // came back to an UNLOCKED machine
                     st.Exposure.Add(awayFor.Value);
+                    st.AddExposure(tag, awayFor.Value);
                     if (!media) st.PlainDepartureExposure.Add(awayFor.Value);
                     Input();
                     return;
@@ -139,6 +155,113 @@ namespace PresenceLock.Core.Tests
             _now += rng.UniformInt(300, 900) * Sec;
             Co.OnSessionUnlocked(_now);
             _lastInput = _now;
+        }
+
+        /// <summary>
+        /// Office routine on real calendar days (Mon 2026-01-05 onwards): work 08:00, lunch around
+        /// 11:30-12:00, home around 16:30-17:30 (every third day leaving a video running), every
+        /// tenth day working late until 19:30-20:30, weekends off. The daytime episode mix is the
+        /// same as Run().
+        /// </summary>
+        public CoordinatorSim RunRoutine(int days, long seed)
+        {
+            var rng = new UserSim.Lcg(seed);
+            var video = new PassiveSignals { DisplayRequired = true };
+            var meeting = new PassiveSignals { MicrophoneInUse = true };
+            long origin = new DateTime(2026, 1, 5, 0, 0, 0, DateTimeKind.Utc).Ticks;   // a Monday
+            long Clock(int day, int minutes) => origin + day * TimeSpan.TicksPerDay + minutes * 60 * Sec;
+            bool Workday(int day) => (day % 7) < 5;
+            int NextWorkday(int day) { do day++; while (!Workday(day)); return day; }
+
+            for (int day = 0; day < days; day++)
+            {
+                if (!Workday(day)) continue;
+                if (_forceEnforcingFromDay >= 0 && day >= _forceEnforcingFromDay) _policy = ModePolicy.ForceEnforcing;
+                _now = Clock(day, 8 * 60);
+                Input();
+
+                var kinds = new List<string>();
+                void Add(string k, int n) { for (int i = 0; i < n; i++) kinds.Add(k); }
+                Add("read", 10); Add("read_then_leave", 2); Add("leave", 3); Add("manual", 2);
+                Add("video", 3); Add("leave_during_video", 1); Add("meeting", 1); Add("leave_meeting", 1);
+                for (int i = kinds.Count - 1; i > 0; i--)
+                {
+                    int j = (int)(rng.Next() % (i + 1));
+                    var tmp = kinds[i]; kinds[i] = kinds[j]; kinds[j] = tmp;
+                }
+
+                for (int k = 0; k < kinds.Count; k++)
+                {
+                    if (k == kinds.Count / 2)
+                    {
+                        long lunch = Clock(day, 11 * 60 + 30 + rng.UniformInt(0, 30));
+                        if (_now < lunch) { _now = lunch; Input(); }
+                        int away = rng.UniformInt(30, 50) * 60;
+                        if (rng.UniformInt(1, 5) == 1)
+                            Episode(Neutral(), 0, away, video, rng.UniformInt(5, 40) * 60, "lunch_video");
+                        else
+                            Episode(UserSim.LeavingSig(), 0, away, default(PassiveSignals), 0, "lunch");
+                        _now += rng.UniformInt(30, 300) * Sec;
+                        Input();
+                    }
+                    RunKind(kinds[k], rng, video, meeting);
+                    _now += rng.UniformInt(30, 600) * Sec;
+                    Input();
+                }
+
+                bool late = rng.UniformInt(1, 10) == 1;
+                long home = late ? Clock(day, 19 * 60 + 30 + rng.UniformInt(0, 60))
+                                 : Clock(day, 16 * 60 + 30 + rng.UniformInt(0, 60));
+                if (_now < home) { _now = home; Input(); }
+                int overnight = (int)((Clock(NextWorkday(day), 8 * 60) - _now) / Sec);
+                string prefix = late ? "late_" : "";
+                if (rng.UniformInt(1, 3) == 1)
+                    Episode(Neutral(), 0, overnight, video, rng.UniformInt(20, 120) * 60, prefix + "home_video");
+                else
+                    Episode(UserSim.LeavingSig(), 0, overnight, default(PassiveSignals), 0, prefix + "home");
+
+                if (PromotedDay == null && Co.Engine.Mode == OperatingMode.Enforcing && _policy == ModePolicy.Auto)
+                    PromotedDay = day;
+            }
+            return this;
+        }
+
+        private void RunKind(string k, UserSim.Lcg rng, PassiveSignals video, PassiveSignals meeting)
+        {
+            switch (k)
+            {
+                case "read":
+                    Episode(UserSim.ReadingSig(), rng.UniformInt(15, 100), null, default(PassiveSignals), 0); break;
+                case "read_then_leave":
+                {
+                    int d = rng.UniformInt(10, 60), away = rng.UniformInt(300, 900);
+                    Episode(UserSim.ReadingSig(), d, away, default(PassiveSignals), 0, "break"); break;
+                }
+                case "leave":
+                    Episode(UserSim.LeavingSig(), 0, rng.UniformInt(300, 900), default(PassiveSignals), 0, "break"); break;
+                case "manual":
+                    ManualLock(rng); break;
+                case "video":
+                {
+                    int len = rng.UniformInt(240, 1500);
+                    Episode(Neutral(), len, null, video, len); break;
+                }
+                case "leave_during_video":
+                {
+                    int watch = rng.UniformInt(60, 300), autoplay = rng.UniformInt(0, 1200);
+                    Episode(Neutral(), watch, 1800, video, watch + autoplay, "break_video"); break;
+                }
+                case "meeting":
+                {
+                    int len = rng.UniformInt(300, 1200);
+                    Episode(Neutral(), len, null, meeting, len); break;
+                }
+                default: // leave_meeting
+                {
+                    int stay = rng.UniformInt(120, 600), rest = rng.UniformInt(300, 900);
+                    Episode(Neutral(), stay, 1800, meeting, stay + rest, "break_meeting"); break;
+                }
+            }
         }
 
         public CoordinatorSim Run(int days, long seed)

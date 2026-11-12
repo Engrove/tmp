@@ -60,6 +60,23 @@ namespace PresenceLock.App
                                           ", quick unlocks " + st.HoldProbeQuickUnlocks + ")");
                         Console.WriteLine("backstop: dims " + st.BackstopDims + " (answered " + st.BackstopAnswered + ", locked " + st.BackstopLocks +
                                           ", quick unlocks " + st.BackstopQuickUnlocks + ")");
+                        Console.WriteLine("habits: probes " + st.HabitProbes + " (answered " + st.HabitProbesAnswered + ", locked " + st.HabitLocks +
+                                          ", quick unlocks " + st.HabitQuickUnlocks + "); RDP/console disconnects " + st.Disconnects);
+                        string me = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value ?? "";
+                        if (File.Exists(HabitStore.DefaultPath()))
+                        {
+                            var j = HabitStore.LoadOrCreate(HabitStore.DefaultPath(), me);
+                            var hp = new HabitPolicy();
+                            bool earned = HabitModel.Earned(j, hp, out int n, out double prec, out double lo);
+                            var t = HabitModel.BuildActivityTable(j, DateTime.UtcNow.Ticks, hp);
+                            Console.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                                "habit journal: {0} episodes over {1:F0} days; scored verdicts {2}, precision {3:P0} " +
+                                "(Wilson lower {4:P0}, needs >= {5:P0} and n >= {6}); Brier {7}; habits {8}",
+                                j.Episodes.Count, t.SpanDays, n, prec, lo, hp.MinPrecisionLower95, hp.MinScoredVerdicts,
+                                HabitModel.Brier(j)?.ToString("F3", System.Globalization.CultureInfo.InvariantCulture) ?? "-",
+                                earned ? "ACTIVE" : "shadow only"));
+                        }
+                        else Console.WriteLine("habit journal: none (habit learning off or no data yet)");
                         return 0;
                     }
                     case "--probe-signals":
@@ -118,15 +135,16 @@ namespace PresenceLock.App
             var reader = new Sensors.PassiveSignalReader(settings.HoldIgnoreApps);
             var coordinatorProbe = new PresenceCoordinator(new PresenceEngine(new UserProfile()), settings.ToCoordinatorConfig());
             Console.WriteLine("power signal: " + (reader.PowerSignalAllowed ? "enabled (workstation SKU)" : "disabled (server SKU)"));
-            Console.WriteLine("time      idle  DisplayRequired  mic    camera  -> hold");
+            Console.WriteLine("remote session: " + Interop.NativeMethods.IsRemoteSession());
+            Console.WriteLine("time      idle  DisplayRequired  mic    camera  inputDesktop  -> hold");
             for (int i = 0; i < seconds; i++)
             {
                 var s = reader.ReadNow(out var claims);
                 Console.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture,
-                    "{0:HH:mm:ss} {1,5:F0}  {2,-15}  {3,-5}  {4,-6}  -> {5}",
+                    "{0:HH:mm:ss} {1,5:F0}  {2,-15}  {3,-5}  {4,-6}  {5,-12}  -> {6}",
                     DateTime.Now, Interop.NativeMethods.IdleSeconds(),
                     Show(s.DisplayRequired), Show(s.MicrophoneInUse), Show(s.CameraInUse),
-                    coordinatorProbe.EvaluateHold(s)));
+                    Show(s.InputDesktopObservable), coordinatorProbe.EvaluateHold(s)));
                 foreach (var c in claims)
                     Console.WriteLine("            claim {0}: {1}  running={2} ignored={3}",
                         c.Capability, c.App, c.ProcessRunning, c.Ignored);
@@ -161,6 +179,7 @@ namespace PresenceLock.App
             if (targetSid == null)
             {
                 if (File.Exists(ownPath)) File.Delete(ownPath);
+                if (File.Exists(HabitStore.DefaultPath())) File.Delete(HabitStore.DefaultPath());
                 string me = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value;
                 if (admin && me != null) Guard.ProtectedStore.Delete(me);
                 Console.WriteLine("profile removed; it is recreated (learning mode) at next agent start");
@@ -177,9 +196,12 @@ namespace PresenceLock.App
                 string home = k?.GetValue("ProfileImagePath") as string;
                 if (home != null)
                 {
-                    string p = Path.Combine(Environment.ExpandEnvironmentVariables(home),
-                                            @"AppData\Local\PresenceLock\profile.json");
-                    if (File.Exists(p)) File.Delete(p);
+                    string dir = Path.Combine(Environment.ExpandEnvironmentVariables(home), @"AppData\Local\PresenceLock");
+                    foreach (var name in new[] { "profile.json", "habits.json" })
+                    {
+                        string p = Path.Combine(dir, name);
+                        if (File.Exists(p)) File.Delete(p);
+                    }
                 }
             }
             Guard.ProtectedStore.Delete(targetSid);

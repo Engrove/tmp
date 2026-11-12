@@ -42,6 +42,9 @@ namespace PresenceLock.App.Sensors
             // --- time-of-day prior ---
             fv.X[FeatureSchema.TimeDepartPrior] = _time.Value(DateTime.Now);
 
+            // --- console vs Remote Desktop (different input and working style) ---
+            fv.X[FeatureSchema.RemoteSession] = NativeMethods.IsRemoteSession() ? 1.0 : 0.0;
+
             // --- optional sensors (marked unavailable unless they actually produced data) ---
             fv.Available[FeatureSchema.AudioPresent] = false;
             fv.Available[FeatureSchema.AudioDopplerAway] = false;

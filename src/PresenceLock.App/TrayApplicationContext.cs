@@ -30,6 +30,7 @@ namespace PresenceLock.App
         private readonly AppSettings _settings;
         private readonly string _profilePath;
         private readonly UserProfile _profile;
+        private readonly HabitJournal _habits;               // null when habit learning is off
         private readonly PresenceCoordinator _coord;
 
         private readonly MessageWindow _msg;
@@ -51,7 +52,14 @@ namespace PresenceLock.App
             _profilePath = ProfileStore.DefaultPath();
             _profile = LoadProfile();
             _settings.ApplyTo(_profile);
-            _coord = new PresenceCoordinator(new PresenceEngine(_profile), _settings.ToCoordinatorConfig());
+
+            // Habit journal: a separate, never-exported file (it is a presence timeline). Losing or
+            // editing it can only remove habit acceleration, never weaken locking below policy.
+            string sid = WindowsIdentity.GetCurrent().User?.Value ?? "";
+            _habits = _settings.HabitLearningEnabled ? HabitStore.LoadOrCreate(HabitStore.DefaultPath(), sid) : null;
+            var coordinatorConfig = _settings.ToCoordinatorConfig();
+            coordinatorConfig.Habits = _habits;
+            _coord = new PresenceCoordinator(new PresenceEngine(_profile), coordinatorConfig);
             _lastMode = _coord.Engine.Mode;
 
             var categories = new AppCategory();
@@ -69,6 +77,8 @@ namespace PresenceLock.App
             _msg.RawInput += OnRawInput;
             _msg.SessionLocked += OnSessionLocked;
             _msg.SessionUnlocked += OnSessionUnlocked;
+            _msg.SessionDisconnected += OnSessionDisconnected;
+            _msg.SessionConnected += OnSessionConnected;
 
             _icon = new NotifyIcon
             {
@@ -143,6 +153,7 @@ namespace PresenceLock.App
             try
             {
                 ProfileStore.Save(_profilePath, _profile);
+                if (_habits != null) HabitStore.Save(HabitStore.DefaultPath(), _habits);
                 _lastSaveUtc = DateTime.UtcNow;
             }
             catch (Exception ex) { AgentLog.Write("save failed: " + ex.GetType().Name); }
@@ -253,6 +264,21 @@ namespace PresenceLock.App
             _coord.OnSessionUnlocked(Now());   // our own lock: quick unlock => FP, long => confirmed
             _kin.Clear();
             SaveProfile();
+        }
+
+        /// <summary>RDP client closed, network drop, or the console handed over to RDP: the session
+        /// is not displayed anywhere and reconnecting requires authentication. No departure label.</summary>
+        private void OnSessionDisconnected()
+        {
+            _overlay.Cancel();
+            _coord.OnSessionDisconnected(Now(), NativeMethods.IdleSeconds());
+            SaveProfile();
+        }
+
+        private void OnSessionConnected()
+        {
+            _coord.OnSessionConnected(Now());
+            _kin.Clear();                      // console and RDP kinematics must not mix
         }
 
         private void OnSessionEnding(object sender, SessionEndingEventArgs e) => SaveProfile();

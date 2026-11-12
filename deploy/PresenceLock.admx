@@ -37,6 +37,9 @@
     <category name="PresenceLock_Passive" displayName="$(string.Cat_Passive)">
       <parentCategory ref="PresenceLock" />
     </category>
+    <category name="PresenceLock_Habits" displayName="$(string.Cat_Habits)">
+      <parentCategory ref="PresenceLock" />
+    </category>
   </categories>
 
   <policies>
@@ -162,6 +165,27 @@
       <supportedOn ref="SUPPORTED_Win10_Win11" />
       <elements>
         <text id="HoldIgnoreApps" valueName="HoldIgnoreApps" maxLength="2048" required="true" />
+      </elements>
+    </policy>
+
+    <!-- ===================== habit (routine) learning ===================== -->
+    <policy name="HabitLearning" class="Both"
+            displayName="$(string.HabitLearning)" explainText="$(string.HabitLearning_Help)"
+            key="Software\Policies\PresenceLock" valueName="HabitLearningEnabled">
+      <parentCategory ref="PresenceLock_Habits" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="HabitEarlyConfirm" class="Both"
+            displayName="$(string.HabitEarlyConfirm)" explainText="$(string.HabitEarlyConfirm_Help)"
+            presentation="$(presentation.HabitEarlyConfirm)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock_Habits" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <decimal id="HabitEarlyConfirmMinutes" valueName="HabitEarlyConfirmMinutes" minValue="1" maxValue="60" required="true" />
       </elements>
     </policy>
 

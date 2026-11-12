@@ -84,6 +84,17 @@ Pausen begränsas alltid av "Gränser för paus".</string>
 Simulerad avvägning (60 dagar, användare med 3 videor och 2 möten per dag): HoldMax 5 min: 74 % av media-/mötespauserna får en dimning, längsta obevakade tid 238 s; 10 min: 49 % / 531 s; 15 min: 30 % / 831 s; 20 min: 13 % / 1096 s. Utan passiva signaler: 90 % / 184 s.</string>
       <string id="HoldIgnoreApps">Appar som aldrig orsakar paus</string>
       <string id="HoldIgnoreApps_Help">Kommaseparerade exe-namn (med eller utan .exe) eller prefix för paketfamiljenamn vars mikrofon-/kameraanvändning ignoreras. Använd för verktyg som håller mikrofonen öppen permanent (brusreducering, virtuella ljudenheter), som annars skulle hålla varje inaktivitetsperiod ända till backstopet.</string>
+      <string id="Cat_Habits">Vaneinlärning</string>
+      <string id="HabitLearning">Lär användarens rutiner</string>
+      <string id="HabitLearning_Help">Standard: på. Agenten för en journal över användarens inaktiva perioder de senaste 42 dagarna (starttid och längd, inget annat) och lär sig två saker: när användaren brukar gå för en längre tid (till exempel lunch eller hemgång), och vilka timmar användaren i princip aldrig är aktiv.
+
+Vanor kan BARA tidigarelägga den synliga bekräftelsedimningen (se "Tidigaste vanebekräftelse"); de låser aldrig direkt och skjuter aldrig upp något, så en felaktig vana kostar högst en musrörelse. De agerar först när deras egna bedömningar visat sig träffsäkra för just den användaren (95 %-nedre gräns för träffsäkerheten &gt;= 70 %, minst 20 bedömningar); dessförinnan körs de i skuggläge.
+
+Uppmätt i simulering (kontorsrutin, 7 veckor): avgång sent på kvällen med en video igång låstes efter 135 s i stället för 915 s; vid vanlig hemgångstid är vinsten liten, eftersom de första minuterna av en avgång ser ut som en kafferast. Extra dimningar för närvarande användare: cirka 1,5 % av inaktivitetsperioderna.
+
+Journalen är en närvarotidslinje (personuppgifter). Den stannar i användarens egen profilmapp (habits.json) och exporteras, samlas in eller kopieras aldrig till den skyddade lagringen. Inaktivera för att sluta samla in den.</string>
+      <string id="HabitEarlyConfirm">Tidigaste vanebekräftelse</string>
+      <string id="HabitEarlyConfirm_Help">Antal minuter inaktivitet (standard 2) innan en vanebedömning får visa bekräftelsedimningen. Dimningen följs av lås bara om den inte besvaras inom nådetiden.</string>
     </stringTable>
 
     <presentationTable>
@@ -115,6 +126,9 @@ Simulerad avvägning (60 dagar, användare med 3 videor och 2 möten per dag): H
       </presentation>
       <presentation id="HoldIgnoreApps">
         <textBox refId="HoldIgnoreApps"><label>Ignorera:</label></textBox>
+      </presentation>
+      <presentation id="HabitEarlyConfirm">
+        <decimalTextBox refId="HabitEarlyConfirmMinutes" defaultValue="2" spinStep="1">Tidigaste bekräftelse efter minuter inaktivitet </decimalTextBox>
       </presentation>
     </presentationTable>
   </resources>

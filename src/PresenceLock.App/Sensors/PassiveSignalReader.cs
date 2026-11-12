@@ -92,7 +92,8 @@ namespace PresenceLock.App.Sensors
             {
                 DisplayRequired = ReadDisplayRequired(),
                 MicrophoneInUse = ReadCapability("microphone", claims, ref procs),
-                CameraInUse = ReadCapability("webcam", claims, ref procs)
+                CameraInUse = ReadCapability("webcam", claims, ref procs),
+                InputDesktopObservable = NativeMethods.InputDesktopIsDefault()
             };
         }
 

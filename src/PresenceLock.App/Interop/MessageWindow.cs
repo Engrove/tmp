@@ -31,6 +31,9 @@ namespace PresenceLock.App.Interop
         public event Action<RawInputSample> RawInput;
         public event Action SessionLocked;
         public event Action SessionUnlocked;
+        /// <summary>RDP client closed / network drop / console handed to RDP (and the reverse).</summary>
+        public event Action SessionDisconnected;
+        public event Action SessionConnected;
 
         private int _lastAbsX, _lastAbsY;
         private bool _hasAbs;
@@ -72,6 +75,8 @@ namespace PresenceLock.App.Interop
                     int ev = m.WParam.ToInt32();
                     if (ev == WTS_SESSION_LOCK) SessionLocked?.Invoke();
                     else if (ev == WTS_SESSION_UNLOCK) SessionUnlocked?.Invoke();
+                    else if (ev == WTS_CONSOLE_DISCONNECT || ev == WTS_REMOTE_DISCONNECT) SessionDisconnected?.Invoke();
+                    else if (ev == WTS_CONSOLE_CONNECT || ev == WTS_REMOTE_CONNECT) SessionConnected?.Invoke();
                     break;
             }
             base.WndProc(ref m);

@@ -84,6 +84,17 @@ The hold is always bounded by "Hold limits".</string>
 Simulated trade-off (60 days, a user with 3 videos and 2 meetings a day): HoldMax 5 min: 74 % of media/meeting pauses get a dim, longest unattended time 238 s; 10 min: 49 % / 531 s; 15 min: 30 % / 831 s; 20 min: 13 % / 1096 s. Without passive signals: 90 % / 184 s.</string>
       <string id="HoldIgnoreApps">Applications that never cause a hold</string>
       <string id="HoldIgnoreApps_Help">Comma-separated exe names (with or without .exe) or package family name prefixes whose microphone/camera use is ignored. Use for tools that keep the microphone open permanently (noise suppression, virtual audio devices), which would otherwise hold every idle period until the backstop.</string>
+      <string id="Cat_Habits">Habit learning</string>
+      <string id="HabitLearning">Learn the user's routine</string>
+      <string id="HabitLearning_Help">Default: enabled. The agent keeps a 42-day journal of the user's idle periods (start time and duration, nothing else) and learns two things: when this user usually leaves for long (for example lunch or going home), and at which hours the user is essentially never active.
+
+Habits can ONLY bring the visible confirmation dim forward (see "Earliest habit confirmation"); they never lock directly and never postpone anything, so a wrong habit costs at most one mouse movement. They act only after their own verdicts have proven precise on this user (95 % lower bound of precision &gt;= 70 %, at least 20 verdicts); until then they run in shadow mode.
+
+Measured in simulation (office routine, 7 weeks): departure late in the evening with a video left running locked after 135 s instead of 915 s; at ordinary going-home time the gain is small, because the first minutes of a departure look like a coffee break. Extra dims for present users: about 1.5 % of idle periods.
+
+The journal is a presence timeline (personal data). It stays in the user's own profile folder (habits.json) and is never exported, collected or copied to the protected store. Disable to stop collecting it.</string>
+      <string id="HabitEarlyConfirm">Earliest habit confirmation</string>
+      <string id="HabitEarlyConfirm_Help">Minutes of idle (default 2) before a habit verdict may show the confirmation dim. The dim is followed by a lock only if not answered within the confirmation grace period.</string>
     </stringTable>
 
     <presentationTable>
@@ -115,6 +126,9 @@ Simulated trade-off (60 days, a user with 3 videos and 2 meetings a day): HoldMa
       </presentation>
       <presentation id="HoldIgnoreApps">
         <textBox refId="HoldIgnoreApps"><label>Ignore:</label></textBox>
+      </presentation>
+      <presentation id="HabitEarlyConfirm">
+        <decimalTextBox refId="HabitEarlyConfirmMinutes" defaultValue="2" spinStep="1">Earliest confirmation after idle minutes </decimalTextBox>
       </presentation>
     </presentationTable>
   </resources>

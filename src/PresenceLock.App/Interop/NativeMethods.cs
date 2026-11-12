@@ -167,7 +167,52 @@ namespace PresenceLock.App.Interop
         [DllImport("ntdll.dll")]
         public static extern int RtlGetVersion(ref OSVERSIONINFOEXW versionInfo);
 
+        // --- remote session / input desktop ----------------------------------------
+        public const int SM_REMOTESESSION = 0x1000;
+
+        [DllImport("user32.dll")]
+        public static extern int GetSystemMetrics(int index);
+
+        /// <summary>True in a Remote Desktop session.</summary>
+        public static bool IsRemoteSession() => GetSystemMetrics(SM_REMOTESESSION) != 0;
+
+        private const uint DESKTOP_READOBJECTS = 0x0001;
+        private const int UOI_NAME = 2;
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr OpenInputDesktop(uint flags, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint access);
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "GetUserObjectInformationW")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetUserObjectInformation(IntPtr obj, int index, StringBuilder info, int length, out int needed);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool CloseDesktop(IntPtr desktop);
+
+        /// <summary>
+        /// Is the session's input going to the user's "Default" desktop? Not during a UAC prompt
+        /// (secure desktop) or on the lock screen: then idle time says nothing about presence.
+        /// Read-only access, never switches desktops (same check as the Elli idle journal).
+        /// </summary>
+        public static bool InputDesktopIsDefault()
+        {
+            IntPtr desktop = OpenInputDesktop(0, false, DESKTOP_READOBJECTS);
+            if (desktop == IntPtr.Zero) return false;
+            try
+            {
+                var name = new StringBuilder(256);
+                return GetUserObjectInformation(desktop, UOI_NAME, name, name.Capacity * sizeof(char), out _)
+                       && string.Equals(name.ToString(), "Default", StringComparison.OrdinalIgnoreCase);
+            }
+            finally { CloseDesktop(desktop); }
+        }
+
         // --- WTS session notifications ------------------------------------------
+        public const int WTS_CONSOLE_CONNECT = 0x1;
+        public const int WTS_CONSOLE_DISCONNECT = 0x2;
+        public const int WTS_REMOTE_CONNECT = 0x3;
+        public const int WTS_REMOTE_DISCONNECT = 0x4;
         public const int WM_WTSSESSION_CHANGE = 0x02B1;
         public const int WTS_SESSION_LOCK = 0x7;
         public const int WTS_SESSION_UNLOCK = 0x8;

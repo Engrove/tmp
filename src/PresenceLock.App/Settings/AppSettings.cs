@@ -39,6 +39,10 @@ namespace PresenceLock.App.Settings
         public int ConfirmGraceSeconds = 15;     // confirmation dim -> lock if unanswered
         public string[] HoldIgnoreApps = new string[0];
 
+        // Habit (routine) learning: may only bring a confirmation dim forward, never postpone.
+        public bool HabitLearningEnabled = true;
+        public int HabitEarlyConfirmMinutes = 2;
+
         // Administration.
         public bool AllowUserExit = true;
         public bool AllowProfileExport = true;
@@ -50,7 +54,8 @@ namespace PresenceLock.App.Settings
             MediaHoldEnabled = MediaHoldEnabled,
             MeetingHoldEnabled = MeetingHoldEnabled,
             HoldMaxSeconds = HoldMaxMinutes * 60.0,
-            ConfirmGraceSeconds = ConfirmGraceSeconds
+            ConfirmGraceSeconds = ConfirmGraceSeconds,
+            HabitEarlySeconds = HabitEarlyConfirmMinutes * 60.0
         };
 
         /// <summary>Apply the non-null overrides onto a profile before the engine runs.</summary>

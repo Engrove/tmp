@@ -48,13 +48,19 @@ namespace PresenceLock.Core
         [DataMember] public int BackstopAnswered;
         [DataMember] public int BackstopLocks;
         [DataMember] public int BackstopQuickUnlocks;
+        [DataMember] public int HabitVerdicts;         // "likely gone" verdicts issued (shadow or live)
+        [DataMember] public int HabitProbes;           // confirmation dims brought forward by habits
+        [DataMember] public int HabitProbesAnswered;
+        [DataMember] public int HabitLocks;
+        [DataMember] public int HabitQuickUnlocks;
+        [DataMember] public int Disconnects;           // RDP/console session disconnects (no label)
     }
 
     [DataContract]
     public sealed class UserProfile
     {
-        /// <summary>v2: added FeatureSchema.PostHold. v1 profiles are migrated on load.</summary>
-        public const int CurrentSchemaVersion = 2;
+        /// <summary>v2: FeatureSchema.PostHold. v3: FeatureSchema.RemoteSession. Older profiles migrate on load.</summary>
+        public const int CurrentSchemaVersion = 3;
 
         [DataMember] public int SchemaVersion = CurrentSchemaVersion;
         [DataMember] public string AppVersion = "0.1.0";

@@ -40,7 +40,15 @@ namespace PresenceLock.Core
         /// </summary>
         public const int PostHold = 11;
 
-        public const int Count = 12;
+        // --- schema v3 ------------------------------------------------------------
+        /// <summary>
+        /// 1 = the session is a Remote Desktop session (GetSystemMetrics(SM_REMOTESESSION)).
+        /// RDP delivers absolute, coarser mouse input and a different working style, so the
+        /// model needs to be able to learn separate offsets for console and remote use.
+        /// </summary>
+        public const int RemoteSession = 12;
+
+        public const int Count = 13;
 
         /// <summary>Indices of the five raw-input kinematic features.</summary>
         public static readonly int[] Kinematic = { ScrollFrac, Deceleration, AbruptStop, EdgeFling, MicroJerk };
@@ -50,7 +58,7 @@ namespace PresenceLock.Core
             "ScrollFrac", "Deceleration", "AbruptStop", "EdgeFling", "MicroJerk",
             "CtxReading", "CtxLeaving", "TimeDepartPrior",
             "AudioPresent", "AudioDopplerAway", "BleRssiDrop",
-            "PostHold"
+            "PostHold", "RemoteSession"
         };
 
         /// <summary>true for features that come from optional/extra sensors.</summary>
@@ -59,7 +67,7 @@ namespace PresenceLock.Core
             false, false, false, false, false,
             false, false, false,
             true, true, true,
-            false
+            false, false
         };
     }
 }
