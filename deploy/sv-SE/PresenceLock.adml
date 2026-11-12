@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitionResources xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                           revision="1.0" schemaVersion="1.0"
+                           xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+  <displayName>PresenceLock</displayName>
+  <description>Självlärande närvarodetektering som låser datorn när användaren har gått.</description>
+  <resources>
+    <stringTable>
+      <string id="SUPPORTED_Win10_Win11">Windows 10 (1903 eller senare) och Windows 11, .NET Framework 4.8</string>
+      <string id="Cat_PresenceLock">PresenceLock</string>
+      <string id="Cat_Learning">Inlärningsperiod</string>
+      <string id="Cat_Sensors">Valfria sensorer</string>
+      <string id="Cat_Admin">Administration</string>
+
+      <string id="ModePolicy">Driftläge</string>
+      <string id="ModePolicy_Help">Automatiskt (standard): agenten lär sig i tysthet och går själv över till skarpt läge när den statistiska säkerhetsgrinden är uppfylld (se "Inlärningsperiod").
+
+Tvinga inlärning: lås aldrig, fortsätt lära. För pilotdrift eller för att pausa låsning.
+
+Tvinga skarpt läge: lås direkt med nuvarande profil och kringgå grinden. Rekommenderas bara tillsammans med en baslinjeprofil.
+
+Datorprincip går före användarprincip.</string>
+      <string id="Mode_Auto">Automatiskt (lär, lås sedan när det är säkert)</string>
+      <string id="Mode_ForceLearning">Tvinga inlärning (lås aldrig)</string>
+      <string id="Mode_ForceEnforcing">Tvinga skarpt läge (lås nu)</string>
+
+      <string id="Thresholds">Beslutsgränser</string>
+      <string id="Thresholds_Help">P(borta) där 3-sekunders soft-dim startar, och där datorn låses om dimningen inte besvarades. Standard 75 % och 90 %. Högre värden ger färre dimningar för närvarande användare men långsammare låsning efter avgång.</string>
+
+      <string id="LearningPeriod">Inlärningsperiod och säkerhetsgrind</string>
+      <string id="LearningPeriod_Help">Agenten lämnar inlärningsläget först när ALLA villkor gäller:
+- minst minsta antal dagar har gått (standard 15);
+- minst 30 bekräftade avgångar har observerats (manuell Win+L eller säker frånvaro);
+- över de senaste 200 inaktivitetsepisoderna är den övre 95 %-konfidensgränsen för andelen gånger den skulle ha dimmat eller låst en användare som faktiskt var kvar högst målvärdet (standard 10 %).
+
+Är grinden inte uppfylld efter maxantalet dagar (standard 30) tvingas profilen INTE över. Den stannar i inlärning och flaggas "LearningExtended" för granskning (PresenceLock.exe --status).</string>
+
+      <string id="ShowLockNotification">Visa låsning under inlärning</string>
+      <string id="ShowLockNotification_Help">Endast inlärningsläge. När agenten skulle ha låst visas en liten notis. Klick på notisen talar om att låsningen hade varit fel, vilket är en stark träningssignal och påskyndar inlärningen. Ej konfigurerad: användaren styr själv via menyn i meddelandefältet.</string>
+
+      <string id="AppLists">Ytterligare applikationsklasser</string>
+      <string id="AppLists_Help">Kommaseparerade processnamn (med eller utan .exe) som läggs till de inbyggda listorna. "Läs"-appar är sådana där användaren rimligen sitter stilla (CAD, IDE, PDF-läsare, videomöten). "Lämnar"-appar föregår ofta att man går ifrån. Endast processnamn granskas, aldrig fönstertitlar eller innehåll.</string>
+
+      <string id="EnableAudioSonar">Tillåt ultraljudsbaserad närvarodetektering (endast inlärning)</string>
+      <string id="EnableAudioSonar_Help">Tillåter den valfria 20 kHz eko/Doppler-sensorn under inlärning. Denna version innehåller signalbehandlingen men ingen ljudinspelningsdel, så inställningen har i dag ingen effekt. När en inspelningsdel integreras gäller: Windows visar mikrofonindikatorn, sekretessinställningen "Tillåt skrivbordsappar att komma åt mikrofonen" måste vara på, och sensorn används aldrig i skarpt läge om den inte var tillgänglig i minst 80 % av inlärningsepisoderna.</string>
+
+      <string id="EnableBleRssi">Tillåt Bluetooth LE-signalstyrka (endast inlärning)</string>
+      <string id="EnableBleRssi_Help">Tillåter den valfria Bluetooth LE RSSI-indikationen under inlärning. Denna version innehåller logiken men ingen BLE-avlyssnare, så inställningen har i dag ingen effekt. Samma 80 %-regel gäller innan skarpt läge får använda den.</string>
+
+      <string id="AllowUserExit">Tillåt användaren att avsluta agenten</string>
+      <string id="AllowUserExit_Help">Inaktiverad: menyvalet "Avsluta" tas bort. Standard: tillåtet.</string>
+
+      <string id="AllowProfileExport">Tillåt profilexport från menyn</string>
+      <string id="AllowProfileExport_Help">Inaktiverad: exportvalen tas bort ur menyn. Kommandoradsexport (PresenceLock.exe --export) påverkas inte. Standard: tillåtet.</string>
+
+      <string id="ProfileExportDirectory">Samla in profiler till en filresurs</string>
+      <string id="ProfileExportDirectory_Help">En gång per dygn skriver agenten användarens profil till mappen som DATOR_ANVÄNDARE.json. Använd en resurs där användare kan skapa filer men inte läsa andras. Profilerna innehåller bara modellvikter och räknare; ingen indata, inga fönstertitlar, inget innehåll. Slå ihop till en baslinje med: PresenceLock.exe --merge-baseline ut.json in1.json in2.json ...</string>
+
+      <string id="BaselineProfilePath">Baslinjeprofil för nya användare</string>
+      <string id="BaselineProfilePath_Help">Sökväg till en baslinjeprofil (från --export-baseline eller --merge-baseline). Användare utan lokal profil startar från dessa vikter i stället för neutrala standardvärden. Kalibreringen nollställs alltid: varje användare måste själv passera säkerhetsgrinden på egen data innan skarpt läge.</string>
+    </stringTable>
+
+    <presentationTable>
+      <presentation id="ModePolicy">
+        <dropdownList refId="ModePolicy_Enum" defaultItem="0" noSort="true">Läge:</dropdownList>
+      </presentation>
+      <presentation id="Thresholds">
+        <decimalTextBox refId="SoftDimThresholdPercent" defaultValue="75" spinStep="1">Soft-dim vid P(borta) % </decimalTextBox>
+        <decimalTextBox refId="LockThresholdPercent" defaultValue="90" spinStep="1">Lås vid P(borta) % </decimalTextBox>
+      </presentation>
+      <presentation id="LearningPeriod">
+        <decimalTextBox refId="MinLearningDays" defaultValue="15" spinStep="1">Minsta antal inlärningsdagar </decimalTextBox>
+        <decimalTextBox refId="MaxLearningDays" defaultValue="30" spinStep="1">Flagga för granskning efter dagar </decimalTextBox>
+        <decimalTextBox refId="TargetFalsePositivePercent" defaultValue="10" spinStep="1">Max andel felaktiga dimningar % (95 %-gräns) </decimalTextBox>
+      </presentation>
+      <presentation id="AppLists">
+        <textBox refId="ExtraReadingApps"><label>Läs-appar:</label></textBox>
+        <textBox refId="ExtraLeavingApps"><label>Lämnar-appar:</label></textBox>
+      </presentation>
+      <presentation id="ProfileExportDirectory">
+        <textBox refId="ProfileExportDirectory"><label>Mapp (UNC):</label></textBox>
+      </presentation>
+      <presentation id="BaselineProfilePath">
+        <textBox refId="BaselineProfilePath"><label>Baslinjefil:</label></textBox>
+      </presentation>
+    </presentationTable>
+  </resources>
+</policyDefinitionResources>

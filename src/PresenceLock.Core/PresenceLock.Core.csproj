@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The engine. Multi-targeted:
+      net48   -> what ships (compiled straight into PresenceLock.exe, see the App project)
+      net8.0  -> lets the unit tests run on any OS (incl. the Linux CI that produced the proof)
+    LangVersion is pinned to 7.3 so the exact same sources compile with the C# compiler that
+    ships with Visual Studio 2019+/Build Tools for net48 on a Windows build server.
+    Zero package dependencies at runtime.
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <LangVersion>7.3</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>PresenceLock.Core</RootNamespace>
+    <AssemblyName>PresenceLock.Core</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <!-- Reference assemblies only (build-time); lets net48 build without a targeting pack. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+
+</Project>

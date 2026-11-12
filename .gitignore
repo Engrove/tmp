@@ -1,0 +1,9 @@
+# build output
+bin/
+obj/
+TestResults/
+*.user
+.vs/
+# python
+__pycache__/
+*.pyc

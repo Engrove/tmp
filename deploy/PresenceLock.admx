@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PresenceLock Group Policy template.
+  Copy PresenceLock.admx to  \\<domain>\SYSVOL\<domain>\Policies\PolicyDefinitions\
+  and the language folders (en-US, sv-SE) with their .adml next to it (Central Store),
+  or to C:\Windows\PolicyDefinitions on a single admin machine.
+
+  Every valueName here is read by src/PresenceLock.App/Settings/PolicyReader.cs;
+  verify/check_admx.py checks the two stay in sync.
+-->
+<policyDefinitions xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   revision="1.0" schemaVersion="1.0"
+                   xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+  <policyNamespaces>
+    <target prefix="presencelock" namespace="PresenceLock.Policies.PresenceLock" />
+  </policyNamespaces>
+  <resources minRequiredRevision="1.0" />
+
+  <supportedOn>
+    <definitions>
+      <definition name="SUPPORTED_Win10_Win11" displayName="$(string.SUPPORTED_Win10_Win11)" />
+    </definitions>
+  </supportedOn>
+
+  <categories>
+    <category name="PresenceLock" displayName="$(string.Cat_PresenceLock)" />
+    <category name="PresenceLock_Learning" displayName="$(string.Cat_Learning)">
+      <parentCategory ref="PresenceLock" />
+    </category>
+    <category name="PresenceLock_Sensors" displayName="$(string.Cat_Sensors)">
+      <parentCategory ref="PresenceLock" />
+    </category>
+    <category name="PresenceLock_Admin" displayName="$(string.Cat_Admin)">
+      <parentCategory ref="PresenceLock" />
+    </category>
+  </categories>
+
+  <policies>
+
+    <!-- ===================== operating mode ===================== -->
+    <policy name="ModePolicy" class="Both"
+            displayName="$(string.ModePolicy)" explainText="$(string.ModePolicy_Help)"
+            presentation="$(presentation.ModePolicy)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <enum id="ModePolicy_Enum" valueName="ModePolicy" required="true">
+          <item displayName="$(string.Mode_Auto)"><value><decimal value="0" /></value></item>
+          <item displayName="$(string.Mode_ForceLearning)"><value><decimal value="1" /></value></item>
+          <item displayName="$(string.Mode_ForceEnforcing)"><value><decimal value="2" /></value></item>
+        </enum>
+      </elements>
+    </policy>
+
+    <policy name="Thresholds" class="Both"
+            displayName="$(string.Thresholds)" explainText="$(string.Thresholds_Help)"
+            presentation="$(presentation.Thresholds)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <decimal id="SoftDimThresholdPercent" valueName="SoftDimThresholdPercent" minValue="50" maxValue="99" required="true" />
+        <decimal id="LockThresholdPercent" valueName="LockThresholdPercent" minValue="50" maxValue="99" required="true" />
+      </elements>
+    </policy>
+
+    <!-- ===================== learning period ===================== -->
+    <policy name="LearningPeriod" class="Both"
+            displayName="$(string.LearningPeriod)" explainText="$(string.LearningPeriod_Help)"
+            presentation="$(presentation.LearningPeriod)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock_Learning" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <decimal id="MinLearningDays" valueName="MinLearningDays" minValue="1" maxValue="365" required="true" />
+        <decimal id="MaxLearningDays" valueName="MaxLearningDays" minValue="1" maxValue="365" required="true" />
+        <decimal id="TargetFalsePositivePercent" valueName="TargetFalsePositivePercent" minValue="1" maxValue="50" required="true" />
+      </elements>
+    </policy>
+
+    <policy name="ShowLockNotification" class="Both"
+            displayName="$(string.ShowLockNotification)" explainText="$(string.ShowLockNotification_Help)"
+            key="Software\Policies\PresenceLock" valueName="ShowLockNotification">
+      <parentCategory ref="PresenceLock_Learning" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="AppLists" class="Both"
+            displayName="$(string.AppLists)" explainText="$(string.AppLists_Help)"
+            presentation="$(presentation.AppLists)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock_Learning" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <text id="ExtraReadingApps" valueName="ExtraReadingApps" maxLength="2048" />
+        <text id="ExtraLeavingApps" valueName="ExtraLeavingApps" maxLength="2048" />
+      </elements>
+    </policy>
+
+    <!-- ===================== optional sensors ===================== -->
+    <policy name="EnableAudioSonar" class="Both"
+            displayName="$(string.EnableAudioSonar)" explainText="$(string.EnableAudioSonar_Help)"
+            key="Software\Policies\PresenceLock" valueName="EnableAudioSonar">
+      <parentCategory ref="PresenceLock_Sensors" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="EnableBleRssi" class="Both"
+            displayName="$(string.EnableBleRssi)" explainText="$(string.EnableBleRssi_Help)"
+            key="Software\Policies\PresenceLock" valueName="EnableBleRssi">
+      <parentCategory ref="PresenceLock_Sensors" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <!-- ===================== administration ===================== -->
+    <policy name="AllowUserExit" class="Both"
+            displayName="$(string.AllowUserExit)" explainText="$(string.AllowUserExit_Help)"
+            key="Software\Policies\PresenceLock" valueName="AllowUserExit">
+      <parentCategory ref="PresenceLock_Admin" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="AllowProfileExport" class="Both"
+            displayName="$(string.AllowProfileExport)" explainText="$(string.AllowProfileExport_Help)"
+            key="Software\Policies\PresenceLock" valueName="AllowProfileExport">
+      <parentCategory ref="PresenceLock_Admin" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="ProfileExportDirectory" class="Both"
+            displayName="$(string.ProfileExportDirectory)" explainText="$(string.ProfileExportDirectory_Help)"
+            presentation="$(presentation.ProfileExportDirectory)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock_Admin" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <text id="ProfileExportDirectory" valueName="ProfileExportDirectory" expandable="true" maxLength="1024" required="true" />
+      </elements>
+    </policy>
+
+    <policy name="BaselineProfilePath" class="Both"
+            displayName="$(string.BaselineProfilePath)" explainText="$(string.BaselineProfilePath_Help)"
+            presentation="$(presentation.BaselineProfilePath)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock_Admin" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <text id="BaselineProfilePath" valueName="BaselineProfilePath" expandable="true" maxLength="1024" required="true" />
+      </elements>
+    </policy>
+
+  </policies>
+</policyDefinitions>

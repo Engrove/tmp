@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitionResources xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                           revision="1.0" schemaVersion="1.0"
+                           xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+  <displayName>PresenceLock</displayName>
+  <description>Self-learning presence detection that locks the workstation when the user has left.</description>
+  <resources>
+    <stringTable>
+      <string id="SUPPORTED_Win10_Win11">Windows 10 (1903 or later) and Windows 11, .NET Framework 4.8</string>
+      <string id="Cat_PresenceLock">PresenceLock</string>
+      <string id="Cat_Learning">Learning period</string>
+      <string id="Cat_Sensors">Optional sensors</string>
+      <string id="Cat_Admin">Administration</string>
+
+      <string id="ModePolicy">Operating mode</string>
+      <string id="ModePolicy_Help">Automatic (default): the agent learns silently and switches itself to enforcing mode once the statistical safety gate is met (see "Learning period").
+
+Force learning: never lock; keep learning. Use for pilots or to pause enforcement.
+
+Force enforcing: lock immediately with the current profile, bypassing the gate. Recommended only together with a baseline profile.
+
+Computer policy overrides user policy.</string>
+      <string id="Mode_Auto">Automatic (learn, then enforce when safe)</string>
+      <string id="Mode_ForceLearning">Force learning (never lock)</string>
+      <string id="Mode_ForceEnforcing">Force enforcing (lock now)</string>
+
+      <string id="Thresholds">Decision thresholds</string>
+      <string id="Thresholds_Help">P(away) at which the 3-second soft dim starts, and at which the workstation is locked after the dim went unanswered. Defaults 75 % and 90 %. Higher values mean fewer dims for present users and slower locking after departure.</string>
+
+      <string id="LearningPeriod">Learning period and safety gate</string>
+      <string id="LearningPeriod_Help">The agent leaves learning mode only when ALL hold:
+- at least the minimum number of days has passed (default 15);
+- at least 30 confirmed departures were observed (manual Win+L or certain absence);
+- over the last 200 idle episodes, the 95 % upper confidence bound of the rate at which it would have dimmed or locked a user who was actually present is at or below the target (default 10 %).
+
+If the gate is still not met after the maximum number of days (default 30), the profile is NOT force-promoted. It stays in learning and is flagged "LearningExtended" for review (PresenceLock.exe --status).</string>
+
+      <string id="ShowLockNotification">Show "would lock" notice during learning</string>
+      <string id="ShowLockNotification_Help">Learning mode only. When the agent would have locked, show a small notification. Clicking it tells the agent the lock would have been wrong, which is a strong training signal and speeds up learning. Not configured: the user can toggle it from the tray menu.</string>
+
+      <string id="AppLists">Additional application classes</string>
+      <string id="AppLists_Help">Comma-separated process names (with or without .exe) added to the built-in lists. "Reading" apps are ones where users plausibly sit still (CAD, IDE, PDF viewers, video calls). "Leaving" apps are ones that often precede stepping away. Only process names are ever inspected, never window titles or content.</string>
+
+      <string id="EnableAudioSonar">Allow ultrasonic presence sensing (learning only)</string>
+      <string id="EnableAudioSonar_Help">Allows the optional 20 kHz echo/Doppler sensor during learning. This build ships the signal processing but no audio capture backend, so enabling it currently has no effect. When a backend is integrated: Windows shows the microphone-in-use indicator, the "Let desktop apps access your microphone" privacy setting must be on, and the sensor is never relied on in enforcing mode unless it was available in at least 80 % of learning episodes.</string>
+
+      <string id="EnableBleRssi">Allow Bluetooth LE signal-strength sensing (learning only)</string>
+      <string id="EnableBleRssi_Help">Allows the optional Bluetooth LE RSSI presence hint during learning. This build ships the logic but no BLE watcher adapter, so enabling it currently has no effect. The same 80 % availability rule applies before enforcing mode may use it.</string>
+
+      <string id="AllowUserExit">Allow the user to exit the agent</string>
+      <string id="AllowUserExit_Help">Disabled: the "Exit" item is removed from the tray menu. Default: allowed.</string>
+
+      <string id="AllowProfileExport">Allow profile export from the tray menu</string>
+      <string id="AllowProfileExport_Help">Disabled: the export items are removed from the tray menu. Command-line export (PresenceLock.exe --export) is unaffected. Default: allowed.</string>
+
+      <string id="ProfileExportDirectory">Collect profiles to a share</string>
+      <string id="ProfileExportDirectory_Help">Once a day the agent writes the user's profile to this folder as COMPUTER_USER.json. Use a share where users can create files but not read others' files. Profiles contain only model weights and counters; no input data, window titles or content. Merge them into a fleet baseline with: PresenceLock.exe --merge-baseline out.json in1.json in2.json ...</string>
+
+      <string id="BaselineProfilePath">Baseline profile for new users</string>
+      <string id="BaselineProfilePath_Help">Path to a baseline profile (from --export-baseline or --merge-baseline). Users without a local profile start from these weights instead of the neutral defaults. Calibration is always reset: every user still has to pass the safety gate on their own data before enforcing.</string>
+    </stringTable>
+
+    <presentationTable>
+      <presentation id="ModePolicy">
+        <dropdownList refId="ModePolicy_Enum" defaultItem="0" noSort="true">Mode:</dropdownList>
+      </presentation>
+      <presentation id="Thresholds">
+        <decimalTextBox refId="SoftDimThresholdPercent" defaultValue="75" spinStep="1">Soft dim at P(away) % </decimalTextBox>
+        <decimalTextBox refId="LockThresholdPercent" defaultValue="90" spinStep="1">Lock at P(away) % </decimalTextBox>
+      </presentation>
+      <presentation id="LearningPeriod">
+        <decimalTextBox refId="MinLearningDays" defaultValue="15" spinStep="1">Minimum learning days </decimalTextBox>
+        <decimalTextBox refId="MaxLearningDays" defaultValue="30" spinStep="1">Flag for review after days </decimalTextBox>
+        <decimalTextBox refId="TargetFalsePositivePercent" defaultValue="10" spinStep="1">Max false-dim rate % (95 % bound) </decimalTextBox>
+      </presentation>
+      <presentation id="AppLists">
+        <textBox refId="ExtraReadingApps"><label>Reading apps:</label></textBox>
+        <textBox refId="ExtraLeavingApps"><label>Leaving apps:</label></textBox>
+      </presentation>
+      <presentation id="ProfileExportDirectory">
+        <textBox refId="ProfileExportDirectory"><label>Folder (UNC):</label></textBox>
+      </presentation>
+      <presentation id="BaselineProfilePath">
+        <textBox refId="BaselineProfilePath"><label>Baseline file:</label></textBox>
+      </presentation>
+    </presentationTable>
+  </resources>
+</policyDefinitionResources>

@@ -1,0 +1,203 @@
+{
+ "generator": "verify/export_parity.py",
+ "cases": [
+  {
+   "name": "separable_s12345_d60",
+   "seed": 12345,
+   "days": 60,
+   "ambiguous": false,
+   "expected": {
+    "W0": -1.878061399027393,
+    "U0": -2.42862233169013,
+    "W": [
+     -0.22911391073199966,
+     -0.3054852143093324,
+     1.5015814055229992,
+     1.5015814055229992,
+     1.5015814055229992,
+     -0.38185651788666647,
+     1.5015814055229992,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "U": [
+     -0.3077550202015421,
+     -0.4103400269353895,
+     0.23670585051455378,
+     0.23670585051455378,
+     0.23670585051455378,
+     -0.5129250336692367,
+     0.23670585051455378,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "mode": "Enforcing",
+    "learning_extended": false,
+    "positives": 420,
+    "fired": 329,
+    "rejected": 30,
+    "window_count": 200,
+    "window_head": 20,
+    "window_fp": 6,
+    "promoted_at": 638013248010000000,
+    "promotion_ub": 0.05028708724004506,
+    "promoted_day": 15,
+    "enforcing": {
+     "episodes": 764,
+     "present_episodes": 449,
+     "dims_on_present": 24,
+     "locks_on_present": 0,
+     "departures": 225,
+     "locked_departures": 221,
+     "missed_departures": 4
+    },
+    "learning": {
+     "episodes": 256,
+     "present_episodes": 151,
+     "dims_on_present": 0,
+     "locks_on_present": 0,
+     "departures": 75,
+     "locked_departures": 0,
+     "missed_departures": 0
+    },
+    "enforcing_latency_sum": 10021
+   }
+  },
+  {
+   "name": "ambiguous_s42_d60",
+   "seed": 42,
+   "days": 60,
+   "ambiguous": true,
+   "expected": {
+    "W0": -2.295108016459716,
+    "U0": -2.435866450490736,
+    "W": [
+     -0.19561560944832668,
+     -0.26082081259776957,
+     1.0290315637900163,
+     1.0290315637900163,
+     1.0290315637900163,
+     -0.32602601574721113,
+     1.0290315637900163,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "U": [
+     -0.24542349997749777,
+     -0.32723133330333004,
+     0.11529214860402945,
+     0.11529214860402945,
+     0.11529214860402945,
+     -0.39839550029936766,
+     0.11529214860402945,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "mode": "Enforcing",
+    "learning_extended": false,
+    "positives": 420,
+    "fired": 378,
+    "rejected": 79,
+    "window_count": 200,
+    "window_head": 80,
+    "window_fp": 17,
+    "promoted_at": 638013295950000000,
+    "promotion_ub": 0.09578699916966896,
+    "promoted_day": 15,
+    "enforcing": {
+     "episodes": 800,
+     "present_episodes": 488,
+     "dims_on_present": 68,
+     "locks_on_present": 0,
+     "departures": 223,
+     "locked_departures": 219,
+     "missed_departures": 4
+    },
+    "learning": {
+     "episodes": 280,
+     "present_episodes": 172,
+     "dims_on_present": 1,
+     "locks_on_present": 0,
+     "departures": 77,
+     "locked_departures": 0,
+     "missed_departures": 0
+    },
+    "enforcing_latency_sum": 10374
+   }
+  },
+  {
+   "name": "ambiguous_s999_d45",
+   "seed": 999,
+   "days": 45,
+   "ambiguous": true,
+   "expected": {
+    "W0": -2.2158655910588885,
+    "U0": -2.8627742339523823,
+    "W": [
+     -0.11941808425812174,
+     -0.1592241123441624,
+     0.9818218297274438,
+     0.9818218297274438,
+     0.9818218297274438,
+     -0.19903014043020295,
+     0.9818218297274438,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "U": [
+     -0.22295349977502957,
+     -0.29727133303337255,
+     -0.33844061632414885,
+     -0.33844061632414885,
+     -0.33844061632414885,
+     -0.3715891662917159,
+     -0.33844061632414885,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "mode": "Learning",
+    "learning_extended": true,
+    "positives": 315,
+    "fired": 275,
+    "rejected": 40,
+    "window_count": 200,
+    "window_head": 10,
+    "window_fp": 14,
+    "promoted_at": 0,
+    "promotion_ub": 0.0,
+    "promoted_day": null,
+    "enforcing": {
+     "episodes": 0,
+     "present_episodes": 0,
+     "dims_on_present": 0,
+     "locks_on_present": 0,
+     "departures": 0,
+     "locked_departures": 0,
+     "missed_departures": 0
+    },
+    "learning": {
+     "episodes": 810,
+     "present_episodes": 495,
+     "dims_on_present": 0,
+     "locks_on_present": 0,
+     "departures": 225,
+     "locked_departures": 0,
+     "missed_departures": 0
+    },
+    "enforcing_latency_sum": 0
+   }
+  }
+ ]
+}
