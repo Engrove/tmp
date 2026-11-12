@@ -72,6 +72,12 @@ namespace PresenceLock.App
                         if (p.Quality != null) Console.WriteLine(p.Quality.Describe(p.Modes));
                         Console.WriteLine("ambiguous learning decisions: judged away " + st.AmbiguousScoredAway +
                                           ", undecidable " + st.AmbiguousScoredUnknown);
+                        Console.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                            "cleaning service: {0} runs, last {1}; retired so far: {2} journal episodes, {3} log lines, {4} files; backup {5}",
+                            st.HousekeepingRuns,
+                            st.LastHousekeepingUtcTicks == 0 ? "never" : new DateTime(st.LastHousekeepingUtcTicks, DateTimeKind.Utc).ToString("u"),
+                            st.JournalEpisodesRetired, st.LogLinesRetired, st.FilesRetired,
+                            File.Exists(path + Housekeeping.BackupSuffix) ? File.GetLastWriteTimeUtc(path + Housekeeping.BackupSuffix).ToString("u") : "none"));
                         string me = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value ?? "";
                         if (File.Exists(HabitStore.DefaultPath()))
                         {
@@ -105,8 +111,14 @@ namespace PresenceLock.App
                     {
                         Need(args, 3);
                         var inputs = new List<UserProfile>();
+                        int maxAge = Settings.PolicyReader.Load().CollectedProfileRetentionDays;
                         for (int i = 2; i < args.Length; i++)
-                            inputs.Add(ProfileStore.Deserialize(BoundedFile.ReadAllText(args[i], BoundedFile.MaxProfileBytes)));
+                        {
+                            var p = ProfileStore.Deserialize(BoundedFile.ReadAllText(args[i], BoundedFile.MaxProfileBytes));
+                            double age = (DateTime.UtcNow.Ticks - p.UpdatedUtcTicks) / (double)TimeSpan.TicksPerDay;
+                            if (age > maxAge) { Console.WriteLine("skipped (older than " + maxAge + " days): " + args[i]); continue; }
+                            inputs.Add(p);
+                        }
                         File.WriteAllText(args[1], ProfileStore.Serialize(ProfileStore.MergeBaseline(inputs)));
                         Console.WriteLine("merged " + inputs.Count + " profiles into " + args[1]);
                         return 0;

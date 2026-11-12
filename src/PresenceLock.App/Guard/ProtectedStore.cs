@@ -33,6 +33,17 @@ namespace PresenceLock.App.Guard
         private static readonly SecurityIdentifier SystemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
         private static readonly SecurityIdentifier AdminsSid = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
 
+        /// <summary>Guard side: mark the user as seen on this computer (retention clock).</summary>
+        public static void Touch(string sid)
+        {
+            try
+            {
+                string p = PathFor(sid);
+                if (File.Exists(p)) File.SetLastWriteTimeUtc(p, DateTime.UtcNow);
+            }
+            catch (Exception) { /* next sync */ }
+        }
+
         /// <summary>Agent side: the protected copy for this user, or null (missing/unreadable/invalid).</summary>
         public static UserProfile TryRead(string sid)
         {

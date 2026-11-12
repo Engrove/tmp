@@ -46,29 +46,48 @@ namespace PresenceLock.Core
         /// mismatch is treated as "start over" rather than crashing: a corrupt or
         /// incompatible profile must never take the agent down.
         /// </summary>
-        public static UserProfile LoadOrCreate(string path, string userSid, string machineName)
+        public static UserProfile LoadOrCreate(string path, string userSid, string machineName) =>
+            LoadWithRecovery(path, userSid, machineName, out _);
+
+        /// <summary>
+        /// Self-healing load. Order: the profile; if it is unreadable, oversized or not current, the
+        /// last-known-good backup written by the daily housekeeping; only then a fresh profile.
+        /// <paramref name="recovery"/> is null on a normal load, otherwise what happened (for the
+        /// event log: an administrator should know, but must not be NEEDED to fix it).
+        /// </summary>
+        public static UserProfile LoadWithRecovery(string path, string userSid, string machineName, out string recovery)
         {
+            recovery = null;
+            if (!File.Exists(path)) return Fresh(userSid, machineName);
+            string problem = TryLoad(path, out var p);
+            if (problem == null) return p;
+            string bak = path + Housekeeping.BackupSuffix;
+            if (File.Exists(bak) && TryLoad(bak, out var b) == null)
+            {
+                recovery = "profile.json " + problem + "; restored from the last-known-good backup of " +
+                           File.GetLastWriteTimeUtc(bak).ToString("u");
+                return b;
+            }
+            recovery = "profile.json " + problem + "; no usable backup, started a fresh profile";
+            return Fresh(userSid, machineName);
+        }
+
+        private static string TryLoad(string path, out UserProfile p)
+        {
+            p = null;
             try
             {
-                if (File.Exists(path))
-                {
-                    var json = BoundedFile.ReadAllText(path, BoundedFile.MaxProfileBytes);   // oversized = corrupt
-                    var p = Deserialize(json);   // migrates older schemas, rejects newer ones
-                    if (p != null && p.SchemaVersion == UserProfile.CurrentSchemaVersion)
-                        return p;
-                }
+                p = Deserialize(BoundedFile.ReadAllText(path, BoundedFile.MaxProfileBytes));   // migrates older schemas
+                if (p == null) return "empty";
+                if (p.SchemaVersion != UserProfile.CurrentSchemaVersion) return "written by a newer version";
+                return null;
             }
-            catch
-            {
-                // fall through to a fresh profile
-            }
-
-            return new UserProfile
-            {
-                UserSid = userSid ?? "",
-                MachineName = machineName ?? ""
-            };
+            catch (InvalidDataException ex) { return "oversized (" + ex.Message + ")"; }
+            catch (Exception ex) { return "unreadable (" + ex.GetType().Name + ")"; }
         }
+
+        private static UserProfile Fresh(string userSid, string machineName) =>
+            new UserProfile { UserSid = userSid ?? "", MachineName = machineName ?? "" };
 
         public static void Save(string path, UserProfile profile)
         {

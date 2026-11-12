@@ -230,6 +230,19 @@
       </elements>
     </policy>
 
+    <policy name="DataRetention" class="Both"
+            displayName="$(string.DataRetention)" explainText="$(string.DataRetention_Help)"
+            presentation="$(presentation.DataRetention)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock_Admin" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <decimal id="LogRetentionDays" valueName="LogRetentionDays" minValue="1" maxValue="365" required="true" />
+        <decimal id="ProtectedCopyRetentionDays" valueName="ProtectedCopyRetentionDays" minValue="30" maxValue="3650" required="true" />
+        <decimal id="CollectedProfileRetentionDays" valueName="CollectedProfileRetentionDays" minValue="7" maxValue="3650" required="true" />
+      </elements>
+    </policy>
+
     <policy name="BaselineProfilePath" class="Both"
             displayName="$(string.BaselineProfilePath)" explainText="$(string.BaselineProfilePath_Help)"
             presentation="$(presentation.BaselineProfilePath)"

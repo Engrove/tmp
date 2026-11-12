@@ -28,6 +28,8 @@ namespace PresenceLock.Core.Tests
         public readonly PresenceCoordinator Co;
         public int? PromotedDay;
         public string GateAtDay20 = "-";
+        /// <summary>Called at 07:00 every simulated day (weekends too), before the user arrives.</summary>
+        public Action<int, long> StartOfDay;
         private readonly int _forceFrom;
         private readonly bool _notice;
         private readonly UserSim.Lcg _rng;
@@ -134,6 +136,7 @@ namespace PresenceLock.Core.Tests
             long At(int day, int h, int m) => origin + day * TimeSpan.TicksPerDay + (h * 60 + m) * 60 * Sec;
             for (int day = 0; day < days; day++)
             {
+                StartOfDay?.Invoke(day, At(day, 7, 0));                               // e.g. the cleaning service
                 if (day % 7 >= 5) continue;
                 _week = Math.Min(11, day / 7);
                 if (_forceFrom >= 0 && day >= _forceFrom) _policy = ModePolicy.ForceEnforcing;

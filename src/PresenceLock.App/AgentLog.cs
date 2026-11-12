@@ -26,6 +26,13 @@ namespace PresenceLock.App
             try { Log.Write(message, DateTime.Now, DateTime.UtcNow.Ticks); }
             catch { /* logging must never take the agent down */ }
         }
+
+        /// <summary>Retire lines older than the retention period (cleaning service).</summary>
+        public static int Retire(int days)
+        {
+            try { return Log.Retire(DateTime.Now.AddDays(-days)); }
+            catch { return 0; }
+        }
     }
 
     /// <summary>
@@ -35,10 +42,13 @@ namespace PresenceLock.App
     ///   1010 quality below target (false dims above the gate target in enforcing mode)
     ///   1011 quality back within target
     ///   1012 a learned model change made predictions significantly worse and was rolled back
+    ///   1013 profile.json unusable: restored from the last-known-good backup (or started fresh)
+    ///   1014 habits.json unusable: a new journal was started (locking unaffected)
     /// </summary>
     internal static class AgentEvents
     {
-        public const int QualityBelowTarget = 1010, QualityRestored = 1011, ModelRolledBack = 1012;
+        public const int QualityBelowTarget = 1010, QualityRestored = 1011, ModelRolledBack = 1012,
+                         ProfileRecovered = 1013, JournalReset = 1014;
 
         private static readonly EventThrottle Throttle = new EventThrottle();
         private static readonly TimeSpan Window = TimeSpan.FromHours(1);

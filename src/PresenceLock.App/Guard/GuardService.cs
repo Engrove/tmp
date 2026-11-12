@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Diagnostics;
 using System.IO;
 using System.ServiceProcess;
@@ -45,7 +46,8 @@ namespace PresenceLock.App.Guard
 
         // Event IDs (stable, for SIEM rules)
         private const int EvStart = 1000, EvAgentKilledLocked = 1001, EvProfileRegression = 1002,
-                          EvLockFailed = 1003, EvStartFailed = 1004, EvProfileRestored = 1005, EvStop = 1009;
+                          EvLockFailed = 1003, EvStartFailed = 1004, EvProfileRestored = 1005, EvRetention = 1006, EvStop = 1009;
+        private DateTime _lastRetention = DateTime.MinValue;
 
         private static readonly EventThrottle Throttle = new EventThrottle();
 
@@ -151,12 +153,50 @@ namespace PresenceLock.App.Guard
                     _lastSync = DateTime.UtcNow;
                     SyncProtectedProfiles();
                 }
+                if (DateTime.UtcNow - _lastRetention >= RetentionPolicy.Interval)
+                {
+                    _lastRetention = DateTime.UtcNow;
+                    RetireOldData();
+                }
             }
             catch (Exception ex)
             {
                 Event("guard tick failed: " + ex.Message, EventLogEntryType.Error, EvStartFailed);
             }
             finally { Monitor.Exit(_gate); }
+        }
+
+        /// <summary>
+        /// Guard side of the cleaning service (every 24 h): protected copies of users who have not
+        /// logged on for ProtectedCopyRetentionDays (active users' copies are rewritten every minute),
+        /// crash leftovers in the state folder, and THIS computer's files in the collection share
+        /// older than CollectedProfileRetentionDays (needs modify rights for the computer account on
+        /// the share; without them it is skipped and retried tomorrow).
+        /// </summary>
+        private static void RetireOldData()
+        {
+            var settings = Settings.PolicyReader.Load();
+            var r = settings.ToRetentionPolicy();
+            var report = new HousekeepingReport();
+            var now = DateTime.UtcNow;
+            try
+            {
+                foreach (var f in Housekeeping.Expired(ProtectedStore.Directory_, "S-*.json", now, r.ProtectedCopyRetentionDays))
+                    Housekeeping.TryDelete(f, true, report);
+                foreach (var f in Housekeeping.Expired(ProtectedStore.Directory_, "*.tmp", now, 1))
+                    Housekeeping.TryDelete(f, true, report);
+            }
+            catch (Exception) { /* next run */ }
+            try
+            {
+                if (!string.IsNullOrEmpty(settings.ProfileExportDirectory))
+                    foreach (var f in Housekeeping.Expired(settings.ProfileExportDirectory, Environment.MachineName + "_*.json", now, r.CollectedProfileRetentionDays))
+                        Housekeeping.TryDelete(f, true, report);
+            }
+            catch (Exception) { /* share unreachable or no rights: next run */ }
+            if (report.FilesDeleted.Count > 0)
+                Event("PresenceLock retention: retired " + report.FilesDeleted.Count + " file(s) older than their retention: " +
+                      string.Join(", ", report.FilesDeleted.Select(Path.GetFileName)), EventLogEntryType.Information, EvRetention);
         }
 
         private static bool IsLink(string path)
@@ -175,6 +215,10 @@ namespace PresenceLock.App.Guard
             {
                 if (!s.Active || s.SessionId == 0) continue;
                 if (!SessionLauncher.TryGetUser(s.SessionId, out var sid, out var localAppData)) continue;
+                // Retention counts from when the user was last SEEN, not from the last accepted
+                // write: a user whose tampered profile is refused every minute must never outlive
+                // their own protected copy (deleting it would let the tampered profile in).
+                ProtectedStore.Touch(sid);
                 string local = Path.Combine(localAppData, "PresenceLock", "profile.json");
                 if (!File.Exists(local)) continue;
                 try

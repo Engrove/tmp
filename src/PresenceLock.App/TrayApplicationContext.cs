@@ -56,7 +56,10 @@ namespace PresenceLock.App
             // Habit journal: a separate, never-exported file (it is a presence timeline). Losing or
             // editing it can only remove habit acceleration, never weaken locking below policy.
             string sid = WindowsIdentity.GetCurrent().User?.Value ?? "";
-            _habits = _settings.HabitLearningEnabled ? HabitStore.LoadOrCreate(HabitStore.DefaultPath(), sid) : null;
+            string journalRecovery = null;
+            _habits = _settings.HabitLearningEnabled ? HabitStore.LoadWithRecovery(HabitStore.DefaultPath(), sid, out journalRecovery) : null;
+            if (journalRecovery != null)
+                AgentEvents.Write(AgentEvents.JournalReset, System.Diagnostics.EventLogEntryType.Information, "PresenceLock: " + journalRecovery);
             var coordinatorConfig = _settings.ToCoordinatorConfig();
             coordinatorConfig.Habits = _habits;
             _coord = new PresenceCoordinator(new PresenceEngine(_profile), coordinatorConfig);
@@ -97,6 +100,39 @@ namespace PresenceLock.App
 
             AgentLog.Write("start: " + _coord.Engine.Diagnostics(DateTime.UtcNow.Ticks)
                            + " powerSignal=" + (_signals.PowerSignalAllowed ? "on" : "off (server SKU)"));
+            RunHousekeeping();
+        }
+
+        // ------------------------------------------------------------------ cleaning service
+
+        private DateTime _lastHousekeepingUtc;
+
+        /// <summary>
+        /// At start and every 24 h: retire journal data and log lines past their retention, remove
+        /// crash leftovers, then save and refresh the last-known-good backup. Every step is
+        /// independent; nothing here can stop the agent.
+        /// </summary>
+        private void RunHousekeeping()
+        {
+            _lastHousekeepingUtc = DateTime.UtcNow;
+            var report = new HousekeepingReport();
+            var r = _settings.ToRetentionPolicy();
+            try
+            {
+                if (_habits != null) Housekeeping.PruneJournal(_habits, DateTime.UtcNow.Ticks, new HabitPolicy(), report);
+                Housekeeping.CleanAgentDirectory(ProfileStore.DefaultDirectory(), DateTime.UtcNow, r, report);
+                int lines = AgentLog.Retire(r.LogRetentionDays);
+                SaveProfile();
+                Housekeeping.WriteBackup(_profilePath, report);
+                var st = _profile.Stats;
+                st.HousekeepingRuns++;
+                st.LastHousekeepingUtcTicks = DateTime.UtcNow.Ticks;
+                st.JournalEpisodesRetired += report.JournalEpisodesRetired;
+                st.FilesRetired += report.FilesDeleted.Count;
+                st.LogLinesRetired += lines;
+                AgentLog.Write(report + ", log lines retired " + lines);
+            }
+            catch (Exception ex) { AgentLog.Write("housekeeping step failed: " + ex.GetType().Name); }
         }
 
         // ------------------------------------------------------------------ profile
@@ -145,7 +181,10 @@ namespace PresenceLock.App
                     AgentLog.Write("baseline unusable, starting fresh: " + ex.GetType().Name);
                 }
             }
-            return ProfileStore.LoadOrCreate(_profilePath, sid, machine);
+            var p = ProfileStore.LoadWithRecovery(_profilePath, sid, machine, out string recovery);
+            if (recovery != null)
+                AgentEvents.Write(AgentEvents.ProfileRecovered, System.Diagnostics.EventLogEntryType.Warning, "PresenceLock: " + recovery);
+            return p;
         }
 
         private static readonly string AgentVersion =
@@ -219,6 +258,7 @@ namespace PresenceLock.App
                 SaveProfile();
             }
             if (DateTime.UtcNow - _lastSaveUtc >= SaveEvery) SaveProfile();
+            if (DateTime.UtcNow - _lastHousekeepingUtc >= RetentionPolicy.Interval) RunHousekeeping();
             MaybeExportToShare();
         }
 

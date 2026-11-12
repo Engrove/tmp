@@ -10,13 +10,13 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 
 | Del | Status | Bevis |
 |---|---|---|
-| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 127 tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
+| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 139 tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
 | Beslutsflöde: passiv paus, kontrollprob, absolut backstop (`PresenceCoordinator`) | **Verifierad** | 14 enhetstester, bland annat ett egenskapstest med 500 slumpade modeller och slumpmässigt fladdrande signaler (låsning sker alltid ≤ `HoldMax` + grace). Två jämförande 60-dagarssimuleringar (§6). |
 | Passiva OS-signaler (`PassiveSignalReader`) | **Kompilerad, ej körd. Semantiken är delvis odokumenterad** | ConsentStore är odokumenterad. Om `SystemExecutionState` aggregerar andra processers begäranden är inte dokumenterat. Verifiera på målmaskin med `PresenceLock.exe --probe-signals` (§6). Ett fel i signalerna kan bara fördröja låsning upp till `HoldMax` + grace. |
 | Profil-JSON, export, baslinje, sammanslagning | **Verifierad** | C#-tester: round-trip, atomisk skrivning, korrupt fil, saknade fält, anonymisering, medelvärde. |
 | Goertzel-DSP för ultraljudssensorn | **Verifierad** | `verify/goertzel_check.py`. |
 | ADMX/ADML ↔ kod | **Verifierad** | `verify/check_admx.py`: alla värdenamn och strängar matchar i båda riktningar. |
-| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 111 104 byte (108 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
+| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 119 296 byte (116 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
 | Manipulationsskydd, NIS2-läge (`TamperProtection`, guard-tjänst) | **Reglerna verifierade, Windows-delen kompilerad men ej körd** | 19 enhetstester: process-SDDL (även injektionsförsök), återställning av raderad/nedgraderad profil, monoton skyddad kopia, guardens tillståndsmaskin (start, lås vid dödad agent, ignorerar utloggning och session 0). Om processens DACL faktiskt nekar Aktivitetshanteraren måste provas på Windows (§13). |
 | Vaneinlärning (`HabitModel`, modellerad efter Elli) | **Verifierad i simulering** | 13 modelltester (bland annat överlevnadsintervallet mot brute force i 200 slumpfall, censurering, sommartid, kärnor, Wilson), 11 koordinatortester (bland annat egenskapen *aldrig senare lås* i 300 parade körningar) och en 70-dygns rutinsimulering (§8). |
 | Tyst arbete: etiketter i efterhand, inlärd horisont, tystnadsprofil (v0.5) | **Verifierad i simulering** | Inventor-scenariot (§4b) på 4 frön med och utan notis, kontorsscenariot (§6) på 3 frön, 9 koordinatortester och 7 tester för tystnadsprofilen, bland annat att jämnt spridda betraktanden *inte* får delas i två grupper. |
@@ -508,6 +508,7 @@ Skriptet är idempotent (kopierar bara vid ändrad hash), kontrollerar .NET 4.8 
 | `MediaHoldEnabled` / `MeetingHoldEnabled` | DWORD | 1 / 1 | Passiv paus vid synlig media / mikrofon-kamera (§6) |
 | `HoldMaxMinutes` / `ConfirmGraceSeconds` | DWORD | 15 / 15 | Absolut backstop: bekräftelsedimning efter N min, lås efter M s |
 | `HoldIgnoreApps` | SZ | — | Exe-namn eller paketprefix vars mikrofonanvändning ignoreras |
+| `LogRetentionDays` / `ProtectedCopyRetentionDays` / `CollectedProfileRetentionDays` | DWORD | 30 / 180 / 90 | Städtjänstens lagringstider |
 | `MaxLearnedHorizonMinutes` | DWORD 3–60 | 10 | Tak för den inlärda horisonten vid tyst arbete (§4b). 3 = fast 3-minutershorisont som före v0.5 |
 | `AllowUserExit` | DWORD | 1 | **0 = NIS2-läge** (§7); sätt som datorprincip |
 | `AllowProfileExport` | DWORD | 1 | Exportval i menyn |
@@ -547,21 +548,46 @@ Händelser i programloggen (källa `PresenceLock`), stabila id:n för SIEM:
 | 1000 / 1009 | guard | guard startad / stoppad |
 | 1001 | guard | agenten försvann ur en olåst session; sessionen låstes |
 | 1002 / 1005 | guard | profilregression upptäckt / profil återställd från skyddad kopia |
+| 1006 | guard | städtjänsten pensionerade skyddade kopior eller insamlade profiler |
 | 1003 / 1004 | guard | låsning misslyckades / agenten kunde inte startas |
 | 1010 / 1011 | agent | kvalitet under målet i skarpt läge / åter inom målet (§5b) |
 | 1012 | agent | en inlärd modelländring förutsade sämre och rullades tillbaka (§5b) |
+| 1013 | agent | `profile.json` oanvändbar: återställd från senast fungerande kopia (eller ny) |
+| 1014 | agent | `habits.json` oanvändbar: ny journal startad, låsningen opåverkad |
 
-### Loggar och diskbudget: inget växer obehindrat
+### Loggar, städtjänst och diskbudget: inget växer obehindrat och inget har ett utgångsdatum
 
-Varje fil som agenten eller guarden skriver har en hård gräns. Allt de läser har en storleksgräns. En större fil behandlas som korrupt och läses aldrig in, så en jättelik `profile.json` kan inte krascha agenten i en slinga (i NIS2-läge skulle det låsa sessionen varje gång) och inte heller SYSTEM-guarden som synkar den.
+Tre lager, i den här ordningen:
+
+1. **Städtjänst** (agenten och guarden, vid start och var 24:e timme). Den pensionerar gammal data löpande, utan administratör:
+   - loggrader äldre än `LogRetentionDays` (30);
+   - vanejournalens episoder äldre än 42 dygn, även när inget nytt registreras, till exempel efter en lång ledighet;
+   - rester efter krasch (`*.tmp`);
+   - guardens skyddade kopior för användare som inte setts på datorn under `ProtectedCopyRetentionDays` (180). Klockan räknas från när användaren senast *sågs*, inte från senaste godkända skrivning. En användare vars manipulerade profil nekas varje minut kan alltså aldrig överleva sin egen skyddade kopia;
+   - den här datorns filer i insamlingsresursen äldre än `CollectedProfileRetentionDays` (90), om datorkontot har ändringsrätt. `--merge-baseline` ignorerar äldre filer i vilket fall.
+   
+   Varje körning loggas i `agent.log` och syns i `--status` (antal körningar, senaste körning, hur mycket som pensionerats).
+2. **Självläkning.** Städtjänsten förnyar en senast fungerande kopia, `profile.json.bak`. Den skrivs bara efter att den aktuella filen lästs tillbaka och tolkats, så en trasig fil ersätter aldrig en bra kopia. Är `profile.json` någon gång oläsbar eller för stor laddas kopian, och händelse **1013** skrivs. Först om även kopian är oanvändbar börjar profilen om. En oanvändbar vanejournal ger en ny journal och händelse **1014**. Låsningen påverkas inte, och vanorna lärs in igen på 2–6 veckor.
+3. **Storleksgräns vid läsning** som sista nödventil (tabellen nedan). En större fil behandlas som korrupt och läses aldrig in. En jättelik `profile.json` kan alltså varken krascha agenten i en slinga eller SYSTEM-guarden som synkar den.
+
+**Uppmätt: 400 dygn utan administratör** (`HousekeepingTests`, Inventor-användaren, städtjänsten varje morgon):
+
+| Dag | `profile.json` | `habits.json` (episoder) |
+|---|---|---|
+| 30 | 5,1 KB | 78 KB (1498) |
+| 63 | 5,1 KB | 108 KB (2050) |
+| 180 | 5,1 KB | 116 KB (2079) |
+| 390 | 5,2 KB | 116 KB (2056) |
+
+Båda planar ut. Profilen har bara strukturer med fast storlek, och journalen ligger på cirka 42 dygns data. Gränserna vid läsning (1 MB och 2 MB) nås aldrig. Efter 400 dygn är agenten fortfarande i skarpt läge: 0,86 % av betraktandena dimmas, kvaliteten är ok och modellskyddet har inte gjort någon återställning.
 
 | Fil | Plats | Gräns (värsta fall) | Mekanism |
 |---|---|---|---|
-| `agent.log` + `agent.log.1` | `%LOCALAPPDATA%\PresenceLock` | **2 × 256 KB** | Roterar innan en rad skulle passera 256 KB. En rad kapas vid 2048 tecken. Samma meddelande skrivs högst en gång per 10 min, med antal upprepningar. Innehåll: livscykel, lägesbyten och fel, aldrig indata, processnamn eller fönstertitlar. |
-| `profile.json` (+ `.tmp` under skrivning) | samma | uppmätt **≈ 5 KB** efter 63 dygn. Läses inte om > 1 MB | Bara strukturer med fast storlek: vikter, 200-fönster, 144 räknare för tystnadsprofilen, 50 senaste exponeringar. |
+| `agent.log` + `agent.log.1` | `%LOCALAPPDATA%\PresenceLock` | **2 × 256 KB**, rader högst 30 dygn | Roterar innan en rad skulle passera 256 KB. Städtjänsten tar bort rader äldre än lagringstiden. En rad kapas vid 2048 tecken. Samma meddelande skrivs högst en gång per 10 min, med antal upprepningar. Innehåll: livscykel, lägesbyten och fel, aldrig indata, processnamn eller fönstertitlar. |
+| `profile.json` (+ `.tmp` under skrivning, + `profile.json.bak`) | samma | uppmätt **5,1–5,2 KB** dag 30–390. Läses inte om > 1 MB, och då laddas `.bak` | Bara strukturer med fast storlek: vikter, 200-fönster, 144 räknare för tystnadsprofilen, 50 senaste exponeringar. |
 | `habits.json` (+ `.tmp`) | samma | uppmätt **≈ 394 KB** vid taken. Läses inte om > 2 MB | Högst 42 dygn och 5000 episoder, 256 poäng. Rensas vid varje skrivning och vid inläsning. |
-| Skyddad kopia | `%ProgramFiles%\PresenceLock\state\<SID>.json` | ≈ 5 KB per användare som någonsin loggat in | Rensas medvetet **inte**. Den återställer profilen efter att en Windows-profil raderats. Ta bort med `--reset-profile <SID>`. |
-| Insamlad profil | `ProfileExportDirectory` | en fil per dator × användare, skrivs över dagligen | Gamla datorer och användare rensas av admin. |
+| Skyddad kopia | `%ProgramFiles%\PresenceLock\state\<SID>.json` | ≈ 5 KB per användare som setts de senaste 180 dygnen | Städtjänsten i guarden tar bort kopior för användare som inte setts under `ProtectedCopyRetentionDays` (händelse 1006). |
+| Insamlad profil | `ProfileExportDirectory` | en fil per dator × användare, skrivs över dagligen | Guarden tar bort den egna datorns filer äldre än `CollectedProfileRetentionDays` (kräver ändringsrätt för datorkontot). `--merge-baseline` hoppar alltid över dem. |
 | Programloggen | Windows | Windows egen maxstorlek (standard 20 MB, skriver över) | Agentens händelser: högst 1 per id och timme. Guardens: 1001/1003 högst 1 per session och minut, övriga 1 per session/SID och timme. Nästa post anger hur många som hölls tillbaka. |
 
 **Uppmätt (testerna i `BoundedIoTests`).** Om agenten inte går att starta försöker guarden var 2:a sekund. Det blir 43 200 misslyckanden per dygn men bara **24 poster** i loggen, var och en med "1799 identical event(s) suppressed". 20 000 olika loggrader ger högst två filer inom budgeten. En rad på 100 000 tecken kapas.
@@ -585,6 +611,7 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 - **Tyst arbete i en app som inte står på läslistan** ger fortfarande "borta"-etiketter efter 180 s i inlärningsläget, eftersom inget annat skiljer den tystnaden från en avfärd. I skarpt läge rättar besvarade dimningar modellen, och horisonten flyttas ut. Lägg till sådana appar med `ExtraReadingApps`, eller slå på "Visa låsning" under inlärningen.
 - **Utan passiva signaler** lär sig modellen att tyst videotittande är närvaro, och horisonten flyttas ut även där. Korta pauser från det sammanhanget kan då stå olåsta upp till taket. Uppmätt: 0–10 sådana återkomster på 45 dagar mot 0 med signaler (§6).
 - **Tystnadsprofilen är en statistisk modell** (två lognormala grupper, med dalkrav). Den används bara för att bokföra osynliga beslut i grinden, aldrig som etikett. Vid tveksamhet svarar den "kan inte avgöra", och grinden förblir då försiktig.
+- **Insamlingsresursen** rensas automatiskt bara om datorkontona har ändringsrätt på den. Annars ligger gamla filer kvar där, men de används aldrig: `--merge-baseline` hoppar över filer äldre än `CollectedProfileRetentionDays`. Agenterna läser aldrig resursen, så den kan inte påverka driften.
 - **`LOCALAPPDATA` roamar inte.** Profilen och vanejournalen gäller per användare och dator.
 - **Vanor vid vanlig hemgångstid ger liten vinst** (§8). Det är en egenskap hos datat, inte något en modell kan lösa utan fler signaler.
 - **`OpenInputDesktop`:** om säkerhetsprogram nekar läsningen permanent blir varje paus en `SecureDesktop`-paus fram till backstopet. Det syns som ett högt `hold starts` i `--status`.
@@ -608,3 +635,4 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 12. Efter 15–30 dagar: `--status` (grindens siffror, vanejournalen och om vanorna är *ACTIVE* eller *shadow only*) samt upplevd störning.
 13. **Tyst arbete:** en CAD-användare i skarpt läge betraktar en modell i 5 min utan att röra något. Efter några veckor ska det inte längre ge någon dimning. Kontrollera tystnadsprofilen och modellskyddet i `--status`.
 14. Händelse 1010 ska finnas i programloggen hos en testanvändare med medvetet för snävt tak (`MaxLearnedHorizonMinutes = 3`, CAD-användare).
+15. **Städtjänsten:** efter ett dygn ska `--status` visa `cleaning service: N runs` med senaste körning under 24 h och en backup (`profile.json.bak`). Gör `profile.json` oläsbar (skriv skräp i den) och logga in igen. Agenten ska fortsätta i samma läge, händelse 1013 ska finnas, och profilen ska *inte* ha börjat om.

@@ -39,8 +39,16 @@ namespace PresenceLock.Core
         }
 
         /// <summary>Load this user's journal, or start an empty one (corrupt / foreign / newer = start over).</summary>
-        public static HabitJournal LoadOrCreate(string path, string userSid)
+        public static HabitJournal LoadOrCreate(string path, string userSid) => LoadWithRecovery(path, userSid, out _);
+
+        /// <summary>
+        /// Like <see cref="LoadOrCreate"/>, but reports when an existing journal could not be used.
+        /// Losing the journal only removes habit acceleration (relearned in 2-6 weeks); locking is
+        /// unaffected. The caps are re-applied on load.
+        /// </summary>
+        public static HabitJournal LoadWithRecovery(string path, string userSid, out string recovery)
         {
+            recovery = null;
             try
             {
                 if (File.Exists(path))
@@ -49,12 +57,11 @@ namespace PresenceLock.Core
                     if (j.SchemaVersion == HabitJournal.CurrentSchemaVersion &&
                         string.Equals(j.UserSid, userSid, StringComparison.OrdinalIgnoreCase))
                         return j;
+                    recovery = "habits.json belongs to another user or version; started a new journal";
                 }
             }
-            catch (Exception)
-            {
-                // fall through
-            }
+            catch (InvalidDataException ex) { recovery = "habits.json oversized (" + ex.Message + "); started a new journal"; }
+            catch (Exception ex) { recovery = "habits.json unreadable (" + ex.GetType().Name + "); started a new journal"; }
             return new HabitJournal { UserSid = userSid ?? "" };
         }
 

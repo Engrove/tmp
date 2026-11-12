@@ -67,6 +67,16 @@ Utanför skyddet: lokala administratörer, samt indata som injiceras för att fe
       <string id="ProfileExportDirectory">Samla in profiler till en filresurs</string>
       <string id="ProfileExportDirectory_Help">En gång per dygn skriver agenten användarens profil till mappen som DATOR_ANVÄNDARE.json. Använd en resurs där användare kan skapa filer men inte läsa andras. Profilerna innehåller bara modellvikter och räknare; ingen indata, inga fönstertitlar, inget innehåll. Slå ihop till en baslinje med: PresenceLock.exe --merge-baseline ut.json in1.json in2.json ...</string>
 
+      <string id="DataRetention">Lagringstider (städtjänst)</string>
+      <string id="DataRetention_Help">Agenten och guarden kör en städtjänst vid start och var 24:e timme. Inget växer obegränsat och ingen administratörsåtgärd behövs:
+- agent.log: rader äldre än loggens lagringstid tas bort (dessutom högst 2 × 256 KB);
+- vanejournalen: episoder äldre än 42 dygn tas bort även om inget nytt registreras (dessutom högst 5000);
+- rester efter krasch (*.tmp) tas bort;
+- en senast fungerande kopia av profilen förnyas; om profile.json någon gång är oläsbar eller för stor återställer agenten den från kopian och skriver händelse 1013 i stället för att börja om;
+- guarden: skyddade kopior för användare som inte loggat in under lagringstiden tas bort (händelse 1006); en användare som kommer tillbaka efter det börjar en ny inlärningsperiod;
+- guarden: DEN HÄR datorns filer i insamlingsresursen som är äldre än lagringstiden tas bort, om datorkontot har ändringsrätt på resursen; --merge-baseline ignorerar äldre filer i vilket fall.
+
+Standard: loggar 30 dygn, skyddade kopior 180 dygn, insamlade profiler 90 dygn.</string>
       <string id="BaselineProfilePath">Baslinjeprofil för nya användare</string>
       <string id="BaselineProfilePath_Help">Sökväg till en baslinjeprofil (från --export-baseline eller --merge-baseline). Användare utan lokal profil startar från dessa vikter i stället för neutrala standardvärden. Kalibreringen nollställs alltid: varje användare måste själv passera säkerhetsgrinden på egen data innan skarpt läge.</string>
       <string id="Cat_Passive">Passiv paus vid media/möte</string>
@@ -126,6 +136,11 @@ Journalen är en närvarotidslinje (personuppgifter). Den stannar i användarens
       </presentation>
       <presentation id="ProfileExportDirectory">
         <textBox refId="ProfileExportDirectory"><label>Mapp (UNC):</label></textBox>
+      </presentation>
+      <presentation id="DataRetention">
+        <decimalTextBox refId="LogRetentionDays" defaultValue="30" spinStep="1">Behåll rader i agentloggen, dygn </decimalTextBox>
+        <decimalTextBox refId="ProtectedCopyRetentionDays" defaultValue="180" spinStep="10">Behåll skyddade kopior för frånvarande användare, dygn </decimalTextBox>
+        <decimalTextBox refId="CollectedProfileRetentionDays" defaultValue="90" spinStep="10">Behåll insamlade profiler, dygn </decimalTextBox>
       </presentation>
       <presentation id="BaselineProfilePath">
         <textBox refId="BaselineProfilePath"><label>Baslinjefil:</label></textBox>

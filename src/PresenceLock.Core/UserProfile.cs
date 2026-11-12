@@ -55,7 +55,12 @@ namespace PresenceLock.Core
         [DataMember] public int HabitQuickUnlocks;
         [DataMember] public int Disconnects;           // RDP/console session disconnects (no label)
         [DataMember] public int AmbiguousScoredAway;   // learning: invisible decision in an ambiguous silence, judged "away" by the silence profile
-        [DataMember] public int AmbiguousScoredUnknown;// ... not decidable: counted as a possible false dim (conservative)
+        [DataMember] public int AmbiguousScoredUnknown;
+        [DataMember] public int HousekeepingRuns;         // cleaning service runs (start + every 24 h)
+        [DataMember] public long LastHousekeepingUtcTicks;
+        [DataMember] public long JournalEpisodesRetired;  // cumulative
+        [DataMember] public long FilesRetired;            // cumulative (crash leftovers, expired logs)
+        [DataMember] public long LogLinesRetired;         // cumulative// ... not decidable: counted as a possible false dim (conservative)
     }
 
     [DataContract]
@@ -65,7 +70,7 @@ namespace PresenceLock.Core
         public const int CurrentSchemaVersion = 3;
 
         [DataMember] public int SchemaVersion = CurrentSchemaVersion;
-        [DataMember] public string AppVersion = "0.5.1";
+        [DataMember] public string AppVersion = "0.5.2";
         [DataMember] public string UserSid = "";       // identity only, not content
         [DataMember] public string MachineName = "";
         [DataMember] public long CreatedUtcTicks;

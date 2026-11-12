@@ -48,6 +48,18 @@ namespace PresenceLock.App.Settings
         public bool AllowUserExit = true;
         public bool AllowProfileExport = true;
         public string ProfileExportDirectory = "";   // e.g. \\srv\share$\PresenceLock (daily export)
+
+        // Data retention (cleaning service, every 24 h): nothing is kept longer than this.
+        public int LogRetentionDays = 30;
+        public int ProtectedCopyRetentionDays = 180;
+        public int CollectedProfileRetentionDays = 90;
+
+        public RetentionPolicy ToRetentionPolicy() => new RetentionPolicy
+        {
+            LogRetentionDays = LogRetentionDays,
+            ProtectedCopyRetentionDays = ProtectedCopyRetentionDays,
+            CollectedProfileRetentionDays = CollectedProfileRetentionDays
+        };
         public string BaselineProfilePath = "";      // seed for users without a local profile
 
         public CoordinatorConfig ToCoordinatorConfig() => new CoordinatorConfig

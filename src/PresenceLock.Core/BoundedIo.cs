@@ -102,6 +102,39 @@ namespace PresenceLock.Core
         public string PathName => _path;
         public string RotatedPathName => _path + ".1";
 
+        /// <summary>
+        /// Retire every line older than <paramref name="localCutoff"/> (lines start with their local
+        /// timestamp). The rotated file is deleted when nothing in it is recent enough. Files are at
+        /// most MaxBytes, so this is a bounded rewrite. Returns the number of lines retired.
+        /// </summary>
+        public int Retire(DateTime localCutoff)
+        {
+            int retired = 0;
+            lock (_gate)
+            {
+                foreach (var f in new[] { RotatedPathName, _path })
+                {
+                    if (!File.Exists(f)) continue;
+                    if (new FileInfo(f).Length > 4 * _maxBytes) { File.Delete(f); retired++; continue; }   // not ours: never parse
+                    var lines = File.ReadAllLines(f, new UTF8Encoding(false));
+                    var keep = new List<string>(lines.Length);
+                    foreach (var l in lines)
+                    {
+                        if (l.Length >= 19 && DateTime.TryParseExact(l.Substring(0, 19), "yyyy-MM-dd HH:mm:ss",
+                                System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var t)
+                            && t < localCutoff) { retired++; continue; }
+                        keep.Add(l);
+                    }
+                    if (keep.Count == lines.Length) continue;
+                    if (keep.Count == 0) { File.Delete(f); continue; }
+                    string tmp = f + ".tmp";
+                    File.WriteAllLines(tmp, keep, new UTF8Encoding(false));
+                    File.Replace(tmp, f, null);
+                }
+            }
+            return retired;
+        }
+
         /// <summary>Returns false if the line was suppressed as a repeat.</summary>
         public bool Write(string message, DateTime localNow, long nowUtcTicks)
         {

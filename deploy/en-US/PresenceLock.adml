@@ -67,6 +67,16 @@ Out of scope: local administrators, and input injected to fake activity (mouse j
       <string id="ProfileExportDirectory">Collect profiles to a share</string>
       <string id="ProfileExportDirectory_Help">Once a day the agent writes the user's profile to this folder as COMPUTER_USER.json. Use a share where users can create files but not read others' files. Profiles contain only model weights and counters; no input data, window titles or content. Merge them into a fleet baseline with: PresenceLock.exe --merge-baseline out.json in1.json in2.json ...</string>
 
+      <string id="DataRetention">Data retention (cleaning service)</string>
+      <string id="DataRetention_Help">The agent and the guard run a cleaning service at start and every 24 hours. Nothing grows without bound and no administrator action is needed:
+- agent.log: lines older than the log retention are removed (also limited to 2 x 256 KB);
+- habit journal: episodes older than 42 days are removed even if nothing new is recorded (also at most 5000);
+- crash leftovers (*.tmp) are removed;
+- a last-known-good copy of the profile is refreshed; if profile.json is ever unreadable or oversized, the agent restores it from that copy and writes event 1013 instead of starting over;
+- guard: protected copies of users who have not logged on for the protected-copy retention are removed (event 1006); a user returning after that starts a new learning period;
+- guard: THIS computer's files in the collection share older than the collected-profile retention are removed, if the computer account has modify rights on the share; --merge-baseline ignores older inputs in any case.
+
+Defaults: logs 30 days, protected copies 180 days, collected profiles 90 days.</string>
       <string id="BaselineProfilePath">Baseline profile for new users</string>
       <string id="BaselineProfilePath_Help">Path to a baseline profile (from --export-baseline or --merge-baseline). Users without a local profile start from these weights instead of the neutral defaults. Calibration is always reset: every user still has to pass the safety gate on their own data before enforcing.</string>
       <string id="Cat_Passive">Passive media/meeting hold</string>
@@ -126,6 +136,11 @@ The journal is a presence timeline (personal data). It stays in the user's own p
       </presentation>
       <presentation id="ProfileExportDirectory">
         <textBox refId="ProfileExportDirectory"><label>Folder (UNC):</label></textBox>
+      </presentation>
+      <presentation id="DataRetention">
+        <decimalTextBox refId="LogRetentionDays" defaultValue="30" spinStep="1">Keep agent log lines, days </decimalTextBox>
+        <decimalTextBox refId="ProtectedCopyRetentionDays" defaultValue="180" spinStep="10">Keep protected copies of absent users, days </decimalTextBox>
+        <decimalTextBox refId="CollectedProfileRetentionDays" defaultValue="90" spinStep="10">Keep collected profiles, days </decimalTextBox>
       </presentation>
       <presentation id="BaselineProfilePath">
         <textBox refId="BaselineProfilePath"><label>Baseline file:</label></textBox>
