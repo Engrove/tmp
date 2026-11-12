@@ -307,6 +307,18 @@ namespace PresenceLock.Core
         /// <summary>Horizon used for the decision-level stability metric.</summary>
         public const double StabilityHorizonSeconds = 600.0;
 
+        /// <summary>
+        /// A label decided only AFTER the episode was over, when the truth became known from how it
+        /// ended (e.g. a Windows lock: unlocked within seconds = the user was sitting right there).
+        /// The signature carries the idle time at which the label applies.
+        /// </summary>
+        public void LearnRetrospective(FeatureVector signatureAtIdle, bool away, long nowUtcTicks)
+        {
+            if (signatureAtIdle == null) throw new ArgumentNullException(nameof(signatureAtIdle));
+            Learn(FeedbackSample.From(signatureAtIdle.Clone(),
+                away ? FeedbackKind.LongAbsence : FeedbackKind.SoftDimRejected, nowUtcTicks));
+        }
+
         private void Learn(FeedbackSample s)
         {
             // Stability is measured on the DECISION, not on raw parameters: how much did the

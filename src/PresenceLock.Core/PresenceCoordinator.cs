@@ -63,6 +63,22 @@ namespace PresenceLock.Core
         /// <summary>How long a confirmation dim (hold probe / backstop / habit) waits before locking.</summary>
         public double ConfirmGraceSeconds = 15.0;
 
+        /// <summary>
+        /// Learning mode: a silence that ends with the user touching the computer again is AMBIGUOUS
+        /// (studying a drawing, or a short errand?) and produces no "away" label; absence is only
+        /// certain at HoldMax of idle, or decided by a Windows lock and how fast it was unlocked.
+        /// false = legacy behaviour ("away" at the 180 s horizon), kept for comparison only.
+        /// </summary>
+        public bool RetrospectiveLearning = true;
+        /// <summary>
+        /// Enforcing mode: the certain-absence confirmation moves out to where the LEARNED model
+        /// expects absence for this context (its soft-dim time), never earlier than 180 s and never
+        /// later than MaxLearnedHorizonSeconds. false = fixed 180 s, kept for comparison only.
+        /// </summary>
+        public bool LearnedHorizon = true;
+        /// <summary>Cap on the learned horizon (also bounds what an edited model can do). Clamped to HoldMax.</summary>
+        public double MaxLearnedHorizonSeconds = 600.0;
+
         // --- habits (null journal = habit learning off) --------------------------------
         public HabitJournal Habits;
         public HabitPolicy HabitPolicy = new HabitPolicy();
@@ -112,6 +128,11 @@ namespace PresenceLock.Core
         private long _pendingLockTicks;
         private bool _sessionLocked;
         private bool _suspendedByDisconnect;
+        private double _episodeHorizon = -1;     // cached per episode
+        // A Windows (not our, not Win+L) lock: the label waits for the unlock time.
+        private FeatureVector _deferredSig;
+        private bool _deferredFired;
+        private long _deferredLockTicks;
 
         // habit episode
         private bool _hOpen, _hSuspended, _hHoldSeen, _hProbeShown, _hIssued;
@@ -253,6 +274,7 @@ namespace PresenceLock.Core
                 MarkPostHold(sig);
                 _engine.BeginEpisode(sig, nowUtcTicks);
                 _episodeOffset = idleSeconds;
+                _episodeHorizon = -1;
                 _inputSinceEpisode = false;
             }
 
@@ -261,6 +283,7 @@ namespace PresenceLock.Core
             {
                 _engine.BeginEpisode(signature(), nowUtcTicks);
                 _episodeOffset = 0.0;
+                _episodeHorizon = -1;
                 _inputSinceEpisode = false;
             }
 
@@ -272,15 +295,21 @@ namespace PresenceLock.Core
                 r.EpisodeSeconds = t;
                 _engine.UpdateLive(t);
 
-                bool backstop = t >= _p.Config.LongAbsenceSeconds || idleSeconds >= _c.HoldMaxSeconds;
-                if (backstop || habitAct)
+                bool certain = idleSeconds >= _c.HoldMaxSeconds;
+                bool backstop = t >= Horizon() || certain;
+                if (enforcing && (backstop || habitAct))
                 {
-                    if (enforcing)
-                    {
-                        if (backstop) _p.Stats.BackstopDims++;
-                        StartConfirm(ref r, backstop ? LockCause.Backstop : LockCause.Habit, nowUtcTicks);
-                    }
-                    else if (backstop) _engine.OnLongAbsence(nowUtcTicks);   // learning: censored label
+                    if (backstop) _p.Stats.BackstopDims++;
+                    StartConfirm(ref r, backstop ? LockCause.Backstop : LockCause.Habit, nowUtcTicks);
+                }
+                else if (!enforcing && (_c.RetrospectiveLearning ? certain || (backstop && !SilentWorkContext()) : backstop))
+                {
+                    // Learning. In a silent-work application (CAD, PDF, IDE: the "reading" list) a
+                    // silence past the horizon is NOT evidence of absence: the user may be studying a
+                    // drawing. Such an episode resolves when they touch the computer (ambiguous: no
+                    // label), at HoldMax (certain), or via a Windows lock and its unlock time.
+                    // Elsewhere, silence past the horizon is labelled "away" as before.
+                    _engine.OnLongAbsence(nowUtcTicks);
                 }
                 else
                 {
@@ -301,6 +330,31 @@ namespace PresenceLock.Core
                 }
             }
             return Finish(r, nowUtcTicks, policy, modelTicked);
+        }
+
+        /// <summary>
+        /// Certain-absence horizon for the current episode: 180 s, or later where the learned model
+        /// itself only expects absence later in this context (it has been taught by visible dims and
+        /// quick unlocks that the user studies silently here), capped by MaxLearnedHorizon/HoldMax.
+        /// </summary>
+        private double Horizon()
+        {
+            if (_episodeHorizon >= 0) return _episodeHorizon;
+            double h = _p.Config.LongAbsenceSeconds;
+            var sig = _engine.CurrentSignature;
+            if (_c.LearnedHorizon && sig != null)
+            {
+                double cap = Math.Min(_c.HoldMaxSeconds, Math.Max(h, _c.MaxLearnedHorizonSeconds));
+                double learned = _p.Model.LockTime(sig.X, _p.Config.SoftDimThreshold, cap);
+                h = Math.Min(cap, Math.Max(h, learned));
+            }
+            return _episodeHorizon = h;
+        }
+
+        private bool SilentWorkContext()
+        {
+            var sig = _engine.CurrentSignature;
+            return sig != null && sig.X[FeatureSchema.CtxReading] >= 0.5;
         }
 
         private void StartConfirm(ref CoordinatorResult r, LockCause cause, long now)
@@ -505,8 +559,18 @@ namespace PresenceLock.Core
                 }
                 else if (_engine.EpisodeActive)
                 {
-                    // Windows' own inactivity lock or a remote lock: only certain if past the horizon.
-                    if (idleSeconds - _episodeOffset >= _p.Config.LongAbsenceSeconds) _engine.OnLongAbsence(nowUtcTicks);
+                    double t = idleSeconds - _episodeOffset;
+                    if (_c.RetrospectiveLearning)
+                    {
+                        // Windows' own inactivity lock: the unlock time tells whether the user was
+                        // there (unlocked within seconds) or not. Decide then.
+                        _deferredSig = _engine.CurrentSignature.Clone();
+                        _deferredSig.IdleSeconds = t;
+                        _deferredFired = _p.Model.LockTime(_deferredSig.X, _p.Config.SoftDimThreshold, t + 1) <= t;
+                        _deferredLockTicks = nowUtcTicks;
+                        _engine.AbortEpisode();
+                    }
+                    else if (t >= _p.Config.LongAbsenceSeconds) _engine.OnLongAbsence(nowUtcTicks);   // legacy
                     else _engine.AbortEpisode();
                 }
             }
@@ -533,6 +597,14 @@ namespace PresenceLock.Core
             _suspendedByDisconnect = false;
             _inputSinceEpisode = true;
             _episodeOffset = 0.0;
+            if (_deferredSig != null)
+            {
+                bool present = Seconds(nowUtcTicks - _deferredLockTicks) <= _p.Config.FalsePositiveWindowSeconds;
+                _engine.LearnRetrospective(_deferredSig, away: !present, nowUtcTicks);
+                if (present) _p.Modes.RecordEpisodeOutcome(_deferredFired, _deferredFired);   // a fire would have hit a present user
+                else { _p.Modes.RecordEpisodeOutcome(_deferredFired, false); _p.Modes.RecordConfirmedPositive(); }
+                _deferredSig = null;
+            }
             HabitReturnFromUnlock(nowUtcTicks);
         }
 

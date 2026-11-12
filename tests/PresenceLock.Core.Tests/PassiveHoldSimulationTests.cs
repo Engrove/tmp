@@ -14,7 +14,8 @@ namespace PresenceLock.Core.Tests
     ///   b) without hold: such wrong labels DO occur (the defect the hold fixes is real)
     ///   c) both:         zero hard locks on a present user
     ///   d) both:         unattended exposure never exceeds HoldMax + grace (+2 s tick slack)
-    ///   e) both:         departures with no media/meeting running are locked within 180 + grace
+    ///   e) both:         departures with no media/meeting running are locked within the learned-horizon
+    ///                    cap + grace (fixed 180 s before v0.5; the cap is admin policy, default 600 s)
     ///   f) with hold:    dims shown to present users during media/meetings at most HALF of
     ///                    the no-hold rate
     /// </summary>
@@ -46,7 +47,7 @@ namespace PresenceLock.Core.Tests
         {
             var cfg = new CoordinatorConfig();
             int bound = (int)(cfg.HoldMaxSeconds + cfg.ConfirmGraceSeconds) + 2;
-            int plainBound = 180 + (int)cfg.ConfirmGraceSeconds + 2;
+            int plainBound = (int)Math.Min(cfg.HoldMaxSeconds, Math.Max(180, cfg.MaxLearnedHorizonSeconds)) + (int)cfg.ConfirmGraceSeconds + 2;
 
             foreach (var seed in Seeds)
             {

@@ -37,6 +37,21 @@ namespace PresenceLock.Core.Tests
             return res;
         }
 
+        private static FeatureVector ReadingSig()
+        {
+            var f = Sig();
+            f.X[FeatureSchema.CtxReading] = 1.0;          // silent-work application (CAD, PDF, IDE)
+            return f;
+        }
+
+        private static CoordinatorResult[] Run(PresenceCoordinator co, int from, int to, Func<FeatureVector> sig)
+        {
+            var res = new CoordinatorResult[to + 1];
+            for (int s = from; s <= to; s++)
+                res[s] = co.Tick(T0 + s * Sec, s, NoSignals, ModePolicy.Auto, sig);
+            return res;
+        }
+
         private static int First(CoordinatorResult[] r, CoordinatorAction a) =>
             Enumerable.Range(0, r.Length).FirstOrDefault(i => r[i].Action == a && i > 0);
 
@@ -124,24 +139,58 @@ namespace PresenceLock.Core.Tests
             Assert.All(FeatureSchema.Kinematic, i => Assert.Equal(0.0, f.X[i]));
         }
 
-        [Fact]
-        public void Backstop_LocksADepartureTheModelMissed()
+        [Theory]
+        [InlineData(180.0)]
+        [InlineData(300.0)]
+        [InlineData(600.0)]
+        public void Backstop_LocksADepartureTheModelMissed_AtTheCap(double cap)
         {
-            var (co, p) = Make(enforcing: true);
-            p.Model.W0 = -30;                                     // model that would never lock
-            var r = Run(co, 0, 200, s => NoSignals);
-            Assert.Equal(CoordinatorAction.SoftDim, r[180].Action);
-            Assert.Equal(LockCause.Backstop, r[180].Cause);
-            Assert.Equal(CoordinatorAction.Lock, r[195].Action);
-            Assert.Equal(LockCause.Backstop, r[195].Cause);
+            // A model that never reaches P(away) = 0.75 within the cap (W0 = -1000; note that W0 = -30
+            // is NOT enough: the hazard term grows with t and crosses 0.75 at ~283 s) leaves the
+            // learned horizon at the admin cap, and not one second further.
+            var (co, p) = Make(enforcing: true, cfg: new CoordinatorConfig { MaxLearnedHorizonSeconds = cap });
+            p.Model.W0 = -1000;
+            int c = (int)cap;
+            var r = Run(co, 0, c + 20, s => NoSignals);
+            Assert.Equal(CoordinatorAction.None, r[c - 1].Action);
+            Assert.Equal(CoordinatorAction.SoftDim, r[c].Action);
+            Assert.Equal(LockCause.Backstop, r[c].Cause);
+            Assert.Equal(CoordinatorAction.Lock, r[c + 15].Action);
+            Assert.Equal(LockCause.Backstop, r[c + 15].Cause);
             Assert.Equal(1, p.Modes.ConfirmedPositives);          // verified absence -> positive label
             Assert.Equal(1, p.Stats.BackstopLocks);
         }
 
         [Fact]
+        public void Backstop_LegacyFixedHorizon_Is180s()
+        {
+            var (co, p) = Make(enforcing: true, cfg: new CoordinatorConfig { LearnedHorizon = false });
+            p.Model.W0 = -1000;
+            var r = Run(co, 0, 200, s => NoSignals);
+            Assert.Equal(CoordinatorAction.SoftDim, r[180].Action);
+            Assert.Equal(CoordinatorAction.Lock, r[195].Action);
+        }
+
+        [Fact]
+        public void LearnedHorizon_FollowsTheModel_BetweenFloorAndCap()
+        {
+            // W0 = -20: P(away) reaches the soft-dim threshold 0.75 at t ≈ 192 s, so the
+            // certain-absence horizon is the model's own expectation, not 180 s and not the cap.
+            var (co, p) = Make(enforcing: true);
+            p.Model.W0 = -20;
+            double expect = p.Model.LockTime(Sig().X, p.Config.SoftDimThreshold, 600);
+            Assert.InRange(expect, 185, 200);
+            var r = Run(co, 0, 230, s => NoSignals);
+            int first = First(r, CoordinatorAction.SoftDim);
+            Assert.InRange(first, (int)Math.Floor(expect), (int)Math.Ceiling(expect) + 1);
+            Assert.Equal(CoordinatorAction.Lock, r[First(r, CoordinatorAction.Lock)].Action);
+            Assert.True(First(r, CoordinatorAction.Lock) <= first + 15 + 1);
+        }
+
+        [Fact]
         public void Backstop_Answered_IsATruthfulPresentLabel()
         {
-            var (co, p) = Make(enforcing: true);
+            var (co, p) = Make(enforcing: true, cfg: new CoordinatorConfig { MaxLearnedHorizonSeconds = 180 });
             p.Model.W0 = -20;                 // P(t) < 0.75 for all t < 180 (no model dim), P(180) ≈ 0.45
             var x = Sig();
             double before = p.Model.Probability(x.X, 180);
@@ -150,6 +199,46 @@ namespace PresenceLock.Core.Tests
             Assert.Equal(1, p.Stats.BackstopAnswered);
             Assert.Equal(1, p.Modes.WindowFalsePositives());                     // a dim reached a present user
             Assert.True(p.Model.Probability(x.X, 180) < before);                 // learned: present at 180 s
+        }
+
+        [Fact]
+        public void Learning_SilenceEndingWithInput_IsNotLabelledAway()
+        {
+            // Studying a drawing in a silent-work application for 5 minutes without touching
+            // anything, then drawing again.
+            var (co, p) = Make(enforcing: false);
+            p.Model.W0 = -1000;                                   // no invisible fire either
+            Run(co, 0, 300, ReadingSig);
+            co.Tick(T0 + 301 * Sec, 0.0, NoSignals, ModePolicy.Auto, ReadingSig);
+            Assert.Equal(0, p.Modes.ConfirmedPositives);          // legacy code labelled this "away" at 180 s
+        }
+
+        [Fact]
+        public void Learning_SilentWorkApp_CertainAbsenceOnlyAtHoldMax()
+        {
+            var (co, p) = Make(enforcing: false);
+            p.Model.W0 = -1000;
+            Run(co, 0, 899, ReadingSig);
+            Assert.Equal(0, p.Modes.ConfirmedPositives);
+            Run(co, 900, 901, ReadingSig);
+            Assert.Equal(1, p.Modes.ConfirmedPositives);
+        }
+
+        [Theory]
+        [InlineData(5, false)]     // unlocked within the FP window: the user was sitting there
+        [InlineData(600, true)]    // unlocked ten minutes later: the user had left
+        public void Learning_WindowsLock_IsDecidedByTheUnlockTime(int unlockAfter, bool away)
+        {
+            var (co, p) = Make(enforcing: false);
+            p.Model.W0 = -30;
+            Run(co, 0, 240, ReadingSig);
+            double before = p.Model.Probability(ReadingSig().X, 240);
+            co.OnSessionLocked(T0 + 240 * Sec, 240, ReadingSig);               // Windows' own inactivity lock
+            Assert.Equal(0, p.Modes.ConfirmedPositives);                // undecided while locked
+            co.OnSessionUnlocked(T0 + (240 + unlockAfter) * Sec);
+            Assert.Equal(away ? 1 : 0, p.Modes.ConfirmedPositives);
+            double after = p.Model.Probability(ReadingSig().X, 240);
+            Assert.True(away ? after > before : after < before);
         }
 
         [Fact]
