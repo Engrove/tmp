@@ -48,7 +48,8 @@ namespace PresenceLock.Core.Tests
                 $"median={(E.Exposure.Count > 0 ? E.Exposure.OrderBy(x => x).ElementAt(E.Exposure.Count / 2) : 0)}s " +
                 $"plainMax={(E.PlainDepartureExposure.Count > 0 ? E.PlainDepartureExposure.Max() : 0)}s " +
                 $"unlockedReturns={E.UnlockedReturns}  probes={s.Profile.Stats.HoldProbes}  " +
-                $"ambiguous(away/unknown)={s.Profile.Stats.AmbiguousScoredAway}/{s.Profile.Stats.AmbiguousScoredUnknown}");
+                $"ambiguous(away/unknown)={s.Profile.Stats.AmbiguousScoredAway}/{s.Profile.Stats.AmbiguousScoredUnknown}  " +
+                $"rollbacks={s.Profile.Guard.Rollbacks} promotions={s.Profile.Guard.Promotions} qualityAlerts={s.Profile.Quality.Alerts}");
         }
 
         [Fact]

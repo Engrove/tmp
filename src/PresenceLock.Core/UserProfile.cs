@@ -82,6 +82,10 @@ namespace PresenceLock.Core
         [DataMember] public CoordinatorStats Stats;
         /// <summary>Learned per-activity silence lengths (decayed counters, no timestamps).</summary>
         [DataMember] public SilenceProfile Silence;
+        /// <summary>Last model that proved itself, and the running live-vs-champion comparison.</summary>
+        [DataMember] public ModelGuard Guard;
+        /// <summary>Enforcing-mode quality check (false dims, unattended time at confirmed locks).</summary>
+        [DataMember] public QualityMonitor Quality;
 
         public UserProfile()
         {
@@ -90,6 +94,8 @@ namespace PresenceLock.Core
             Config = new EngineConfig();
             Stats = new CoordinatorStats();
             Silence = new SilenceProfile();
+            Guard = new ModelGuard();
+            Quality = new QualityMonitor();
             OptionalSeen = new int[FeatureSchema.Count];
             OptionalAvailable = new int[FeatureSchema.Count];
             CreatedUtcTicks = DateTime.UtcNow.Ticks;

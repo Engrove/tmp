@@ -43,4 +43,29 @@ namespace PresenceLock.App
             }
         }
     }
+
+    /// <summary>
+    /// Application event log entries from the agent (source "PresenceLock", registered by
+    /// Install-PresenceLock.ps1; a standard user may write to it but not create it). Stable IDs for
+    /// SIEM rules. Content is aggregate quality figures only — nothing about what the user does.
+    ///   1010 quality below target (false dims above the gate target in enforcing mode)
+    ///   1011 quality back within target
+    ///   1012 a learned model change made predictions significantly worse and was rolled back
+    /// </summary>
+    internal static class AgentEvents
+    {
+        public const int QualityBelowTarget = 1010, QualityRestored = 1011, ModelRolledBack = 1012;
+
+        public static void Write(int id, System.Diagnostics.EventLogEntryType type, string message)
+        {
+            AgentLog.Write("event " + id + ": " + message);
+            try
+            {
+                if (System.Diagnostics.EventLog.SourceExists("PresenceLock"))
+                    System.Diagnostics.EventLog.WriteEntry("PresenceLock",
+                        message + " (user " + Environment.UserDomainName + "\\" + Environment.UserName + ")", type, id);
+            }
+            catch { /* event log unavailable: the local agent.log line is the fallback */ }
+        }
+    }
 }

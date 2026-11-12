@@ -46,6 +46,9 @@ namespace PresenceLock.Core
         public double Probability;
         public double EpisodeSeconds;
         public bool HabitLikelyGone;
+        /// <summary>Kaizen events for the administrator (event log), never shown to the user.</summary>
+        public QualityMonitor.Change QualityChange;
+        public bool ModelRolledBack;
     }
 
     /// <summary>Runtime policy for the coordinator (from GPO; not part of the learned profile).</summary>
@@ -78,6 +81,8 @@ namespace PresenceLock.Core
         public bool LearnedHorizon = true;
         /// <summary>Cap on the learned horizon (also bounds what an edited model can do). Clamped to HoldMax.</summary>
         public double MaxLearnedHorizonSeconds = 600.0;
+        /// <summary>Champion/challenger supervision of the continuous learning (null = off).</summary>
+        public ModelGuardPolicy ModelGuard = new ModelGuardPolicy();
         /// <summary>When the per-user silence profile may judge an ambiguous learning-mode decision.</summary>
         public SilencePolicy SilencePolicy = new SilencePolicy();
 
@@ -133,6 +138,7 @@ namespace PresenceLock.Core
         private double _episodeHorizon = -1;     // cached per episode
         private double _episodeT;                // last observed silence length of the model episode
         private bool _episodeIntervened;         // a visible dim was shown in this episode
+        private double _lastIdle, _pendingLockIdle;
         // A Windows (not our, not Win+L) lock: the label waits for the unlock time.
         private FeatureVector _deferredSig;
         private bool _deferredFired;
@@ -156,6 +162,7 @@ namespace PresenceLock.Core
             _p = engine.Profile;
             _c = config ?? new CoordinatorConfig();
             _c.Habits?.Normalize();
+            _engine.GuardPolicy = _c.ModelGuard;
         }
 
         public PresenceEngine Engine => _engine;
@@ -184,6 +191,7 @@ namespace PresenceLock.Core
         {
             var r = new CoordinatorResult { Mode = _engine.Mode };
             if (_sessionLocked) return r;
+            _lastIdle = idleSeconds;
             bool enforcing = _engine.Mode == OperatingMode.Enforcing;
 
             // ---- 1. input: the user is here ------------------------------------------
@@ -409,6 +417,7 @@ namespace PresenceLock.Core
             r.Cause = cause;
             _pendingLock = cause;
             _pendingLockTicks = now;
+            _pendingLockIdle = _lastIdle;
             _dimShown = false;
         }
 
@@ -418,6 +427,10 @@ namespace PresenceLock.Core
             // Never tick an active episode here: that would run its state machine twice.
             if (!ticked && !_engine.EpisodeActive) _engine.Tick(now, policy);
             r.Mode = _engine.Mode;
+            if (_engine.LastGuardVerdict == ModelGuard.Verdict.RolledBack) r.ModelRolledBack = true;
+            _engine.LastGuardVerdict = ModelGuard.Verdict.None;
+            if (_p.Quality == null) _p.Quality = new QualityMonitor();
+            r.QualityChange = _p.Quality.Evaluate(_p.Modes, now);
             return r;
         }
 
@@ -614,6 +627,7 @@ namespace PresenceLock.Core
         public void OnSessionUnlocked(long nowUtcTicks)
         {
             bool quick = Seconds(nowUtcTicks - _pendingLockTicks) <= _p.Config.FalsePositiveWindowSeconds;
+            if (_pendingLock != LockCause.None && !quick) _p.Quality?.RecordExposure(_pendingLockIdle);   // really away: unattended until our lock
             switch (_pendingLock)
             {
                 case LockCause.Model: _engine.ApplyEnforcedLockOutcome(nowUtcTicks); break;

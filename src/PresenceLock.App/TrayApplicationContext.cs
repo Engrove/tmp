@@ -220,6 +220,21 @@ namespace PresenceLock.App
 
         private void Act(CoordinatorResult r)
         {
+            if (r.QualityChange == QualityMonitor.Change.Degraded)
+                AgentEvents.Write(AgentEvents.QualityBelowTarget, System.Diagnostics.EventLogEntryType.Warning,
+                    "PresenceLock quality below target: " + _profile.Quality.Describe(_profile.Modes) +
+                    ". Locking continues; the model keeps adapting. Review with PresenceLock.exe --status.");
+            else if (r.QualityChange == QualityMonitor.Change.Restored)
+                AgentEvents.Write(AgentEvents.QualityRestored, System.Diagnostics.EventLogEntryType.Information,
+                    "PresenceLock quality back within target: " + _profile.Quality.Describe(_profile.Modes));
+            if (r.ModelRolledBack)
+            {
+                AgentEvents.Write(AgentEvents.ModelRolledBack, System.Diagnostics.EventLogEntryType.Information,
+                    "PresenceLock rolled back a learned model change that predicted worse than the previous one: " +
+                    _profile.Guard.Describe());
+                SaveProfile();
+            }
+
             switch (r.Action)
             {
                 case CoordinatorAction.SoftDim:

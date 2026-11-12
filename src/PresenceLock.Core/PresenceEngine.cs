@@ -328,6 +328,13 @@ namespace PresenceLock.Core
                 away ? FeedbackKind.LongAbsence : FeedbackKind.SoftDimRejected, nowUtcTicks));
         }
 
+        /// <summary>
+        /// Supervision of the learning (champion/challenger, see <see cref="ModelGuard"/>). null = the
+        /// bare algorithm, exactly as the Python reference (parity tests run that way).
+        /// </summary>
+        public ModelGuardPolicy GuardPolicy;
+        public ModelGuard.Verdict LastGuardVerdict;
+
         private void Learn(FeedbackSample s)
         {
             // Stability is measured on the DECISION, not on raw parameters: how much did the
@@ -335,11 +342,14 @@ namespace PresenceLock.Core
             // deltas are dominated by the t-scaling of the hazard gradient and say little
             // about whether behaviour has settled.)
             double[] x = s.Features.X;
+            if (GuardPolicy != null && _p.Guard == null) _p.Guard = new ModelGuard();
+            if (GuardPolicy != null) _p.Guard.Score(_model, s);              // prequential: before learning
             double before = _model.LockTime(x, _cfg.LockThreshold, StabilityHorizonSeconds);
             _model.Update(s);
             double after = _model.LockTime(x, _cfg.LockThreshold, StabilityHorizonSeconds);
             double relative = Math.Abs(after - before) / Math.Max(before, 10.0);
             _modes.RecordUpdateChange(relative);
+            if (GuardPolicy != null) LastGuardVerdict = _p.Guard.Decide(_model, s.TimestampUtcTicks, GuardPolicy);
             _p.UpdatedUtcTicks = DateTime.UtcNow.Ticks;
         }
 

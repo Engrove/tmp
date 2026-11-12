@@ -62,6 +62,16 @@ namespace PresenceLock.App
                                           ", quick unlocks " + st.BackstopQuickUnlocks + ")");
                         Console.WriteLine("habits: probes " + st.HabitProbes + " (answered " + st.HabitProbesAnswered + ", locked " + st.HabitLocks +
                                           ", quick unlocks " + st.HabitQuickUnlocks + "); RDP/console disconnects " + st.Disconnects);
+                        Console.WriteLine("learned horizon: certain-absence confirmation between 180 s and the cap " +
+                                          "(policy LearnedHorizon), per context where the model expects absence");
+                        long nowTicks = DateTime.UtcNow.Ticks;
+                        if (p.Silence != null)
+                            for (int c = 0; c < SilenceProfile.Contexts; c++)
+                                Console.WriteLine("silence profile " + p.Silence.Fit(c, nowTicks).Describe());
+                        if (p.Guard != null) Console.WriteLine(p.Guard.Describe());
+                        if (p.Quality != null) Console.WriteLine(p.Quality.Describe(p.Modes));
+                        Console.WriteLine("ambiguous learning decisions: judged away " + st.AmbiguousScoredAway +
+                                          ", undecidable " + st.AmbiguousScoredUnknown);
                         string me = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value ?? "";
                         if (File.Exists(HabitStore.DefaultPath()))
                         {

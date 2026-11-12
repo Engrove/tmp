@@ -177,6 +177,7 @@ namespace PresenceLock.Core.Tests
             _out.WriteLine($"  ambiguous invisible decisions judged by the silence profile: away {s.Profile.Stats.AmbiguousScoredAway}, " +
                            $"undecidable (counted as possible false dims) {s.Profile.Stats.AmbiguousScoredUnknown}; " +
                            s.Profile.Silence.Fit(1, s.Now).Describe());
+            _out.WriteLine($"  Kaizen: {s.Profile.Guard.Describe()}; {s.Profile.Quality.Describe(s.Profile.Modes)}");
             _out.WriteLine($"  learned lock time t(90%): studying {tStudy:F0} s, reading mail {tMail:F0} s, coffee with leave cues {tCue:F0} s");
             string weekly = string.Join(" ", Enumerable.Range(3, 6).Select(w => E.StudiesByWeek[w] == 0 ? "-" : $"{E.StudiesDimmedByWeek[w] * 100 / E.StudiesByWeek[w]}%"));
             _out.WriteLine($"  ENFORCING: studies dimmed {E.StudiesDimmed}/{E.Studies}, per week: {weekly}; mails dimmed {E.MailsDimmed}/{E.Mails}; HARD locks on present {E.HardLocksOnPresent}");
@@ -185,12 +186,28 @@ namespace PresenceLock.Core.Tests
 
         private static CoordinatorConfig Legacy() => new CoordinatorConfig { RetrospectiveLearning = false, LearnedHorizon = false };
 
-        [Fact]
-        public void StudyingInInventor_NaturalPromotion()
+        /// <summary>
+        /// Acceptance for the user's Inventor scenario with default settings, no forced mode.
+        /// Regression guards: the bounds were set from the values measured in v0.5 (in brackets).
+        /// </summary>
+        [Theory]
+        [InlineData(false, 7)] [InlineData(true, 7)] [InlineData(false, 3)] [InlineData(false, 11)]
+        public void StudyingInInventor_NaturalPromotion(bool notice, long seed)
         {
-            foreach (bool notice in new[] { false, true })
-                Report($"AFTER, cap 600 s, NO forced enforcing, 'Visa låsning' {(notice ? "ON" : "off")}",
-                       new CadRhythmSim(new CoordinatorConfig { MaxLearnedHorizonSeconds = 600 }, notice, -1, 7).Run(63));
+            var cfg = new CoordinatorConfig();
+            var s = new CadRhythmSim(cfg, notice, -1, seed).Run(63);
+            Report($"AFTER, default config (cap {cfg.MaxLearnedHorizonSeconds} s), seed {seed}, 'Visa låsning' {(notice ? "ON" : "off")}", s);
+            var E = s.Enforcing;
+            Assert.Equal(0, s.Learning.WrongAwayLabels + E.WrongAwayLabels);          // [0]   was 537
+            Assert.NotNull(s.PromotedDay);
+            Assert.True(s.PromotedDay <= 30, $"promoted day {s.PromotedDay}");         // [21]  never before
+            Assert.True(E.StudiesDimmed <= 0.05 * E.Studies, $"{E.StudiesDimmed}/{E.Studies}"); // [~1 %] was ~70 %
+            Assert.Equal(0, E.HardLocksOnPresent);                                     // [0]
+            int bound = (int)cfg.MaxLearnedHorizonSeconds + (int)cfg.ConfirmGraceSeconds + 2;
+            Assert.All(E.CoffeeSilentExposure.Concat(E.CoffeeCueExposure).Concat(E.OtherExposure),
+                       x => Assert.True(x <= bound, $"exposure {x} > {bound}"));       // [615]
+            Assert.False(s.Profile.Quality.Degraded);                                  // Kaizen check: ok
+            Assert.Equal(0, s.Profile.Guard.Rollbacks);                                // [0]
         }
 
         [Fact]
