@@ -84,13 +84,16 @@ namespace PresenceLock.App
                         Console.WriteLine("merged " + inputs.Count + " profiles into " + args[1]);
                         return 0;
                     }
+                    case "--lock-now":
+                        // Used by the guard service (fail-closed); harmless for anyone else.
+                        return Interop.NativeMethods.LockWorkStation() ? 0 : 1;
+
                     case "--reset-profile":
-                        if (File.Exists(path)) File.Delete(path);
-                        Console.WriteLine("profile removed; it is recreated (learning mode) at next agent start");
-                        return 0;
+                        return ResetProfile(path, args.Length > 1 ? args[1] : null);
                     default:
                         Console.WriteLine("usage: PresenceLock.exe [--status | --export f | --export-baseline f | " +
-                                          "--merge-baseline out in1 in2 ... | --reset-profile]");
+                                          "--merge-baseline out in1 in2 ... | --reset-profile [SID] | " +
+                                          "--probe-signals [s] | --lock-now]");
                         return 2;
                 }
             }
@@ -133,6 +136,56 @@ namespace PresenceLock.App
         }
 
         private static string Show(bool? v) => v.HasValue ? v.Value.ToString() : "n/a";
+
+        private static bool IsElevatedAdmin()
+        {
+            using (var id = System.Security.Principal.WindowsIdentity.GetCurrent())
+                return new System.Security.Principal.WindowsPrincipal(id)
+                    .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+
+        /// <summary>
+        /// Resetting a profile restarts the learning period (no locking for 15+ days), so in NIS2
+        /// mode (AllowUserExit = 0) only an elevated administrator may do it. With a SID, an
+        /// administrator resets that user's local and protected profile; do it while the user is
+        /// logged off, otherwise their running agent writes its in-memory profile back.
+        /// </summary>
+        private static int ResetProfile(string ownPath, string targetSid)
+        {
+            bool admin = IsElevatedAdmin();
+            if (!Settings.PolicyReader.Load().AllowUserExit && !admin)
+            {
+                Console.WriteLine("refused: policy AllowUserExit = 0 — only an elevated administrator may reset a profile");
+                return 1;
+            }
+            if (targetSid == null)
+            {
+                if (File.Exists(ownPath)) File.Delete(ownPath);
+                string me = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value;
+                if (admin && me != null) Guard.ProtectedStore.Delete(me);
+                Console.WriteLine("profile removed; it is recreated (learning mode) at next agent start");
+                return 0;
+            }
+            if (!admin)
+            {
+                Console.WriteLine("refused: resetting another user's profile requires an elevated administrator");
+                return 1;
+            }
+            using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                       @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\" + targetSid, false))
+            {
+                string home = k?.GetValue("ProfileImagePath") as string;
+                if (home != null)
+                {
+                    string p = Path.Combine(Environment.ExpandEnvironmentVariables(home),
+                                            @"AppData\Local\PresenceLock\profile.json");
+                    if (File.Exists(p)) File.Delete(p);
+                }
+            }
+            Guard.ProtectedStore.Delete(targetSid);
+            Console.WriteLine("profile of " + targetSid + " removed (local and protected copy)");
+            return 0;
+        }
 
         private static UserProfile Load(string path)
         {

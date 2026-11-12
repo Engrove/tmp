@@ -48,8 +48,18 @@ If the gate is still not met after the maximum number of days (default 30), the 
       <string id="EnableBleRssi">Allow Bluetooth LE signal-strength sensing (learning only)</string>
       <string id="EnableBleRssi_Help">Allows the optional Bluetooth LE RSSI presence hint during learning. This build ships the logic but no BLE watcher adapter, so enabling it currently has no effect. The same 80 % availability rule applies before enforcing mode may use it.</string>
 
-      <string id="AllowUserExit">Allow the user to exit the agent</string>
-      <string id="AllowUserExit_Help">Disabled: the "Exit" item is removed from the tray menu. Default: allowed.</string>
+      <string id="AllowUserExit">Allow the user to exit the agent (disable = NIS2 mode)</string>
+      <string id="AllowUserExit_Help">Enabled or not configured: the tray menu has an "Exit" item.
+
+Disabled (NIS2 mode) — set this as a COMPUTER policy; the guard service only honours the computer policy:
+1. No "Exit" item in the tray menu.
+2. The agent's process denies termination to standard users: Task Manager "End task", taskkill /F and Stop-Process fail with "access denied". SYSTEM and elevated administrators keep full access.
+3. A quit message posted by another program restarts the agent instead of ending it.
+4. Resetting a profile (PresenceLock.exe --reset-profile) requires an elevated administrator.
+5. A deleted profile, a profile demoted from enforcing to learning, or a restarted learning clock is restored from the guard's protected copy. Policy values are never read from the user-writable profile file.
+6. With the PresenceLock Guard service installed (Install-PresenceLock.ps1 -Guard): if the agent disappears from an unlocked session anyway, that session is LOCKED within about 4 seconds and the agent is restarted. Each event is written to the Application event log, source "PresenceLock", event ID 1001 (1003 if locking failed).
+
+Out of scope: local administrators, and input injected to fake activity (mouse jigglers, key-press "keep awake" tools).</string>
 
       <string id="AllowProfileExport">Allow profile export from the tray menu</string>
       <string id="AllowProfileExport_Help">Disabled: the export items are removed from the tray menu. Command-line export (PresenceLock.exe --export) is unaffected. Default: allowed.</string>

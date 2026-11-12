@@ -84,7 +84,6 @@ namespace PresenceLock.App
             _timer.Start();
 
             SystemEvents.SessionEnding += OnSessionEnding;
-            Application.ApplicationExit += (s, e) => Shutdown();
 
             AgentLog.Write("start: " + _coord.Engine.Diagnostics(DateTime.UtcNow.Ticks)
                            + " powerSignal=" + (_signals.PowerSignalAllowed ? "on" : "off (server SKU)"));
@@ -95,11 +94,32 @@ namespace PresenceLock.App
         private UserProfile LoadProfile()
         {
             string sid = WindowsIdentity.GetCurrent().User?.Value ?? "";
+            bool localExisted = File.Exists(_profilePath);
+            var profile = LoadLocalOrBaseline(sid, localExisted);
+
+            if (!_settings.AllowUserExit)
+            {
+                // NIS2 mode: profile.json is user-writable. If it was deleted, demoted from
+                // Enforcing to Learning, or its learning clock restarted, the guard's protected
+                // copy (read-only for the user) is used instead.
+                var chosen = TamperProtection.ChooseTrusted(profile, localExisted, Guard.ProtectedStore.TryRead(sid),
+                                                            sid, _settings.ModePolicy, out string reason);
+                if (!ReferenceEquals(chosen, profile)) AgentLog.Write(reason);
+                profile = chosen;
+            }
+
+            // Policy-like fields are never trusted from the file: defaults now, GPO in ApplyTo().
+            TamperProtection.ResetPolicyFields(profile);
+            return profile;
+        }
+
+        private UserProfile LoadLocalOrBaseline(string sid, bool localExisted)
+        {
             string machine = Environment.MachineName;
 
             // Fleet seeding: no local profile yet + an admin baseline configured -> start
             // from the baseline's weights (calibration is reset, so promotion is re-earned).
-            if (!File.Exists(_profilePath) && !string.IsNullOrEmpty(_settings.BaselineProfilePath))
+            if (!localExisted && !string.IsNullOrEmpty(_settings.BaselineProfilePath))
             {
                 try
                 {
@@ -268,6 +288,9 @@ namespace PresenceLock.App
                 menu.Items.Add(new ToolStripSeparator());
                 menu.Items.Add("Avsluta", null, (s, e) => ExitThread());
             }
+            // AllowUserExit = 0 (NIS2 mode): no exit item, the process refuses termination by
+            // the user, the message loop restarts, and the guard service locks the session if
+            // the agent disappears anyway.
             return menu;
         }
 
@@ -314,6 +337,12 @@ namespace PresenceLock.App
         {
             Shutdown();
             base.ExitThreadCore();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) Shutdown();   // also covers a loop ended by a foreign WM_QUIT
+            base.Dispose(disposing);
         }
     }
 }

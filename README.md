@@ -16,9 +16,10 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 | Profil-JSON, export, baslinje, sammanslagning | **Verifierad** | C#-tester: round-trip, atomisk skrivning, korrupt fil, saknade fält, anonymisering, medelvärde. |
 | Goertzel-DSP för ultraljudssensorn | **Verifierad** | `verify/goertzel_check.py`. |
 | ADMX/ADML ↔ kod | **Verifierad** | `verify/check_admx.py`: alla värdenamn och strängar matchar i båda riktningar. |
-| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 62 464 byte (61 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§10). |
+| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 78 848 byte (77 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§11). |
+| Manipulationsskydd, NIS2-läge (`TamperProtection`, guard-tjänst) | **Reglerna verifierade, Windows-delen kompilerad men ej körd** | 19 enhetstester: process-SDDL (även injektionsförsök), återställning av raderad/nedgraderad profil, monoton skyddad kopia, guardens tillståndsmaskin (start, lås vid dödad agent, ignorerar utloggning och session 0). Om processens DACL faktiskt nekar Aktivitetshanteraren måste provas på Windows (§11). |
 | Install-/avinstallationsskript | **Syntaxkontrollerade, ej körda** | PowerShells egen parser (7.4), ingen 7-specifik syntax. |
-| Ljudinspelning (WASAPI) och BLE-watcher | **Ingår inte** | Endast gränssnitt och signalbehandling. Se §8. |
+| Ljudinspelning (WASAPI) och BLE-watcher | **Ingår inte** | Endast gränssnitt och signalbehandling. Se §9. |
 | RAM/CPU (< 15 MB / < 0,2 %) | **Ej uppmätt** | Kan inte mätas utan Windows. Mät i piloten. |
 
 Kör hela beviskedjan (Linux eller Windows med Python 3 och .NET 8 SDK):
@@ -39,12 +40,13 @@ Kör hela beviskedjan (Linux eller Windows med Python 3 och .NET 8 SDK):
 | Läge 1: inlärning 15–30 dagar, ingen låsning | Besluten beräknas men är **osynliga**. Ingen dimning och ingen låsning. |
 | Lära sig av rätt/fel och korrigera sig | Online-SGD på självgenererade etiketter (§4). |
 | Extra sensorer under inlärning, inte förutsatta i läge 2 | Valfria sensorer räknas per episod. I skarpt läge **nollställs** varje valfri feature som inte var tillgänglig i ≥ 50 episoder och ≥ 80 % av dem. Testat (`Enforcing_IgnoresUnconfirmedOptionalSensor`). |
-| Bara sensorer utan extra tillåtelse | Kärnan använder musens råinput, `GetLastInputInfo`, förgrundsprocessens **namn** och klockan. Inget av det kräver tillstånd. Tangentbordet registreras **inte** (§7). |
+| Bara sensorer utan extra tillåtelse | Kärnan använder musens råinput, `GetLastInputInfo`, förgrundsprocessens **namn** och klockan. Inget av det kräver tillstånd. Tangentbordet registreras **inte** (§8). |
 | "Visa låsning": notis, klick = oberättigad | Ballongnotis i inlärningsläget. Klick ger en stark negativ etikett (vikt 2) och räknas emot befordran. Kan bara tillämpas en gång per beslut. Testat. |
 | Exportera profil för bred implementation | Tray-meny, CLI (`--export`, `--export-baseline`, `--merge-baseline`), automatisk daglig insamling till en filresurs, och baslinje-seedning för nya användare (GPO). |
 | Läge 2 automatiskt vid "säker" nivå, utan att informera | Statistisk grind (§5). Bytet är tyst: ikon, tooltip och meny är identiska i båda lägena. Bytet loggas bara i admin-loggen. |
 | Låsa inte mitt i en video eller ett möte, men inte heller hållas öppen av musik | Passiv paus på synlig video (display-required) och på mikrofon/kamera som används av en körande process. Ljud räknas inte som närvaro. Pausen begränsas alltid av backstopet (§6). |
-| GPO-distribution utan certifiering | En fil (`PresenceLock.exe` + `.exe.config`). Kopiering och Run-nyckel via GP Preferences, alternativt startskript. Se §9. |
+| Ska inte gå att stänga av (NIS2), styrt via central GPO | `AllowUserExit = 0` som datorprincip, plus guard-tjänsten (§7). |
+| GPO-distribution utan certifiering | En fil (`PresenceLock.exe` + `.exe.config`). Kopiering och Run-nyckel via GP Preferences, alternativt startskript. Se §10. |
 | Styrning via AD GPO | `deploy/PresenceLock.admx` med sv-SE och en-US: läge, gränser, inlärningsgrind, notis, applistor, sensorer, avslut, export, insamling och baslinje. |
 
 ---
@@ -57,14 +59,16 @@ src/PresenceLock.Core/        ren logik, inga OS-anrop (net48 + net8.0)
   PresenceEngine.cs           episod-tillståndsmaskin + feedback-hooks
   PresenceCoordinator.cs      hela beslutsflödet: indata > passiv paus > modell, + backstop
   ModeController.cs           inlärning -> skarpt: fönster + Wilson-gräns
-  ProfileStore.cs             JSON, atomisk skrivning, export/baslinje/merge
+  ProfileStore.cs             JSON, atomisk skrivning, export/baslinje/merge, schemamigrering
+  TamperProtection.cs         NIS2: process-SDDL, betrodd profil, guardens tillståndsmaskin
 src/PresenceLock.App/         Windows-skalet, kompileras till EN exe
   TrayApplicationContext.cs   tunt skal: läser OS-tillstånd, utför koordinatorns åtgärd
   Interop/MessageWindow.cs    WM_INPUT (endast mus) + WTS lås/upplås
   Sensors/                    kinematik, förgrundsapp, tidsprior, passiva OS-signaler, (sonar, BLE)
   Policy/SoftDimOverlay.cs    3 s dimning, WS_EX_TRANSPARENT|NOACTIVATE|TOPMOST
   Settings/PolicyReader.cs    HKLM-policy > HKCU-policy > HKCU-preferens
-  Cli.cs                      --status/--export/--export-baseline/--merge-baseline/--probe-signals
+  Guard/                      LocalSystem-tjänst: startar om agenten, låser vid avbrott, skyddad kopia
+  Cli.cs                      --status/--export/--export-baseline/--merge-baseline/--probe-signals/--reset-profile/--lock-now
 deploy/                       ADMX/ADML, installations-/avinstallationsskript, task-XML
 verify/                       Python-referens, simulering, alla kontroller
 tests/                        xUnit: enhet + paritet mot den riktiga C#-motorn
@@ -101,7 +105,7 @@ Startvikterna `w0 = −3,0` och `λ = 0,110` återger exakt kurvan i den ursprun
 
 1. *"När 25 minuter har passerat vet mjukvaran med 100 % säkerhet att du lämnade vid t = 0."* **Fel.** Man vet bara att användaren var borta vid t = 180 s, inte när hen gick. Om etiketten backdateras till t₀ lär sig modellen att *läsning betyder att gå*. Här labbas observationen censurerat vid den observerade tiden (testet `LongAbsence_IsCensored_…`).
 2. *En EMA över fel-andelen som tröskel för "säker".* En brusig EMA som korsar en tröskel är ett first-passage-fenomen. Med tillräckligt många dagar korsar den vilken tröskel som helst. Mätt: en användare med verklig fel-andel 15 % hade "befordrats" 5 492 gånger av en naiv EMA ≤ 10 %-grind. Med Wilson-grinden: aldrig.
-3. *Ultraljudssonar och BLE som stealth-sensorer.* Se §8. Mikrofonanvändning tänder Windows integritetsindikator, vilket inte är förenligt med stealth.
+3. *Ultraljudssonar och BLE som stealth-sensorer.* Se §9. Mikrofonanvändning tänder Windows integritetsindikator, vilket inte är förenligt med stealth.
 4. *"< 15 MB RAM, < 0,2 % CPU"*. Ej belagt. Ska mätas.
 
 ---
@@ -218,7 +222,54 @@ Visar `DisplayRequired` aldrig `True` under video är aggregatet inte användbar
 
 ---
 
-## 7. Integritet: vad agenten ser och inte ser
+## 7. NIS2-läge: manipulationsskydd
+
+**Hotmodell:** en vanlig användare *utan* lokal adminrätt som vill att datorn ska stå olåst. Lokala administratörer och fysiska attacker ligger per definition utanför.
+
+**Aktivering** (två delar, båda centralt):
+1. **Datorprincip:** PresenceLock → Administration → *Tillåt användaren att avsluta agenten* = **Inaktiverad** (`AllowUserExit = 0`). Den ska sättas som *dator*principen, eftersom guard-tjänsten bara läser den.
+2. **Guard-tjänsten:** startskriptet med `-Guard` (§10, alternativ B). GP Preferences kan inte skapa tjänster.
+
+| Sätt att lämna datorn olåst | Utan NIS2-läge | NIS2-läge | Mekanism | Belägg |
+|---|---|---|---|---|
+| "Avsluta" i menyn | möjligt | borttaget | GPO | kompilerad |
+| Aktivitetshanteraren, `taskkill /f`, `Stop-Process` | möjligt | **åtkomst nekad** | Processens egen DACL: användaren och `OWNER RIGHTS` får bara `SYNCHRONIZE \| QUERY_LIMITED`. `OWNER RIGHTS` tar bort ägarens implicita rätt att skriva om DACL:en | SDDL enhetstestad; effekten provas på Windows |
+| `WM_QUIT` / `WM_CLOSE` från ett eget program | agenten avslutas | meddelandeloopen startar om | `Program.cs` | kompilerad |
+| Agenten dör ändå (krasch, admin-verktyg) | olåst | **sessionen låses inom ≈ 4 s**, agenten startas om, händelse 1001 | guard-tjänst (LocalSystem) | tillståndsmaskinen enhetstestad (7 tester) |
+| Autostart avstängd | ingen agent | guarden startar den | guard-tjänst | enhetstestad |
+| Egen kopia döpt till `PresenceLock.exe` för att lura guarden | — | räknas inte | guarden kräver exakt avbildssökväg i `Program Files` | kompilerad |
+| Radera `profile.json`, ändra `Mode` till `Learning`, nollställa inlärningsklockan | 15+ dagar utan lås | **återställs** från skyddad kopia | `ChooseTrusted` + monoton `AcceptIntoProtected` | enhetstestad |
+| Ändra policyfält i `profile.json` (trösklar, horisont, `MinLearningDays`, inlärningstakt) | verkar | **ignoreras**: läses alltid från GPO eller standard | `ResetPolicyFields` | enhetstestad |
+| Ändra de inlärda vikterna | — | begränsat av backstopet: ≤ 180 s + grace, eller `HoldMax` + grace | `PresenceCoordinator` | egenskapstestad (500 slumpade modeller) |
+| `PresenceLock.exe --reset-profile` | möjligt | kräver **eleverad administratör** | `Cli.cs` | kompilerad |
+| Plantera egna "skyddade" kopior | — | omöjligt: lagret ligger i `%ProgramFiles%\PresenceLock\state`, inte i `%ProgramData%` där vanliga användare får skapa mappar | `ProtectedStore` | — |
+| Stoppa guard-tjänsten | — | kräver admin (Windows standard-DACL för tjänster) | Windows | — |
+
+**Händelselogg för SIEM** (Application, källa `PresenceLock`):
+
+| ID | Betydelse |
+|---|---|
+| 1000 | guard startad |
+| **1001** | agenten försvann ur en olåst session, sessionen låstes |
+| 1002 | ändring av en profil som skulle ha nedgraderat den nekades |
+| **1003** | **låsning misslyckades** |
+| 1004 | agenten kunde inte startas |
+| **1009** | **guard stoppad** (kräver admin) |
+
+### Vad som återstår, och kräver ert beslut
+
+1. **Injicerad indata.** Det är det största hålet i *all* tvingad låsning, även i er nuvarande skärmsläckarprincip: Windows räknar injicerade musrörelser och tangenttryck som aktivitet.
+   - *Mjukvaru-musjigglers* (`SendInput`) går att upptäcka, eftersom injicerad musindata har `hDevice = NULL` i rå indata. Men hjälpmedel (ögonstyrning, röststyrning, skärmtangentbord) och fjärrsupport injicerar också. Det kräver en vitlista, annars låses personer med funktionsnedsättning ute.
+   - *"Håll vaken"-verktyg som skickar tangenttryck* (t.ex. F15 var 59:e sekund) går bara att upptäcka om agenten registrerar tangentbordet för rå indata. Det räcker att läsa *enhetshandtaget*, aldrig tangentkoder. Det är ändå just det mönster jag valde bort av integritets- och EDR-skäl (§8).
+   - *USB-hårdvarujigglers* ser ut som en riktig mus. Bara beteendeanalys (periodiska mikrorörelser utan annan aktivitet) kan avslöja dem.
+2. **Inlärningsperioden (≥ 15 dagar) låser inte**, enligt kravspecifikationen. Er skärmsläckarprincip (15/30/60 min) är golvet under den perioden, så **behåll den**. Vill ni att agenten låser från dag 1: `ModePolicy = 2` tillsammans med `BaselineProfilePath` från en pilotgrupp.
+3. **Felsäkert läge** (nås från inloggningsskärmen via Skift + Starta om): varken agent eller tjänst startar. Skärmsläckarprincipen gäller fortfarande.
+4. **Pausen vid video eller möte** lämnar datorn olåst i upp till `HoldMax` + grace efter en avgång (§6). Det är inställbart.
+5. **Den skyddade kopian synkas var 60:e sekund.** Ett fönster på högst en minut efter en befordran är inte täckt.
+
+---
+
+## 8. Integritet: vad agenten ser och inte ser
 
 - **Mus:** relativ rörelse, hjul och tidpunkter i ett 3-sekunders RAM-fönster. Endast den sista markörpositionen används (för kantdetektering). Ingenting av detta sparas.
 - **Tangentbord:** **registreras inte.** Tangentbordsaktivitet syns bara som "inte inaktiv" via `GetLastInputInfo`. Det finns ingen kodväg som kan se tangenttryck. En bakgrundsprocess som tar emot rå tangentbordsinput är det klassiska keylogger-mönstret, och det undviks medvetet.
@@ -240,7 +291,7 @@ Designen hjälper vid bedömningen: lokal lagring, inget innehåll, inget tangen
 
 ---
 
-## 8. Valfria sensorer: ärlig status
+## 9. Valfria sensorer: ärlig status
 
 | Sensor | I den här versionen | Fakta som avgör användbarhet |
 |---|---|---|
@@ -251,7 +302,7 @@ Båda är **avstängda som standard**. Utan inspelning markeras de otillgänglig
 
 ---
 
-## 9. Bygga och distribuera via GPO
+## 10. Bygga och distribuera via GPO
 
 ### Bygga (Windows)
 
@@ -279,7 +330,7 @@ Datorkonfiguration → Principer → Windows-inställningar → Skript → Start
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File \\<domän>\NETLOGON\PresenceLock\Install-PresenceLock.ps1
 ```
 
-Skriptet är idempotent (kopierar bara vid ändrad hash), kontrollerar .NET 4.8 och registrerar Run-nyckel eller schemalagd uppgift (`-Autostart Task`, som startar om vid krasch). Avinstallation: `Uninstall-PresenceLock.ps1 [-RemoveUserProfiles]`.
+Skriptet är idempotent (kopierar bara vid ändrad hash), kontrollerar .NET 4.8 och registrerar Run-nyckel eller schemalagd uppgift (`-Autostart Task`, som startar om vid krasch). **För NIS2-läget, lägg till `-Guard`:** då installeras tjänsten *PresenceLock Guard* (LocalSystem, automatisk start, citerad sökväg, omstart vid fel). Dessutom skapas den skyddade lagringen och händelsekällan. Avinstallation: `Uninstall-PresenceLock.ps1 [-RemoveUserProfiles]`.
 
 ### "Utan certifiering": var det håller och var det inte gör det
 
@@ -302,7 +353,8 @@ Skriptet är idempotent (kopierar bara vid ändrad hash), kontrollerar .NET 4.8 
 | `MediaHoldEnabled` / `MeetingHoldEnabled` | DWORD | 1 / 1 | Passiv paus vid synlig media / mikrofon-kamera (§6) |
 | `HoldMaxMinutes` / `ConfirmGraceSeconds` | DWORD | 15 / 15 | Absolut backstop: bekräftelsedimning efter N min, lås efter M s |
 | `HoldIgnoreApps` | SZ | — | Exe-namn eller paketprefix vars mikrofonanvändning ignoreras |
-| `AllowUserExit` / `AllowProfileExport` | DWORD | 1 | Menyval |
+| `AllowUserExit` | DWORD | 1 | **0 = NIS2-läge** (§7); sätt som datorprincip |
+| `AllowProfileExport` | DWORD | 1 | Exportval i menyn |
 | `ProfileExportDirectory` | EXPAND_SZ | — | Daglig insamling `DATOR_ANVÄNDARE.json` |
 | `BaselineProfilePath` | EXPAND_SZ | — | Startvikter för nya användare |
 
@@ -314,6 +366,12 @@ PresenceLock.exe --status
 
 ```bash
 PresenceLock.exe --probe-signals 120
+```
+
+NIS2-läge, eleverad administratör, medan användaren är utloggad (annars skriver hens körande agent tillbaka sin profil):
+
+```bash
+PresenceLock.exe --reset-profile S-1-5-21-...
 ```
 
 ```bash
@@ -328,7 +386,7 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 
 ---
 
-## 10. Kända begränsningar
+## 11. Kända begränsningar
 
 - **Windows-skalet är inte kört.** Win32-signaturerna är granskade (bland annat `RAWMOUSE` med explicit layout, där unionen ligger på offset 4), men beteendet på riktig hårdvara är obekräftat.
 - **Kinematiktrösklarna** (`HighSpeed = 40` counts, kantmarginal 8 px) beror på musens CPI och DPI. Modellen lär sig hur mycket den ska lita på varje feature, men feature-kvaliteten avgörs i piloten.
@@ -349,6 +407,10 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 5. Flera skärmar med olika DPI: dimningen ska täcka allt. Testa också i en RDP-session.
 6. `--probe-signals`: kontrollera video (synlig, minimerad), Teams-samtal och att `running=True` stämmer (§6).
 7. Testmaskin i skarpt läge: titta på en video i mer än `HoldMax` minuter. En bekräftelsedimning ska komma, och en musrörelse ska släppa den. Gå sedan från en video som fortsätter spela. Låset ska komma senast `HoldMax` + grace efter din senaste rörelse.
-8. Defender/EDR ska vara tyst.
-9. RAM och CPU över en arbetsdag (Process Explorer), mot påståendet < 15 MB och < 0,2 %.
-10. Efter 15–30 dagar: `--status`, grindens siffror och upplevd störning.
+8. **NIS2-läge** (`AllowUserExit = 0` som datorprincip och `-Guard`):
+   - Som vanlig användare: *Avsluta aktivitet* på PresenceLock och `taskkill /im PresenceLock.exe /f` ska ge **åtkomst nekad**. `PresenceLock.exe --reset-profile` ska nekas.
+   - Som eleverad admin, döda agenten: sessionen ska **låsas inom ≈ 4 s**, händelse **1001** ska finnas i programloggen, och agenten ska vara tillbaka efter upplåsning.
+   - Vänta 1 min (synk), radera `profile.json`, logga ut och in igen: `--status` ska visa samma läge som före raderingen.
+9. Defender/EDR ska vara tyst. Kontrollera särskilt guard-tjänsten, som startar processer i användarsessioner.
+10. RAM och CPU över en arbetsdag (Process Explorer), mot påståendet < 15 MB och < 0,2 %.
+11. Efter 15–30 dagar: `--status`, grindens siffror och upplevd störning.
