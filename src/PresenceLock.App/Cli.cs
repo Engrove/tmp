@@ -106,7 +106,7 @@ namespace PresenceLock.App
                         Need(args, 3);
                         var inputs = new List<UserProfile>();
                         for (int i = 2; i < args.Length; i++)
-                            inputs.Add(ProfileStore.Deserialize(File.ReadAllText(args[i])));
+                            inputs.Add(ProfileStore.Deserialize(BoundedFile.ReadAllText(args[i], BoundedFile.MaxProfileBytes)));
                         File.WriteAllText(args[1], ProfileStore.Serialize(ProfileStore.MergeBaseline(inputs)));
                         Console.WriteLine("merged " + inputs.Count + " profiles into " + args[1]);
                         return 0;
@@ -222,7 +222,7 @@ namespace PresenceLock.App
         private static UserProfile Load(string path)
         {
             if (!File.Exists(path)) throw new FileNotFoundException("no profile for this user yet", path);
-            return ProfileStore.Deserialize(File.ReadAllText(path));
+            return ProfileStore.Deserialize(BoundedFile.ReadAllText(path, BoundedFile.MaxProfileBytes));
         }
 
         private static void Need(string[] args, int n)

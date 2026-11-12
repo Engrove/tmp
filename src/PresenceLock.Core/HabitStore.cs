@@ -45,7 +45,7 @@ namespace PresenceLock.Core
             {
                 if (File.Exists(path))
                 {
-                    var j = Deserialize(File.ReadAllText(path, Encoding.UTF8));
+                    var j = Deserialize(BoundedFile.ReadAllText(path, BoundedFile.MaxJournalBytes));   // oversized = corrupt
                     if (j.SchemaVersion == HabitJournal.CurrentSchemaVersion &&
                         string.Equals(j.UserSid, userSid, StringComparison.OrdinalIgnoreCase))
                         return j;

@@ -75,6 +75,11 @@ namespace PresenceLock.Core
         {
             if (Episodes == null) Episodes = new List<HabitEpisode>();
             if (Scores == null) Scores = new List<HabitScore>();
+            // Enforce the caps on load too (an edited or foreign file), not only when recording.
+            var d = new HabitPolicy();
+            Episodes.RemoveAll(e => e == null);
+            if (Episodes.Count > d.MaxEpisodes) Episodes.RemoveRange(0, Episodes.Count - d.MaxEpisodes);
+            if (Scores.Count > d.MaxScores) Scores.RemoveRange(0, Scores.Count - d.MaxScores);
         }
     }
 

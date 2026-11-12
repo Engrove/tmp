@@ -47,8 +47,19 @@ namespace PresenceLock.App.Guard
         private const int EvStart = 1000, EvAgentKilledLocked = 1001, EvProfileRegression = 1002,
                           EvLockFailed = 1003, EvStartFailed = 1004, EvProfileRestored = 1005, EvStop = 1009;
 
-        private static void Event(string message, EventLogEntryType type, int id)
+        private static readonly EventThrottle Throttle = new EventThrottle();
+
+        /// <summary>
+        /// Rate-limited per (id, key): a persistent failure (agent cannot start, a user keeps
+        /// re-writing a refused profile) must not flood the Application log and push other
+        /// security events out of it. Lock events (1001/1003) are limited per session to one a
+        /// minute, everything else to one an hour; the next entry reports how many were suppressed.
+        /// </summary>
+        private static void Event(string message, EventLogEntryType type, int id, string key = "")
         {
+            var window = id == EvAgentKilledLocked || id == EvLockFailed ? TimeSpan.FromMinutes(1) : TimeSpan.FromHours(1);
+            if (!Throttle.ShouldEmit(id + "|" + key, DateTime.UtcNow.Ticks, window, out int suppressed)) return;
+            message = EventThrottle.WithSuppressed(message, suppressed, window);
             try
             {
                 if (!EventLog.SourceExists(EventSource)) EventLog.CreateEventSource(EventSource, "Application");
@@ -122,7 +133,7 @@ namespace PresenceLock.App.Guard
                         bool ok = !result.StartsWith("LOCK FAILED", StringComparison.Ordinal);
                         Event("Agent stopped unexpectedly in session " + a.SessionId + " (" + UserOf(a.SessionId) +
                               "): " + result, ok ? EventLogEntryType.Warning : EventLogEntryType.Error,
-                              ok ? EvAgentKilledLocked : EvLockFailed);
+                              ok ? EvAgentKilledLocked : EvLockFailed, "s" + a.SessionId);
                     }
                     else
                     {
@@ -130,7 +141,7 @@ namespace PresenceLock.App.Guard
                         catch (Exception ex)
                         {
                             Event("Could not start agent in session " + a.SessionId + ": " + ex.Message,
-                                  EventLogEntryType.Error, EvStartFailed);
+                                  EventLogEntryType.Error, EvStartFailed, "s" + a.SessionId);
                         }
                     }
                 }
@@ -148,6 +159,12 @@ namespace PresenceLock.App.Guard
             finally { Monitor.Exit(_gate); }
         }
 
+        private static bool IsLink(string path)
+        {
+            try { return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0; }
+            catch (Exception) { return true; }                  // unreadable attributes: do not trust it
+        }
+
         private static string UserOf(int sessionId) =>
             SessionLauncher.TryGetUser(sessionId, out var sid, out _) ? sid : "unknown user";
 
@@ -162,12 +179,15 @@ namespace PresenceLock.App.Guard
                 if (!File.Exists(local)) continue;
                 try
                 {
-                    var candidate = ProfileStore.Deserialize(File.ReadAllText(local, Encoding.UTF8));
+                    // SYSTEM reads a file in a user-writable folder: refuse links (a junction or
+                    // symlink could point the guard at another file) and anything oversized.
+                    if (IsLink(local) || IsLink(Path.GetDirectoryName(local))) continue;
+                    var candidate = ProfileStore.Deserialize(BoundedFile.ReadAllText(local, BoundedFile.MaxProfileBytes));
                     var existing = ProtectedStore.TryRead(sid);
                     if (TamperProtection.AcceptIntoProtected(existing, candidate, sid, policy, out var reason))
                         ProtectedStore.Write(sid, candidate);
                     else if (existing != null)
-                        Event("Profile change refused for " + sid + ": " + reason, EventLogEntryType.Warning, EvProfileRegression);
+                        Event("Profile change refused for " + sid + ": " + reason, EventLogEntryType.Warning, EvProfileRegression, sid);
                 }
                 catch (Exception)
                 {

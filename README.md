@@ -10,13 +10,13 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 
 | Del | Status | Bevis |
 |---|---|---|
-| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 119 tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
+| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 127 tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
 | Beslutsflöde: passiv paus, kontrollprob, absolut backstop (`PresenceCoordinator`) | **Verifierad** | 14 enhetstester, bland annat ett egenskapstest med 500 slumpade modeller och slumpmässigt fladdrande signaler (låsning sker alltid ≤ `HoldMax` + grace). Två jämförande 60-dagarssimuleringar (§6). |
 | Passiva OS-signaler (`PassiveSignalReader`) | **Kompilerad, ej körd. Semantiken är delvis odokumenterad** | ConsentStore är odokumenterad. Om `SystemExecutionState` aggregerar andra processers begäranden är inte dokumenterat. Verifiera på målmaskin med `PresenceLock.exe --probe-signals` (§6). Ett fel i signalerna kan bara fördröja låsning upp till `HoldMax` + grace. |
 | Profil-JSON, export, baslinje, sammanslagning | **Verifierad** | C#-tester: round-trip, atomisk skrivning, korrupt fil, saknade fält, anonymisering, medelvärde. |
 | Goertzel-DSP för ultraljudssensorn | **Verifierad** | `verify/goertzel_check.py`. |
 | ADMX/ADML ↔ kod | **Verifierad** | `verify/check_admx.py`: alla värdenamn och strängar matchar i båda riktningar. |
-| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 107 520 byte (105 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
+| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 111 104 byte (108 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
 | Manipulationsskydd, NIS2-läge (`TamperProtection`, guard-tjänst) | **Reglerna verifierade, Windows-delen kompilerad men ej körd** | 19 enhetstester: process-SDDL (även injektionsförsök), återställning av raderad/nedgraderad profil, monoton skyddad kopia, guardens tillståndsmaskin (start, lås vid dödad agent, ignorerar utloggning och session 0). Om processens DACL faktiskt nekar Aktivitetshanteraren måste provas på Windows (§13). |
 | Vaneinlärning (`HabitModel`, modellerad efter Elli) | **Verifierad i simulering** | 13 modelltester (bland annat överlevnadsintervallet mot brute force i 200 slumpfall, censurering, sommartid, kärnor, Wilson), 11 koordinatortester (bland annat egenskapen *aldrig senare lås* i 300 parade körningar) och en 70-dygns rutinsimulering (§8). |
 | Tyst arbete: etiketter i efterhand, inlärd horisont, tystnadsprofil (v0.5) | **Verifierad i simulering** | Inventor-scenariot (§4b) på 4 frön med och utan notis, kontorsscenariot (§6) på 3 frön, 9 koordinatortester och 7 tester för tystnadsprofilen, bland annat att jämnt spridda betraktanden *inte* får delas i två grupper. |
@@ -550,6 +550,23 @@ Händelser i programloggen (källa `PresenceLock`), stabila id:n för SIEM:
 | 1003 / 1004 | guard | låsning misslyckades / agenten kunde inte startas |
 | 1010 / 1011 | agent | kvalitet under målet i skarpt läge / åter inom målet (§5b) |
 | 1012 | agent | en inlärd modelländring förutsade sämre och rullades tillbaka (§5b) |
+
+### Loggar och diskbudget: inget växer obehindrat
+
+Varje fil som agenten eller guarden skriver har en hård gräns. Allt de läser har en storleksgräns. En större fil behandlas som korrupt och läses aldrig in, så en jättelik `profile.json` kan inte krascha agenten i en slinga (i NIS2-läge skulle det låsa sessionen varje gång) och inte heller SYSTEM-guarden som synkar den.
+
+| Fil | Plats | Gräns (värsta fall) | Mekanism |
+|---|---|---|---|
+| `agent.log` + `agent.log.1` | `%LOCALAPPDATA%\PresenceLock` | **2 × 256 KB** | Roterar innan en rad skulle passera 256 KB. En rad kapas vid 2048 tecken. Samma meddelande skrivs högst en gång per 10 min, med antal upprepningar. Innehåll: livscykel, lägesbyten och fel, aldrig indata, processnamn eller fönstertitlar. |
+| `profile.json` (+ `.tmp` under skrivning) | samma | uppmätt **≈ 5 KB** efter 63 dygn. Läses inte om > 1 MB | Bara strukturer med fast storlek: vikter, 200-fönster, 144 räknare för tystnadsprofilen, 50 senaste exponeringar. |
+| `habits.json` (+ `.tmp`) | samma | uppmätt **≈ 394 KB** vid taken. Läses inte om > 2 MB | Högst 42 dygn och 5000 episoder, 256 poäng. Rensas vid varje skrivning och vid inläsning. |
+| Skyddad kopia | `%ProgramFiles%\PresenceLock\state\<SID>.json` | ≈ 5 KB per användare som någonsin loggat in | Rensas medvetet **inte**. Den återställer profilen efter att en Windows-profil raderats. Ta bort med `--reset-profile <SID>`. |
+| Insamlad profil | `ProfileExportDirectory` | en fil per dator × användare, skrivs över dagligen | Gamla datorer och användare rensas av admin. |
+| Programloggen | Windows | Windows egen maxstorlek (standard 20 MB, skriver över) | Agentens händelser: högst 1 per id och timme. Guardens: 1001/1003 högst 1 per session och minut, övriga 1 per session/SID och timme. Nästa post anger hur många som hölls tillbaka. |
+
+**Uppmätt (testerna i `BoundedIoTests`).** Om agenten inte går att starta försöker guarden var 2:a sekund. Det blir 43 200 misslyckanden per dygn men bara **24 poster** i loggen, var och en med "1799 identical event(s) suppressed". 20 000 olika loggrader ger högst två filer inom budgeten. En rad på 100 000 tecken kapas.
+
+Guarden läser användarens `profile.json` som SYSTEM. Därför vägrar den länkar (junction, symlink) på filen och dess mapp, och filer över 1 MB. I minnet är kinematikbufferten en ring på 512 händelser, vanejournalen har sina tak, och spärrtabellerna rymmer högst 256 nycklar.
 
 Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `ProfileExportDirectory` → `--merge-baseline` → sätt `BaselineProfilePath` för resten av flottan. Nya användare startar då från pilotens vikter men måste ändå passera grinden på egen data. Medelvärdesbildning av logistiska modeller är inte detsamma som träning på poolad data, men det är en rimlig startpunkt.
 

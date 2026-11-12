@@ -40,7 +40,7 @@ namespace PresenceLock.App.Guard
             {
                 string p = PathFor(sid);
                 if (!File.Exists(p)) return null;
-                return ProfileStore.Deserialize(File.ReadAllText(p, Encoding.UTF8));
+                return ProfileStore.Deserialize(BoundedFile.ReadAllText(p, BoundedFile.MaxProfileBytes));
             }
             catch (Exception) { return null; }
         }

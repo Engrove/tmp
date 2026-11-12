@@ -134,7 +134,7 @@ namespace PresenceLock.App
                 try
                 {
                     var baseline = ProfileStore.ExportBaseline(
-                        ProfileStore.Deserialize(File.ReadAllText(_settings.BaselineProfilePath)));
+                        ProfileStore.Deserialize(BoundedFile.ReadAllText(_settings.BaselineProfilePath, BoundedFile.MaxProfileBytes)));
                     baseline.UserSid = sid;
                     baseline.MachineName = machine;
                     AgentLog.Write("seeded from baseline profile");
@@ -148,10 +148,14 @@ namespace PresenceLock.App
             return ProfileStore.LoadOrCreate(_profilePath, sid, machine);
         }
 
+        private static readonly string AgentVersion =
+            typeof(TrayApplicationContext).Assembly.GetName().Version.ToString(3);
+
         private void SaveProfile()
         {
             try
             {
+                _profile.AppVersion = AgentVersion;                 // the version that wrote it, not the one that created it
                 ProfileStore.Save(_profilePath, _profile);
                 if (_habits != null) HabitStore.Save(HabitStore.DefaultPath(), _habits);
                 _lastSaveUtc = DateTime.UtcNow;

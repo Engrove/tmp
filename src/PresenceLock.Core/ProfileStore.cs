@@ -52,7 +52,7 @@ namespace PresenceLock.Core
             {
                 if (File.Exists(path))
                 {
-                    var json = File.ReadAllText(path, Encoding.UTF8);
+                    var json = BoundedFile.ReadAllText(path, BoundedFile.MaxProfileBytes);   // oversized = corrupt
                     var p = Deserialize(json);   // migrates older schemas, rejects newer ones
                     if (p != null && p.SchemaVersion == UserProfile.CurrentSchemaVersion)
                         return p;
