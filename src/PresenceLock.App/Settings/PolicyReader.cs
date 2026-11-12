@@ -70,6 +70,7 @@ namespace PresenceLock.App.Settings
                     if ((v = Dword(k, "MeetingHoldEnabled")).HasValue) s.MeetingHoldEnabled = v.Value != 0;
                     if ((v = Dword(k, "HoldMaxMinutes")).HasValue) s.HoldMaxMinutes = Math.Max(1, Math.Min(240, v.Value));
                     if ((v = Dword(k, "ConfirmGraceSeconds")).HasValue) s.ConfirmGraceSeconds = Math.Max(5, Math.Min(120, v.Value));
+                    if ((v = Dword(k, "MaxLearnedHorizonMinutes")).HasValue) s.MaxLearnedHorizonMinutes = Math.Max(3, Math.Min(60, v.Value));
                     if ((v = Dword(k, "HabitLearningEnabled")).HasValue) s.HabitLearningEnabled = v.Value != 0;
                     if ((v = Dword(k, "HabitEarlyConfirmMinutes")).HasValue) s.HabitEarlyConfirmMinutes = Math.Max(1, Math.Min(60, v.Value));
                     if ((v = Dword(k, "AllowUserExit")).HasValue) s.AllowUserExit = v.Value != 0;

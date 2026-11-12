@@ -157,6 +157,17 @@
       </elements>
     </policy>
 
+    <policy name="LearnedHorizon" class="Both"
+            displayName="$(string.LearnedHorizon)" explainText="$(string.LearnedHorizon_Help)"
+            presentation="$(presentation.LearnedHorizon)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock_Passive" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <decimal id="MaxLearnedHorizonMinutes" valueName="MaxLearnedHorizonMinutes" minValue="3" maxValue="60" required="true" />
+      </elements>
+    </policy>
+
     <policy name="HoldIgnoreApps" class="Both"
             displayName="$(string.HoldIgnoreApps)" explainText="$(string.HoldIgnoreApps_Help)"
             presentation="$(presentation.HoldIgnoreApps)"

@@ -79,9 +79,19 @@ The hold is always bounded by "Hold limits".</string>
       <string id="MeetingHold">Pause while the microphone or camera is in use</string>
       <string id="MeetingHold_Help">Default: enabled. While a RUNNING process has the microphone or camera open (Teams, Zoom, Webex, a browser call), the model is paused as for media. Source: the CapabilityAccessManager ConsentStore in HKCU (undocumented; LastUsedTimeStop = 0). A claim only counts if the owning process is actually running. Joining a meeting and walking away is common, so this never blocks locking: it is bounded by "Hold limits".</string>
       <string id="HoldLimits">Hold limits (absolute backstop)</string>
-      <string id="HoldLimits_Help">Maximum idle minutes (default 15) after which a visible confirmation dim is ALWAYS shown in enforcing mode, whatever the passive signals or the model say; if it is not answered within the grace period (default 15 s) the workstation is locked. The same confirmation is used when the 180-second certain-absence horizon is reached without a lock. No workstation therefore stays unlocked longer than these two values combined after the last input.
+      <string id="HoldLimits_Help">Maximum idle minutes (default 15) after which a visible confirmation dim is ALWAYS shown in enforcing mode, whatever the passive signals or the model say; if it is not answered within the grace period (default 15 s) the workstation is locked. The same confirmation is used when the certain-absence horizon (see "Learned horizon cap", 3-10 min by default) is reached without a lock. No workstation therefore stays unlocked longer than these two values combined after the last input.
 
-Simulated trade-off (60 days, a user with 3 videos and 2 meetings a day): HoldMax 5 min: 74 % of media/meeting pauses get a dim, longest unattended time 238 s; 10 min: 49 % / 531 s; 15 min: 30 % / 831 s; 20 min: 13 % / 1096 s. Without passive signals: 90 % / 184 s.</string>
+Simulated trade-off (60 days, a user with 3 videos and 2 meetings a day): HoldMax 5 min: 74 % of media/meeting pauses get a dim, longest unattended time 238 s; 10 min: 49 % / 531 s; 15 min: 30 % / 831 s; 20 min: 13 % / 1096 s. Without passive signals: 53 % / 538 s (the learned horizon lets the model learn that silent watching is presence, so short breaks from that context can stay unlocked up to the learned-horizon cap; with the fixed 3-minute horizon of earlier versions: 90 % / 184 s).</string>
+      <string id="LearnedHorizon">Learned horizon cap (silent work)</string>
+      <string id="LearnedHorizon_Help">How long a SILENT user may sit without being asked "are you still there?", when the agent has learned that this user works silently in that context (for example studying a CAD model without touching anything).
+
+The certain-absence horizon starts at 3 minutes. Where the user's own model only expects absence later (it has been taught by answered dims and quick unlocks that the user is present), the horizon moves out to that point, never beyond this cap and never beyond "Hold limits". A departure that looks exactly like silent work (the user just stands up) is therefore locked at the latest after this cap plus the confirmation grace period.
+
+Default 10 minutes. Set 3 to keep the fixed 3-minute horizon of earlier versions.
+
+Measured in simulation (Inventor user, studies of 1-8 min, 2 coffee breaks a day, half of them without any "leaving" cue): cap 3 min: 70 % of studies get a dim, unattended at most 195 s; 5 min: about 40 % / 315 s; 10 min: about 1 % / 615 s; 15 min: about 1 % / up to 915 s. Departures with cues (leaving app, abrupt stop) are locked within about 1-4 minutes regardless of the cap.
+
+Quality is monitored: if false dims exceed the learning-period target in enforcing mode, event 1010 is written to the Application log (source PresenceLock); a cap that is too tight for a user shows up there.</string>
       <string id="HoldIgnoreApps">Applications that never cause a hold</string>
       <string id="HoldIgnoreApps_Help">Comma-separated exe names (with or without .exe) or package family name prefixes whose microphone/camera use is ignored. Use for tools that keep the microphone open permanently (noise suppression, virtual audio devices), which would otherwise hold every idle period until the backstop.</string>
       <string id="Cat_Habits">Habit learning</string>
@@ -123,6 +133,9 @@ The journal is a presence timeline (personal data). It stays in the user's own p
       <presentation id="HoldLimits">
         <decimalTextBox refId="HoldMaxMinutes" defaultValue="15" spinStep="1">Confirmation dim after idle minutes </decimalTextBox>
         <decimalTextBox refId="ConfirmGraceSeconds" defaultValue="15" spinStep="1">Lock if unanswered after seconds </decimalTextBox>
+      </presentation>
+      <presentation id="LearnedHorizon">
+        <decimalTextBox refId="MaxLearnedHorizonMinutes" defaultValue="10" spinStep="1">Ask at the latest after silent minutes </decimalTextBox>
       </presentation>
       <presentation id="HoldIgnoreApps">
         <textBox refId="HoldIgnoreApps"><label>Ignore:</label></textBox>

@@ -79,9 +79,19 @@ Pausen begränsas alltid av "Gränser för paus".</string>
       <string id="MeetingHold">Pausa medan mikrofon eller kamera används</string>
       <string id="MeetingHold_Help">Standard: på. Medan en KÖRANDE process har mikrofonen eller kameran öppen (Teams, Zoom, Webex, samtal i webbläsare) pausas modellen som vid media. Källa: CapabilityAccessManager ConsentStore i HKCU (odokumenterad; LastUsedTimeStop = 0). En post räknas bara om ägarprocessen faktiskt körs. Att gå ifrån ett pågående möte är vanligt, så detta blockerar aldrig låsning: det begränsas av "Gränser för paus".</string>
       <string id="HoldLimits">Gränser för paus (absolut backstop)</string>
-      <string id="HoldLimits_Help">Maximalt antal minuter inaktivitet (standard 15) varefter en synlig bekräftelsedimning ALLTID visas i skarpt läge, oavsett vad de passiva signalerna eller modellen säger; besvaras den inte inom nådetiden (standard 15 s) låses datorn. Samma bekräftelse används när 180-sekundershorisonten för säker frånvaro nås utan lås. Ingen dator står därför olåst längre än summan av de två värdena efter senaste indata.
+      <string id="HoldLimits_Help">Maximalt antal minuter inaktivitet (standard 15) varefter en synlig bekräftelsedimning ALLTID visas i skarpt läge, oavsett vad de passiva signalerna eller modellen säger; besvaras den inte inom nådetiden (standard 15 s) låses datorn. Samma bekräftelse används när horisonten för säker frånvaro (se "Tak för inlärd horisont", 3–10 min som standard) nås utan lås. Ingen dator står därför olåst längre än summan av de två värdena efter senaste indata.
 
-Simulerad avvägning (60 dagar, användare med 3 videor och 2 möten per dag): HoldMax 5 min: 74 % av media-/mötespauserna får en dimning, längsta obevakade tid 238 s; 10 min: 49 % / 531 s; 15 min: 30 % / 831 s; 20 min: 13 % / 1096 s. Utan passiva signaler: 90 % / 184 s.</string>
+Simulerad avvägning (60 dagar, användare med 3 videor och 2 möten per dag): HoldMax 5 min: 74 % av media-/mötespauserna får en dimning, längsta obevakade tid 238 s; 10 min: 49 % / 531 s; 15 min: 30 % / 831 s; 20 min: 13 % / 1096 s. Utan passiva signaler: 53 % / 538 s (den inlärda horisonten låter modellen lära sig att tyst tittande är närvaro, så korta pauser från det sammanhanget kan stå olåsta upp till taket för inlärd horisont; med den fasta 3-minutershorisonten i tidigare versioner: 90 % / 184 s).</string>
+      <string id="LearnedHorizon">Tak för inlärd horisont (tyst arbete)</string>
+      <string id="LearnedHorizon_Help">Hur länge en TYST användare får sitta utan att få frågan "är du kvar?", när agenten har lärt sig att just den användaren arbetar tyst i det sammanhanget (till exempel betraktar en CAD-modell utan att röra något).
+
+Horisonten för säker frånvaro börjar på 3 minuter. Där användarens egen modell förväntar sig frånvaro först senare (den har lärt sig av besvarade dimningar och snabba upplåsningar att användaren är kvar) flyttas horisonten ut dit, aldrig längre än detta tak och aldrig längre än "Gränser för paus". En avfärd som ser exakt ut som tyst arbete (användaren reser sig bara) låses därför senast efter taket plus bekräftelsens nådetid.
+
+Standard 10 minuter. Ange 3 för att behålla den fasta 3-minutershorisonten från tidigare versioner.
+
+Uppmätt i simulering (Inventor-användare, betraktande 1–8 min, 2 kaffepauser per dag, hälften utan någon "gå"-signal): tak 3 min: 70 % av betraktandena får en dimning, obevakad tid högst 195 s; 5 min: cirka 40 % / 315 s; 10 min: cirka 1 % / 615 s; 15 min: cirka 1 % / upp till 915 s. Avfärder med signaler (app som föregår avfärd, tvärstopp) låses inom cirka 1–4 minuter oavsett tak.
+
+Kvaliteten övervakas: om falska dimningar överstiger inlärningsperiodens mål i skarpt läge skrivs händelse 1010 till programloggen (källa PresenceLock); ett tak som är för snävt för en användare syns där.</string>
       <string id="HoldIgnoreApps">Appar som aldrig orsakar paus</string>
       <string id="HoldIgnoreApps_Help">Kommaseparerade exe-namn (med eller utan .exe) eller prefix för paketfamiljenamn vars mikrofon-/kameraanvändning ignoreras. Använd för verktyg som håller mikrofonen öppen permanent (brusreducering, virtuella ljudenheter), som annars skulle hålla varje inaktivitetsperiod ända till backstopet.</string>
       <string id="Cat_Habits">Vaneinlärning</string>
@@ -123,6 +133,9 @@ Journalen är en närvarotidslinje (personuppgifter). Den stannar i användarens
       <presentation id="HoldLimits">
         <decimalTextBox refId="HoldMaxMinutes" defaultValue="15" spinStep="1">Bekräftelsedimning efter minuter inaktivitet </decimalTextBox>
         <decimalTextBox refId="ConfirmGraceSeconds" defaultValue="15" spinStep="1">Lås om obesvarad efter sekunder </decimalTextBox>
+      </presentation>
+      <presentation id="LearnedHorizon">
+        <decimalTextBox refId="MaxLearnedHorizonMinutes" defaultValue="10" spinStep="1">Fråga senast efter tysta minuter </decimalTextBox>
       </presentation>
       <presentation id="HoldIgnoreApps">
         <textBox refId="HoldIgnoreApps"><label>Ignorera:</label></textBox>

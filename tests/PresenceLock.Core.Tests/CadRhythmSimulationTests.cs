@@ -216,7 +216,7 @@ namespace PresenceLock.Core.Tests
             foreach (bool notice in new[] { false, true })
             {
                 Report($"BEFORE (fixed 180 s horizon), 'Visa låsning' {(notice ? "ON" : "off")}", new CadRhythmSim(Legacy(), notice, 21, 7).Run(63));
-                foreach (int cap in new[] { 300, 600, 900 })
+                foreach (int cap in new[] { 180, 300, 600, 900 })
                     Report($"AFTER (retrospective learning, learned horizon cap {cap} s), 'Visa låsning' {(notice ? "ON" : "off")}",
                            new CadRhythmSim(new CoordinatorConfig { MaxLearnedHorizonSeconds = cap }, notice, 21, 7).Run(63));
             }

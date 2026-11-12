@@ -10,15 +10,17 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 
 | Del | Status | Bevis |
 |---|---|---|
-| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen, 47 C#-tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (26/26 parametrar, max avvikelse 0,0). |
+| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 119 tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
 | Beslutsflöde: passiv paus, kontrollprob, absolut backstop (`PresenceCoordinator`) | **Verifierad** | 14 enhetstester, bland annat ett egenskapstest med 500 slumpade modeller och slumpmässigt fladdrande signaler (låsning sker alltid ≤ `HoldMax` + grace). Två jämförande 60-dagarssimuleringar (§6). |
 | Passiva OS-signaler (`PassiveSignalReader`) | **Kompilerad, ej körd. Semantiken är delvis odokumenterad** | ConsentStore är odokumenterad. Om `SystemExecutionState` aggregerar andra processers begäranden är inte dokumenterat. Verifiera på målmaskin med `PresenceLock.exe --probe-signals` (§6). Ett fel i signalerna kan bara fördröja låsning upp till `HoldMax` + grace. |
 | Profil-JSON, export, baslinje, sammanslagning | **Verifierad** | C#-tester: round-trip, atomisk skrivning, korrupt fil, saknade fält, anonymisering, medelvärde. |
 | Goertzel-DSP för ultraljudssensorn | **Verifierad** | `verify/goertzel_check.py`. |
 | ADMX/ADML ↔ kod | **Verifierad** | `verify/check_admx.py`: alla värdenamn och strängar matchar i båda riktningar. |
-| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 93 696 byte (91 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
+| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 107 520 byte (105 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
 | Manipulationsskydd, NIS2-läge (`TamperProtection`, guard-tjänst) | **Reglerna verifierade, Windows-delen kompilerad men ej körd** | 19 enhetstester: process-SDDL (även injektionsförsök), återställning av raderad/nedgraderad profil, monoton skyddad kopia, guardens tillståndsmaskin (start, lås vid dödad agent, ignorerar utloggning och session 0). Om processens DACL faktiskt nekar Aktivitetshanteraren måste provas på Windows (§13). |
 | Vaneinlärning (`HabitModel`, modellerad efter Elli) | **Verifierad i simulering** | 13 modelltester (bland annat överlevnadsintervallet mot brute force i 200 slumpfall, censurering, sommartid, kärnor, Wilson), 11 koordinatortester (bland annat egenskapen *aldrig senare lås* i 300 parade körningar) och en 70-dygns rutinsimulering (§8). |
+| Tyst arbete: etiketter i efterhand, inlärd horisont, tystnadsprofil (v0.5) | **Verifierad i simulering** | Inventor-scenariot (§4b) på 4 frön med och utan notis, kontorsscenariot (§6) på 3 frön, 9 koordinatortester och 7 tester för tystnadsprofilen, bland annat att jämnt spridda betraktanden *inte* får delas i två grupper. |
+| Kaizen: modellskydd och kvalitetsuppföljning (v0.5) | **Verifierad i simulering. Händelseloggen är kompilerad men inte körd** | 100 frön × 4000 etiketter: 1 återställning, som inte försämrade modellen. En skadad modell återställs inom 2 block, och en verklig vaneförändring följs utan att rullas tillbaka (§5b). |
 | RDP-hantering (frånkoppling, `RemoteSession`, säkert skrivbord) | **Reglerna verifierade, Windows-händelserna ej körda** | 3 koordinatortester (§9). |
 | Install-/avinstallationsskript | **Syntaxkontrollerade, ej körda** | PowerShells egen parser (7.4), ingen 7-specifik syntax. |
 | Ljudinspelning (WASAPI) och BLE-watcher | **Ingår inte** | Endast gränssnitt och signalbehandling. Se §11. |
@@ -47,6 +49,9 @@ Kör hela beviskedjan (Linux eller Windows med Python 3 och .NET 8 SDK):
 | Exportera profil för bred implementation | Tray-meny, CLI (`--export`, `--export-baseline`, `--merge-baseline`), automatisk daglig insamling till en filresurs, och baslinje-seedning för nya användare (GPO). |
 | Läge 2 automatiskt vid "säker" nivå, utan att informera | Statistisk grind (§5). Bytet är tyst: ikon, tooltip och meny är identiska i båda lägena. Bytet loggas bara i admin-loggen. |
 | Låsa inte mitt i en video eller ett möte, men inte heller hållas öppen av musik | Passiv paus på synlig video (display-required) och på mikrofon/kamera som används av en körande process. Ljud räknas inte som närvaro. Pausen begränsas alltid av backstopet (§6). |
+| Lära sig att *betraktande* (tyst arbete) inte är frånvaro | Tystnad i en tyst arbetsapp ger ingen "borta"-etikett förrän det är säkert. Horisonten för säker frånvaro följer den egna modellen, upp till ett admin-tak (§4b). |
+| Profil anpassad efter användarens olika mönster under dagen | Per användare: modellen per sammanhang (app, sätt att sluta röra musen), tystnadsprofilen per apptyp och vanejournalen per klockslag och veckodag (§4b, §8). |
+| Ständig förbättring även efter 15–30 dagar (Kaizen) | Inlärningen slutar aldrig. Varje ändring jämförs mot den senaste godkända modellen och rullas tillbaka om den blev sämre. Kvaliteten följs i skarpt läge, med händelse 1010 till admin (§5b). |
 | Lära sig av vanor (t.ex. aldrig nattetid) som tillägg | Elli-modellerad vanejournal och "utanför arbetstid"-detektor; får bara tidigarelägga en synlig bekräftelse, och först när den bevisat sig (§8). |
 | Ska inte gå att stänga av (NIS2), styrt via central GPO | `AllowUserExit = 0` som datorprincip, plus guard-tjänsten (§7). |
 | GPO-distribution utan certifiering | En fil (`PresenceLock.exe` + `.exe.config`). Kopiering och Run-nyckel via GP Preferences, alternativt startskript. Se §12. |
@@ -98,12 +103,14 @@ Startvikterna `w0 = −3,0` och `λ = 0,110` återger exakt kurvan i den ursprun
 | Händelse | Etikett | Var på tidsaxeln |
 |---|---|---|
 | Win+L (låst ≤ 5 s efter indata) | borta, vikt 2 | vid låsningen |
-| Inaktiv ≥ 180 s | borta, vikt 1,5 | **vid observerad idle-tid** (censurerad, se nedan) |
+| Inaktiv ≥ horisonten (180 s, eller den inlärda) i en vanlig app | borta, vikt 1,5 | **vid observerad idle-tid** (censurerad, se nedan) |
+| Inaktiv i en *tyst arbetsapp* (läslistan: CAD, PDF, IDE) | **ingen etikett** förrän `HoldMax` (säker frånvaro) | vid observerad idle-tid |
+| Windows eget lås (skärmsläckar-GPO) | avgörs vid upplåsningen: ≤ 10 s = närvarande, senare = borta | vid låsningen |
 | Indata ≤ 10 s efter (eventuellt osynlig) dimning eller låsning | närvarande, vikt 1 | vid beslutet |
 | Skarpt lås, upplåst ≤ 10 s | närvarande, vikt 1 | vid beslutet |
 | Skarpt lås, upplåst > 10 s | borta, vikt 1,5 | vid beslutet (den synliga dimningen besvarades inte) |
 | Klick på "Visa låsning"-notis | närvarande, vikt 2 | vid beslutet |
-| Osynligt beslut + indata *efter* 10 s | **ingen etikett**, men räknas som fel i grinden | — |
+| Osynligt beslut + indata *efter* 10 s | **ingen etikett**, men räknas som fel i grinden, utom när tystnadsprofilen med ≥ 90 % säger "borta" (§4b) | — |
 
 ### Rättelser till den ursprungliga analysen
 
@@ -111,6 +118,42 @@ Startvikterna `w0 = −3,0` och `λ = 0,110` återger exakt kurvan i den ursprun
 2. *En EMA över fel-andelen som tröskel för "säker".* En brusig EMA som korsar en tröskel är ett first-passage-fenomen. Med tillräckligt många dagar korsar den vilken tröskel som helst. Mätt: en användare med verklig fel-andel 15 % hade "befordrats" 5 492 gånger av en naiv EMA ≤ 10 %-grind. Med Wilson-grinden: aldrig.
 3. *Ultraljudssonar och BLE som stealth-sensorer.* Se §11. Mikrofonanvändning tänder Windows integritetsindikator, vilket inte är förenligt med stealth.
 4. *"< 15 MB RAM, < 0,2 % CPU"*. Ej belagt. Ska mätas.
+
+---
+
+## 4b. Tyst arbete: betraktande i CAD, och användarens mönster
+
+**Frågan:** en användare ritar i Inventor, sitter sedan och betraktar modellen i 1–8 minuter utan att röra något, ritar igen, läser mejl och går på kaffe. Lär sig appen att betraktandet inte är frånvaro?
+
+**Före v0.5: nej.** All tystnad över 180 s märktes "borta" i inlärningsläget. Varje långt betraktande blev alltså en felaktig etikett, och i skarpt läge dimmade den fasta 180-sekundersgränsen 7 av 10 betraktanden, vecka efter vecka.
+
+**Från v0.5:** etiketterna är bara fakta, och horisonten är inlärd.
+
+1. **Tvetydig tystnad ger ingen etikett.** En tystnad som slutar med att användaren rör datorn igen kan vara betraktande eller ett kort ärende. Ingen tillståndsfri sensor kan skilja dem åt. I appar på läslistan (CAD, PDF, IDE; utökas med GPO `ExtraReadingApps`) blir frånvaro säker först vid `HoldMax`. Ett lås från Windows (skärmsläckar-GPO) avgörs av upplåsningen: inom 10 s betyder att användaren satt där, senare att hen hade gått.
+2. **Horisonten följer modellen.** Bekräftelsen "är du kvar?" kommer där användarens egen modell förväntar sig frånvaro i just det sammanhanget, P(borta) = 75 %. Den kommer aldrig före 180 s och aldrig efter admin-taket `MaxLearnedHorizonMinutes` (standard 10 min).
+3. **Tystnadsprofilen** (per användare och apptyp, nedräknade räknare med halveringstid 14 dygn, inga tidsstämplar) lär sig hur långa tystnaderna brukar vara. Den kan bara säga "kort = vid datorn, lång = borta" när datat visar två tydligt åtskilda grupper med en verklig dal emellan. För CAD-användaren går betraktandena kontinuerligt över i kaffepauserna, så profilen svarar "kan inte avgöra". För en kontorsläsare (pauser på 30–100 s, avfärder på 5–16 min) svarar den med en gräns på ≈ 200 s. Svaret används **bara** i grindens bokföring av osynliga beslut, aldrig som etikett till modellen.
+
+### Uppmätt: Inventor-användare, 63 dygn, standardinställningar
+
+Användaren ritar 1–5 min, betraktar 1–8 min eller läser mejl 0,5–3 min, tar kaffe 10:00 och 14:30 (8–15 min, varav hälften utan någon "gå"-signal), luncher 11:50 och trycker Win+L vid hemgång.
+
+| | Före v0.5 | v0.5 (frö 3, 7, 11; med och utan notis) |
+|---|---|---|
+| Felaktiga "borta"-etiketter under inlärning | 537 | **0** |
+| Skarpt läge av sig själv | aldrig (övre gräns 50 %) | **dag 21** |
+| Betraktanden som dimmas i skarpt läge | 68–72 % per vecka, ingen förbättring | **0,7–1,0 %** |
+| Kaffe *med* gå-signal, tid olåst | median 103 s | median 50–74 s |
+| Kaffe *utan* signal (ser ut exakt som betraktande), tid olåst | högst 195 s | median ≈ 560 s, **högst 615 s** |
+| Skarpa lås på närvarande användare | 0 | 0 |
+
+**Avvägningen sätts av admin med taket.** En avfärd som ser exakt ut som betraktande (användaren reser sig bara) låses senast efter taket plus 15 s. Uppmätt med samma användare: 3 min 68–74 % dimmade / högst 195 s; 5 min 38–47 % / 315 s; 10 min ≈ 1 % / 615 s; 15 min ≈ 0,5–1 % / gräns 915 s (uppmätt 873 s). Det går inte att få både få dimningar och kort tid olåst när de två situationerna ser likadana ut. Det är en egenskap hos datat, inte hos modellen. Avfärder *med* signaler (app som föregår avfärd, tvärstopp) låses inom 1–4 min oavsett tak.
+
+**Mönstren per användare** finns i tre lager:
+- vad användaren gör, i modellen (app och hur rörelsen slutade);
+- hur länge hen brukar vara tyst i varje apptyp, i tystnadsprofilen;
+- när på dygnet hen brukar gå, i vanejournalen (§8).
+
+`--status` visar alla tre. Det som **inte** går att lära sig utan facit är en regelbunden kaffepaus som ser exakt ut som betraktande. Tid på dygnet ensam skiljer dem inte åt, eftersom betraktanden pågår vid samma klockslag.
 
 ---
 
@@ -152,6 +195,29 @@ Tabellen ovan driver motorn direkt. De 1–5 % avgångar som modellen inte låst
 
 ---
 
+## 5b. Kaizen: inlärningen slutar aldrig, och varje steg kontrolleras
+
+15–30 dagar avgör bara **när låsningen startar**. Modellen fortsätter att lära sig av varje faktisk etikett så länge agenten körs: varje besvarad dimning, varje obesvarat lås och dess upplåsningstid, varje Win+L. Inlärningstakten är konstant (0,05), så gamla vanor bleknar och nya tar över. Tystnadsprofilen och vanejournalen har halveringstid 14 dygn.
+
+**Mät, justera, kontrollera:**
+- **Modellskydd (`ModelGuard`).** Den senaste modellen som visat sig bra sparas. På varje ny etikett bedöms både den och den levande modellen *innan* den levande lär sig av etiketten. Ingen av dem har alltså sett datat. Måttet är log-loss, ett proper scoring rule, så en modell kan inte vinna genom att vara över- eller undersäker. Beslut fattas var 40:e etikett, högst 4 gånger per beslut. Om den levande modellen är sämre med mer än 0,05 nat per etikett **och** z > 2,5 rullas den tillbaka (händelse 1012). Är den minst lika bra blir den ny referens. Är det oavgjort efter 4 block godtas den, eftersom den kan följa en verklig vaneförändring.
+- **Kvalitetsuppföljning (`QualityMonitor`).** I skarpt läge kontrolleras grindens mått löpande: Wilson 95 %-övre gräns för falska dimningar över de senaste 200 episoderna. Den tid datorn stod olåst före varje lås som användaren sedan bekräftade (långsam upplåsning) loggas också, de senaste 50. Över målet ger händelse **1010** till programloggen. Under 80 % av målet ger **1011**. Låsningen stängs **aldrig** av, och profilen degraderas aldrig till inlärningsläge, eftersom det i NIS2-läge vore ett sätt att slå av skyddet.
+
+**Uppmätt.** Kriterierna sattes före körningen.
+
+| Test | Resultat |
+|---|---|
+| Oförändrad användare, 100 frön × 4000 etiketter | 1 återställning totalt (gräns ≤ 100). Den förbättrade modellen på 2000 osedda etiketter (−0,0033 nat; gräns: får inte försämra > 0,005) |
+| Skadad modell (w0 + 12) | återställd inom 2 block (80 etiketter) |
+| Verklig vaneförändring (betraktar nu upp till 8 min) | följs och blir ny referens, 0 återställningar |
+| Inventor- och kontorsscenarierna med standardinställningar | 0 återställningar, ingen kvalitetsvarning |
+| Gamla fasta 180 s-regeln, Inventor | 1 respektive 17 återställningar (utan/med notis) och varning (övre gräns 50 % / 44 %): motstridiga etiketter upptäcks |
+| Tak 5 min för Inventor-användaren | varning (29–31 %): taket är för snävt för den användaren, och admin ser det |
+
+Utan Windows har händelseloggen inte provats. Källan `PresenceLock` registreras av installationsskriptet. Vanliga användare får skriva till den men inte skapa den. Om källan saknas skrivs raden bara i `agent.log`.
+
+---
+
 ## 6. Passiva OS-signaler: video och möten
 
 **Problemet:** den som tittar på en instruktionsvideo eller lyssnar i ett möte rör inte musen. Utan mer information gör modellen två fel:
@@ -178,7 +244,7 @@ Varje sekund, i prioritetsordning:
 3. **Den inlärda modellen** beslutar som tidigare.
 
 Plus en **absolut backstop** som gäller över alla tre lagren. Detta gäller i skarpt läge:
-- När 180-sekundershorisonten nås utan lås visas en **synlig** bekräftelsedimning. Ett svar ger en sann etikett "närvarande". Inget svar inom `ConfirmGraceSeconds` ger låsning.
+- När horisonten för säker frånvaro nås utan lås visas en **synlig** bekräftelsedimning. Horisonten är 180 s, eller längre där modellen lärt sig tyst arbete, högst `MaxLearnedHorizonMinutes` (§4b). Ett svar ger en sann etikett "närvarande". Inget svar inom `ConfirmGraceSeconds` ger låsning.
 - När `HoldMaxMinutes` inaktivitet nås, oavsett signaler och modell, visas samma bekräftelse.
 - **Ingen dator står olåst längre än `HoldMax` + grace efter senaste indata.** Egenskapstestet kör 500 slumpade modeller med slumpmässigt fladdrande signaler, och gränsen håller i alla.
 
@@ -244,7 +310,7 @@ Visar `DisplayRequired` aldrig `True` under video är aggregatet inte användbar
 | Egen kopia döpt till `PresenceLock.exe` för att lura guarden | — | räknas inte | guarden kräver exakt avbildssökväg i `Program Files` | kompilerad |
 | Radera `profile.json`, ändra `Mode` till `Learning`, nollställa inlärningsklockan | 15+ dagar utan lås | **återställs** från skyddad kopia | `ChooseTrusted` + monoton `AcceptIntoProtected` | enhetstestad |
 | Ändra policyfält i `profile.json` (trösklar, horisont, `MinLearningDays`, inlärningstakt) | verkar | **ignoreras**: läses alltid från GPO eller standard | `ResetPolicyFields` | enhetstestad |
-| Ändra de inlärda vikterna | — | begränsat av backstopet: ≤ 180 s + grace, eller `HoldMax` + grace | `PresenceCoordinator` | egenskapstestad (500 slumpade modeller) |
+| Ändra de inlärda vikterna | — | begränsat av backstopet: ≤ `MaxLearnedHorizonMinutes` + grace (10 min 15 s som standard; före v0.5 3 min 15 s), eller `HoldMax` + grace. Sätt taket till 3 för den gamla gränsen | `PresenceCoordinator` | egenskapstestad (500 slumpade modeller), taket enhetstestat |
 | `PresenceLock.exe --reset-profile` | möjligt | kräver **eleverad administratör** | `Cli.cs` | kompilerad |
 | Plantera egna "skyddade" kopior | — | omöjligt: lagret ligger i `%ProgramFiles%\PresenceLock\state`, inte i `%ProgramData%` där vanliga användare får skapa mappar | `ProtectedStore` | — |
 | Stoppa guard-tjänsten | — | kräver admin (Windows standard-DACL för tjänster) | Windows | — |
@@ -442,6 +508,7 @@ Skriptet är idempotent (kopierar bara vid ändrad hash), kontrollerar .NET 4.8 
 | `MediaHoldEnabled` / `MeetingHoldEnabled` | DWORD | 1 / 1 | Passiv paus vid synlig media / mikrofon-kamera (§6) |
 | `HoldMaxMinutes` / `ConfirmGraceSeconds` | DWORD | 15 / 15 | Absolut backstop: bekräftelsedimning efter N min, lås efter M s |
 | `HoldIgnoreApps` | SZ | — | Exe-namn eller paketprefix vars mikrofonanvändning ignoreras |
+| `MaxLearnedHorizonMinutes` | DWORD 3–60 | 10 | Tak för den inlärda horisonten vid tyst arbete (§4b). 3 = fast 3-minutershorisont som före v0.5 |
 | `AllowUserExit` | DWORD | 1 | **0 = NIS2-läge** (§7); sätt som datorprincip |
 | `AllowProfileExport` | DWORD | 1 | Exportval i menyn |
 | `HabitLearningEnabled` | DWORD | 1 | Vaneinlärning (§8); 0 = ingen journal |
@@ -473,6 +540,17 @@ PresenceLock.exe --export-baseline baseline.json
 PresenceLock.exe --merge-baseline fleet.json \\srv\pl$\PC1_anna.json \\srv\pl$\PC2_erik.json
 ```
 
+Händelser i programloggen (källa `PresenceLock`), stabila id:n för SIEM:
+
+| Id | Från | Betydelse |
+|---|---|---|
+| 1000 / 1009 | guard | guard startad / stoppad |
+| 1001 | guard | agenten försvann ur en olåst session; sessionen låstes |
+| 1002 / 1005 | guard | profilregression upptäckt / profil återställd från skyddad kopia |
+| 1003 / 1004 | guard | låsning misslyckades / agenten kunde inte startas |
+| 1010 / 1011 | agent | kvalitet under målet i skarpt läge / åter inom målet (§5b) |
+| 1012 | agent | en inlärd modelländring förutsade sämre och rullades tillbaka (§5b) |
+
 Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `ProfileExportDirectory` → `--merge-baseline` → sätt `BaselineProfilePath` för resten av flottan. Nya användare startar då från pilotens vikter men måste ändå passera grinden på egen data. Medelvärdesbildning av logistiska modeller är inte detsamma som träning på poolad data, men det är en rimlig startpunkt.
 
 ---
@@ -486,7 +564,10 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 - **RDP:** absoluta muskoordinater hanteras. En frånkoppling (inte låsning) behandlas som inaktivitet.
 - **Passiva signaler:** ConsentStore är odokumenterad och kan ändras i en Windows-uppdatering. Det kan också `SystemExecutionState`-aggregatets innehåll. Power-signalen är avstängd på serveroperativsystem, men **Windows Enterprise multi-session (AVD)** identifieras inte. Där är den maskinglobal, så stäng av `MediaHoldEnabled` via GPO.
 - **Under en paus är datorn olåst** i upp till `HoldMax` + grace om användaren går från en pågående video eller ett möte. Det är en medveten och inställbar avvägning (§6).
-- **I inlärningsläget kan 180-sekundershorisonten inte verifieras** (inget syns). En användare som läser tyst i mer än 3 minuter utan video får fortfarande en censurerad "borta"-etikett. I skarpt läge verifieras horisonten med backstop-dimningen.
+- **En avfärd som ser exakt ut som tyst arbete** låses först efter den inlärda horisonten, högst `MaxLearnedHorizonMinutes` + grace (10 min 15 s som standard). Det är priset för att inte dimma betraktanden, och admin sätter det (§4b).
+- **Tyst arbete i en app som inte står på läslistan** ger fortfarande "borta"-etiketter efter 180 s i inlärningsläget, eftersom inget annat skiljer den tystnaden från en avfärd. I skarpt läge rättar besvarade dimningar modellen, och horisonten flyttas ut. Lägg till sådana appar med `ExtraReadingApps`, eller slå på "Visa låsning" under inlärningen.
+- **Utan passiva signaler** lär sig modellen att tyst videotittande är närvaro, och horisonten flyttas ut även där. Korta pauser från det sammanhanget kan då stå olåsta upp till taket. Uppmätt: 0–10 sådana återkomster på 45 dagar mot 0 med signaler (§6).
+- **Tystnadsprofilen är en statistisk modell** (två lognormala grupper, med dalkrav). Den används bara för att bokföra osynliga beslut i grinden, aldrig som etikett. Vid tveksamhet svarar den "kan inte avgöra", och grinden förblir då försiktig.
 - **`LOCALAPPDATA` roamar inte.** Profilen och vanejournalen gäller per användare och dator.
 - **Vanor vid vanlig hemgångstid ger liten vinst** (§8). Det är en egenskap hos datat, inte något en modell kan lösa utan fler signaler.
 - **`OpenInputDesktop`:** om säkerhetsprogram nekar läsningen permanent blir varje paus en `SecureDesktop`-paus fram till backstopet. Det syns som ett högt `hold starts` i `--status`.
@@ -508,3 +589,5 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 10. Defender/EDR ska vara tyst. Kontrollera särskilt guard-tjänsten, som startar processer i användarsessioner.
 11. RAM och CPU över en arbetsdag (Process Explorer), mot påståendet < 15 MB och < 0,2 %.
 12. Efter 15–30 dagar: `--status` (grindens siffror, vanejournalen och om vanorna är *ACTIVE* eller *shadow only*) samt upplevd störning.
+13. **Tyst arbete:** en CAD-användare i skarpt läge betraktar en modell i 5 min utan att röra något. Efter några veckor ska det inte längre ge någon dimning. Kontrollera tystnadsprofilen och modellskyddet i `--status`.
+14. Händelse 1010 ska finnas i programloggen hos en testanvändare med medvetet för snävt tak (`MaxLearnedHorizonMinutes = 3`, CAD-användare).
