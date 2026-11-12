@@ -44,20 +44,23 @@ namespace PresenceLock.App
     ///   1012 a learned model change made predictions significantly worse and was rolled back
     ///   1013 profile.json unusable: restored from the last-known-good backup (or started fresh)
     ///   1014 habits.json unusable: a new journal was started (locking unaffected)
+    ///   1015 the user started a pause (length, budget left)   - audit: never throttled (the budget bounds it)
+    ///   1016 the pause ended (ran out / ended by the user)       - audit: never throttled
     /// </summary>
     internal static class AgentEvents
     {
         public const int QualityBelowTarget = 1010, QualityRestored = 1011, ModelRolledBack = 1012,
-                         ProfileRecovered = 1013, JournalReset = 1014;
+                         ProfileRecovered = 1013, JournalReset = 1014, PauseStarted = 1015, PauseEnded = 1016;
 
         private static readonly EventThrottle Throttle = new EventThrottle();
         private static readonly TimeSpan Window = TimeSpan.FromHours(1);
 
         /// <summary>At most one entry per event id per hour, with a count of the suppressed ones.</summary>
-        public static void Write(int id, System.Diagnostics.EventLogEntryType type, string message)
+        public static void Write(int id, System.Diagnostics.EventLogEntryType type, string message, bool throttle = true)
         {
-            if (!Throttle.ShouldEmit(id.ToString(System.Globalization.CultureInfo.InvariantCulture), DateTime.UtcNow.Ticks, Window, out int suppressed)) return;
-            message = EventThrottle.WithSuppressed(message, suppressed, Window);
+            int suppressed = 0;
+            if (throttle && !Throttle.ShouldEmit(id.ToString(System.Globalization.CultureInfo.InvariantCulture), DateTime.UtcNow.Ticks, Window, out suppressed)) return;
+            if (throttle) message = EventThrottle.WithSuppressed(message, suppressed, Window);
             AgentLog.Write("event " + id + ": " + message);
             try
             {

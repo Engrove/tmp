@@ -91,6 +91,18 @@ namespace PresenceLock.Core
         /// Learning, or claims a later learning start (which would restart the 15-day clock) —
         /// unless policy forces learning (an administrator's decision, not tampering).
         /// </summary>
+        /// <summary>
+        /// NIS2: pause budget must survive an edited file. Union of both ledgers (can only add charged
+        /// time). Call on the agent's chosen profile with the protected copy, and in the guard on the
+        /// candidate with the existing protected copy before writing it.
+        /// </summary>
+        public static void MergePauseLedger(UserProfile target, UserProfile other)
+        {
+            if (target == null || other?.Pause == null) return;
+            if (target.Pause == null) target.Pause = new PauseLedger();
+            target.Pause.MergeFrom(other.Pause);
+        }
+
         public static UserProfile ChooseTrusted(UserProfile local, bool localExisted, UserProfile protectedCopy,
                                                 string userSid, ModePolicy policy, out string reason)
         {

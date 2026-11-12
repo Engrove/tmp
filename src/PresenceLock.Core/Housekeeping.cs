@@ -57,6 +57,8 @@ namespace PresenceLock.Core
             report.JournalScoresRetired += scoresBefore - j.Scores.Count;
         }
 
+        public static int RetirePauses(UserProfile p, long nowUtcTicks) => p?.Pause?.Retire(nowUtcTicks) ?? 0;
+
         /// <summary>
         /// The agent's own folder: crash leftovers (*.tmp). Never touches profile.json, habits.json
         /// or the backup. (Log lines are retired line by line by <see cref="RotatingLog.Retire"/>.)

@@ -20,7 +20,7 @@ namespace PresenceLock.Core
         public bool? InputDesktopObservable;
     }
 
-    public enum HoldReason { None, Media, Meeting, SecureDesktop }
+    public enum HoldReason { None, Media, Meeting, SecureDesktop, UserPause }
 
     public enum CoordinatorAction
     {
@@ -83,6 +83,8 @@ namespace PresenceLock.Core
         public double MaxLearnedHorizonSeconds = 600.0;
         /// <summary>Champion/challenger supervision of the continuous learning (null = off).</summary>
         public ModelGuardPolicy ModelGuard = new ModelGuardPolicy();
+        /// <summary>GPO "User pause" (menu choices, 24-hour budget, whether the HoldMax confirmation stays).</summary>
+        public PausePolicy Pause = new PausePolicy();
         /// <summary>When the per-user silence profile may judge an ambiguous learning-mode decision.</summary>
         public SilencePolicy SilencePolicy = new SilencePolicy();
 
@@ -258,8 +260,9 @@ namespace PresenceLock.Core
                 return Finish(r, nowUtcTicks, policy, ticked);
             }
 
-            // ---- 2. passive hold --------------------------------------------------------
-            var hold = EvaluateHold(signals);
+            // ---- 2. passive hold (and the user's own pause, which is handled as one) -----
+            bool paused = PauseActive(nowUtcTicks);
+            var hold = paused ? HoldReason.UserPause : EvaluateHold(signals);
             if (hold != HoldReason.None && idleSeconds >= _c.EpisodeStartIdleSeconds)
             {
                 if (_engine.EpisodeActive)
@@ -273,8 +276,12 @@ namespace PresenceLock.Core
                 r.Hold = hold;
                 if (_dimShown) { r.Action = CoordinatorAction.CancelDim; _dimShown = false; }
 
-                if (enforcing && idleSeconds >= _c.HoldMaxSeconds) StartConfirm(ref r, LockCause.HoldProbe, nowUtcTicks);
-                else if (habitAct) StartConfirm(ref r, LockCause.Habit, nowUtcTicks);
+                // A user pause keeps the absolute HoldMax confirmation unless policy says otherwise
+                // (then only Windows' own lock settings apply), and habits never shorten it: the
+                // user said explicitly that they are here.
+                bool probe = hold != HoldReason.UserPause || _c.Pause.KeepConfirmation;
+                if (probe && enforcing && idleSeconds >= _c.HoldMaxSeconds) StartConfirm(ref r, LockCause.HoldProbe, nowUtcTicks);
+                else if (habitAct && hold != HoldReason.UserPause) StartConfirm(ref r, LockCause.Habit, nowUtcTicks);
                 return Finish(r, nowUtcTicks, policy, ticked: false);
             }
 
@@ -386,6 +393,20 @@ namespace PresenceLock.Core
             });
             if (natural && silence != null) silence.Record(ctx, d, nowUtcTicks);   // after judging: prequential
         }
+
+        public bool PauseActive(long nowUtcTicks) =>
+            _c.Pause != null && _c.Pause.Enabled && _p.Pause != null && _p.Pause.IsActive(nowUtcTicks);
+
+        /// <summary>Menu: start a pause. The budget and the allowed lengths are enforced here, not in the UI.</summary>
+        public bool TryStartPause(int minutes, long nowUtcTicks, out string reason)
+        {
+            if (_p.Pause == null) _p.Pause = new PauseLedger();
+            if (!_p.Pause.TryStart(minutes, nowUtcTicks, _c.Pause, out reason)) return false;
+            _confirm = LockCause.None;                         // the user is demonstrably here
+            return true;
+        }
+
+        public double EndPause(long nowUtcTicks) => _p.Pause?.End(nowUtcTicks) ?? 0;
 
         private bool SilentWorkContext()
         {

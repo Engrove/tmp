@@ -229,7 +229,10 @@ namespace PresenceLock.App.Guard
                     var candidate = ProfileStore.Deserialize(BoundedFile.ReadAllText(local, BoundedFile.MaxProfileBytes));
                     var existing = ProtectedStore.TryRead(sid);
                     if (TamperProtection.AcceptIntoProtected(existing, candidate, sid, policy, out var reason))
+                    {
+                        TamperProtection.MergePauseLedger(candidate, existing);   // pause budget can only grow, never be reset by editing
                         ProtectedStore.Write(sid, candidate);
+                    }
                     else if (existing != null)
                         Event("Profile change refused for " + sid + ": " + reason, EventLogEntryType.Warning, EvProfileRegression, sid);
                 }

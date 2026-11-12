@@ -210,6 +210,31 @@
       <disabledValue><decimal value="0" /></disabledValue>
     </policy>
 
+    <policy name="AllowUserPause" class="Both"
+            displayName="$(string.AllowUserPause)" explainText="$(string.AllowUserPause_Help)"
+            key="Software\Policies\PresenceLock" valueName="AllowUserPause">
+      <parentCategory ref="PresenceLock_Admin" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="UserPauseLimits" class="Both"
+            displayName="$(string.UserPauseLimits)" explainText="$(string.UserPauseLimits_Help)"
+            presentation="$(presentation.UserPauseLimits)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock_Admin" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <text id="PauseOptionsMinutes" valueName="PauseOptionsMinutes" maxLength="32" required="true" />
+        <decimal id="PauseBudgetMinutesPerDay" valueName="PauseBudgetMinutesPerDay" minValue="0" maxValue="1440" required="true" />
+        <boolean id="PauseKeepsConfirmation" valueName="PauseKeepsConfirmation">
+          <trueValue><decimal value="1" /></trueValue>
+          <falseValue><decimal value="0" /></falseValue>
+        </boolean>
+      </elements>
+    </policy>
+
     <policy name="AllowProfileExport" class="Both"
             displayName="$(string.AllowProfileExport)" explainText="$(string.AllowProfileExport_Help)"
             key="Software\Policies\PresenceLock" valueName="AllowProfileExport">

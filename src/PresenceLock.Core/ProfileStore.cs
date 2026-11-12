@@ -132,6 +132,7 @@ namespace PresenceLock.Core
             clone.Silence = new SilenceProfile();          // personal rhythm: never part of a baseline
             clone.Guard = new ModelGuard();
             clone.Quality = new QualityMonitor();
+            clone.Pause = new PauseLedger();
             clone.Modes.OutcomeWindow = new bool[ModeController.WindowSize];
             clone.Modes.WindowHead = 0;
             clone.Modes.WindowCount = 0;
@@ -190,6 +191,8 @@ namespace PresenceLock.Core
             p.Guard.Normalize();
             if (p.Quality == null) p.Quality = new QualityMonitor();
             p.Quality.Normalize();
+            if (p.Pause == null) p.Pause = new PauseLedger();
+            p.Pause.Normalize();
 
             // A profile written by a NEWER agent cannot be interpreted safely: start over
             // (LoadOrCreate sees the version mismatch) rather than guess.

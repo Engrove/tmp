@@ -61,6 +61,20 @@ Inaktiverad (NIS2-läge) — sätt den som DATORPRINCIP; guard-tjänsten följer
 
 Utanför skyddet: lokala administratörer, samt indata som injiceras för att fejka aktivitet (musjigglers, "håll vaken"-verktyg som skickar tangenttryck).</string>
 
+      <string id="AllowUserPause">Tillåt användaren att pausa agenten</string>
+      <string id="AllowUserPause_Help">Aktiverad eller inte konfigurerad: snabbmenyn har "Pausa" med längderna och dygnsbudgeten från "Gränser för användarpaus". Inaktiverad: inget pausval.
+
+En paus hanteras som en video som spelar: den inlärda modellen dimmar eller låser inte, inget lärs av tystnaden, och (om inte "Gränser för användarpaus" säger annat) den absoluta bekräftelsen efter "Gränser för paus" gäller fortfarande, så en dator som lämnas under en paus låses inom HoldMax + nådetid. NIS2-gränsen är oförändrad.
+
+Windows egna inställningar för skärmsläckare och inaktivitetslås påverkas INTE av en paus.
+
+Varje pausstart och pausslut skrivs till programloggen (källa PresenceLock, händelse 1015/1016, aldrig spärrade) med användare och kvarvarande budget.</string>
+      <string id="UserPauseLimits">Gränser för användarpaus</string>
+      <string id="UserPauseLimits_Help">Pauslängder: upp till tre värden i minuter, kommaseparerade (5–480), som visas i snabbmenyn. Standard 30,60,90.
+
+Budget: total paustid per rullande 24 timmar, hur den än delas upp eller startas om (standard 120; 0 = ingen paus). En vald paus debiteras fullt när den startar; att avsluta i förtid slår på skyddet igen men återbetalar inget. Budgeten lagras i användarprofilen och slås i NIS2-läge ihop med guardens skyddade kopia, så varken omstart av agenten eller redigering av filen återställer den. Ett skript som gång på gång startar om pausen (AutoHotkey eller liknande) kan alltså bara förbruka budgeten, aldrig förlänga den, och varje lyckat försök loggas.
+
+Behåll bekräftelsen under paus (standard på): efter "Gränser för paus" minuter utan aktivitet frågar skärmen "är du kvar?" och låser efter nådetiden om ingen svarar. Stäng bara av för datorer där en obevakad skärm under hela pausen är acceptabel; då gäller bara Windows egna låsinställningar under pausen.</string>
       <string id="AllowProfileExport">Tillåt profilexport från menyn</string>
       <string id="AllowProfileExport_Help">Inaktiverad: exportvalen tas bort ur menyn. Kommandoradsexport (PresenceLock.exe --export) påverkas inte. Standard: tillåtet.</string>
 
@@ -133,6 +147,11 @@ Journalen är en närvarotidslinje (personuppgifter). Den stannar i användarens
       <presentation id="AppLists">
         <textBox refId="ExtraReadingApps"><label>Läs-appar:</label></textBox>
         <textBox refId="ExtraLeavingApps"><label>Lämnar-appar:</label></textBox>
+      </presentation>
+      <presentation id="UserPauseLimits">
+        <textBox refId="PauseOptionsMinutes"><label>Pauslängder (minuter):</label><defaultValue>30,60,90</defaultValue></textBox>
+        <decimalTextBox refId="PauseBudgetMinutesPerDay" defaultValue="120" spinStep="10">Budget per dygn, minuter </decimalTextBox>
+        <checkBox refId="PauseKeepsConfirmation" defaultChecked="true">Behåll bekräftelsen "är du kvar?" under paus</checkBox>
       </presentation>
       <presentation id="ProfileExportDirectory">
         <textBox refId="ProfileExportDirectory"><label>Mapp (UNC):</label></textBox>

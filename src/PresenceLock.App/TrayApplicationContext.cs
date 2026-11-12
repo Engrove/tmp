@@ -120,6 +120,7 @@ namespace PresenceLock.App
             try
             {
                 if (_habits != null) Housekeeping.PruneJournal(_habits, DateTime.UtcNow.Ticks, new HabitPolicy(), report);
+                Housekeeping.RetirePauses(_profile, DateTime.UtcNow.Ticks);
                 Housekeeping.CleanAgentDirectory(ProfileStore.DefaultDirectory(), DateTime.UtcNow, r, report);
                 int lines = AgentLog.Retire(r.LogRetentionDays);
                 SaveProfile();
@@ -148,10 +149,12 @@ namespace PresenceLock.App
                 // NIS2 mode: profile.json is user-writable. If it was deleted, demoted from
                 // Enforcing to Learning, or its learning clock restarted, the guard's protected
                 // copy (read-only for the user) is used instead.
-                var chosen = TamperProtection.ChooseTrusted(profile, localExisted, Guard.ProtectedStore.TryRead(sid),
+                var protectedCopy = Guard.ProtectedStore.TryRead(sid);
+                var chosen = TamperProtection.ChooseTrusted(profile, localExisted, protectedCopy,
                                                             sid, _settings.ModePolicy, out string reason);
                 if (!ReferenceEquals(chosen, profile)) AgentLog.Write(reason);
                 profile = chosen;
+                TamperProtection.MergePauseLedger(profile, protectedCopy);   // an edited file cannot restore pause budget
             }
 
             // Policy-like fields are never trusted from the file: defaults now, GPO in ApplyTo().
@@ -257,6 +260,7 @@ namespace PresenceLock.App
                 _lastMode = _coord.Engine.Mode;
                 SaveProfile();
             }
+            if (_pauseShown && !_coord.PauseActive(now)) PauseFinished(endedByUser: false);
             if (DateTime.UtcNow - _lastSaveUtc >= SaveEvery) SaveProfile();
             if (DateTime.UtcNow - _lastHousekeepingUtc >= RetentionPolicy.Interval) RunHousekeeping();
             MaybeExportToShare();
@@ -348,6 +352,16 @@ namespace PresenceLock.App
         {
             var menu = new ContextMenuStrip();
 
+            // User pause: rebuilt each time the menu opens (budget and state change over time).
+            var pause = new ToolStripMenuItem("Pausa");
+            pause.DropDownItems.Add("(laddar)");
+            menu.Opening += (s, e) => RebuildPauseMenu(pause);
+            if (_settings.AllowUserPause && _settings.PauseBudgetMinutesPerDay > 0)
+            {
+                menu.Items.Add(pause);
+                menu.Items.Add(new ToolStripSeparator());
+            }
+
             var notify = new ToolStripMenuItem("Visa låsningsnotiser")
             {
                 CheckOnClick = !_settings.ShowLockNotificationLocked,
@@ -378,6 +392,80 @@ namespace PresenceLock.App
             // the agent disappears anyway.
             return menu;
         }
+
+        // ------------------------------------------------------------------ user pause
+
+        private bool _pauseShown;
+
+        private void RebuildPauseMenu(ToolStripMenuItem pause)
+        {
+            pause.DropDownItems.Clear();
+            long now = Now();
+            var p = _coord.Config.Pause;
+            var ledger = _profile.Pause;
+            if (_coord.PauseActive(now))
+            {
+                pause.Text = "Pausad till " + Local(ledger.ActiveUntil(now));
+                pause.DropDownItems.Add("Avsluta pausen nu", null, (s, e) =>
+                {
+                    _coord.EndPause(Now());
+                    PauseFinished(endedByUser: true);
+                });
+                return;
+            }
+            pause.Text = "Pausa";
+            double left = ledger.RemainingMinutes(now, p);
+            foreach (int m in p.ValidOptions())
+            {
+                int minutes = m;
+                var item = new ToolStripMenuItem(minutes + " minuter", null, (s, e) => StartPause(minutes));
+                if (ledger.WhyNot(minutes, now, p) != null)
+                {
+                    item.Enabled = false;
+                    long at = ledger.AvailableAt(minutes, now, p);
+                    if (at != long.MaxValue) item.Text += "  (från " + Local(at) + ")";
+                }
+                pause.DropDownItems.Add(item);
+            }
+            pause.DropDownItems.Add(new ToolStripSeparator());
+            pause.DropDownItems.Add(new ToolStripMenuItem("Kvar senaste dygnet: " + Math.Floor(left) + " av " + p.BudgetMinutesPer24h + " min") { Enabled = false });
+            if (p.KeepConfirmation)
+                pause.DropDownItems.Add(new ToolStripMenuItem("Under pausen frågar skärmen \"är du kvar?\" efter " +
+                                                              _settings.HoldMaxMinutes + " min utan aktivitet") { Enabled = false });
+        }
+
+        private void StartPause(int minutes)
+        {
+            long now = Now();
+            if (!_coord.TryStartPause(minutes, now, out string reason))
+            {
+                _icon.ShowBalloonTip(5000, "PresenceLock", "Pausen kunde inte startas: " + reason, ToolTipIcon.None);
+                return;
+            }
+            _overlay.Cancel();
+            _pauseShown = true;
+            _icon.Text = "PresenceLock – pausad till " + Local(_profile.Pause.ActiveUntil(now));
+            double left = _profile.Pause.RemainingMinutes(now, _coord.Config.Pause);
+            AgentEvents.Write(AgentEvents.PauseStarted, System.Diagnostics.EventLogEntryType.Information,
+                "PresenceLock paused by the user for " + minutes + " min (until " + Local(_profile.Pause.ActiveUntil(now)) +
+                "); budget left in the last 24 h: " + Math.Floor(left) + " of " + _coord.Config.Pause.BudgetMinutesPer24h +
+                " min; confirmation after HoldMax " + (_coord.Config.Pause.KeepConfirmation ? "kept" : "OFF (full pause)"), throttle: false);
+            SaveProfile();
+        }
+
+        private void PauseFinished(bool endedByUser)
+        {
+            if (!_pauseShown) return;
+            _pauseShown = false;
+            _icon.Text = "PresenceLock";
+            _icon.ShowBalloonTip(5000, "PresenceLock", endedByUser ? "Pausen är avslutad." : "Pausen är slut. Datorn låses igen när du går.", ToolTipIcon.None);
+            AgentEvents.Write(AgentEvents.PauseEnded, System.Diagnostics.EventLogEntryType.Information,
+                "PresenceLock pause ended " + (endedByUser ? "by the user" : "(time ran out)"), throttle: false);
+            SaveProfile();
+        }
+
+        private static string Local(long utcTicks) =>
+            new DateTime(utcTicks, DateTimeKind.Utc).ToLocalTime().ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
 
         private void Export(bool baseline)
         {

@@ -61,6 +61,20 @@ Disabled (NIS2 mode) — set this as a COMPUTER policy; the guard service only h
 
 Out of scope: local administrators, and input injected to fake activity (mouse jigglers, key-press "keep awake" tools).</string>
 
+      <string id="AllowUserPause">Allow the user to pause the agent</string>
+      <string id="AllowUserPause_Help">Enabled or not configured: the tray menu has "Pause" with the lengths and the 24-hour budget from "User pause limits". Disabled: no pause item.
+
+A pause is handled like a running video: the learned model does not dim or lock, nothing is learned from the silence, and (unless "User pause limits" says otherwise) the absolute confirmation after "Hold limits" still applies, so a computer left during a pause is locked within HoldMax + grace. The NIS2 bound is unchanged.
+
+Windows' own screen saver / inactivity lock settings are NOT affected by a pause.
+
+Every pause start and end is written to the Application log (source PresenceLock, events 1015/1016, never rate-limited) with the user and the budget left.</string>
+      <string id="UserPauseLimits">User pause limits</string>
+      <string id="UserPauseLimits_Help">Pause lengths: up to three values in minutes, comma-separated (5-480), shown in the tray menu. Default 30,60,90.
+
+Budget: the total pause time per rolling 24 hours, however it is split or restarted (default 120; 0 = no pause). A chosen pause is charged in full when it starts; ending it early switches protection back on but refunds nothing. The budget is stored in the user profile and, in NIS2 mode, merged with the guard's protected copy, so neither restarting the agent nor editing the file restores it. A script that keeps re-starting the pause (AutoHotkey or similar) can therefore only spend the budget, never extend it, and each attempt that succeeds is logged.
+
+Keep the confirmation during a pause (default on): after "Hold limits" minutes without input the screen asks "are you still there?" and locks after the grace period if nobody answers. Turn off only for workstations where an unattended screen during the whole pause is acceptable; then only Windows' own lock settings apply during the pause.</string>
       <string id="AllowProfileExport">Allow profile export from the tray menu</string>
       <string id="AllowProfileExport_Help">Disabled: the export items are removed from the tray menu. Command-line export (PresenceLock.exe --export) is unaffected. Default: allowed.</string>
 
@@ -133,6 +147,11 @@ The journal is a presence timeline (personal data). It stays in the user's own p
       <presentation id="AppLists">
         <textBox refId="ExtraReadingApps"><label>Reading apps:</label></textBox>
         <textBox refId="ExtraLeavingApps"><label>Leaving apps:</label></textBox>
+      </presentation>
+      <presentation id="UserPauseLimits">
+        <textBox refId="PauseOptionsMinutes"><label>Pause lengths (minutes):</label><defaultValue>30,60,90</defaultValue></textBox>
+        <decimalTextBox refId="PauseBudgetMinutesPerDay" defaultValue="120" spinStep="10">Budget per 24 hours, minutes </decimalTextBox>
+        <checkBox refId="PauseKeepsConfirmation" defaultChecked="true">Keep the "are you still there?" confirmation during a pause</checkBox>
       </presentation>
       <presentation id="ProfileExportDirectory">
         <textBox refId="ProfileExportDirectory"><label>Folder (UNC):</label></textBox>

@@ -22,7 +22,7 @@
     <Prefer32Bit>false</Prefer32Bit>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
-    <Version>0.5.2</Version>
+    <Version>0.6.0</Version>
     <Product>PresenceLock</Product>
     <AssemblyTitle>PresenceLock presence agent</AssemblyTitle>
   </PropertyGroup>

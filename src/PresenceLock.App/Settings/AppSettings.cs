@@ -49,6 +49,12 @@ namespace PresenceLock.App.Settings
         public bool AllowProfileExport = true;
         public string ProfileExportDirectory = "";   // e.g. \\srv\share$\PresenceLock (daily export)
 
+        // User pause (tray menu): GPO-controlled lengths and a rolling 24-hour budget.
+        public bool AllowUserPause = true;
+        public int[] PauseOptionsMinutes = { 30, 60, 90 };
+        public int PauseBudgetMinutesPerDay = 120;
+        public bool PauseKeepsConfirmation = true;
+
         // Data retention (cleaning service, every 24 h): nothing is kept longer than this.
         public int LogRetentionDays = 30;
         public int ProtectedCopyRetentionDays = 180;
@@ -69,7 +75,14 @@ namespace PresenceLock.App.Settings
             HoldMaxSeconds = HoldMaxMinutes * 60.0,
             MaxLearnedHorizonSeconds = MaxLearnedHorizonMinutes * 60.0,
             ConfirmGraceSeconds = ConfirmGraceSeconds,
-            HabitEarlySeconds = HabitEarlyConfirmMinutes * 60.0
+            HabitEarlySeconds = HabitEarlyConfirmMinutes * 60.0,
+            Pause = new PausePolicy
+            {
+                Enabled = AllowUserPause,
+                OptionsMinutes = PauseOptionsMinutes,
+                BudgetMinutesPer24h = PauseBudgetMinutesPerDay,
+                KeepConfirmation = PauseKeepsConfirmation
+            }
         };
 
         /// <summary>Apply the non-null overrides onto a profile before the engine runs.</summary>

@@ -71,6 +71,18 @@ namespace PresenceLock.App.Settings
                     if ((v = Dword(k, "HoldMaxMinutes")).HasValue) s.HoldMaxMinutes = Math.Max(1, Math.Min(240, v.Value));
                     if ((v = Dword(k, "ConfirmGraceSeconds")).HasValue) s.ConfirmGraceSeconds = Math.Max(5, Math.Min(120, v.Value));
                     if ((v = Dword(k, "MaxLearnedHorizonMinutes")).HasValue) s.MaxLearnedHorizonMinutes = Math.Max(3, Math.Min(60, v.Value));
+                    if ((v = Dword(k, "AllowUserPause")).HasValue) s.AllowUserPause = v.Value != 0;
+                    string opt;
+                    if ((opt = Str(k, "PauseOptionsMinutes")) != null)
+                    {
+                        var opts = new System.Collections.Generic.List<int>();
+                        foreach (var x in Csv(opt))
+                            if (int.TryParse(x, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int m) && m >= 5 && m <= 480)
+                                opts.Add(m);
+                        if (opts.Count > 0) s.PauseOptionsMinutes = opts.ToArray();
+                    }
+                    if ((v = Dword(k, "PauseBudgetMinutesPerDay")).HasValue) s.PauseBudgetMinutesPerDay = Math.Max(0, Math.Min(1440, v.Value));
+                    if ((v = Dword(k, "PauseKeepsConfirmation")).HasValue) s.PauseKeepsConfirmation = v.Value != 0;
                     if ((v = Dword(k, "LogRetentionDays")).HasValue) s.LogRetentionDays = Math.Max(1, Math.Min(365, v.Value));
                     if ((v = Dword(k, "ProtectedCopyRetentionDays")).HasValue) s.ProtectedCopyRetentionDays = Math.Max(30, Math.Min(3650, v.Value));
                     if ((v = Dword(k, "CollectedProfileRetentionDays")).HasValue) s.CollectedProfileRetentionDays = Math.Max(7, Math.Min(3650, v.Value));

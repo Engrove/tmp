@@ -10,13 +10,13 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 
 | Del | Status | Bevis |
 |---|---|---|
-| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 139 tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
+| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 149 tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
 | Beslutsflöde: passiv paus, kontrollprob, absolut backstop (`PresenceCoordinator`) | **Verifierad** | 14 enhetstester, bland annat ett egenskapstest med 500 slumpade modeller och slumpmässigt fladdrande signaler (låsning sker alltid ≤ `HoldMax` + grace). Två jämförande 60-dagarssimuleringar (§6). |
 | Passiva OS-signaler (`PassiveSignalReader`) | **Kompilerad, ej körd. Semantiken är delvis odokumenterad** | ConsentStore är odokumenterad. Om `SystemExecutionState` aggregerar andra processers begäranden är inte dokumenterat. Verifiera på målmaskin med `PresenceLock.exe --probe-signals` (§6). Ett fel i signalerna kan bara fördröja låsning upp till `HoldMax` + grace. |
 | Profil-JSON, export, baslinje, sammanslagning | **Verifierad** | C#-tester: round-trip, atomisk skrivning, korrupt fil, saknade fält, anonymisering, medelvärde. |
 | Goertzel-DSP för ultraljudssensorn | **Verifierad** | `verify/goertzel_check.py`. |
 | ADMX/ADML ↔ kod | **Verifierad** | `verify/check_admx.py`: alla värdenamn och strängar matchar i båda riktningar. |
-| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 119 296 byte (116 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
+| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 128 512 byte (126 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
 | Manipulationsskydd, NIS2-läge (`TamperProtection`, guard-tjänst) | **Reglerna verifierade, Windows-delen kompilerad men ej körd** | 19 enhetstester: process-SDDL (även injektionsförsök), återställning av raderad/nedgraderad profil, monoton skyddad kopia, guardens tillståndsmaskin (start, lås vid dödad agent, ignorerar utloggning och session 0). Om processens DACL faktiskt nekar Aktivitetshanteraren måste provas på Windows (§13). |
 | Vaneinlärning (`HabitModel`, modellerad efter Elli) | **Verifierad i simulering** | 13 modelltester (bland annat överlevnadsintervallet mot brute force i 200 slumpfall, censurering, sommartid, kärnor, Wilson), 11 koordinatortester (bland annat egenskapen *aldrig senare lås* i 300 parade körningar) och en 70-dygns rutinsimulering (§8). |
 | Tyst arbete: etiketter i efterhand, inlärd horisont, tystnadsprofil (v0.5) | **Verifierad i simulering** | Inventor-scenariot (§4b) på 4 frön med och utan notis, kontorsscenariot (§6) på 3 frön, 9 koordinatortester och 7 tester för tystnadsprofilen, bland annat att jämnt spridda betraktanden *inte* får delas i två grupper. |
@@ -53,6 +53,7 @@ Kör hela beviskedjan (Linux eller Windows med Python 3 och .NET 8 SDK):
 | Profil anpassad efter användarens olika mönster under dagen | Per användare: modellen per sammanhang (app, sätt att sluta röra musen), tystnadsprofilen per apptyp och vanejournalen per klockslag och veckodag (§4b, §8). |
 | Ständig förbättring även efter 15–30 dagar (Kaizen) | Inlärningen slutar aldrig. Varje ändring jämförs mot den senaste godkända modellen och rullas tillbaka om den blev sämre. Kvaliteten följs i skarpt läge, med händelse 1010 till admin (§5b). |
 | Lära sig av vanor (t.ex. aldrig nattetid) som tillägg | Elli-modellerad vanejournal och "utanför arbetstid"-detektor; får bara tidigarelägga en synlig bekräftelse, och först när den bevisat sig (§8). |
+| Användaren ska kunna pausa en GPO-styrd maxtid (t.ex. vid avläsning av mätningar), utan att det går att skripta bort | Pausmeny med 3 GPO-styrda längder och en budget per rullande dygn. Pausen hanteras som en video, så NIS2-gränsen `HoldMax` + nådetid gäller fortfarande. Varje paus loggas (§7b). |
 | Ska inte gå att stänga av (NIS2), styrt via central GPO | `AllowUserExit = 0` som datorprincip, plus guard-tjänsten (§7). |
 | GPO-distribution utan certifiering | En fil (`PresenceLock.exe` + `.exe.config`). Kopiering och Run-nyckel via GP Preferences, alternativt startskript. Se §12. |
 | Styrning via AD GPO | `deploy/PresenceLock.admx` med sv-SE och en-US: läge, gränser, inlärningsgrind, notis, applistor, sensorer, avslut, export, insamling och baslinje. |
@@ -339,6 +340,34 @@ Visar `DisplayRequired` aldrig `True` under video är aggregatet inte användbar
 
 ---
 
+## 7b. Användarpaus: GPO-styrd, budgeterad, och inte värd att skripta
+
+**Behovet:** att kunna läsa av skärmen länge utan att röra något, till exempel när mätningar loggas. **Risken:** en användare som låter AutoHotkey starta om pausen hela tiden.
+
+**Konstruktionen:**
+- **Snabbmenyn** har *Pausa* med upp till tre längder från GPO (standard 30, 60 och 90 min). Där visas också hur mycket budget som finns kvar och när ett nedtonat alternativ blir tillgängligt igen.
+- **Pausen hanteras som en video som spelar.** Den inlärda modellen dimmar och låser inte, och inget lärs av tystnaden. Bekräftelsen "är du kvar?" efter `HoldMax` (15 min) **gäller fortfarande**, så en dator som lämnas under en paus låses inom `HoldMax` + nådetid. Det är samma gräns som i §6. NIS2-gränsen ändras alltså inte av att pausen finns. Admin kan välja fullständig paus (`PauseKeepsConfirmation = 0`). Då gäller bara Windows egna låsinställningar under pausen, och efter pausen låses en obevakad dator inom nådetiden.
+- **Budget per rullande 24 timmar** (standard 120 min), hur pausen än delas upp eller startas om. En vald paus **debiteras fullt när den startar**. Att avsluta i förtid slår på skyddet igen men återbetalar inget, eftersom en återbetalning inte går att skilja från en redigerad fil.
+- **Budgeten går inte att återställa.** Den lagras i profilen, så omstart och ny inloggning hjälper inte. I NIS2-läge slås den ihop med guardens skyddade kopia, och en sammanslagning kan bara *lägga till* debiterad tid. Att radera eller korta poster i filen ger därför ingenting.
+- **Varje paus loggas** i programloggen: händelse **1015** när den startar (användare, längd, budget kvar) och **1016** när den slutar. De spärras aldrig, och budgeten begränsar antalet till ett fåtal per dygn. En användare som tömmer budgeten varje dag syns i SIEM.
+- **Windows egna inställningar för skärmsläckare och inaktivitetslås påverkas inte.** Gäller er 15-minutersskärmsläckare på en mätdator låser Windows den ändå efter 15 min utan aktivitet. Mätdatorer behöver alltså ligga i en grupp med längre tid där.
+
+**Varför den inte är värd att skripta.** Ett skript i användarens session har samma rättigheter som användaren. Det kan klicka i menyn precis som användaren, och ingen app i samma session kan skilja ett skriptat klick från ett riktigt på ett tillförlitligt sätt. Flaggor för injicerad indata finns, men hjälpmedel som skärmtangentbord och taligenkänning använder samma mekanism, och att blockera dem skulle stänga ute användare med funktionsnedsättning. Konstruktionen gör därför missbruk *meningslöst* i stället för att försöka upptäcka det: ett skript kan bara förbruka budgeten, aldrig förlänga den, och pausen håller fortfarande gränsen `HoldMax` + nådetid. Den som vill kringgå all låsning kan redan i dag använda en musjiggler, i mjukvara eller som hårdvara. Det gäller varje inaktivitetsbaserat lås, även Windows eget, och är en policyfråga snarare än en teknisk fråga (§13).
+
+**Uppmätt (`UserPauseTests`).** Kriterierna sattes före körningen.
+
+| Scenario | Resultat |
+|---|---|
+| Skript försöker starta 90/60/30 min varje minut i 7 dygn | 26 pauser; värsta 24-timmarsfönster **120 min = budgeten** |
+| Skript startar 30 min och avslutar direkt, varje minut | värsta fönster **4 min**: varje start debiterar 30 |
+| Slumpvisa längder | värsta fönster 120 min |
+| Går från datorn i början av en 90-minuterspaus | låst efter **915 s** (`HoldMax` 900 + 15). Utan paus: 48 s |
+| Fullständig paus på 30 min (policy), ingen vid datorn | låst efter **1815 s**: nådetiden efter pausens slut |
+| 25 min tystnad under paus i inlärningsläge | 0 etiketter, modellen oförändrad |
+| Pausen raderas ur filen | sammanslagningen med skyddad kopia återställer debiteringen (30 av 120 min kvar) |
+
+---
+
 ## 8. Vaneinlärning (modellerad efter Elli Companion)
 
 **Fråga:** kan användarens rutiner, till exempel *"arbetar aldrig nattetid"*, göra låsningen träffsäkrare?
@@ -509,6 +538,10 @@ Skriptet är idempotent (kopierar bara vid ändrad hash), kontrollerar .NET 4.8 
 | `HoldMaxMinutes` / `ConfirmGraceSeconds` | DWORD | 15 / 15 | Absolut backstop: bekräftelsedimning efter N min, lås efter M s |
 | `HoldIgnoreApps` | SZ | — | Exe-namn eller paketprefix vars mikrofonanvändning ignoreras |
 | `LogRetentionDays` / `ProtectedCopyRetentionDays` / `CollectedProfileRetentionDays` | DWORD | 30 / 180 / 90 | Städtjänstens lagringstider |
+| `AllowUserPause` | DWORD | 1 | Pausval i snabbmenyn (§7b) |
+| `PauseOptionsMinutes` | SZ | `30,60,90` | Upp till tre pauslängder, 5–480 min |
+| `PauseBudgetMinutesPerDay` | DWORD 0–1440 | 120 | Total paustid per rullande 24 h. 0 = ingen paus |
+| `PauseKeepsConfirmation` | DWORD | 1 | 1 = "är du kvar?" efter `HoldMax` även under paus (NIS2-gränsen oförändrad). 0 = fullständig paus |
 | `MaxLearnedHorizonMinutes` | DWORD 3–60 | 10 | Tak för den inlärda horisonten vid tyst arbete (§4b). 3 = fast 3-minutershorisont som före v0.5 |
 | `AllowUserExit` | DWORD | 1 | **0 = NIS2-läge** (§7); sätt som datorprincip |
 | `AllowProfileExport` | DWORD | 1 | Exportval i menyn |
@@ -554,6 +587,7 @@ Händelser i programloggen (källa `PresenceLock`), stabila id:n för SIEM:
 | 1012 | agent | en inlärd modelländring förutsade sämre och rullades tillbaka (§5b) |
 | 1013 | agent | `profile.json` oanvändbar: återställd från senast fungerande kopia (eller ny) |
 | 1014 | agent | `habits.json` oanvändbar: ny journal startad, låsningen opåverkad |
+| 1015 / 1016 | agent | användaren startade en paus (längd, budget kvar) / pausen slutade. Revisionsspår, aldrig spärrade (§7b) |
 
 ### Loggar, städtjänst och diskbudget: inget växer obehindrat och inget har ett utgångsdatum
 
@@ -611,6 +645,7 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 - **Tyst arbete i en app som inte står på läslistan** ger fortfarande "borta"-etiketter efter 180 s i inlärningsläget, eftersom inget annat skiljer den tystnaden från en avfärd. I skarpt läge rättar besvarade dimningar modellen, och horisonten flyttas ut. Lägg till sådana appar med `ExtraReadingApps`, eller slå på "Visa låsning" under inlärningen.
 - **Utan passiva signaler** lär sig modellen att tyst videotittande är närvaro, och horisonten flyttas ut även där. Korta pauser från det sammanhanget kan då stå olåsta upp till taket. Uppmätt: 0–10 sådana återkomster på 45 dagar mot 0 med signaler (§6).
 - **Tystnadsprofilen är en statistisk modell** (två lognormala grupper, med dalkrav). Den används bara för att bokföra osynliga beslut i grinden, aldrig som etikett. Vid tveksamhet svarar den "kan inte avgöra", och grinden förblir då försiktig.
+- **Användarpausen kan inte skilja ett skriptat klick från ett riktigt.** Det är medvetet: budgeten, gränsen `HoldMax` + nådetid och revisionsloggen gör missbruk meningslöst och synligt. Detektering av injicerad indata skulle slå ut hjälpmedel (§7b). Windows egna skärmsläckar- och inaktivitetsinställningar påverkas inte av en paus.
 - **Insamlingsresursen** rensas automatiskt bara om datorkontona har ändringsrätt på den. Annars ligger gamla filer kvar där, men de används aldrig: `--merge-baseline` hoppar över filer äldre än `CollectedProfileRetentionDays`. Agenterna läser aldrig resursen, så den kan inte påverka driften.
 - **`LOCALAPPDATA` roamar inte.** Profilen och vanejournalen gäller per användare och dator.
 - **Vanor vid vanlig hemgångstid ger liten vinst** (§8). Det är en egenskap hos datat, inte något en modell kan lösa utan fler signaler.
@@ -636,3 +671,4 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 13. **Tyst arbete:** en CAD-användare i skarpt läge betraktar en modell i 5 min utan att röra något. Efter några veckor ska det inte längre ge någon dimning. Kontrollera tystnadsprofilen och modellskyddet i `--status`.
 14. Händelse 1010 ska finnas i programloggen hos en testanvändare med medvetet för snävt tak (`MaxLearnedHorizonMinutes = 3`, CAD-användare).
 15. **Städtjänsten:** efter ett dygn ska `--status` visa `cleaning service: N runs` med senaste körning under 24 h och en backup (`profile.json.bak`). Gör `profile.json` oläsbar (skriv skräp i den) och logga in igen. Agenten ska fortsätta i samma läge, händelse 1013 ska finnas, och profilen ska *inte* ha börjat om.
+16. **Användarpaus:** välj *Pausa → 30 minuter*. Händelse 1015 ska finnas, ikonens text ska visa "pausad till …", och efter 15 min utan aktivitet ska dimningen "är du kvar?" komma. Gå sedan ifrån datorn under en paus: den ska låsas inom 15 min 15 s. Använd hela budgeten. Menyvalen ska då vara nedtonade med "(från HH:MM)", och efter utloggning och inloggning ska budgeten fortfarande vara förbrukad.

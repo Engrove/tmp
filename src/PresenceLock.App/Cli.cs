@@ -72,6 +72,17 @@ namespace PresenceLock.App
                         if (p.Quality != null) Console.WriteLine(p.Quality.Describe(p.Modes));
                         Console.WriteLine("ambiguous learning decisions: judged away " + st.AmbiguousScoredAway +
                                           ", undecidable " + st.AmbiguousScoredUnknown);
+                        if (p.Pause != null)
+                        {
+                            var pp = Settings.PolicyReader.Load().ToCoordinatorConfig().Pause;
+                            long nowT = DateTime.UtcNow.Ticks;
+                            Console.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                                "user pause: {0}; options {1} min; charged in the last 24 h {2:F0} of {3} min; {4}; pauses so far {5} ({6:F0} min charged)",
+                                pp.Enabled && pp.BudgetMinutesPer24h > 0 ? "allowed" : "not allowed",
+                                string.Join("/", pp.ValidOptions()), p.Pause.ChargedMinutes(nowT), pp.BudgetMinutesPer24h,
+                                p.Pause.IsActive(nowT) ? "PAUSED until " + new DateTime(p.Pause.ActiveUntil(nowT), DateTimeKind.Utc).ToString("u") : "not paused",
+                                p.Pause.PausesStarted, p.Pause.MinutesChargedTotal));
+                        }
                         Console.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture,
                             "cleaning service: {0} runs, last {1}; retired so far: {2} journal episodes, {3} log lines, {4} files; backup {5}",
                             st.HousekeepingRuns,

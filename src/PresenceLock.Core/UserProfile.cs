@@ -70,7 +70,7 @@ namespace PresenceLock.Core
         public const int CurrentSchemaVersion = 3;
 
         [DataMember] public int SchemaVersion = CurrentSchemaVersion;
-        [DataMember] public string AppVersion = "0.5.2";
+        [DataMember] public string AppVersion = "0.6.0";
         [DataMember] public string UserSid = "";       // identity only, not content
         [DataMember] public string MachineName = "";
         [DataMember] public long CreatedUtcTicks;
@@ -91,6 +91,8 @@ namespace PresenceLock.Core
         [DataMember] public ModelGuard Guard;
         /// <summary>Enforcing-mode quality check (false dims, unattended time at confirmed locks).</summary>
         [DataMember] public QualityMonitor Quality;
+        /// <summary>User pauses of the last 24 h (budget); bounded, merged with the protected copy in NIS2 mode.</summary>
+        [DataMember] public PauseLedger Pause;
 
         public UserProfile()
         {
@@ -101,6 +103,7 @@ namespace PresenceLock.Core
             Silence = new SilenceProfile();
             Guard = new ModelGuard();
             Quality = new QualityMonitor();
+            Pause = new PauseLedger();
             OptionalSeen = new int[FeatureSchema.Count];
             OptionalAvailable = new int[FeatureSchema.Count];
             CreatedUtcTicks = DateTime.UtcNow.Ticks;
