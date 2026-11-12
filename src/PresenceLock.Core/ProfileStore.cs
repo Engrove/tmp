@@ -103,6 +103,24 @@ namespace PresenceLock.Core
         }
 
         /// <summary>
+        /// What the daily collection to ProfileExportDirectory contains: what --merge-baseline and
+        /// an administrator's review need (weights, gate state, counters), and nothing that tells
+        /// WHEN the user did something. Removed: pause start/end times, the silence profile, the
+        /// unattended-time values of recent locks and the guard's last-rollback time. The habit
+        /// journal is a separate file and never collected.
+        /// </summary>
+        public static UserProfile ExportForCollection(UserProfile profile)
+        {
+            var clone = Deserialize(Serialize(profile));
+            clone.Pause = new PauseLedger { PausesStarted = profile.Pause?.PausesStarted ?? 0, MinutesChargedTotal = profile.Pause?.MinutesChargedTotal ?? 0 };
+            clone.Silence = new SilenceProfile();
+            clone.Quality = new QualityMonitor { Degraded = profile.Quality?.Degraded ?? false, Alerts = profile.Quality?.Alerts ?? 0 };
+            if (clone.Guard != null) clone.Guard.LastRollbackUtcTicks = 0;
+            clone.Stats.LastHousekeepingUtcTicks = 0;
+            return clone;
+        }
+
+        /// <summary>
         /// Produce an anonymised baseline for fleet seeding: keep the learned weights
         /// and hyper-parameters, but drop the user identity and reset the per-user
         /// calibration so the recipient machine re-earns its own promotion to enforcing

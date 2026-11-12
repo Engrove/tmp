@@ -75,6 +75,13 @@ Every pause start and end is written to the Application log (source PresenceLock
 Budget: the total pause time per rolling 24 hours, however it is split or restarted (default 120; 0 = no pause). A chosen pause is charged in full when it starts; ending it early switches protection back on but refunds nothing. The budget is stored in the user profile and, in NIS2 mode, merged with the guard's protected copy, so neither restarting the agent nor editing the file restores it. A script that keeps re-starting the pause (AutoHotkey or similar) can therefore only spend the budget, never extend it, and each attempt that succeeds is logged.
 
 Keep the confirmation during a pause (default on): after "Hold limits" minutes without input the screen asks "are you still there?" and locks after the grace period if nobody answers. Turn off only for workstations where an unattended screen during the whole pause is acceptable; then only Windows' own lock settings apply during the pause.</string>
+      <string id="AboutInformation">About box: responsibility and privacy contact</string>
+      <string id="AboutInformation_Help">Text shown in "About PresenceLock" (tray menu) and by PresenceLock.exe --about. The rest of the About box (what the app does, NIS2 basis, which data is processed, retention, rights) is generated from the policies in force, so it always matches the actual behaviour.
+
+Responsible: default "Jan-Eric Enlund – Elho".
+Data controller: the legal entity, default "Elho". Set the registered company name.
+Privacy contact: default = the responsible person (for example the data protection officer).
+Privacy notice link: optional; only http(s) addresses or a UNC path to a .pdf/.htm/.html/.docx file are accepted and opened.</string>
       <string id="AllowProfileExport">Allow profile export from the tray menu</string>
       <string id="AllowProfileExport_Help">Disabled: the export items are removed from the tray menu. Command-line export (PresenceLock.exe --export) is unaffected. Default: allowed.</string>
 
@@ -147,6 +154,12 @@ The journal is a presence timeline (personal data). It stays in the user's own p
       <presentation id="AppLists">
         <textBox refId="ExtraReadingApps"><label>Reading apps:</label></textBox>
         <textBox refId="ExtraLeavingApps"><label>Leaving apps:</label></textBox>
+      </presentation>
+      <presentation id="AboutInformation">
+        <textBox refId="AboutResponsible"><label>Responsible:</label><defaultValue>Jan-Eric Enlund – Elho</defaultValue></textBox>
+        <textBox refId="AboutController"><label>Data controller:</label><defaultValue>Elho</defaultValue></textBox>
+        <textBox refId="AboutPrivacyContact"><label>Privacy contact:</label></textBox>
+        <textBox refId="AboutPolicyUrl"><label>Privacy notice link:</label></textBox>
       </presentation>
       <presentation id="UserPauseLimits">
         <textBox refId="PauseOptionsMinutes"><label>Pause lengths (minutes):</label><defaultValue>30,60,90</defaultValue></textBox>

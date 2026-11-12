@@ -106,6 +106,12 @@ namespace PresenceLock.App
                         else Console.WriteLine("habit journal: none (habit learning off or no data yet)");
                         return 0;
                     }
+                    case "--about":
+                    {
+                        string v = typeof(Cli).Assembly.GetName().Version.ToString(3);
+                        Console.WriteLine(AboutContent.AsText(AboutContent.Build(Settings.PolicyReader.Load().ToAboutInfo(v))));
+                        return 0;
+                    }
                     case "--probe-signals":
                         return ProbeSignals(args.Length > 1 && int.TryParse(args[1], out int secs) ? secs : 60);
                     case "--export":
@@ -141,7 +147,7 @@ namespace PresenceLock.App
                     case "--reset-profile":
                         return ResetProfile(path, args.Length > 1 ? args[1] : null);
                     default:
-                        Console.WriteLine("usage: PresenceLock.exe [--status | --export f | --export-baseline f | " +
+                        Console.WriteLine("usage: PresenceLock.exe [--status | --about | --export f | --export-baseline f | " +
                                           "--merge-baseline out in1 in2 ... | --reset-profile [SID] | " +
                                           "--probe-signals [s] | --lock-now]");
                         return 2;

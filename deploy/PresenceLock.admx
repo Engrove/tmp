@@ -235,6 +235,20 @@
       </elements>
     </policy>
 
+    <policy name="AboutInformation" class="Both"
+            displayName="$(string.AboutInformation)" explainText="$(string.AboutInformation_Help)"
+            presentation="$(presentation.AboutInformation)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock_Admin" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <text id="AboutResponsible" valueName="AboutResponsible" maxLength="200" />
+        <text id="AboutController" valueName="AboutController" maxLength="200" />
+        <text id="AboutPrivacyContact" valueName="AboutPrivacyContact" maxLength="200" />
+        <text id="AboutPolicyUrl" valueName="AboutPolicyUrl" maxLength="500" />
+      </elements>
+    </policy>
+
     <policy name="AllowProfileExport" class="Both"
             displayName="$(string.AllowProfileExport)" explainText="$(string.AllowProfileExport_Help)"
             key="Software\Policies\PresenceLock" valueName="AllowProfileExport">

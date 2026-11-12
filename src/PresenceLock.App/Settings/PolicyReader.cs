@@ -72,6 +72,11 @@ namespace PresenceLock.App.Settings
                     if ((v = Dword(k, "ConfirmGraceSeconds")).HasValue) s.ConfirmGraceSeconds = Math.Max(5, Math.Min(120, v.Value));
                     if ((v = Dword(k, "MaxLearnedHorizonMinutes")).HasValue) s.MaxLearnedHorizonMinutes = Math.Max(3, Math.Min(60, v.Value));
                     if ((v = Dword(k, "AllowUserPause")).HasValue) s.AllowUserPause = v.Value != 0;
+                    string about;
+                    if ((about = Str(k, "AboutResponsible")) != null && about.Trim().Length > 0) s.AboutResponsible = Cap(about, 200);
+                    if ((about = Str(k, "AboutController")) != null && about.Trim().Length > 0) s.AboutController = Cap(about, 200);
+                    if ((about = Str(k, "AboutPrivacyContact")) != null) s.AboutPrivacyContact = Cap(about, 200);
+                    if ((about = Str(k, "AboutPolicyUrl")) != null) s.AboutPolicyUrl = SafeUrl(about);
                     string opt;
                     if ((opt = Str(k, "PauseOptionsMinutes")) != null)
                     {
@@ -128,5 +133,17 @@ namespace PresenceLock.App.Settings
              .Select(x => x.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? x.Substring(0, x.Length - 4) : x)
              .Where(x => x.Length > 0)
              .ToArray();
+
+        private static string Cap(string v, int max) { v = v.Trim(); return v.Length > max ? v.Substring(0, max) : v; }
+
+        /// <summary>Only http(s) or a UNC/intranet file path is opened from the About box; nothing else is executed.</summary>
+        private static string SafeUrl(string v)
+        {
+            v = (v ?? "").Trim();
+            if (v.Length == 0 || v.Length > 500) return "";
+            if (v.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || v.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) return v;
+            if (v.StartsWith(@"\\", StringComparison.Ordinal) && (v.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) || v.EndsWith(".htm", StringComparison.OrdinalIgnoreCase) || v.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || v.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))) return v;
+            return "";
+        }
     }
 }

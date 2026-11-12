@@ -10,13 +10,13 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 
 | Del | Status | Bevis |
 |---|---|---|
-| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 149 tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
+| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 153 tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
 | Beslutsflöde: passiv paus, kontrollprob, absolut backstop (`PresenceCoordinator`) | **Verifierad** | 14 enhetstester, bland annat ett egenskapstest med 500 slumpade modeller och slumpmässigt fladdrande signaler (låsning sker alltid ≤ `HoldMax` + grace). Två jämförande 60-dagarssimuleringar (§6). |
 | Passiva OS-signaler (`PassiveSignalReader`) | **Kompilerad, ej körd. Semantiken är delvis odokumenterad** | ConsentStore är odokumenterad. Om `SystemExecutionState` aggregerar andra processers begäranden är inte dokumenterat. Verifiera på målmaskin med `PresenceLock.exe --probe-signals` (§6). Ett fel i signalerna kan bara fördröja låsning upp till `HoldMax` + grace. |
 | Profil-JSON, export, baslinje, sammanslagning | **Verifierad** | C#-tester: round-trip, atomisk skrivning, korrupt fil, saknade fält, anonymisering, medelvärde. |
 | Goertzel-DSP för ultraljudssensorn | **Verifierad** | `verify/goertzel_check.py`. |
 | ADMX/ADML ↔ kod | **Verifierad** | `verify/check_admx.py`: alla värdenamn och strängar matchar i båda riktningar. |
-| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 128 512 byte (126 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
+| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 145 408 byte (142 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
 | Manipulationsskydd, NIS2-läge (`TamperProtection`, guard-tjänst) | **Reglerna verifierade, Windows-delen kompilerad men ej körd** | 19 enhetstester: process-SDDL (även injektionsförsök), återställning av raderad/nedgraderad profil, monoton skyddad kopia, guardens tillståndsmaskin (start, lås vid dödad agent, ignorerar utloggning och session 0). Om processens DACL faktiskt nekar Aktivitetshanteraren måste provas på Windows (§13). |
 | Vaneinlärning (`HabitModel`, modellerad efter Elli) | **Verifierad i simulering** | 13 modelltester (bland annat överlevnadsintervallet mot brute force i 200 slumpfall, censurering, sommartid, kärnor, Wilson), 11 koordinatortester (bland annat egenskapen *aldrig senare lås* i 300 parade körningar) och en 70-dygns rutinsimulering (§8). |
 | Tyst arbete: etiketter i efterhand, inlärd horisont, tystnadsprofil (v0.5) | **Verifierad i simulering** | Inventor-scenariot (§4b) på 4 frön med och utan notis, kontorsscenariot (§6) på 3 frön, 9 koordinatortester och 7 tester för tystnadsprofilen, bland annat att jämnt spridda betraktanden *inte* får delas i två grupper. |
@@ -54,6 +54,8 @@ Kör hela beviskedjan (Linux eller Windows med Python 3 och .NET 8 SDK):
 | Ständig förbättring även efter 15–30 dagar (Kaizen) | Inlärningen slutar aldrig. Varje ändring jämförs mot den senaste godkända modellen och rullas tillbaka om den blev sämre. Kvaliteten följs i skarpt läge, med händelse 1010 till admin (§5b). |
 | Lära sig av vanor (t.ex. aldrig nattetid) som tillägg | Elli-modellerad vanejournal och "utanför arbetstid"-detektor; får bara tidigarelägga en synlig bekräftelse, och först när den bevisat sig (§8). |
 | Användaren ska kunna pausa en GPO-styrd maxtid (t.ex. vid avläsning av mätningar), utan att det går att skripta bort | Pausmeny med 3 GPO-styrda längder och en budget per rullande dygn. Pausen hanteras som en video, så NIS2-gränsen `HoldMax` + nådetid gäller fortfarande. Varje paus loggas (§7b). |
+| Om-ruta med ansvarig, beskrivning, NIS2-grund och GDPR-information | *Om PresenceLock…* i snabbmenyn (modal ruta) och `--about`. Texten byggs från de principer som gäller, så den kan inte glida isär från beteendet (testat). Ansvarig, personuppgiftsansvarig, kontakt och länk ställs in med GPO. Knappen *Öppna mina data* (art. 15). |
+| Underlag för GDPR-, NIS2- och ISO 9001-dokumentationen | Utkast i `docs/compliance/` (§10) |
 | Ska inte gå att stänga av (NIS2), styrt via central GPO | `AllowUserExit = 0` som datorprincip, plus guard-tjänsten (§7). |
 | GPO-distribution utan certifiering | En fil (`PresenceLock.exe` + `.exe.config`). Kopiering och Run-nyckel via GP Preferences, alternativt startskript. Se §12. |
 | Styrning via AD GPO | `deploy/PresenceLock.admx` med sv-SE och en-US: läge, gränser, inlärningsgrind, notis, applistor, sensorer, avslut, export, insamling och baslinje. |
@@ -465,6 +467,12 @@ Journalen är en **närvarotidslinje** (starttid och längd på varje paus ≥ 6
 
 ### Juridik (faktaunderlag, inte juridisk rådgivning)
 
+**Utkast till Elhos dokumentation finns i [`docs/compliance/`](docs/compliance/00-LAS-FORST.md)**, även som Word-filer i paketet: dataskyddsbeskrivning (art. 13), registerpost (art. 30), intresseavvägning (art. 6.1 f), DPIA (art. 35), samarbete med personalen, NIS2-åtgärdsbeskrivning och ISO 9001-underlag. Öppna punkter är märkta `[[…]]` och **VERIFIERA**.
+
+**Finland** (kontrollerat mot primärkällor):
+- **Cybersäkerhetslagen 124/2025**, i kraft 8.4.2025, genomför NIS2. 9 § kräver proportionella riskhanteringsåtgärder. Traficoms rekommendation (kap. 6, 7, 11 och 12) är grunden i åtgärdsbeskrivningen.
+- **Lagen om integritetsskydd i arbetslivet 759/2004 21 §**, i lydelsen enligt 945/2025 (i kraft 1.1.2026): syftet med, införandet av och metoderna för teknisk övervakning av arbetstagare ska behandlas i dialog enligt samarbetslagen 1333/2021. Företag utanför samarbetslagen ska höra arbetstagarna före beslut. **Om-rutan och dokumenten ersätter inte den dialogen.**
+
 Profilen är kopplad till en SID och beskriver en anställds beteende. Det är **personuppgifter** (GDPR art. 4.1).
 
 - **Informationsplikt (art. 13)** gäller oavsett att appen är "stealth". Det tysta lägesbytet är ett UX-val och fungerar som det ska, men verktygets existens och syfte måste framgå av arbetsgivarens information eller IT-policy.
@@ -539,6 +547,7 @@ Skriptet är idempotent (kopierar bara vid ändrad hash), kontrollerar .NET 4.8 
 | `HoldIgnoreApps` | SZ | — | Exe-namn eller paketprefix vars mikrofonanvändning ignoreras |
 | `LogRetentionDays` / `ProtectedCopyRetentionDays` / `CollectedProfileRetentionDays` | DWORD | 30 / 180 / 90 | Städtjänstens lagringstider |
 | `AllowUserPause` | DWORD | 1 | Pausval i snabbmenyn (§7b) |
+| `AboutResponsible` / `AboutController` / `AboutPrivacyContact` / `AboutPolicyUrl` | SZ | "Jan-Eric Enlund – Elho" / "Elho" / – / – | Om-rutan: ansvarig, personuppgiftsansvarig, dataskyddskontakt och länk (bara http(s) eller UNC till .pdf/.htm/.docx öppnas) |
 | `PauseOptionsMinutes` | SZ | `30,60,90` | Upp till tre pauslängder, 5–480 min |
 | `PauseBudgetMinutesPerDay` | DWORD 0–1440 | 120 | Total paustid per rullande 24 h. 0 = ingen paus |
 | `PauseKeepsConfirmation` | DWORD | 1 | 1 = "är du kvar?" efter `HoldMax` även under paus (NIS2-gränsen oförändrad). 0 = fullständig paus |
@@ -554,6 +563,10 @@ Skriptet är idempotent (kopierar bara vid ändrad hash), kontrollerar .NET 4.8 
 
 ```bash
 PresenceLock.exe --status
+```
+
+```bash
+PresenceLock.exe --about
 ```
 
 ```bash
@@ -672,3 +685,4 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 14. Händelse 1010 ska finnas i programloggen hos en testanvändare med medvetet för snävt tak (`MaxLearnedHorizonMinutes = 3`, CAD-användare).
 15. **Städtjänsten:** efter ett dygn ska `--status` visa `cleaning service: N runs` med senaste körning under 24 h och en backup (`profile.json.bak`). Gör `profile.json` oläsbar (skriv skräp i den) och logga in igen. Agenten ska fortsätta i samma läge, händelse 1013 ska finnas, och profilen ska *inte* ha börjat om.
 16. **Användarpaus:** välj *Pausa → 30 minuter*. Händelse 1015 ska finnas, ikonens text ska visa "pausad till …", och efter 15 min utan aktivitet ska dimningen "är du kvar?" komma. Gå sedan ifrån datorn under en paus: den ska låsas inom 15 min 15 s. Använd hela budgeten. Menyvalen ska då vara nedtonade med "(från HH:MM)", och efter utloggning och inloggning ska budgeten fortfarande vara förbrukad.
+17. **Om-rutan:** öppna *Om PresenceLock…*. Kontrollera ansvarig och personuppgiftsansvarig efter GPO, att *Öppna mina data* öppnar `%LOCALAPPDATA%\PresenceLock`, och att texten stämmer med `PresenceLock.exe --about`.

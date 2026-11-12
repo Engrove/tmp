@@ -55,6 +55,32 @@ namespace PresenceLock.App.Settings
         public int PauseBudgetMinutesPerDay = 120;
         public bool PauseKeepsConfirmation = true;
 
+        // About box (GPO): who is responsible, who is the controller, where the privacy notice is.
+        public string AboutResponsible = "Jan-Eric Enlund – Elho";
+        public string AboutController = "Elho";
+        public string AboutPrivacyContact = "";
+        public string AboutPolicyUrl = "";
+
+        public AboutInfo ToAboutInfo(string version) => new AboutInfo
+        {
+            Version = version,
+            Responsible = AboutResponsible,
+            Controller = AboutController,
+            PrivacyContact = AboutPrivacyContact,
+            PolicyUrl = AboutPolicyUrl,
+            Nis2Mode = !AllowUserExit,
+            HoldMaxMinutes = HoldMaxMinutes,
+            ConfirmGraceSeconds = ConfirmGraceSeconds,
+            MaxLearnedHorizonMinutes = MaxLearnedHorizonMinutes,
+            PauseAllowed = AllowUserPause,
+            PauseOptionsMinutes = new PausePolicy { OptionsMinutes = PauseOptionsMinutes }.ValidOptions(),
+            PauseBudgetMinutes = PauseBudgetMinutesPerDay,
+            PauseKeepsConfirmation = PauseKeepsConfirmation,
+            HabitLearning = HabitLearningEnabled,
+            ProfileCollection = !string.IsNullOrEmpty(ProfileExportDirectory),
+            Retention = ToRetentionPolicy()
+        };
+
         // Data retention (cleaning service, every 24 h): nothing is kept longer than this.
         public int LogRetentionDays = 30;
         public int ProtectedCopyRetentionDays = 180;

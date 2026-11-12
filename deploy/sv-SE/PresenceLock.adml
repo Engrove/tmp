@@ -61,6 +61,13 @@ Inaktiverad (NIS2-läge) — sätt den som DATORPRINCIP; guard-tjänsten följer
 
 Utanför skyddet: lokala administratörer, samt indata som injiceras för att fejka aktivitet (musjigglers, "håll vaken"-verktyg som skickar tangenttryck).</string>
 
+      <string id="AboutInformation">Om-rutan: ansvar och dataskyddskontakt</string>
+      <string id="AboutInformation_Help">Text som visas i "Om PresenceLock" (snabbmenyn) och av PresenceLock.exe --about. Resten av rutan (vad appen gör, NIS2-grund, vilka uppgifter som behandlas, lagringstider, rättigheter) genereras från de principer som gäller, så den stämmer alltid med det faktiska beteendet.
+
+Ansvarig: standard "Jan-Eric Enlund – Elho".
+Personuppgiftsansvarig: den juridiska personen, standard "Elho". Ange bolagets registrerade namn.
+Kontakt i dataskyddsfrågor: standard = den ansvarige (till exempel dataskyddsombudet).
+Länk till dataskyddsbeskrivning: valfri; bara http(s)-adresser eller en UNC-sökväg till en .pdf/.htm/.html/.docx-fil godtas och öppnas.</string>
       <string id="AllowUserPause">Tillåt användaren att pausa agenten</string>
       <string id="AllowUserPause_Help">Aktiverad eller inte konfigurerad: snabbmenyn har "Pausa" med längderna och dygnsbudgeten från "Gränser för användarpaus". Inaktiverad: inget pausval.
 
@@ -147,6 +154,12 @@ Journalen är en närvarotidslinje (personuppgifter). Den stannar i användarens
       <presentation id="AppLists">
         <textBox refId="ExtraReadingApps"><label>Läs-appar:</label></textBox>
         <textBox refId="ExtraLeavingApps"><label>Lämnar-appar:</label></textBox>
+      </presentation>
+      <presentation id="AboutInformation">
+        <textBox refId="AboutResponsible"><label>Ansvarig:</label><defaultValue>Jan-Eric Enlund – Elho</defaultValue></textBox>
+        <textBox refId="AboutController"><label>Personuppgiftsansvarig:</label><defaultValue>Elho</defaultValue></textBox>
+        <textBox refId="AboutPrivacyContact"><label>Kontakt i dataskyddsfrågor:</label></textBox>
+        <textBox refId="AboutPolicyUrl"><label>Länk till dataskyddsbeskrivning:</label></textBox>
       </presentation>
       <presentation id="UserPauseLimits">
         <textBox refId="PauseOptionsMinutes"><label>Pauslängder (minuter):</label><defaultValue>30,60,90</defaultValue></textBox>

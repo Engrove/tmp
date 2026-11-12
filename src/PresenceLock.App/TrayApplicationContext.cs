@@ -215,7 +215,7 @@ namespace PresenceLock.App
                 Directory.CreateDirectory(_settings.ProfileExportDirectory);
                 string name = Sanitize(Environment.MachineName) + "_" + Sanitize(Environment.UserName) + ".json";
                 File.WriteAllText(Path.Combine(_settings.ProfileExportDirectory, name),
-                                  ProfileStore.Serialize(_profile));
+                                  ProfileStore.Serialize(ProfileStore.ExportForCollection(_profile)));   // no activity times
             }
             catch (Exception ex) { AgentLog.Write("share export failed: " + ex.GetType().Name); }
         }
@@ -382,6 +382,9 @@ namespace PresenceLock.App
                 menu.Items.Add("Exportera anonym baslinje…", null, (s, e) => Export(baseline: true));
             }
 
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add("Om PresenceLock…", null, (s, e) => ShowAbout());
+
             if (_settings.AllowUserExit)
             {
                 menu.Items.Add(new ToolStripSeparator());
@@ -391,6 +394,18 @@ namespace PresenceLock.App
             // the user, the message loop restarts, and the guard service locks the session if
             // the agent disappears anyway.
             return menu;
+        }
+
+        // ------------------------------------------------------------------ about
+
+        private Ui.AboutForm _about;
+
+        private void ShowAbout()
+        {
+            if (_about != null && !_about.IsDisposed) { _about.Activate(); return; }
+            _about = new Ui.AboutForm(_settings.ToAboutInfo(AgentVersion), ProfileStore.DefaultDirectory());
+            try { _about.ShowDialog(); }
+            finally { _about.Dispose(); _about = null; }
         }
 
         // ------------------------------------------------------------------ user pause
