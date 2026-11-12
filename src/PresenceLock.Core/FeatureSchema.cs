@@ -32,13 +32,25 @@ namespace PresenceLock.Core
         public const int AudioDopplerAway = 9;  // negative Doppler in 19.5-20.5 kHz band (moving away), 0..1
         public const int BleRssiDrop      = 10; // BLE/Wi-Fi RSSI change consistent with the body moving, 0..1
 
-        public const int Count = 11;
+        // --- schema v2 ------------------------------------------------------------
+        /// <summary>
+        /// 1 = this episode started when a passive hold (visible media / meeting) ENDED while
+        /// the user was still idle. Its kinematic features are zeroed (they would be minutes
+        /// old), so the model learns a separate "after the video/meeting" latency.
+        /// </summary>
+        public const int PostHold = 11;
+
+        public const int Count = 12;
+
+        /// <summary>Indices of the five raw-input kinematic features.</summary>
+        public static readonly int[] Kinematic = { ScrollFrac, Deceleration, AbruptStop, EdgeFling, MicroJerk };
 
         public static readonly string[] Names =
         {
             "ScrollFrac", "Deceleration", "AbruptStop", "EdgeFling", "MicroJerk",
             "CtxReading", "CtxLeaving", "TimeDepartPrior",
-            "AudioPresent", "AudioDopplerAway", "BleRssiDrop"
+            "AudioPresent", "AudioDopplerAway", "BleRssiDrop",
+            "PostHold"
         };
 
         /// <summary>true for features that come from optional/extra sensors.</summary>
@@ -46,7 +58,8 @@ namespace PresenceLock.Core
         {
             false, false, false, false, false,
             false, false, false,
-            true, true, true
+            true, true, true,
+            false
         };
     }
 }

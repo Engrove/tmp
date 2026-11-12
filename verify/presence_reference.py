@@ -15,8 +15,9 @@ import math
 SCROLL_FRAC, DECELERATION, ABRUPT_STOP, EDGE_FLING, MICRO_JERK = 0, 1, 2, 3, 4
 CTX_READING, CTX_LEAVING, TIME_DEPART = 5, 6, 7
 AUDIO_PRESENT, AUDIO_DOPPLER_AWAY, BLE_RSSI_DROP = 8, 9, 10
-N = 11
-OPTIONAL = [False]*8 + [True, True, True]
+POST_HOLD = 11          # schema v2
+N = 12
+OPTIONAL = [False]*8 + [True, True, True] + [False]
 
 
 # ----- MathUtil.cs -----------------------------------------------------------

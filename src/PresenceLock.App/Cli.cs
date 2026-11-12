@@ -15,6 +15,7 @@ namespace PresenceLock.App
     ///   PresenceLock.exe --export-baseline &lt;file.json&gt;
     ///   PresenceLock.exe --merge-baseline &lt;out.json&gt; &lt;in1.json&gt; &lt;in2.json&gt; ...
     ///   PresenceLock.exe --reset-profile
+    ///   PresenceLock.exe --probe-signals [seconds]   live view of passive OS signals (verification)
     ///
     /// The running agent saves every 5 minutes and on lock/logoff, so the on-disk profile
     /// read here can be up to 5 minutes behind the agent's memory.
@@ -47,12 +48,22 @@ namespace PresenceLock.App
                                 p.Modes.PromotionForcedByPolicy ? ", forced by policy" : ""));
                         var reading = new double[FeatureSchema.Count]; reading[FeatureSchema.CtxReading] = 1;
                         var neutral = new double[FeatureSchema.Count];
+                        var postHold = new double[FeatureSchema.Count]; postHold[FeatureSchema.PostHold] = 1;
                         Console.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture,
-                            "lock time t(90%): neutral {0:F0} s, reading-app context {1:F0} s",
+                            "lock time t(90%): neutral {0:F0} s, reading-app context {1:F0} s, after media/meeting {2:F0} s",
                             p.Model.LockTime(neutral, p.Config.LockThreshold),
-                            p.Model.LockTime(reading, p.Config.LockThreshold)));
+                            p.Model.LockTime(reading, p.Config.LockThreshold),
+                            p.Model.LockTime(postHold, p.Config.LockThreshold)));
+                        var st = p.Stats;
+                        Console.WriteLine("passive hold: starts " + st.HoldStarts + ", discarded model episodes " + st.HoldAbortedEpisodes +
+                                          ", probes " + st.HoldProbes + " (answered " + st.HoldProbesAnswered + ", locked " + st.HoldProbeLocks +
+                                          ", quick unlocks " + st.HoldProbeQuickUnlocks + ")");
+                        Console.WriteLine("backstop: dims " + st.BackstopDims + " (answered " + st.BackstopAnswered + ", locked " + st.BackstopLocks +
+                                          ", quick unlocks " + st.BackstopQuickUnlocks + ")");
                         return 0;
                     }
+                    case "--probe-signals":
+                        return ProbeSignals(args.Length > 1 && int.TryParse(args[1], out int secs) ? secs : 60);
                     case "--export":
                         Need(args, 2);
                         File.WriteAllText(args[1], ProfileStore.Serialize(Load(path)));
@@ -89,6 +100,39 @@ namespace PresenceLock.App
                 return 1;
             }
         }
+
+        /// <summary>
+        /// Live verification of the passive signals on THIS machine. Suggested checks:
+        ///   play a YouTube video (visible)  -> DisplayRequired should be True
+        ///   minimise it / switch tab        -> False within a few seconds
+        ///   join a Teams/Zoom call           -> mic in use, process running = True
+        ///   leave the call                   -> no claim
+        /// No device is opened; nothing is written.
+        /// </summary>
+        private static int ProbeSignals(int seconds)
+        {
+            var settings = Settings.PolicyReader.Load();
+            var reader = new Sensors.PassiveSignalReader(settings.HoldIgnoreApps);
+            var coordinatorProbe = new PresenceCoordinator(new PresenceEngine(new UserProfile()), settings.ToCoordinatorConfig());
+            Console.WriteLine("power signal: " + (reader.PowerSignalAllowed ? "enabled (workstation SKU)" : "disabled (server SKU)"));
+            Console.WriteLine("time      idle  DisplayRequired  mic    camera  -> hold");
+            for (int i = 0; i < seconds; i++)
+            {
+                var s = reader.ReadNow(out var claims);
+                Console.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "{0:HH:mm:ss} {1,5:F0}  {2,-15}  {3,-5}  {4,-6}  -> {5}",
+                    DateTime.Now, Interop.NativeMethods.IdleSeconds(),
+                    Show(s.DisplayRequired), Show(s.MicrophoneInUse), Show(s.CameraInUse),
+                    coordinatorProbe.EvaluateHold(s)));
+                foreach (var c in claims)
+                    Console.WriteLine("            claim {0}: {1}  running={2} ignored={3}",
+                        c.Capability, c.App, c.ProcessRunning, c.Ignored);
+                System.Threading.Thread.Sleep(1000);
+            }
+            return 0;
+        }
+
+        private static string Show(bool? v) => v.HasValue ? v.Value.ToString() : "n/a";
 
         private static UserProfile Load(string path)
         {

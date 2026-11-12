@@ -30,10 +30,31 @@ namespace PresenceLock.Core
     /// counters and non-content metadata — never window titles, never document content,
     /// never raw audio. Safe to export as an admin baseline.
     /// </summary>
+    /// <summary>
+    /// Counters for the parts of the decision flow that are NOT learned (passive hold,
+    /// hold probes, absolute backstop). Exported so the administrator can judge whether
+    /// HoldMaxMinutes / ConfirmGraceSeconds are set right. No timestamps, no app names.
+    /// </summary>
+    [DataContract]
+    public sealed class CoordinatorStats
+    {
+        [DataMember] public int HoldStarts;            // idle periods that entered a media/meeting hold
+        [DataMember] public int HoldAbortedEpisodes;   // model episodes discarded because a hold began
+        [DataMember] public int HoldProbes;            // visible "are you still there" dims after HoldMax
+        [DataMember] public int HoldProbesAnswered;    // ... answered by the user (present)
+        [DataMember] public int HoldProbeLocks;        // ... unanswered -> locked
+        [DataMember] public int HoldProbeQuickUnlocks; // ... locked but unlocked within the FP window
+        [DataMember] public int BackstopDims;          // certain-absence horizon reached without a model lock
+        [DataMember] public int BackstopAnswered;
+        [DataMember] public int BackstopLocks;
+        [DataMember] public int BackstopQuickUnlocks;
+    }
+
     [DataContract]
     public sealed class UserProfile
     {
-        public const int CurrentSchemaVersion = 1;
+        /// <summary>v2: added FeatureSchema.PostHold. v1 profiles are migrated on load.</summary>
+        public const int CurrentSchemaVersion = 2;
 
         [DataMember] public int SchemaVersion = CurrentSchemaVersion;
         [DataMember] public string AppVersion = "0.1.0";
@@ -50,11 +71,14 @@ namespace PresenceLock.Core
         [DataMember] public int[] OptionalSeen;       // episodes observed
         [DataMember] public int[] OptionalAvailable;  // of those, sensor produced a value
 
+        [DataMember] public CoordinatorStats Stats;
+
         public UserProfile()
         {
             Model = new PresenceModel();
             Modes = new ModeController();
             Config = new EngineConfig();
+            Stats = new CoordinatorStats();
             OptionalSeen = new int[FeatureSchema.Count];
             OptionalAvailable = new int[FeatureSchema.Count];
             CreatedUtcTicks = DateTime.UtcNow.Ticks;

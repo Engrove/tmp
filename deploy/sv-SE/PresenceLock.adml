@@ -59,6 +59,21 @@ Datorprincip går före användarprincip.</string>
 
       <string id="BaselineProfilePath">Baslinjeprofil för nya användare</string>
       <string id="BaselineProfilePath_Help">Sökväg till en baslinjeprofil (från --export-baseline eller --merge-baseline). Användare utan lokal profil startar från dessa vikter i stället för neutrala standardvärden. Kalibreringen nollställs alltid: varje användare måste själv passera säkerhetsgrinden på egen data innan skarpt läge.</string>
+      <string id="Cat_Passive">Passiv paus vid media/möte</string>
+      <string id="MediaHold">Pausa vid synlig mediauppspelning</string>
+      <string id="MediaHold_Help">Standard: på. Så länge någon process håller en display-required-begäran (för Chrome/Edge: en video som spelas på en SYNLIG sida; minimerat fönster eller bakgrundsflik släpper den) pausas den inlärda modellen och den pågående inaktivitetsepisoden kasseras utan träningsetikett. Utan detta lärs "inaktiv 180 s" under en video in som "borta", vilket både lär modellen fel och får inlärningens säkerhetsgrind att se bättre ut än den är.
+
+Läses via CallNtPowerInformation(SystemExecutionState), som inte kräver adminrätt. Om den inkluderar andra processers begäranden är inte dokumenterat: verifiera med PresenceLock.exe --probe-signals. Ignoreras på serveroperativsystem (där är den maskinglobal).
+
+Pausen begränsas alltid av "Gränser för paus".</string>
+      <string id="MeetingHold">Pausa medan mikrofon eller kamera används</string>
+      <string id="MeetingHold_Help">Standard: på. Medan en KÖRANDE process har mikrofonen eller kameran öppen (Teams, Zoom, Webex, samtal i webbläsare) pausas modellen som vid media. Källa: CapabilityAccessManager ConsentStore i HKCU (odokumenterad; LastUsedTimeStop = 0). En post räknas bara om ägarprocessen faktiskt körs. Att gå ifrån ett pågående möte är vanligt, så detta blockerar aldrig låsning: det begränsas av "Gränser för paus".</string>
+      <string id="HoldLimits">Gränser för paus (absolut backstop)</string>
+      <string id="HoldLimits_Help">Maximalt antal minuter inaktivitet (standard 15) varefter en synlig bekräftelsedimning ALLTID visas i skarpt läge, oavsett vad de passiva signalerna eller modellen säger; besvaras den inte inom nådetiden (standard 15 s) låses datorn. Samma bekräftelse används när 180-sekundershorisonten för säker frånvaro nås utan lås. Ingen dator står därför olåst längre än summan av de två värdena efter senaste indata.
+
+Simulerad avvägning (60 dagar, användare med 3 videor och 2 möten per dag): HoldMax 5 min: 74 % av media-/mötespauserna får en dimning, längsta obevakade tid 238 s; 10 min: 49 % / 531 s; 15 min: 30 % / 831 s; 20 min: 13 % / 1096 s. Utan passiva signaler: 90 % / 184 s.</string>
+      <string id="HoldIgnoreApps">Appar som aldrig orsakar paus</string>
+      <string id="HoldIgnoreApps_Help">Kommaseparerade exe-namn (med eller utan .exe) eller prefix för paketfamiljenamn vars mikrofon-/kameraanvändning ignoreras. Använd för verktyg som håller mikrofonen öppen permanent (brusreducering, virtuella ljudenheter), som annars skulle hålla varje inaktivitetsperiod ända till backstopet.</string>
     </stringTable>
 
     <presentationTable>
@@ -83,6 +98,13 @@ Datorprincip går före användarprincip.</string>
       </presentation>
       <presentation id="BaselineProfilePath">
         <textBox refId="BaselineProfilePath"><label>Baslinjefil:</label></textBox>
+      </presentation>
+      <presentation id="HoldLimits">
+        <decimalTextBox refId="HoldMaxMinutes" defaultValue="15" spinStep="1">Bekräftelsedimning efter minuter inaktivitet </decimalTextBox>
+        <decimalTextBox refId="ConfirmGraceSeconds" defaultValue="15" spinStep="1">Lås om obesvarad efter sekunder </decimalTextBox>
+      </presentation>
+      <presentation id="HoldIgnoreApps">
+        <textBox refId="HoldIgnoreApps"><label>Ignorera:</label></textBox>
       </presentation>
     </presentationTable>
   </resources>

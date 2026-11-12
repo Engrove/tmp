@@ -10,13 +10,15 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 
 | Del | Status | Bevis |
 |---|---|---|
-| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen, 29 C#-tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (24/24 parametrar, max avvikelse 0,0). |
+| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen, 47 C#-tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (26/26 parametrar, max avvikelse 0,0). |
+| Beslutsflöde: passiv paus, kontrollprob, absolut backstop (`PresenceCoordinator`) | **Verifierad** | 14 enhetstester, bland annat ett egenskapstest med 500 slumpade modeller och slumpmässigt fladdrande signaler (låsning sker alltid ≤ `HoldMax` + grace). Två jämförande 60-dagarssimuleringar (§6). |
+| Passiva OS-signaler (`PassiveSignalReader`) | **Kompilerad, ej körd. Semantiken är delvis odokumenterad** | ConsentStore är odokumenterad. Om `SystemExecutionState` aggregerar andra processers begäranden är inte dokumenterat. Verifiera på målmaskin med `PresenceLock.exe --probe-signals` (§6). Ett fel i signalerna kan bara fördröja låsning upp till `HoldMax` + grace. |
 | Profil-JSON, export, baslinje, sammanslagning | **Verifierad** | C#-tester: round-trip, atomisk skrivning, korrupt fil, saknade fält, anonymisering, medelvärde. |
 | Goertzel-DSP för ultraljudssensorn | **Verifierad** | `verify/goertzel_check.py`. |
 | ADMX/ADML ↔ kod | **Verifierad** | `verify/check_admx.py`: alla värdenamn och strängar matchar i båda riktningar. |
-| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 50 176 byte (49 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§9). |
+| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 62 464 byte (61 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§10). |
 | Install-/avinstallationsskript | **Syntaxkontrollerade, ej körda** | PowerShells egen parser (7.4), ingen 7-specifik syntax. |
-| Ljudinspelning (WASAPI) och BLE-watcher | **Ingår inte** | Endast gränssnitt och signalbehandling. Se §7. |
+| Ljudinspelning (WASAPI) och BLE-watcher | **Ingår inte** | Endast gränssnitt och signalbehandling. Se §8. |
 | RAM/CPU (< 15 MB / < 0,2 %) | **Ej uppmätt** | Kan inte mätas utan Windows. Mät i piloten. |
 
 Kör hela beviskedjan (Linux eller Windows med Python 3 och .NET 8 SDK):
@@ -37,11 +39,12 @@ Kör hela beviskedjan (Linux eller Windows med Python 3 och .NET 8 SDK):
 | Läge 1: inlärning 15–30 dagar, ingen låsning | Besluten beräknas men är **osynliga**. Ingen dimning och ingen låsning. |
 | Lära sig av rätt/fel och korrigera sig | Online-SGD på självgenererade etiketter (§4). |
 | Extra sensorer under inlärning, inte förutsatta i läge 2 | Valfria sensorer räknas per episod. I skarpt läge **nollställs** varje valfri feature som inte var tillgänglig i ≥ 50 episoder och ≥ 80 % av dem. Testat (`Enforcing_IgnoresUnconfirmedOptionalSensor`). |
-| Bara sensorer utan extra tillåtelse | Kärnan använder musens råinput, `GetLastInputInfo`, förgrundsprocessens **namn** och klockan. Inget av det kräver tillstånd. Tangentbordet registreras **inte** (§6). |
+| Bara sensorer utan extra tillåtelse | Kärnan använder musens råinput, `GetLastInputInfo`, förgrundsprocessens **namn** och klockan. Inget av det kräver tillstånd. Tangentbordet registreras **inte** (§7). |
 | "Visa låsning": notis, klick = oberättigad | Ballongnotis i inlärningsläget. Klick ger en stark negativ etikett (vikt 2) och räknas emot befordran. Kan bara tillämpas en gång per beslut. Testat. |
 | Exportera profil för bred implementation | Tray-meny, CLI (`--export`, `--export-baseline`, `--merge-baseline`), automatisk daglig insamling till en filresurs, och baslinje-seedning för nya användare (GPO). |
 | Läge 2 automatiskt vid "säker" nivå, utan att informera | Statistisk grind (§5). Bytet är tyst: ikon, tooltip och meny är identiska i båda lägena. Bytet loggas bara i admin-loggen. |
-| GPO-distribution utan certifiering | En fil (`PresenceLock.exe` + `.exe.config`). Kopiering och Run-nyckel via GP Preferences, alternativt startskript. Se §8. |
+| Låsa inte mitt i en video eller ett möte, men inte heller hållas öppen av musik | Passiv paus på synlig video (display-required) och på mikrofon/kamera som används av en körande process. Ljud räknas inte som närvaro. Pausen begränsas alltid av backstopet (§6). |
+| GPO-distribution utan certifiering | En fil (`PresenceLock.exe` + `.exe.config`). Kopiering och Run-nyckel via GP Preferences, alternativt startskript. Se §9. |
 | Styrning via AD GPO | `deploy/PresenceLock.admx` med sv-SE och en-US: läge, gränser, inlärningsgrind, notis, applistor, sensorer, avslut, export, insamling och baslinje. |
 
 ---
@@ -52,21 +55,22 @@ Kör hela beviskedjan (Linux eller Windows med Python 3 och .NET 8 SDK):
 src/PresenceLock.Core/        ren logik, inga OS-anrop (net48 + net8.0)
   PresenceModel.cs            P(borta|x,t), online-SGD, LockTime()
   PresenceEngine.cs           episod-tillståndsmaskin + feedback-hooks
+  PresenceCoordinator.cs      hela beslutsflödet: indata > passiv paus > modell, + backstop
   ModeController.cs           inlärning -> skarpt: fönster + Wilson-gräns
   ProfileStore.cs             JSON, atomisk skrivning, export/baslinje/merge
 src/PresenceLock.App/         Windows-skalet, kompileras till EN exe
-  TrayApplicationContext.cs   orkestrering (allt på UI-tråden, inga lås)
+  TrayApplicationContext.cs   tunt skal: läser OS-tillstånd, utför koordinatorns åtgärd
   Interop/MessageWindow.cs    WM_INPUT (endast mus) + WTS lås/upplås
-  Sensors/                    kinematik, förgrundsapp, tidsprior, (sonar, BLE)
+  Sensors/                    kinematik, förgrundsapp, tidsprior, passiva OS-signaler, (sonar, BLE)
   Policy/SoftDimOverlay.cs    3 s dimning, WS_EX_TRANSPARENT|NOACTIVATE|TOPMOST
   Settings/PolicyReader.cs    HKLM-policy > HKCU-policy > HKCU-preferens
-  Cli.cs                      --status/--export/--export-baseline/--merge-baseline
+  Cli.cs                      --status/--export/--export-baseline/--merge-baseline/--probe-signals
 deploy/                       ADMX/ADML, installations-/avinstallationsskript, task-XML
 verify/                       Python-referens, simulering, alla kontroller
 tests/                        xUnit: enhet + paritet mot den riktiga C#-motorn
 ```
 
-Motorn har inga timers och gör inga OS-anrop. Värden matar den med tid, idle-tid och facit. Därför kan exakt samma kod testas utanför Windows.
+Motorn och koordinatorn har inga timers och gör inga OS-anrop. Värden matar den med tid, idle-tid och facit. Därför kan exakt samma kod testas utanför Windows.
 
 ---
 
@@ -97,7 +101,7 @@ Startvikterna `w0 = −3,0` och `λ = 0,110` återger exakt kurvan i den ursprun
 
 1. *"När 25 minuter har passerat vet mjukvaran med 100 % säkerhet att du lämnade vid t = 0."* **Fel.** Man vet bara att användaren var borta vid t = 180 s, inte när hen gick. Om etiketten backdateras till t₀ lär sig modellen att *läsning betyder att gå*. Här labbas observationen censurerat vid den observerade tiden (testet `LongAbsence_IsCensored_…`).
 2. *En EMA över fel-andelen som tröskel för "säker".* En brusig EMA som korsar en tröskel är ett first-passage-fenomen. Med tillräckligt många dagar korsar den vilken tröskel som helst. Mätt: en användare med verklig fel-andel 15 % hade "befordrats" 5 492 gånger av en naiv EMA ≤ 10 %-grind. Med Wilson-grinden: aldrig.
-3. *Ultraljudssonar och BLE som stealth-sensorer.* Se §7. Mikrofonanvändning tänder Windows integritetsindikator, vilket inte är förenligt med stealth.
+3. *Ultraljudssonar och BLE som stealth-sensorer.* Se §8. Mikrofonanvändning tänder Windows integritetsindikator, vilket inte är förenligt med stealth.
 4. *"< 15 MB RAM, < 0,2 % CPU"*. Ej belagt. Ska mätas.
 
 ---
@@ -134,15 +138,92 @@ Slutsatser som håller i alla 10 körningar:
 - **Grinden håller sitt löfte.** Varje befordrad profil låg inom målet (≤ 10 %) även i skarpt läge.
 - **Osäkerhet fördröjer, den påskyndar aldrig.** När signalen inte räcker för 95 % säkerhet blir det admin-granskning istället för gissning.
 
+Tabellen ovan driver motorn direkt. De 1–5 % avgångar som modellen inte låste före 180 s stod i den versionen **olåsta tills användaren kom tillbaka**. Det var ett säkerhetsfel, och det är rättat av backstopet i §6. Med hela beslutsflödet: 0 återkomster till en olåst dator.
+
 **Simuleringen är syntetisk.** Den bevisar att algoritmen gör det den påstår under kontrollerade förhållanden, inte hur verkliga användare beter sig. Det besvaras av piloten.
 
 ---
 
-## 6. Integritet: vad agenten ser och inte ser
+## 6. Passiva OS-signaler: video och möten
+
+**Problemet:** den som tittar på en instruktionsvideo eller lyssnar i ett möte rör inte musen. Utan mer information gör modellen två fel:
+1. **Fel etiketter i inlärningen.** "Inaktiv ≥ 180 s" märks som *borta* fast användaren satt kvar. Uppmätt: 79–85 felaktiga etiketter på 60 dagar.
+2. **Säkerhetsgrinden luras.** De felaktiga etiketterna räknas som *korrekt bedömda frånvaron*, så profilen befordras ändå (dag 15). I skarpt läge får sedan **90 %** av video- och mötespauserna en dimning.
+
+### Vad Windows faktiskt kan berätta: granskning av förslaget
+
+| Förslag | Bedömning | Belägg |
+|---|---|---|
+| Power request `DisplayRequired` | **Används.** Chromium håller video-wake-lock bara när videon spelas, sidan är synlig och videon är synlig och stor nog, hörbar eller en MediaStream. Minimerat fönster eller bakgrundsflik släpper den. | [video_wake_lock.cc](https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/core/html/media/video_wake_lock.cc) |
+| ... läst via `powercfg /requests` | **Kräver admin.** Den enda dokumenterade läsningen utan admin är aggregatet `CallNtPowerInformation(SystemExecutionState)`. Dokumentationen säger inte om den inkluderar andra processers `PowerSetRequest`. **Overifierat**, kontrollera med `--probe-signals`. | [CallNtPowerInformation](https://learn.microsoft.com/en-us/windows/win32/api/powerbase/nf-powerbase-callntpowerinformation) |
+| GSMTC `PlaybackType` Video vs Music | **Används inte.** Chromium rapporterar alltid `MediaPlaybackType_Music`, även för video. YouTube i Chrome eller Edge går därför inte att skilja från Spotify. | [system_media_controls_win.cc](https://chromium.googlesource.com/chromium/src.git/+/main/components/system_media_controls/win/system_media_controls_win.cc) |
+| ConsentStore `LastUsedTimeStop == 0` = mikrofon/kamera aktiv | **Används, med skydd.** Den är odokumenterad, och betydelsen av 0 är härledd, inte specificerad. En post räknas bara om ägarprocessen **körs** (en krasch kan lämna en gammal nolla kvar). Appar som alltid håller mikrofonen öppen kan undantas via GPO. | [elevenforum](https://www.elevenforum.com/t/clear-microphone-last-accessed-history-in-windows-11.8831/) |
+| Mikrofon aktiv ⇒ "spärra låsning helt" | **Avvisat.** Att ansluta till ett möte och gå därifrån är vanligt. Pausen är alltid tidsbegränsad. | logik |
+| GPU `VideoDecode` + PID → fönster | **Används inte.** Chromium avkodar i sin GPU-process, inte i den process som äger fönstret. Drivrutinen kan kalla motorn `VIDEO_DECODE` eller `VIDEO_CODEC`. Många VM saknar GPU. En CAD-animering är 3D-arbete, inte videoavkodning. | [DXGK_ENGINE_TYPE](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3dkmdt/ne-d3dkmdt-dxgk_engine_type) |
+| Ljudnivå per process (WASAPI) | **Används inte.** Ljud är inte närvaro, eftersom musik fortsätter spela under lunchen. Förslagets egen tabell (rad 5) ignorerar det också. | logik |
+
+### Konstruktionen (`PresenceCoordinator`)
+
+Varje sekund, i prioritetsordning:
+1. **Indata** (idle < 1 s): användaren är här. Det som väntade avgörs: dimning, prob eller backstop.
+2. **Passiv paus:** möte (mikrofon eller kamera hos en körande process) eller synlig media (display-required). Modellen pausas, och den pågående episoden **kasseras utan etikett**. När pausen slutar medan användaren fortfarande är inaktiv startar en ny episod med klockan från pausens slut. Den flaggas `PostHold`, kinematiken nollas (den är minuter gammal), och modellen lär sig en egen latens för "efter videon".
+3. **Den inlärda modellen** beslutar som tidigare.
+
+Plus en **absolut backstop** som gäller över alla tre lagren. Detta gäller i skarpt läge:
+- När 180-sekundershorisonten nås utan lås visas en **synlig** bekräftelsedimning. Ett svar ger en sann etikett "närvarande". Inget svar inom `ConfirmGraceSeconds` ger låsning.
+- När `HoldMaxMinutes` inaktivitet nås, oavsett signaler och modell, visas samma bekräftelse.
+- **Ingen dator står olåst längre än `HoldMax` + grace efter senaste indata.** Egenskapstestet kör 500 slumpade modeller med slumpmässigt fladdrande signaler, och gränsen håller i alla.
+
+I inlärningsläget visas ingenting (kravet: ingen låsning). Pausen stoppar ändå de felaktiga etiketterna.
+
+### Uppmätt (60 dagar, 3 seeds; användaren ser 3 videor (4–25 min), sitter i 1 möte, och går 1 gång från en video som fortsätter spela och 1 gång från ett pågående möte per dag)
+
+Kraven sattes före första körningen:
+
+| | Utan signaler | Med passiv paus (15 min) |
+|---|---|---|
+| Felaktiga "borta"-etiketter medan användaren satt kvar | 79–85 | **0** |
+| Video- och mötespauser som fick en dimning (skarpt läge) | 90–92 % | **30–33 %** |
+| Skarpa lås på närvarande användare | 0 | 0 |
+| Avgångar utan media: längsta olåsta tid | ≤ 185 s | ≤ 184 s |
+| Alla avgångar: längsta olåsta tid | 185 s | **831–846 s** (≤ 917 s-gränsen) |
+| Återkomst till olåst dator | 0 | 0 |
+
+**Avvägningen** (seed 7), som admin styr med `HoldMaxMinutes`:
+
+| `HoldMax` | Dimningar under video/möte | Längsta obevakade tid |
+|---|---|---|
+| inga signaler | 90 % | 184 s |
+| 3 min | 90 % | 184 s |
+| 5 min | 74 % | 238 s |
+| 10 min | 49 % | 531 s |
+| **15 min** | **30 %** | **831 s** |
+| 20 min | 13 % | 1 096 s |
+
+Med kort `HoldMax` försvinner störningsvinsten. Vinsten för inlärningen (inga felaktiga etiketter) finns kvar oavsett `HoldMax`. 15 min matchar den vanliga riktlinjen på 900 s för maskininaktivitet.
+
+### Verifiera signalerna på målmaskinen
+
+```bash
+PresenceLock.exe --probe-signals 120
+```
+
+Kontrollera följande:
+- **YouTube synligt:** `DisplayRequired True`.
+- **Minimera eller byt flik:** `False`.
+- **Teams-samtal:** en `claim microphone` med `running=True`, och `hold = Meeting`.
+- **Avsluta samtalet:** ingen claim.
+
+Visar `DisplayRequired` aldrig `True` under video är aggregatet inte användbart på den maskinen. Då gör media-pausen ingenting och modellen beter sig som förut. Visar den alltid `True` (till exempel PowerToys Awake) hålls varje paus till backstopet. Det syns som ett högt `hold starts` i `--status`, och då ska `MediaHoldEnabled` stängas av.
+
+---
+
+## 7. Integritet: vad agenten ser och inte ser
 
 - **Mus:** relativ rörelse, hjul och tidpunkter i ett 3-sekunders RAM-fönster. Endast den sista markörpositionen används (för kantdetektering). Ingenting av detta sparas.
 - **Tangentbord:** **registreras inte.** Tangentbordsaktivitet syns bara som "inte inaktiv" via `GetLastInputInfo`. Det finns ingen kodväg som kan se tangenttryck. En bakgrundsprocess som tar emot rå tangentbordsinput är det klassiska keylogger-mönstret, och det undviks medvetet.
 - **Förgrundsapp:** endast **processnamnet** (`inventor`), aldrig fönstertitel eller innehåll.
+- **Passiva signaler:** ConsentStore-posternas app-sökvägar och de körande processernas avbildsnamn läses i minnet för att avgöra om en mikrofon- eller kamerapost är levande. De sparas aldrig. Profilen får bara räknare (`HoldStarts`, `HoldProbes` …), inga appnamn och inga tider.
 - **Kamera:** används inte. Den tänder lysdioden och integritetsindikatorn, och det skulle vara biometriknära personuppgifter.
 - **Profil:** 11+11 vikter, räknare och 200 bitar utfall. Testet `Json_ContainsNoContent_…` vaktar detta.
 - **Loggen** (`agent.log`): start, stopp, lägesbyten och fel. Inget om användarens aktivitet.
@@ -159,7 +240,7 @@ Designen hjälper vid bedömningen: lokal lagring, inget innehåll, inget tangen
 
 ---
 
-## 7. Valfria sensorer: ärlig status
+## 8. Valfria sensorer: ärlig status
 
 | Sensor | I den här versionen | Fakta som avgör användbarhet |
 |---|---|---|
@@ -170,7 +251,7 @@ Båda är **avstängda som standard**. Utan inspelning markeras de otillgänglig
 
 ---
 
-## 8. Bygga och distribuera via GPO
+## 9. Bygga och distribuera via GPO
 
 ### Bygga (Windows)
 
@@ -218,6 +299,9 @@ Skriptet är idempotent (kopierar bara vid ändrad hash), kontrollerar .NET 4.8 
 | `ShowLockNotification` | DWORD | (användaren väljer) | "Visa låsning" |
 | `ExtraReadingApps` / `ExtraLeavingApps` | SZ | — | Kommaseparerade processnamn |
 | `EnableAudioSonar` / `EnableBleRssi` | DWORD | 0 | Valfria sensorer (ingen effekt utan backend) |
+| `MediaHoldEnabled` / `MeetingHoldEnabled` | DWORD | 1 / 1 | Passiv paus vid synlig media / mikrofon-kamera (§6) |
+| `HoldMaxMinutes` / `ConfirmGraceSeconds` | DWORD | 15 / 15 | Absolut backstop: bekräftelsedimning efter N min, lås efter M s |
+| `HoldIgnoreApps` | SZ | — | Exe-namn eller paketprefix vars mikrofonanvändning ignoreras |
 | `AllowUserExit` / `AllowProfileExport` | DWORD | 1 | Menyval |
 | `ProfileExportDirectory` | EXPAND_SZ | — | Daglig insamling `DATOR_ANVÄNDARE.json` |
 | `BaselineProfilePath` | EXPAND_SZ | — | Startvikter för nya användare |
@@ -226,6 +310,10 @@ Skriptet är idempotent (kopierar bara vid ändrad hash), kontrollerar .NET 4.8 
 
 ```bash
 PresenceLock.exe --status
+```
+
+```bash
+PresenceLock.exe --probe-signals 120
 ```
 
 ```bash
@@ -240,13 +328,16 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 
 ---
 
-## 9. Kända begränsningar
+## 10. Kända begränsningar
 
 - **Windows-skalet är inte kört.** Win32-signaturerna är granskade (bland annat `RAWMOUSE` med explicit layout, där unionen ligger på offset 4), men beteendet på riktig hårdvara är obekräftat.
 - **Kinematiktrösklarna** (`HighSpeed = 40` counts, kantmarginal 8 px) beror på musens CPI och DPI. Modellen lär sig hur mycket den ska lita på varje feature, men feature-kvaliteten avgörs i piloten.
 - **FP-fönstret på 10 s** inkluderar PIN-inmatning efter ett skarpt lås. Om upplåsning ofta tar längre än 10 s räknas äkta felaktiga lås som korrekta. Windows Hello gör det kortare.
 - **SGD med konstant inlärningstakt** konvergerar aldrig till en punkt. Modellen följer användaren över tid, och grinden mäter prestanda, inte stillhet.
 - **RDP:** absoluta muskoordinater hanteras. En frånkoppling (inte låsning) behandlas som inaktivitet.
+- **Passiva signaler:** ConsentStore är odokumenterad och kan ändras i en Windows-uppdatering. Det kan också `SystemExecutionState`-aggregatets innehåll. Power-signalen är avstängd på serveroperativsystem, men **Windows Enterprise multi-session (AVD)** identifieras inte. Där är den maskinglobal, så stäng av `MediaHoldEnabled` via GPO.
+- **Under en paus är datorn olåst** i upp till `HoldMax` + grace om användaren går från en pågående video eller ett möte. Det är en medveten och inställbar avvägning (§6).
+- **I inlärningsläget kan 180-sekundershorisonten inte verifieras** (inget syns). En användare som läser tyst i mer än 3 minuter utan video får fortfarande en censurerad "borta"-etikett. I skarpt läge verifieras horisonten med backstop-dimningen.
 - **`LOCALAPPDATA` roamar inte.** Profilen gäller per användare och dator.
 
 ### Pilotchecklista (det som inte kan bevisas här)
@@ -256,6 +347,8 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 3. Testmaskin med `ModePolicy=2`: gå ifrån. Dimning ska komma vid cirka t₇₅ och lås vid t₉₀. **Skriv i Anteckningar medan skärmen dimmas.** Tangenttrycken ska hamna i Anteckningar, och dimningen ska släppa inom 1 s.
 4. Med `DisableLockWorkstation` satt ska loggen visa "refused" och agenten inte krascha.
 5. Flera skärmar med olika DPI: dimningen ska täcka allt. Testa också i en RDP-session.
-6. Defender/EDR ska vara tyst.
-7. RAM och CPU över en arbetsdag (Process Explorer), mot påståendet < 15 MB och < 0,2 %.
-8. Efter 15–30 dagar: `--status`, grindens siffror och upplevd störning.
+6. `--probe-signals`: kontrollera video (synlig, minimerad), Teams-samtal och att `running=True` stämmer (§6).
+7. Testmaskin i skarpt läge: titta på en video i mer än `HoldMax` minuter. En bekräftelsedimning ska komma, och en musrörelse ska släppa den. Gå sedan från en video som fortsätter spela. Låset ska komma senast `HoldMax` + grace efter din senaste rörelse.
+8. Defender/EDR ska vara tyst.
+9. RAM och CPU över en arbetsdag (Process Explorer), mot påståendet < 15 MB och < 0,2 %.
+10. Efter 15–30 dagar: `--status`, grindens siffror och upplevd störning.

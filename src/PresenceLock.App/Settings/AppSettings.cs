@@ -32,11 +32,26 @@ namespace PresenceLock.App.Settings
         public string[] ExtraReadingApps = new string[0];
         public string[] ExtraLeavingApps = new string[0];
 
+        // Passive hold (visible media / meeting) and the absolute backstop.
+        public bool MediaHoldEnabled = true;
+        public bool MeetingHoldEnabled = true;
+        public int HoldMaxMinutes = 15;          // absolute cap: visible confirmation dim after this much idle
+        public int ConfirmGraceSeconds = 15;     // confirmation dim -> lock if unanswered
+        public string[] HoldIgnoreApps = new string[0];
+
         // Administration.
         public bool AllowUserExit = true;
         public bool AllowProfileExport = true;
         public string ProfileExportDirectory = "";   // e.g. \\srv\share$\PresenceLock (daily export)
         public string BaselineProfilePath = "";      // seed for users without a local profile
+
+        public CoordinatorConfig ToCoordinatorConfig() => new CoordinatorConfig
+        {
+            MediaHoldEnabled = MediaHoldEnabled,
+            MeetingHoldEnabled = MeetingHoldEnabled,
+            HoldMaxSeconds = HoldMaxMinutes * 60.0,
+            ConfirmGraceSeconds = ConfirmGraceSeconds
+        };
 
         /// <summary>Apply the non-null overrides onto a profile before the engine runs.</summary>
         public void ApplyTo(UserProfile profile)

@@ -90,6 +90,47 @@ namespace PresenceLock.Core.Tests
         }
 
         [Fact]
+        public void SchemaV1Profile_IsMigrated_KeepingEveryLearnedWeight()
+        {
+            var v1 = Trained();
+            v1.SchemaVersion = 1;
+            var w11 = new double[11]; var u11 = new double[11];
+            for (int i = 0; i < 11; i++) { w11[i] = v1.Model.W[i]; u11[i] = v1.Model.U[i]; }
+            v1.Model.W = w11; v1.Model.U = u11;
+            v1.OptionalSeen = new int[11]; v1.OptionalAvailable = new int[11];
+            v1.OptionalSeen[9] = 7;
+            v1.Stats = null;                                   // v1 had no stats
+
+            var v2 = ProfileStore.Deserialize(ProfileStore.Serialize(v1));
+
+            Assert.Equal(UserProfile.CurrentSchemaVersion, v2.SchemaVersion);
+            Assert.Equal(FeatureSchema.Count, v2.Model.W.Length);
+            for (int i = 0; i < 11; i++) { Assert.Equal(w11[i], v2.Model.W[i]); Assert.Equal(u11[i], v2.Model.U[i]); }
+            Assert.Equal(0.0, v2.Model.W[FeatureSchema.PostHold]);
+            Assert.Equal(7, v2.OptionalSeen[9]);
+            Assert.NotNull(v2.Stats);
+            Assert.Equal(v1.Modes.WindowCount, v2.Modes.WindowCount);
+        }
+
+        [Fact]
+        public void FutureSchema_IsNotGuessed_FreshProfileInstead()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "pl-test-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            string path = Path.Combine(dir, "profile.json");
+            try
+            {
+                var p = Trained();
+                p.SchemaVersion = UserProfile.CurrentSchemaVersion + 1;
+                File.WriteAllText(path, ProfileStore.Serialize(p));
+                var q = ProfileStore.LoadOrCreate(path, "S-1", "PC");
+                Assert.Equal(UserProfile.CurrentSchemaVersion, q.SchemaVersion);
+                Assert.Equal(PresenceModel.DefaultW0, q.Model.W0);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
         public void ExportBaseline_KeepsWeights_DropsIdentity_ResetsCalibration()
         {
             var p = Trained();

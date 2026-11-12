@@ -66,12 +66,17 @@ namespace PresenceLock.App.Settings
                     if ((v = Dword(k, "MinLearningDays")).HasValue) s.MinLearningDays = Math.Max(1, Math.Min(365, v.Value));
                     if ((v = Dword(k, "MaxLearningDays")).HasValue) s.MaxLearningDays = Math.Max(1, Math.Min(365, v.Value));
                     if ((v = Dword(k, "TargetFalsePositivePercent")).HasValue) s.TargetFalsePositiveRate = Pct(v.Value, 1, 50);
+                    if ((v = Dword(k, "MediaHoldEnabled")).HasValue) s.MediaHoldEnabled = v.Value != 0;
+                    if ((v = Dword(k, "MeetingHoldEnabled")).HasValue) s.MeetingHoldEnabled = v.Value != 0;
+                    if ((v = Dword(k, "HoldMaxMinutes")).HasValue) s.HoldMaxMinutes = Math.Max(1, Math.Min(240, v.Value));
+                    if ((v = Dword(k, "ConfirmGraceSeconds")).HasValue) s.ConfirmGraceSeconds = Math.Max(5, Math.Min(120, v.Value));
                     if ((v = Dword(k, "AllowUserExit")).HasValue) s.AllowUserExit = v.Value != 0;
                     if ((v = Dword(k, "AllowProfileExport")).HasValue) s.AllowProfileExport = v.Value != 0;
 
                     string str;
                     if ((str = Str(k, "ExtraReadingApps")) != null) s.ExtraReadingApps = Csv(str);
                     if ((str = Str(k, "ExtraLeavingApps")) != null) s.ExtraLeavingApps = Csv(str);
+                    if ((str = Str(k, "HoldIgnoreApps")) != null) s.HoldIgnoreApps = Csv(str);
                     if ((str = Str(k, "ProfileExportDirectory")) != null) s.ProfileExportDirectory = Environment.ExpandEnvironmentVariables(str);
                     if ((str = Str(k, "BaselineProfilePath")) != null) s.BaselineProfilePath = Environment.ExpandEnvironmentVariables(str);
                 }

@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace PresenceLock.App.Interop
 {
@@ -114,6 +115,57 @@ namespace PresenceLock.App.Interop
         public const ushort RI_MOUSE_WHEEL = 0x0400;
         public const ushort RI_MOUSE_HWHEEL = 0x0800;
         public const ushort MOUSE_MOVE_ABSOLUTE = 0x0001;   // RDP / VMs / tablets report 0..65535
+
+        // --- passive OS state ------------------------------------------------------
+        // Documented: "SystemExecutionState (16) ... receives a ULONG ... any combination of
+        // ES_SYSTEM_REQUIRED, ES_DISPLAY_REQUIRED, or ES_USER_PRESENT". The docs do NOT state
+        // whether other processes' PowerSetRequest() calls are aggregated; verify on target
+        // hardware with:  PresenceLock.exe --probe-signals
+        public const int SystemExecutionState = 16;
+        public const uint ES_DISPLAY_REQUIRED = 0x00000002;
+
+        [DllImport("powrprof.dll")]
+        public static extern uint CallNtPowerInformation(int informationLevel, IntPtr inputBuffer,
+            uint inputBufferLength, out uint outputBuffer, uint outputBufferLength);
+
+        public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr OpenProcess(uint desiredAccess, bool inheritHandle, int processId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CloseHandle(IntPtr handle);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool QueryFullProcessImageName(IntPtr process, uint flags, StringBuilder exeName, ref uint size);
+
+        /// <summary>Windows 8+. Returns 0 (ERROR_SUCCESS), 15700 (APPMODEL_ERROR_NO_PACKAGE) or 122.</summary>
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        public static extern int GetPackageFamilyName(IntPtr process, ref uint length, StringBuilder packageFamilyName);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public struct OSVERSIONINFOEXW
+        {
+            public uint dwOSVersionInfoSize;
+            public uint dwMajorVersion;
+            public uint dwMinorVersion;
+            public uint dwBuildNumber;
+            public uint dwPlatformId;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string szCSDVersion;
+            public ushort wServicePackMajor;
+            public ushort wServicePackMinor;
+            public ushort wSuiteMask;
+            public byte wProductType;
+            public byte wReserved;
+        }
+
+        public const byte VER_NT_WORKSTATION = 1;
+
+        /// <summary>Returns the real OS version regardless of manifest compatibility shims.</summary>
+        [DllImport("ntdll.dll")]
+        public static extern int RtlGetVersion(ref OSVERSIONINFOEXW versionInfo);
 
         // --- WTS session notifications ------------------------------------------
         public const int WM_WTSSESSION_CHANGE = 0x02B1;

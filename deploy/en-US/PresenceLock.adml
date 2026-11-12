@@ -59,6 +59,21 @@ If the gate is still not met after the maximum number of days (default 30), the 
 
       <string id="BaselineProfilePath">Baseline profile for new users</string>
       <string id="BaselineProfilePath_Help">Path to a baseline profile (from --export-baseline or --merge-baseline). Users without a local profile start from these weights instead of the neutral defaults. Calibration is always reset: every user still has to pass the safety gate on their own data before enforcing.</string>
+      <string id="Cat_Passive">Passive media/meeting hold</string>
+      <string id="MediaHold">Pause on visible media playback</string>
+      <string id="MediaHold_Help">Default: enabled. While some process holds a display-required power request (for Chrome/Edge: a video playing in a VISIBLE page; a minimised window or background tab releases it), the learned model is paused and the running idle episode is discarded without a training label. Without this, "idle 180 s" during a video is learned as "away", which both teaches the model wrong and makes the learning-period safety gate look better than it is.
+
+Read via CallNtPowerInformation(SystemExecutionState), which needs no admin rights. Whether it aggregates other processes' requests is not documented: verify with PresenceLock.exe --probe-signals. Ignored on server operating systems (machine-wide there).
+
+The hold is always bounded by "Hold limits".</string>
+      <string id="MeetingHold">Pause while the microphone or camera is in use</string>
+      <string id="MeetingHold_Help">Default: enabled. While a RUNNING process has the microphone or camera open (Teams, Zoom, Webex, a browser call), the model is paused as for media. Source: the CapabilityAccessManager ConsentStore in HKCU (undocumented; LastUsedTimeStop = 0). A claim only counts if the owning process is actually running. Joining a meeting and walking away is common, so this never blocks locking: it is bounded by "Hold limits".</string>
+      <string id="HoldLimits">Hold limits (absolute backstop)</string>
+      <string id="HoldLimits_Help">Maximum idle minutes (default 15) after which a visible confirmation dim is ALWAYS shown in enforcing mode, whatever the passive signals or the model say; if it is not answered within the grace period (default 15 s) the workstation is locked. The same confirmation is used when the 180-second certain-absence horizon is reached without a lock. No workstation therefore stays unlocked longer than these two values combined after the last input.
+
+Simulated trade-off (60 days, a user with 3 videos and 2 meetings a day): HoldMax 5 min: 74 % of media/meeting pauses get a dim, longest unattended time 238 s; 10 min: 49 % / 531 s; 15 min: 30 % / 831 s; 20 min: 13 % / 1096 s. Without passive signals: 90 % / 184 s.</string>
+      <string id="HoldIgnoreApps">Applications that never cause a hold</string>
+      <string id="HoldIgnoreApps_Help">Comma-separated exe names (with or without .exe) or package family name prefixes whose microphone/camera use is ignored. Use for tools that keep the microphone open permanently (noise suppression, virtual audio devices), which would otherwise hold every idle period until the backstop.</string>
     </stringTable>
 
     <presentationTable>
@@ -83,6 +98,13 @@ If the gate is still not met after the maximum number of days (default 30), the 
       </presentation>
       <presentation id="BaselineProfilePath">
         <textBox refId="BaselineProfilePath"><label>Baseline file:</label></textBox>
+      </presentation>
+      <presentation id="HoldLimits">
+        <decimalTextBox refId="HoldMaxMinutes" defaultValue="15" spinStep="1">Confirmation dim after idle minutes </decimalTextBox>
+        <decimalTextBox refId="ConfirmGraceSeconds" defaultValue="15" spinStep="1">Lock if unanswered after seconds </decimalTextBox>
+      </presentation>
+      <presentation id="HoldIgnoreApps">
+        <textBox refId="HoldIgnoreApps"><label>Ignore:</label></textBox>
       </presentation>
     </presentationTable>
   </resources>

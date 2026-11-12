@@ -280,6 +280,20 @@ namespace PresenceLock.Core
         public void AbortEpisode() => EndEpisode();
 
         /// <summary>
+        /// Enforcing mode: the certain-absence horizon was reached, the host showed a VISIBLE
+        /// confirmation dim, and the user reacted. So the "certain absence" assumption was
+        /// wrong for this episode: they were present at this idle time. Truthful label y = 0
+        /// at the current idle time, scored in the gate window as a dim shown to a present user.
+        /// </summary>
+        public void OnHorizonDimAnswered(long nowUtcTicks)
+        {
+            if (!_episodeActive) return;
+            _modes.RecordEpisodeOutcome(true, true);
+            Learn(FeedbackSample.From(_episode.Clone(), FeedbackKind.SoftDimRejected, nowUtcTicks));
+            EndEpisode();
+        }
+
+        /// <summary>
         /// The OS refused to lock (e.g. the DisableLockWorkstation policy is set). Drop the
         /// pending verdict, otherwise a later unrelated unlock would be scored as a "correct
         /// lock" and teach the model something that never happened.

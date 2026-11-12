@@ -53,7 +53,7 @@ namespace PresenceLock.Core
                 if (File.Exists(path))
                 {
                     var json = File.ReadAllText(path, Encoding.UTF8);
-                    var p = Deserialize(json);
+                    var p = Deserialize(json);   // migrates older schemas, rejects newer ones
                     if (p != null && p.SchemaVersion == UserProfile.CurrentSchemaVersion)
                         return p;
                 }
@@ -109,6 +109,7 @@ namespace PresenceLock.Core
             clone.Modes.PromotionWindowRate = 0.0;
             clone.Modes.PromotionUpperBound = 0.0;
             clone.Modes.PromotionForcedByPolicy = false;
+            clone.Stats = new CoordinatorStats();
             clone.Modes.OutcomeWindow = new bool[ModeController.WindowSize];
             clone.Modes.WindowHead = 0;
             clone.Modes.WindowCount = 0;
@@ -160,11 +161,36 @@ namespace PresenceLock.Core
             if (p.Modes == null) p.Modes = new ModeController();
             p.Modes.Normalize();
             if (p.Config == null) p.Config = new EngineConfig();
-            if (p.OptionalSeen == null || p.OptionalSeen.Length != FeatureSchema.Count)
-                p.OptionalSeen = new int[FeatureSchema.Count];
-            if (p.OptionalAvailable == null || p.OptionalAvailable.Length != FeatureSchema.Count)
-                p.OptionalAvailable = new int[FeatureSchema.Count];
+            if (p.Stats == null) p.Stats = new CoordinatorStats();
+
+            // A profile written by a NEWER agent cannot be interpreted safely: start over
+            // (LoadOrCreate sees the version mismatch) rather than guess.
+            if (p.SchemaVersion > UserProfile.CurrentSchemaVersion) return p;
+
+            // Schema migration (append-only feature layout): keep every learned weight and
+            // counter, give new features weight 0 = "no opinion yet".
+            p.Model.W = Pad(p.Model.W);
+            p.Model.U = Pad(p.Model.U);
+            p.OptionalSeen = Pad(p.OptionalSeen);
+            p.OptionalAvailable = Pad(p.OptionalAvailable);
+            p.SchemaVersion = UserProfile.CurrentSchemaVersion;
             return p;
+        }
+
+        private static double[] Pad(double[] a)
+        {
+            if (a != null && a.Length == FeatureSchema.Count) return a;
+            var r = new double[FeatureSchema.Count];
+            if (a != null) Array.Copy(a, r, Math.Min(a.Length, r.Length));
+            return r;
+        }
+
+        private static int[] Pad(int[] a)
+        {
+            if (a != null && a.Length == FeatureSchema.Count) return a;
+            var r = new int[FeatureSchema.Count];
+            if (a != null) Array.Copy(a, r, Math.Min(a.Length, r.Length));
+            return r;
         }
     }
 }

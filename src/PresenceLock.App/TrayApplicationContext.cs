@@ -13,21 +13,16 @@ using PresenceLock.Core;
 namespace PresenceLock.App
 {
     /// <summary>
-    /// The agent. Owns the tray icon (the ONLY visible UI), the OS message window, the
-    /// sensors and the engine, and translates engine decisions into OS actions.
+    /// The agent shell. It owns the tray icon (the ONLY visible UI), the OS message window,
+    /// the sensors and the overlay — and NO decision logic. Every second it reads idle time
+    /// and passive OS state, hands them to <see cref="PresenceCoordinator"/> (pure, unit-tested
+    /// Core logic) and performs the returned action. Session lock/unlock events are forwarded.
     ///
-    /// Everything runs on the single WinForms UI thread (timer ticks, WM_INPUT, WTS
-    /// notifications, menu clicks), so no locking is needed anywhere.
-    ///
-    /// Learning mode: decisions are computed but INVISIBLE (no dim, no lock). Only the
-    ///   optional "Visa låsning" notice is shown, if the user/policy enabled it.
-    /// Enforcing mode: soft-dim (3 s, click-through) then LockWorkStation(). The switch
-    ///   happens silently; the tray icon, tooltip and menu look identical in both modes.
+    /// Everything runs on the single WinForms UI thread, so no locking is needed.
+    /// Learning and enforcing mode look identical from the outside (stealth requirement).
     /// </summary>
     internal sealed class TrayApplicationContext : ApplicationContext
     {
-        private const double EpisodeStartIdleSeconds = 2.0;  // idle needed before an episode starts
-        private const double ManualLockMaxIdleSeconds = 5.0; // lock this soon after input = Win+L
         private const double DimOpacity = 0.25;              // "tonas ned med 25 %"
         private static readonly TimeSpan SaveEvery = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan ExportEvery = TimeSpan.FromHours(24);
@@ -35,18 +30,16 @@ namespace PresenceLock.App
         private readonly AppSettings _settings;
         private readonly string _profilePath;
         private readonly UserProfile _profile;
-        private readonly PresenceEngine _engine;
+        private readonly PresenceCoordinator _coord;
 
         private readonly MessageWindow _msg;
         private readonly KinematicsTracker _kin = new KinematicsTracker();
         private readonly FeatureBuilder _builder;
+        private readonly PassiveSignalReader _signals;
         private readonly SoftDimOverlay _overlay = new SoftDimOverlay();
         private readonly NotifyIcon _icon;
         private readonly Timer _timer;
 
-        private bool _inputSinceEpisode = true;
-        private bool _sessionLocked;
-        private bool _weLocked;
         private DateTime _lastSaveUtc = DateTime.UtcNow;
         private DateTime _lastExportUtc = DateTime.MinValue;
         private OperatingMode _lastMode;
@@ -58,8 +51,8 @@ namespace PresenceLock.App
             _profilePath = ProfileStore.DefaultPath();
             _profile = LoadProfile();
             _settings.ApplyTo(_profile);
-            _engine = new PresenceEngine(_profile);
-            _lastMode = _engine.Mode;
+            _coord = new PresenceCoordinator(new PresenceEngine(_profile), _settings.ToCoordinatorConfig());
+            _lastMode = _coord.Engine.Mode;
 
             var categories = new AppCategory();
             categories.AddReading(_settings.ExtraReadingApps);
@@ -70,6 +63,7 @@ namespace PresenceLock.App
             var sonar = new AudioSonarSensor(_profile.Config.EnableAudioSonar, backend: null);
             var ble = new BleRssiSensor(_profile.Config.EnableBleRssi);
             _builder = new FeatureBuilder(_kin, new ForegroundMonitor(categories), new TimePrior(), sonar, ble);
+            _signals = new PassiveSignalReader(_settings.HoldIgnoreApps);
 
             _msg = new MessageWindow();
             _msg.RawInput += OnRawInput;
@@ -92,7 +86,8 @@ namespace PresenceLock.App
             SystemEvents.SessionEnding += OnSessionEnding;
             Application.ApplicationExit += (s, e) => Shutdown();
 
-            AgentLog.Write("start: " + _engine.Diagnostics(DateTime.UtcNow.Ticks));
+            AgentLog.Write("start: " + _coord.Engine.Diagnostics(DateTime.UtcNow.Ticks)
+                           + " powerSignal=" + (_signals.PowerSignalAllowed ? "on" : "off (server SKU)"));
         }
 
         // ------------------------------------------------------------------ profile
@@ -161,134 +156,81 @@ namespace PresenceLock.App
         private void OnRawInput(RawInputSample sample)
         {
             _kin.Feed(sample);
-            _inputSinceEpisode = true;
-            if (_engine.EpisodeActive)
-            {
-                _engine.OnInputResumed(Now());  // scores a fired dim/lock as FP if within the window
-            }
+            // Instant visual feedback; the coordinator itself sees the input on the next tick
+            // (idle < 1 s), before it could take any further action.
             if (_overlay.Visible) _overlay.Cancel();
         }
 
         private void OnTick(object sender, EventArgs e)
         {
-            if (_sessionLocked || _shuttingDown) return;
+            if (_shuttingDown) return;
             long now = Now();
             double idle = NativeMethods.IdleSeconds();
 
-            // Input of ANY kind within the last second (keyboard included, which is never
-            // hooked) ends the episode. Episodes only start at idle >= 2 s, so idle < 1 s
-            // during an episode can only mean the user came back.
-            if (idle < 1.0)
-            {
-                _inputSinceEpisode = true;
-                if (_engine.EpisodeActive) _engine.OnInputResumed(now);
-                if (_overlay.Visible) _overlay.Cancel();
-            }
+            // Passive state is only needed while idle (cheap registry/power reads, cached 5 s
+            // and refreshed at the start of every idle period).
+            var signals = idle >= 2.0
+                ? _signals.Read(DateTime.UtcNow.AddSeconds(-idle))
+                : default(PassiveSignals);
 
-            if (!_engine.EpisodeActive)
-            {
-                _engine.Tick(now, _settings.ModePolicy);          // keeps the mode gate evaluated
-                if (_inputSinceEpisode && idle >= EpisodeStartIdleSeconds)
-                {
-                    _engine.BeginEpisode(_builder.BuildSignature(), now);
-                    _inputSinceEpisode = false;
-                }
-            }
+            Act(_coord.Tick(now, idle, signals, _settings.ModePolicy, _builder.BuildSignature));
 
-            if (_engine.EpisodeActive)
-            {
-                _engine.UpdateLive(idle);
-                if (idle >= _profile.Config.LongAbsenceSeconds)
-                {
-                    _engine.OnLongAbsence(now);
-                    _overlay.Cancel();
-                }
-                else
-                {
-                    Act(_engine.Tick(now, _settings.ModePolicy));
-                }
-            }
-
-            if (_engine.Mode != _lastMode)
+            if (_coord.Engine.Mode != _lastMode)
             {
                 // Silent by design: logged for the administrator, never shown to the user.
-                AgentLog.Write("mode change " + _lastMode + " -> " + _engine.Mode + ": " + _engine.Diagnostics(now));
-                _lastMode = _engine.Mode;
+                AgentLog.Write("mode change " + _lastMode + " -> " + _coord.Engine.Mode + ": "
+                               + _coord.Engine.Diagnostics(now));
+                _lastMode = _coord.Engine.Mode;
                 SaveProfile();
             }
             if (DateTime.UtcNow - _lastSaveUtc >= SaveEvery) SaveProfile();
             MaybeExportToShare();
         }
 
-        private void Act(DecisionResult r)
+        private void Act(CoordinatorResult r)
         {
             switch (r.Action)
             {
-                case DecisionAction.SoftDim:
-                    if (r.Mode == OperatingMode.Enforcing)
-                        _overlay.BeginDim(DimOpacity, _profile.Config.SoftDimSeconds);
-                    break; // Learning: invisible by design
+                case CoordinatorAction.SoftDim:
+                    _overlay.BeginDim(DimOpacity, _profile.Config.SoftDimSeconds);
+                    break;
 
-                case DecisionAction.TriggerLock:
-                    if (r.Mode == OperatingMode.Enforcing)
+                case CoordinatorAction.CancelDim:
+                    _overlay.Cancel();
+                    break;
+
+                case CoordinatorAction.Lock:
+                    _overlay.Cancel();
+                    if (!NativeMethods.LockWorkStation())
                     {
-                        _overlay.Cancel();
-                        _weLocked = true;
-                        if (!NativeMethods.LockWorkStation())
-                        {
-                            _weLocked = false;
-                            _engine.DiscardEnforcedLock();
-                            AgentLog.Write("LockWorkStation refused (policy DisableLockWorkstation?)");
-                        }
+                        _coord.OnLockRefused();
+                        AgentLog.Write("LockWorkStation refused (policy DisableLockWorkstation?)");
                     }
-                    else if (_settings.ShowLockNotification)
-                    {
+                    break;
+
+                case CoordinatorAction.WouldLockNotice:
+                    if (_settings.ShowLockNotification)
                         _icon.ShowBalloonTip(8000, "PresenceLock",
                             "Datorn hade låsts nu. Klicka här om det hade varit fel.", ToolTipIcon.None);
-                    }
                     break;
             }
         }
 
         private void OnBalloonClicked(object sender, EventArgs e)
         {
-            if (_engine.OnUserFlaggedUnjustified(Now())) SaveProfile();
+            if (_coord.OnUserFlaggedUnjustified(Now())) SaveProfile();
         }
 
         private void OnSessionLocked()
         {
-            long now = Now();
             _overlay.Cancel();
-            if (!_weLocked)
-            {
-                double idle = NativeMethods.IdleSeconds();
-                if (idle <= ManualLockMaxIdleSeconds)
-                {
-                    // Win+L / Ctrl+Alt+Del -> Lock right after input: gold-standard departure.
-                    var sig = _builder.BuildSignature();
-                    sig.IdleSeconds = idle;
-                    _engine.OnManualLock(sig, now);
-                }
-                else if (_engine.EpisodeActive)
-                {
-                    // Windows' own inactivity/screensaver lock or a remote lock: no clean label.
-                    if (idle >= _profile.Config.LongAbsenceSeconds) _engine.OnLongAbsence(now);
-                    else _engine.AbortEpisode();
-                }
-            }
-            _sessionLocked = true;
+            _coord.OnSessionLocked(Now(), NativeMethods.IdleSeconds(), _builder.BuildSignature);
             SaveProfile();
         }
 
         private void OnSessionUnlocked()
         {
-            if (_weLocked)
-            {
-                _engine.ApplyEnforcedLockOutcome(Now()); // quick unlock => FP, long => confirmed
-                _weLocked = false;
-            }
-            _sessionLocked = false;
-            _inputSinceEpisode = true;
+            _coord.OnSessionUnlocked(Now());   // our own lock: quick unlock => FP, long => confirmed
             _kin.Clear();
             SaveProfile();
         }
