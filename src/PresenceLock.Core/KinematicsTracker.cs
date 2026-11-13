@@ -1,9 +1,16 @@
 using System;
-using PresenceLock.App.Interop;
-using PresenceLock.Core;
 
-namespace PresenceLock.App.Sensors
+namespace PresenceLock.Core
 {
+    /// <summary>One raw mouse event. <see cref="TimestampTicks"/> is on the host's MONOTONIC clock (100 ns units).</summary>
+    public struct RawInputSample
+    {
+        public int Dx;
+        public int Dy;
+        public int WheelDelta;   // 0 unless a wheel event
+        public long TimestampTicks;
+    }
+
     /// <summary>
     /// Keeps a short rolling window of raw MOUSE events and derives the
     /// kinematic "departure signature" at the instant input stops. Everything here is
@@ -42,16 +49,26 @@ namespace PresenceLock.App.Sensors
 
         private int Index(int k) => (_head - _count + k + Capacity) % Capacity;
 
+        /// <summary>The mouse must have been the input that stopped: its last event at most this long before the last input.</summary>
+        public double MaxMouseLagSeconds = 1.5;
+
         /// <summary>
-        /// Write the five kinematic features into the signature. <paramref name="cursor"/>
+        /// Write the five kinematic features into the signature. <paramref name="cursorX"/>/Y
         /// is the final cursor position; screen bounds are used for edge-fling detection.
+        /// <paramref name="nowTicks"/> is on the same monotonic clock as the samples and
+        /// <paramref name="idleSeconds"/> is the current idle time: if the mouse was not the input
+        /// that just stopped (keyboard work after the last mouse move, or stale data), NO kinematic
+        /// features are written — an old gesture must not describe a new episode.
         /// </summary>
         public void WriteFeatures(FeatureVector fv, int cursorX, int cursorY,
-                                  int screenLeft, int screenTop, int screenRight, int screenBottom)
+                                  int screenLeft, int screenTop, int screenRight, int screenBottom,
+                                  long nowTicks, double idleSeconds)
         {
             var cursor = new { X = cursorX, Y = cursorY };
             if (_count == 0) return;
             long newest = _buf[Index(_count - 1)].T;
+            long lastInput = nowTicks - (long)(Math.Max(0, idleSeconds) * TimeSpan.TicksPerSecond);
+            if (newest > nowTicks || newest < lastInput - (long)(MaxMouseLagSeconds * TimeSpan.TicksPerSecond)) return;
             long cutoff = newest - (long)WindowMs * TimeSpan.TicksPerMillisecond;
 
             int total = 0, wheel = 0, mouseCount = 0;

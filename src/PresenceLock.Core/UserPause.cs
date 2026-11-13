@@ -51,17 +51,38 @@ namespace PresenceLock.Core
         [DataMember] public double MinutesChargedTotal;
 
         public const int MaxIntervals = 1440;   // hard cap even for a 1-minute option used all day
+        /// <summary>The longest pause any policy can grant (GPO allows 5-480 min per option).</summary>
+        public const int MaxIntervalMinutes = 480;
+
+        /// <summary>
+        /// A pause entry is only honoured if it could have been granted: start before end, and no
+        /// longer than the longest possible option. Anything else (an edited file, a forged year-long
+        /// pause) is dropped here and never reaches the coordinator or the protected copy.
+        /// </summary>
+        public static bool Plausible(Interval i) =>
+            i != null && i.ChargedEndUtcTicks >= i.StartUtcTicks
+            && i.ChargedEndUtcTicks - i.StartUtcTicks <= MaxIntervalMinutes * TimeSpan.TicksPerMinute
+            && (i.EndedEarlyUtcTicks == 0 || i.EndedEarlyUtcTicks >= i.StartUtcTicks);
 
         public void Normalize()
         {
             if (Intervals == null) Intervals = new List<Interval>();
-            Intervals.RemoveAll(i => i == null || i.ChargedEndUtcTicks < i.StartUtcTicks);
+            Intervals.RemoveAll(i => !Plausible(i));
             if (Intervals.Count > MaxIntervals) Intervals.RemoveRange(0, Intervals.Count - MaxIntervals);
         }
 
-        public Interval Active(long now) => Intervals.LastOrDefault(i => i.StartUtcTicks <= now && now < i.ActiveEnd);
+        public Interval Active(long now) => Intervals.LastOrDefault(i => Plausible(i) && i.StartUtcTicks <= now && now < i.ActiveEnd);
         public bool IsActive(long now) => Active(now) != null;
         public long ActiveUntil(long now) => Active(now)?.ActiveEnd ?? 0;
+
+        /// <summary>Active AND no longer than the longest length the policy in force allows.</summary>
+        public bool IsActive(long now, PausePolicy p)
+        {
+            var a = Active(now);
+            if (a == null || p == null) return false;
+            int max = p.ValidOptions().DefaultIfEmpty(0).Max();
+            return a.ChargedEndUtcTicks - a.StartUtcTicks <= max * TimeSpan.TicksPerMinute;
+        }
 
         /// <summary>Budget charged within the sliding 24-hour window (minutes).</summary>
         public double ChargedMinutes(long now)

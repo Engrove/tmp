@@ -83,6 +83,14 @@ namespace PresenceLock.App
                                 p.Pause.IsActive(nowT) ? "PAUSED until " + new DateTime(p.Pause.ActiveUntil(nowT), DateTimeKind.Utc).ToString("u") : "not paused",
                                 p.Pause.PausesStarted, p.Pause.MinutesChargedTotal));
                         }
+                        Console.WriteLine("guard service: " + Settings.AppSettings.GuardServiceStatus() +
+                                          "; lock chain: requests " + st.LockRequests + ", confirmed " + st.LocksConfirmed +
+                                          ", refused " + st.LockRefusals + ", retries " + st.LockRetries + ", fallbacks " + st.LockFallbacks +
+                                          ", never confirmed (user back first) " + st.LocksNeverConfirmed);
+                        Console.WriteLine("labels: observed departures " + st.ObservedDepartures + ", ASSUMED from inactivity " + st.AssumedAbsenceLabels +
+                                          "; signal failures: idle " + st.IdleSignalFailures + ", registration " + st.RegistrationFailures +
+                                          "; collection: last success " + (st.LastExportSuccessUtcTicks == 0 ? "never" : new DateTime(st.LastExportSuccessUtcTicks, DateTimeKind.Utc).ToString("u")) +
+                                          ", failures " + st.ExportFailures);
                         Console.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture,
                             "cleaning service: {0} runs, last {1}; retired so far: {2} journal episodes, {3} log lines, {4} files; backup {5}",
                             st.HousekeepingRuns,
@@ -116,6 +124,11 @@ namespace PresenceLock.App
                         return ProbeSignals(args.Length > 1 && int.TryParse(args[1], out int secs) ? secs : 60);
                     case "--export":
                         Need(args, 2);
+                        if (!Settings.PolicyReader.Load().AllowProfileExport && !IsElevatedAdmin())
+                        {
+                            Console.WriteLine("refused: policy AllowProfileExport = 0 (same rule as the tray menu; elevated administrators may export)");
+                            return 1;
+                        }
                         File.WriteAllText(args[1], ProfileStore.Serialize(Load(path)));
                         Console.WriteLine("exported " + args[1]);
                         return 0;

@@ -32,7 +32,9 @@ namespace PresenceLock.App.Guard
 
         private readonly GuardPolicy _policy = new GuardPolicy();
         private readonly object _gate = new object();
+        private readonly object _ioGate = new object();
         private Timer _timer;
+        private Timer _ioTimer;                  // profile sync and retention: never on the lock loop (review F05)
         private DateTime _lastSync = DateTime.MinValue;
 
         public GuardService()
@@ -46,7 +48,8 @@ namespace PresenceLock.App.Guard
 
         // Event IDs (stable, for SIEM rules)
         private const int EvStart = 1000, EvAgentKilledLocked = 1001, EvProfileRegression = 1002,
-                          EvLockFailed = 1003, EvStartFailed = 1004, EvProfileRestored = 1005, EvRetention = 1006, EvStop = 1009;
+                          EvLockFailed = 1003, EvStartFailed = 1004, EvProfileRestored = 1005, EvRetention = 1006,
+                          EvLockFallback = 1007, EvLockConfirmed = 1008, EvStop = 1009;
         private DateTime _lastRetention = DateTime.MinValue;
 
         private static readonly EventThrottle Throttle = new EventThrottle();
@@ -59,7 +62,8 @@ namespace PresenceLock.App.Guard
         /// </summary>
         private static void Event(string message, EventLogEntryType type, int id, string key = "")
         {
-            var window = id == EvAgentKilledLocked || id == EvLockFailed ? TimeSpan.FromMinutes(1) : TimeSpan.FromHours(1);
+            bool lockChain = id == EvAgentKilledLocked || id == EvLockFailed || id == EvLockFallback || id == EvLockConfirmed;
+            var window = lockChain ? TimeSpan.FromMinutes(1) : TimeSpan.FromHours(1);
             if (!Throttle.ShouldEmit(id + "|" + key, DateTime.UtcNow.Ticks, window, out int suppressed)) return;
             message = EventThrottle.WithSuppressed(message, suppressed, window);
             try
@@ -76,15 +80,17 @@ namespace PresenceLock.App.Guard
             catch (Exception ex) { Event("protected store unavailable: " + ex.Message, EventLogEntryType.Error, EvStart); }
             Event("PresenceLock Guard started (fail-closed=" + FailClosed() + ")", EventLogEntryType.Information, EvStart);
             _timer = new Timer(_ => Tick(), null, TimeSpan.Zero, Poll);
+            _ioTimer = new Timer(_ => IoTick(), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
         }
 
         protected override void OnStop()
         {
             _timer?.Dispose();
+            _ioTimer?.Dispose();
             Event("PresenceLock Guard stopped", EventLogEntryType.Warning, EvStop);
         }
 
-        protected override void OnShutdown() => _timer?.Dispose();
+        protected override void OnShutdown() { _timer?.Dispose(); _ioTimer?.Dispose(); }
 
         protected override void OnSessionChange(SessionChangeDescription d)
         {
@@ -94,7 +100,12 @@ namespace PresenceLock.App.Guard
                 {
                     case SessionChangeReason.SessionLogon: _policy.OnLogon(d.SessionId); break;
                     case SessionChangeReason.SessionLogoff: _policy.OnLogoff(d.SessionId); break;
-                    case SessionChangeReason.SessionLock: _policy.OnLock(d.SessionId); break;
+                    case SessionChangeReason.SessionLock:
+                        if (_policy.LockPending(d.SessionId))
+                            Event("Session " + d.SessionId + " (" + UserOf(d.SessionId) + ") is now locked, as requested by the guard (confirmed by Windows).",
+                                  EventLogEntryType.Information, EvLockConfirmed, "s" + d.SessionId);
+                        _policy.OnLock(d.SessionId);
+                        break;
                     case SessionChangeReason.SessionUnlock: _policy.OnUnlock(d.SessionId); break;
                 }
             }
@@ -129,25 +140,53 @@ namespace PresenceLock.App.Guard
                 bool failClosed = FailClosed();
                 foreach (var a in _policy.Evaluate(SessionLauncher.Snapshot(), failClosed))
                 {
-                    if (a.Kind == GuardActionKind.LockSession)
+                    string detail;
+                    bool requested;
+                    switch (a.Kind)
                     {
-                        string result = SessionLauncher.LockSession(a.SessionId);
-                        bool ok = !result.StartsWith("LOCK FAILED", StringComparison.Ordinal);
-                        Event("Agent stopped unexpectedly in session " + a.SessionId + " (" + UserOf(a.SessionId) +
-                              "): " + result, ok ? EventLogEntryType.Warning : EventLogEntryType.Error,
-                              ok ? EvAgentKilledLocked : EvLockFailed, "s" + a.SessionId);
-                    }
-                    else
-                    {
-                        try { SessionLauncher.StartInSession(a.SessionId, null); }
-                        catch (Exception ex)
-                        {
-                            Event("Could not start agent in session " + a.SessionId + ": " + ex.Message,
-                                  EventLogEntryType.Error, EvStartFailed, "s" + a.SessionId);
-                        }
+                        case GuardActionKind.LockSession:
+                            // A REQUEST: the session counts as locked only when Windows reports it.
+                            requested = SessionLauncher.RequestLock(a.SessionId, out detail);
+                            _policy.OnLockAttemptResult(a.SessionId, requested);
+                            Event("Session " + a.SessionId + " (" + UserOf(a.SessionId) + "): " + a.Reason + "; lock requested (attempt " +
+                                  a.Attempt + "): " + detail + ". Not yet confirmed by Windows.",
+                                  requested ? EventLogEntryType.Warning : EventLogEntryType.Error,
+                                  requested ? EvAgentKilledLocked : EvLockFailed, "s" + a.SessionId);
+                            break;
+                        case GuardActionKind.DisconnectSession:
+                            requested = SessionLauncher.RequestDisconnect(a.SessionId, out detail);
+                            _policy.OnLockAttemptResult(a.SessionId, requested);
+                            Event("Session " + a.SessionId + " (" + UserOf(a.SessionId) + "): lock still not confirmed after " +
+                                  (a.Attempt - 1) + " requests; fallback disconnect: " + detail,
+                                  requested ? EventLogEntryType.Warning : EventLogEntryType.Error, EvLockFallback, "s" + a.SessionId);
+                            break;
+                        default:
+                            try { SessionLauncher.StartInSession(a.SessionId, null); }
+                            catch (Exception ex)
+                            {
+                                Event("Could not start agent in session " + a.SessionId + ": " + ex.Message,
+                                      EventLogEntryType.Error, EvStartFailed, "s" + a.SessionId);
+                            }
+                            break;
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                Event("guard tick failed: " + ex.Message, EventLogEntryType.Error, EvStartFailed);
+            }
+            finally { Monitor.Exit(_gate); }
+        }
 
+        /// <summary>
+        /// Profile sync (every 60 s) and retention (every 24 h) on their own timer: a slow or
+        /// unreachable share or disk can delay these, never the session/lock loop above.
+        /// </summary>
+        private void IoTick()
+        {
+            if (!Monitor.TryEnter(_ioGate)) return;
+            try
+            {
                 if (DateTime.UtcNow - _lastSync >= ProfileSyncEvery)
                 {
                     _lastSync = DateTime.UtcNow;
@@ -159,11 +198,8 @@ namespace PresenceLock.App.Guard
                     RetireOldData();
                 }
             }
-            catch (Exception ex)
-            {
-                Event("guard tick failed: " + ex.Message, EventLogEntryType.Error, EvStartFailed);
-            }
-            finally { Monitor.Exit(_gate); }
+            catch (Exception ex) { Event("guard I/O tick failed: " + ex.Message, EventLogEntryType.Error, EvStartFailed, "io"); }
+            finally { Monitor.Exit(_ioGate); }
         }
 
         /// <summary>
@@ -223,10 +259,12 @@ namespace PresenceLock.App.Guard
                 if (!File.Exists(local)) continue;
                 try
                 {
-                    // SYSTEM reads a file in a user-writable folder: refuse links (a junction or
-                    // symlink could point the guard at another file) and anything oversized.
+                    // SYSTEM reads a file in a user-writable folder: read it WITH THE USER'S OWN RIGHTS
+                    // (impersonation), so a junction or symlink can only lead to files the user could
+                    // read anyway (review F26); links are refused as well, and anything oversized.
                     if (IsLink(local) || IsLink(Path.GetDirectoryName(local))) continue;
-                    var candidate = ProfileStore.Deserialize(BoundedFile.ReadAllText(local, BoundedFile.MaxProfileBytes));
+                    string json = SessionLauncher.AsSessionUser(s.SessionId, () => BoundedFile.ReadAllText(local, BoundedFile.MaxProfileBytes));
+                    var candidate = ProfileStore.Deserialize(json);
                     var existing = ProtectedStore.TryRead(sid);
                     if (TamperProtection.AcceptIntoProtected(existing, candidate, sid, policy, out var reason))
                     {

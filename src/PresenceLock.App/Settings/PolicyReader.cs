@@ -24,9 +24,12 @@ namespace PresenceLock.App.Settings
         public static AppSettings Load()
         {
             var s = new AppSettings();
-            Apply(s, Registry.CurrentUser, PreferenceKey, isPolicy: false);
-            Apply(s, Registry.CurrentUser, PolicyKey, isPolicy: true);
-            Apply(s, Registry.LocalMachine, PolicyKey, isPolicy: true);
+            // User preference, then USER policy (preferences only, see PolicyScope), then the
+            // COMPUTER policy, which alone decides every protection-relevant value. A value written
+            // into the user's own hive can therefore never weaken what the computer policy leaves unset.
+            Apply(s, Registry.CurrentUser, PreferenceKey, isPolicy: false, machine: false);
+            Apply(s, Registry.CurrentUser, PolicyKey, isPolicy: true, machine: false);
+            Apply(s, Registry.LocalMachine, PolicyKey, isPolicy: true, machine: true);
             return s;
         }
 
@@ -41,7 +44,7 @@ namespace PresenceLock.App.Settings
             catch (Exception ex) { AgentLog.Write("pref save failed: " + ex.GetType().Name); }
         }
 
-        private static void Apply(AppSettings s, RegistryKey hive, string path, bool isPolicy)
+        private static void Apply(AppSettings s, RegistryKey hive, string path, bool isPolicy, bool machine)
         {
             try
             {
@@ -55,7 +58,7 @@ namespace PresenceLock.App.Settings
                         s.ShowLockNotification = v.Value != 0;
                         if (isPolicy) s.ShowLockNotificationLocked = true;
                     }
-                    if (!isPolicy) return; // everything below is administrator-only
+                    if (!isPolicy || !machine) return; // everything below: computer policy only (PolicyScope)
 
                     if ((v = Dword(k, "ModePolicy")).HasValue)
                         s.ModePolicy = (ModePolicy)Math.Max(0, Math.Min(2, v.Value));

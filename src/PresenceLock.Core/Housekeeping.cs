@@ -80,7 +80,7 @@ namespace PresenceLock.Core
             {
                 var p = ProfileStore.Deserialize(BoundedFile.ReadAllText(profilePath, BoundedFile.MaxProfileBytes));
                 if (p == null || p.SchemaVersion != UserProfile.CurrentSchemaVersion) { report.BackupSkippedReason = "profile not current"; return; }
-                string tmp = profilePath + BackupSuffix + ".tmp", bak = profilePath + BackupSuffix;
+                string tmp = ProfileStore.TempName(profilePath + BackupSuffix), bak = profilePath + BackupSuffix;
                 File.Copy(profilePath, tmp, true);
                 if (File.Exists(bak)) File.Replace(tmp, bak, null); else File.Move(tmp, bak);
                 report.BackupWritten = true;

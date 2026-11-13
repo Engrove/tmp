@@ -60,7 +60,27 @@ namespace PresenceLock.Core
         [DataMember] public long LastHousekeepingUtcTicks;
         [DataMember] public long JournalEpisodesRetired;  // cumulative
         [DataMember] public long FilesRetired;            // cumulative (crash leftovers, expired logs)
-        [DataMember] public long LogLinesRetired;         // cumulative// ... not decidable: counted as a possible false dim (conservative)
+        [DataMember] public long LogLinesRetired;         // cumulative
+        // Lock chain (a request is not a lock): requests, confirmations by the session-lock event or
+        // a disconnect, refusals, retries, fallbacks, and requests the user overtook before any of it worked.
+        [DataMember] public int LockRequests;
+        [DataMember] public int LocksConfirmed;
+        [DataMember] public int LockRefusals;
+        [DataMember] public int LockRetries;
+        [DataMember] public int LockFallbacks;
+        [DataMember] public int LocksNeverConfirmed;
+        // Labels: observed departures (Win+L, slow unlock after a lock) versus absence ASSUMED from
+        // inactivity alone (learning mode, outside silent-work applications).
+        [DataMember] public int ObservedDepartures;
+        [DataMember] public int AssumedAbsenceLabels;
+        // Collection to ProfileExportDirectory (review F22): success is recorded only after the file
+        // was published completely; a failure retries after an hour, not a day.
+        [DataMember] public long LastExportSuccessUtcTicks;
+        [DataMember] public long LastExportAttemptUtcTicks;
+        [DataMember] public int ExportFailures;
+        // Signals the security loop depends on (review F14): degradations seen.
+        [DataMember] public int IdleSignalFailures;
+        [DataMember] public int RegistrationFailures;// ... not decidable: counted as a possible false dim (conservative)
     }
 
     [DataContract]
@@ -70,7 +90,7 @@ namespace PresenceLock.Core
         public const int CurrentSchemaVersion = 3;
 
         [DataMember] public int SchemaVersion = CurrentSchemaVersion;
-        [DataMember] public string AppVersion = "0.6.1";
+        [DataMember] public string AppVersion = "0.7.0";
         [DataMember] public string UserSid = "";       // identity only, not content
         [DataMember] public string MachineName = "";
         [DataMember] public long CreatedUtcTicks;

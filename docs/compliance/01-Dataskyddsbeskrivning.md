@@ -33,11 +33,12 @@ Uppgifterna finns **lokalt på den dator du använder**, i din profilmapp `%LOCA
 | Vanejournal (`habits.json`) | Starttid och längd för dina inaktiva perioder, inget annat | 42 dygn, rensas dagligen. Lämnar aldrig datorn |
 | Pauser (i profilen) | Start och slut för pauser du har valt | 24 timmar |
 | Teknisk logg (`agent.log`) | Start, stopp, lägesbyten, fel, städning och pauser | 30 dygn |
-| Windows händelselogg | Pauser (vem, när, längd), säkerhetshändelser (händelse 1000–1016) | Enligt datorns inställning för programloggen [[ ]] |
+| Windows händelselogg | Pauser (vem, när, längd), säkerhetshändelser (händelse 1000–1018): låsbegäran, bekräftelse, frånkoppling, signalfel | Enligt datorns inställning för programloggen [[ ]] |
+| Hjärtslag (`HKCU\Software\PresenceLock\Agent`) | Tidpunkt när agenten senast svarade och dess processnummer. Skrivs över var 5:e sekund, ingen historik. Läses av bevakningstjänsten för att upptäcka en agent som hängt sig | Bara det senaste värdet |
 
 **I NIS2-läge** [[om tillämpligt]] finns dessutom en skyddad kopia av profilen (inte vanejournalen) i `%ProgramFiles%\PresenceLock\state` på samma dator, så att skyddet inte kan nollställas. Den tas bort 180 dygn efter att du senast använde datorn.
 
-**Insamling** [[om tillämpligt, annars stryk]]: en gång per dygn skickas en kopia av modellen till en filresurs som bara IT-administratörer kan läsa. Kopian innehåller vikter och räknare men inga pausernas tidpunkter, ingen tystnadsprofil och ingen vanejournal. Den används för att förbättra standardinställningarna och tas bort efter 90 dygn.
+**Insamling** [[om tillämpligt, annars stryk; rekommendation: avstängd under piloten]]: en gång per dygn skickas en kopia av modellen till en filresurs. Kopian innehåller vikter, lägesuppgifter och räknare. Den innehåller inte ditt Windows-konto (SID), datorns namn, livscykeltider, pausernas tidpunkter, tystnadsprofilen eller vanejournalen. Uppdateringsdatumet anges bara på dagsnivå. **Filnamnet (`DATOR_ANVÄNDARE.json`) identifierar dig.** Kopian är alltså personuppgifter om dig. Den används för att förbättra standardinställningarna och tas bort efter 90 dygn. Behörigheterna på resursen ska bestämmas så att användare inte kan läsa varandras filer [[verifiera]].
 
 **Det som inte samlas in:** tangenttryckningar, skärm- eller dokumentinnehåll, fönstertitlar, webbhistorik, kamerabild, mikrofonljud och position. Om mikrofon eller kamera används läses bara av som ja eller nej, för att inte låsa under möten, och det sparas inte. Programnamnet i förgrunden används bara för att avgöra programtyp och sparas inte. Musrörelser används några sekunder i minnet och sparas inte.
 

@@ -63,6 +63,8 @@ namespace PresenceLock.Core
             p.Modes.MaxLearningDays = defaults.Modes.MaxLearningDays;
             p.Modes.TargetFalsePositiveRate = defaults.Modes.TargetFalsePositiveRate;
             p.Modes.MinConfirmedPositives = defaults.Modes.MinConfirmedPositives;
+            p.Modes.MaxWrongShareOfDecisions = defaults.Modes.MaxWrongShareOfDecisions;
+            p.Pause?.Normalize();          // a forged over-long or impossible pause is dropped, never honoured
 
             p.Model.LearningRate = defaults.Model.LearningRate;
             p.Model.L2 = defaults.Model.L2;
@@ -142,6 +144,7 @@ namespace PresenceLock.Core
         public static bool AcceptIntoProtected(UserProfile existing, UserProfile candidate, string userSid,
                                                ModePolicy policy, out string reason)
         {
+            candidate?.Pause?.Normalize();   // validate pause entries before they can reach the protected copy
             reason = "accepted";
             if (candidate == null) { reason = "unreadable"; return false; }
             if (candidate.SchemaVersion != UserProfile.CurrentSchemaVersion) { reason = "schema mismatch"; return false; }
@@ -169,12 +172,15 @@ namespace PresenceLock.Core
 
     // ------------------------------------------------------------------- guard service rules
 
-    public enum GuardActionKind { StartAgent, LockSession }
+    public enum GuardActionKind { StartAgent, LockSession, DisconnectSession }
 
     public struct GuardAction
     {
         public int SessionId;
         public GuardActionKind Kind;
+        /// <summary>For LockSession/DisconnectSession: which request for the current lock (1 = first).</summary>
+        public int Attempt;
+        public string Reason;
         public override string ToString() => Kind + "@" + SessionId;
     }
 
@@ -182,26 +188,62 @@ namespace PresenceLock.Core
     {
         public int SessionId;
         public bool Active;          // WTSActive: a user is logged on and connected
-        public bool AgentRunning;    // a PresenceLock agent process exists in that session
+        /// <summary>A process of the installed exe runs in that session IN THE AGENT ROLE (no command-line
+        /// arguments). A CLI instance of the same exe (--status, --probe-signals ...) does not count.</summary>
+        public bool AgentRunning;
+        /// <summary>Seconds since the agent's last heartbeat; NaN = no heartbeat found.</summary>
+        public double HeartbeatAgeSeconds;
+        /// <summary>The session's lock state as Windows reports it (WTSSessionInfoEx); null = unknown.</summary>
+        public bool? Locked;
     }
 
     /// <summary>
     /// The guard service's per-session state machine (polled every ~2 s by the LocalSystem
-    /// service). It (re)starts the agent in every active session and, in fail-closed mode,
-    /// LOCKS a session whose agent disappeared while the session was unlocked — so killing or
-    /// crashing the agent can never leave a workstation open.
+    /// service; all timing is counted in polls, so no clock change can stretch it).
+    ///
+    /// Health is not "a process exists": the agent must run in the agent role AND keep its
+    /// heartbeat fresh (a hung UI thread stops it). In fail-closed mode an active session is locked
+    /// when its agent disappeared or hangs, and also when an agent never became healthy within
+    /// <see cref="ColdStartGracePolls"/> of the session becoming active or unlocked (a broken install
+    /// must not mean an unprotected session).
+    ///
+    /// A lock REQUEST is not a lock. The state only counts as locked when Windows reports it
+    /// (session-lock event or the queried session state). Until then the request is repeated
+    /// (<see cref="LockAckPolls"/>, sooner after a reported failure) and after
+    /// <see cref="FallbackAfterAttempts"/> requests the session is disconnected instead.
     /// </summary>
     public sealed class GuardPolicy
     {
-        /// <summary>Consecutive polls without an agent before acting (debounces process restarts).</summary>
+        /// <summary>Consecutive unhealthy polls before acting (debounces process restarts).</summary>
         public int MissesBeforeAction = 2;
+        /// <summary>An active, unlocked session must get a healthy agent within this many polls (120 s).</summary>
+        public int ColdStartGracePolls = 60;
+        /// <summary>No confirmed lock this many polls after a request: request again (10 s).</summary>
+        public int LockAckPolls = 5;
+        /// <summary>After a request that reported failure: request again after this many polls.</summary>
+        public int LockRetryPollsAfterFailure = 3;
+        /// <summary>After this many requests without a confirmed lock: disconnect instead.</summary>
+        public int FallbackAfterAttempts = 3;
+        /// <summary>Polls between agent start attempts (30 s).</summary>
+        public int StartRetryPolls = 15;
+        /// <summary>An agent whose heartbeat is older than this is hung.</summary>
+        public double HeartbeatStaleSeconds = 60;
+        /// <summary>Polls an agent may run before its first heartbeat must exist (start-up).</summary>
+        public int HeartbeatGracePolls = 30;
 
         private sealed class State
         {
-            public bool Seen;     // an agent has been observed running in this session
+            public bool Seen;            // a healthy agent has been observed in this session
             public int Misses;
-            public bool Locked;   // session currently locked (from session-change events)
-            public bool Ending;   // logoff in progress
+            public bool Locked;          // session locked, as reported by Windows
+            public bool Ending;          // logoff in progress
+            public int ColdPolls;        // unhealthy polls while unlocked and never seen healthy
+            public bool LockWanted;
+            public int LockAttempts;
+            public int PollsSinceLockAttempt;
+            public bool LastAttemptFailed;
+            public int PollsSinceStart = -1;
+            public int AgentPresentPolls;
         }
 
         private readonly Dictionary<int, State> _sessions = new Dictionary<int, State>();
@@ -214,8 +256,17 @@ namespace PresenceLock.Core
 
         public void OnLogon(int sessionId) => _sessions[sessionId] = new State();
         public void OnLogoff(int sessionId) => Get(sessionId).Ending = true;
-        public void OnLock(int sessionId) => Get(sessionId).Locked = true;
-        public void OnUnlock(int sessionId) => Get(sessionId).Locked = false;
+        public void OnLock(int sessionId) { var s = Get(sessionId); s.Locked = true; s.LockWanted = false; s.LockAttempts = 0; }
+        public void OnUnlock(int sessionId) { var s = Get(sessionId); s.Locked = false; s.ColdPolls = 0; }
+
+        /// <summary>The host reports the result of a LockSession/DisconnectSession it performed:
+        /// false = the request itself failed (helper did not start, API error). Never a confirmation.</summary>
+        public void OnLockAttemptResult(int sessionId, bool requested)
+        {
+            if (!requested && _sessions.TryGetValue(sessionId, out var s)) s.LastAttemptFailed = true;
+        }
+
+        public bool LockPending(int sessionId) => _sessions.TryGetValue(sessionId, out var s) && s.LockWanted && !s.Locked;
 
         public List<GuardAction> Evaluate(IEnumerable<SessionSnapshot> sessions, bool failClosed)
         {
@@ -224,26 +275,62 @@ namespace PresenceLock.Core
             foreach (var snap in sessions)
             {
                 present.Add(snap.SessionId);
-                if (!snap.Active || snap.SessionId == 0) continue;     // session 0 = services
+                if (snap.SessionId == 0) continue;                       // session 0 = services
                 var st = Get(snap.SessionId);
-                if (st.Ending) continue;
-
-                if (snap.AgentRunning)
+                if (!snap.Active)
                 {
-                    st.Seen = true;
-                    st.Misses = 0;
+                    // Disconnected: not displayed anywhere, reconnecting needs authentication.
+                    st.LockWanted = false; st.LockAttempts = 0;
                     continue;
                 }
-                if (++st.Misses < MissesBeforeAction) continue;
-
-                if (failClosed && st.Seen && !st.Locked)
+                if (st.Ending) continue;
+                if (snap.Locked.HasValue)
                 {
-                    actions.Add(new GuardAction { SessionId = snap.SessionId, Kind = GuardActionKind.LockSession });
-                    st.Locked = true;
+                    if (snap.Locked.Value && !st.Locked) OnLock(snap.SessionId);
+                    else if (!snap.Locked.Value && st.Locked) OnUnlock(snap.SessionId);
                 }
-                actions.Add(new GuardAction { SessionId = snap.SessionId, Kind = GuardActionKind.StartAgent });
-                st.Seen = false;
-                st.Misses = 0;
+
+                st.AgentPresentPolls = snap.AgentRunning ? st.AgentPresentPolls + 1 : 0;
+                bool heartbeatOk = !double.IsNaN(snap.HeartbeatAgeSeconds) && snap.HeartbeatAgeSeconds <= HeartbeatStaleSeconds;
+                bool healthy = snap.AgentRunning && (heartbeatOk || st.AgentPresentPolls <= HeartbeatGracePolls);
+                if (healthy)
+                {
+                    st.Seen = true; st.Misses = 0; st.ColdPolls = 0;
+                    st.LockWanted = false; st.LockAttempts = 0; st.PollsSinceStart = -1;
+                    continue;
+                }
+
+                st.Misses++;
+                if (!st.Seen && !st.Locked) st.ColdPolls++;
+                if (st.Misses < MissesBeforeAction) continue;
+
+                if (failClosed && !st.Locked && !st.LockWanted && (st.Seen || st.ColdPolls >= ColdStartGracePolls))
+                {
+                    st.LockWanted = true;
+                    st.LockAttempts = 0;
+                }
+                if (st.LockWanted && !st.Locked)
+                {
+                    int wait = st.LastAttemptFailed ? LockRetryPollsAfterFailure : LockAckPolls;
+                    if (st.LockAttempts == 0 || ++st.PollsSinceLockAttempt >= wait)
+                    {
+                        st.LockAttempts++;
+                        st.PollsSinceLockAttempt = 0;
+                        st.LastAttemptFailed = false;
+                        actions.Add(new GuardAction
+                        {
+                            SessionId = snap.SessionId,
+                            Kind = st.LockAttempts > FallbackAfterAttempts ? GuardActionKind.DisconnectSession : GuardActionKind.LockSession,
+                            Attempt = st.LockAttempts,
+                            Reason = st.Seen ? (snap.AgentRunning ? "agent not responding" : "agent stopped") : "no healthy agent after logon/unlock"
+                        });
+                    }
+                }
+                if (st.PollsSinceStart < 0 || ++st.PollsSinceStart >= StartRetryPolls)
+                {
+                    if (!snap.AgentRunning) actions.Add(new GuardAction { SessionId = snap.SessionId, Kind = GuardActionKind.StartAgent });
+                    st.PollsSinceStart = 0;
+                }
             }
             // Forget sessions that no longer exist.
             var gone = new List<int>();

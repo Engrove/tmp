@@ -32,7 +32,8 @@ namespace PresenceLock.App.Sensors
             // --- kinematics ---
             NativeMethods.GetCursorPos(out var cursor);
             var vs = SystemInformation.VirtualScreen;
-            _kin.WriteFeatures(fv, cursor.X, cursor.Y, vs.Left, vs.Top, vs.Right, vs.Bottom);
+            _kin.WriteFeatures(fv, cursor.X, cursor.Y, vs.Left, vs.Top, vs.Right, vs.Bottom,
+                               MonoClock.NowTicks, NativeMethods.IdleSecondsOrNaN() is double idle && !double.IsNaN(idle) ? idle : 0);
 
             // --- foreground context ---
             var cat = _fg.CurrentCategory();

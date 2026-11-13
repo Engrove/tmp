@@ -20,7 +20,9 @@ namespace PresenceLock.Core
         public string Controller = "Elho";
         public string PrivacyContact = "";          // empty = the responsible person
         public string PolicyUrl = "";               // optional link to the full privacy notice
-        public bool Nis2Mode;                       // AllowUserExit = 0
+        public bool Nis2Mode;                       // AllowUserExit = 0 ("centrally protected mode")
+        /// <summary>Observed, not configured: "running", "stopped", "not installed" or "unknown" (review F23).</summary>
+        public string GuardStatus = "unknown";
         public int HoldMaxMinutes = 15;
         public int ConfirmGraceSeconds = 15;
         public int MaxLearnedHorizonMinutes = 10;
@@ -94,8 +96,10 @@ namespace PresenceLock.Core
                     "när du faktiskt har gått. Lämnas datorn utan att låsas, till exempel under en video eller paus, låses den " +
                     "senast efter " + Duration(unattended) + "." +
                     (i.Nis2Mode
-                        ? "\nOrganisationen har bestämt att appen inte kan stängas av på den här datorn (NIS2-läge). " +
-                          "Om den ändå stoppas låses sessionen."
+                        ? "\nCentralt skyddat läge: organisationen har bestämt att appen inte kan stängas av på den här datorn. " +
+                          (i.GuardStatus == "running"
+                              ? "Bevakningstjänsten körs: om appen ändå stoppas begär den låsning av sessionen och kontrollerar att den låses."
+                              : "Bevakningstjänsten körs INTE (" + GuardText(i.GuardStatus) + "): om appen stoppas låses sessionen inte automatiskt. Kontakta IT.")
                         : "")
             });
 
@@ -157,6 +161,9 @@ namespace PresenceLock.Core
             }
             return sb.ToString();
         }
+
+        private static string GuardText(string s) =>
+            s == "stopped" ? "stoppad" : s == "not installed" ? "inte installerad" : "status okänd";
 
         private static string Duration(int seconds) =>
             seconds % 60 == 0 ? (seconds / 60).ToString(CultureInfo.InvariantCulture) + " minuter"

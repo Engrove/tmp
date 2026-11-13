@@ -49,6 +49,7 @@ namespace PresenceLock.Core.Tests
             Assert.Contains("15, 45 minuter, högst 60 minuter per dygn", t);
             Assert.DoesNotContain("gäller även under pausen", t);
             Assert.Contains("inte kan stängas av", t);
+            Assert.Contains("Bevakningstjänsten körs INTE", t);            // default GuardStatus unknown: no false assurance
             Assert.Contains("högst 45 dygn", t);
             Assert.Contains("efter 365 dygn utan inloggning", t);
             Assert.Contains("högst 30 dygn", t);

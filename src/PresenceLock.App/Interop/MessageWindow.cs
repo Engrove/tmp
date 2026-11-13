@@ -1,4 +1,5 @@
 using System;
+using PresenceLock.Core;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using static PresenceLock.App.Interop.NativeMethods;
@@ -7,13 +8,6 @@ namespace PresenceLock.App.Interop
 {
     /// <summary>One raw MOUSE event, already decoded. The keyboard is deliberately not
     /// registered for raw input at all (see MessageWindow).</summary>
-    public struct RawInputSample
-    {
-        public int Dx;
-        public int Dy;
-        public int WheelDelta;   // 0 unless a wheel event
-        public long TimestampTicks;
-    }
 
     /// <summary>
     /// A hidden message-only window that is the single place OS messages arrive:
@@ -47,21 +41,41 @@ namespace PresenceLock.App.Interop
                 Parent = new IntPtr(-3)
             };
             CreateHandle(cp);
+            EnsureRegistered();
+        }
 
-            var devices = new[]
+        /// <summary>Raw mouse input is registered (kinematic features available).</summary>
+        public bool RawInputRegistered { get; private set; }
+        /// <summary>Session lock/unlock/disconnect notifications are registered. WITHOUT them a lock
+        /// can never be confirmed: the coordinator keeps re-requesting and falls back to a disconnect.</summary>
+        public bool SessionNotificationsRegistered { get; private set; }
+        public int LastRegistrationError { get; private set; }
+
+        /// <summary>(Re)try both registrations; safe to call repeatedly. Returns true when both are in place.</summary>
+        public bool EnsureRegistered()
+        {
+            if (!RawInputRegistered)
             {
-                new RAWINPUTDEVICE
+                var devices = new[]
                 {
-                    usUsagePage = HID_USAGE_PAGE_GENERIC,
-                    usUsage = HID_USAGE_GENERIC_MOUSE,
-                    dwFlags = RIDEV_INPUTSINK,
-                    hwndTarget = Handle
-                }
-            };
-            RegisterRawInputDevices(devices, (uint)devices.Length,
-                (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)));
-
-            WTSRegisterSessionNotification(Handle, NOTIFY_FOR_THIS_SESSION);
+                    new RAWINPUTDEVICE
+                    {
+                        usUsagePage = HID_USAGE_PAGE_GENERIC,
+                        usUsage = HID_USAGE_GENERIC_MOUSE,
+                        dwFlags = RIDEV_INPUTSINK,
+                        hwndTarget = Handle
+                    }
+                };
+                RawInputRegistered = RegisterRawInputDevices(devices, (uint)devices.Length,
+                    (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)));
+                if (!RawInputRegistered) LastRegistrationError = Marshal.GetLastWin32Error();
+            }
+            if (!SessionNotificationsRegistered)
+            {
+                SessionNotificationsRegistered = WTSRegisterSessionNotification(Handle, NOTIFY_FOR_THIS_SESSION);
+                if (!SessionNotificationsRegistered) LastRegistrationError = Marshal.GetLastWin32Error();
+            }
+            return RawInputRegistered && SessionNotificationsRegistered;
         }
 
         protected override void WndProc(ref Message m)
@@ -109,7 +123,7 @@ namespace PresenceLock.App.Interop
                 var header = Marshal.PtrToStructure<RAWINPUTHEADER>(buffer);
                 int headerSize = Marshal.SizeOf(typeof(RAWINPUTHEADER));
 
-                var sample = new RawInputSample { TimestampTicks = DateTime.UtcNow.Ticks };
+                var sample = new RawInputSample { TimestampTicks = MonoClock.NowTicks };
 
                 if (header.dwType == RIM_TYPEMOUSE)
                 {

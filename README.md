@@ -4,19 +4,21 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 
 > Repo: `tmp` (Claude Code-experiment). Den här katalogen innehåller experimentet PresenceLock.
 
+> **Status 0.7.0: utvecklingskandidat, inte godkänd för bred produktion.** En extern djupgranskning av 0.6.1 (2026-11-12) hittade fel i låskedjan. De är rättade och belagda med regressionstester ([åtgärdsdokument](docs/review/2026-11-12-granskning-atgarder.md)). Ingen Windows-acceptans är gjord (W01–W18 i pilotchecklistan, §13). **Behåll Windows egen inaktivitetsgräns** (skärmsläckar-GPO eller *Interactive logon: Machine inactivity limit*) som säkerhetsgolv. PresenceLock är ett komplement som kan låsa tidigare.
+
 ---
 
 ## 1. Status: vad är bevisat, vad är bara kompilerat, vad är otestat
 
 | Del | Status | Bevis |
 |---|---|---|
-| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 153 tester. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
+| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 172 tester, varav 19 regressionstester från den externa granskningen. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
 | Beslutsflöde: passiv paus, kontrollprob, absolut backstop (`PresenceCoordinator`) | **Verifierad** | 14 enhetstester, bland annat ett egenskapstest med 500 slumpade modeller och slumpmässigt fladdrande signaler (låsning sker alltid ≤ `HoldMax` + grace). Två jämförande 60-dagarssimuleringar (§6). |
 | Passiva OS-signaler (`PassiveSignalReader`) | **Kompilerad, ej körd. Semantiken är delvis odokumenterad** | ConsentStore är odokumenterad. Om `SystemExecutionState` aggregerar andra processers begäranden är inte dokumenterat. Verifiera på målmaskin med `PresenceLock.exe --probe-signals` (§6). Ett fel i signalerna kan bara fördröja låsning upp till `HoldMax` + grace. |
 | Profil-JSON, export, baslinje, sammanslagning | **Verifierad** | C#-tester: round-trip, atomisk skrivning, korrupt fil, saknade fält, anonymisering, medelvärde. |
 | Goertzel-DSP för ultraljudssensorn | **Verifierad** | `verify/goertzel_check.py`. |
 | ADMX/ADML ↔ kod | **Verifierad** | `verify/check_admx.py`: alla värdenamn och strängar matchar i båda riktningar. |
-| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binären är kontrollerad: 145 408 byte (142 KiB), `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
+| Windows-agenten (`src/PresenceLock.App`) | **Kompilerad, ej körd** | Byggd mot .NET Framework 4.8:s referensassemblies med 0 varningar och varningar som fel. Binärens storlek, SHA-256 och commit står i `RELEASE-MANIFEST.json` i paketet, `ILOnly` (64-bit på x64), `WindowsGui`, refererar enbart in-box-assemblies. **Ingen Windows-maskin fanns i byggmiljön.** Se pilotchecklistan (§13). |
 | Manipulationsskydd, NIS2-läge (`TamperProtection`, guard-tjänst) | **Reglerna verifierade, Windows-delen kompilerad men ej körd** | 19 enhetstester: process-SDDL (även injektionsförsök), återställning av raderad/nedgraderad profil, monoton skyddad kopia, guardens tillståndsmaskin (start, lås vid dödad agent, ignorerar utloggning och session 0). Om processens DACL faktiskt nekar Aktivitetshanteraren måste provas på Windows (§13). |
 | Vaneinlärning (`HabitModel`, modellerad efter Elli) | **Verifierad i simulering** | 13 modelltester (bland annat överlevnadsintervallet mot brute force i 200 slumpfall, censurering, sommartid, kärnor, Wilson), 11 koordinatortester (bland annat egenskapen *aldrig senare lås* i 300 parade körningar) och en 70-dygns rutinsimulering (§8). |
 | Tyst arbete: etiketter i efterhand, inlärd horisont, tystnadsprofil (v0.5) | **Verifierad i simulering** | Inventor-scenariot (§4b) på 4 frön med och utan notis, kontorsscenariot (§6) på 3 frön, 9 koordinatortester och 7 tester för tystnadsprofilen, bland annat att jämnt spridda betraktanden *inte* får delas i två grupper. |
@@ -187,10 +189,12 @@ Når profilen inte grinden efter `MaxLearningDays` (30) tvingas den **inte** öv
 | tvetydig | 999 | — | ej befordrad (LearningExtended) | — | **0** | — | — |
 | tvetydig | 2024 | — | ej befordrad (LearningExtended) | — | **0** | — | — |
 
-Slutsatser som håller i alla 10 körningar:
+Observerat i alla 10 körningar, under simulatorns antaganden:
 - **Noll skarpa lås på en närvarande användare.** Den synliga 3-sekundersdimningen fångar alla.
-- **Grinden håller sitt löfte.** Varje befordrad profil låg inom målet (≤ 10 %) även i skarpt läge.
-- **Osäkerhet fördröjer, den påskyndar aldrig.** När signalen inte räcker för 95 % säkerhet blir det admin-granskning istället för gissning.
+- **Varje befordrad profil låg inom målet (≤ 10 %) även i skarpt läge.**
+- **När signalen inte räcker blev det admin-granskning (LearningExtended) i stället för befordran.**
+
+**Vad grinden inte är** (granskningen F16–F18). Wilson-gränsen gäller *ett* fönster om 200 episoder. Grinden prövas om dagligen tills den passerar, och fönstren överlappar medan modellen ändras. Gränsen är därför ingen livslång 95 %-garanti. Etiketterna bygger på beteende (inaktivitet, lås, upplåsningstid), inte på oberoende närvaromätning. Modellens sannolikheter är alltså inte validerade som sannolikhet för fysisk närvaro. Sedan 0.7.0 kräver grinden också att högst hälften av de *verifierade* besluten var fel (Wilson-övre gräns ≤ 50 %). Annars kan tio fel av tio beslut se ut som 5 % per episod. Validering med fryst modell och oberoende facit hör till piloten.
 
 Tabellen ovan driver motorn direkt. De 1–5 % avgångar som modellen inte låste före 180 s stod i den versionen **olåsta tills användaren kom tillbaka**. Det var ett säkerhetsfel, och det är rättat av backstopet i §6. Med hela beslutsflödet: 0 återkomster till en olåst dator.
 
@@ -249,7 +253,8 @@ Varje sekund, i prioritetsordning:
 Plus en **absolut backstop** som gäller över alla tre lagren. Detta gäller i skarpt läge:
 - När horisonten för säker frånvaro nås utan lås visas en **synlig** bekräftelsedimning. Horisonten är 180 s, eller längre där modellen lärt sig tyst arbete, högst `MaxLearnedHorizonMinutes` (§4b). Ett svar ger en sann etikett "närvarande". Inget svar inom `ConfirmGraceSeconds` ger låsning.
 - När `HoldMaxMinutes` inaktivitet nås, oavsett signaler och modell, visas samma bekräftelse.
-- **Ingen dator står olåst längre än `HoldMax` + grace efter senaste indata.** Egenskapstestet kör 500 slumpade modeller med slumpmässigt fladdrande signaler, och gränsen håller i alla.
+- **Låsning *begärs* senast vid `HoldMax` + grace efter senaste indata.** Egenskapstestet kör 500 slumpade modeller med slumpmässigt fladdrande signaler, och gränsen håller i alla. Säkerhetsgolvet gäller också utan pågående modellepisod.
+- **En begäran är inte ett lås** (sedan 0.7.0). Låset räknas som genomfört först när Windows skickar sessionshändelsen *låst*, eller när sessionen kopplas från. Saknas kvittensen inom 10 s, eller avvisas anropet, begärs låsning igen (efter 15 s vid avslag). Efter 3 obekräftade försök kopplas sessionen från (`WTSDisconnectSession`). Alla tider mäts på inaktivitetsaxeln, så en ändrad klocka kan inte förlänga dem. Kommer användaren tillbaka innan något har bekräftats räknas tiden som exponering. Tiden till ett *verifierat* säkrat skrivbord mäts i Windows-acceptansen (W01).
 
 I inlärningsläget visas ingenting (kravet: ingen låsning). Pausen stoppar ändå de felaktiga etiketterna.
 
@@ -295,7 +300,7 @@ Visar `DisplayRequired` aldrig `True` under video är aggregatet inte användbar
 
 ---
 
-## 7. NIS2-läge: manipulationsskydd
+## 7. Centralt skyddat läge (stöd för NIS2): manipulationsskydd
 
 **Hotmodell:** en vanlig användare *utan* lokal adminrätt som vill att datorn ska stå olåst. Lokala administratörer och fysiska attacker ligger per definition utanför.
 
@@ -308,7 +313,11 @@ Visar `DisplayRequired` aldrig `True` under video är aggregatet inte användbar
 | "Avsluta" i menyn | möjligt | borttaget | GPO | kompilerad |
 | Aktivitetshanteraren, `taskkill /f`, `Stop-Process` | möjligt | **åtkomst nekad** | Processens egen DACL: användaren och `OWNER RIGHTS` får bara `SYNCHRONIZE \| QUERY_LIMITED`. `OWNER RIGHTS` tar bort ägarens implicita rätt att skriva om DACL:en | SDDL enhetstestad; effekten provas på Windows |
 | `WM_QUIT` / `WM_CLOSE` från ett eget program | agenten avslutas | meddelandeloopen startar om | `Program.cs` | kompilerad |
-| Agenten dör ändå (krasch, admin-verktyg) | olåst | **sessionen låses inom ≈ 4 s**, agenten startas om, händelse 1001 | guard-tjänst (LocalSystem) | tillståndsmaskinen enhetstestad (7 tester) |
+| Agenten dör ändå (krasch, admin-verktyg) | olåst | **låsning begärs inom ≈ 4 s** (1001) och upprepas tills Windows rapporterar sessionen låst (1008). Annars kopplas sessionen från (1007). Agenten startas om | guard-tjänst (LocalSystem) | tillståndsmaskinen enhetstestad (T05) |
+| Agenten hänger (UI-tråden svarar inte) | olåst | samma som ovan när hjärtslaget är äldre än 60 s | hjärtslag i HKCU, guarden | enhetstestad |
+| Agenten blir aldrig frisk efter inloggning eller upplåsning (trasig installation, ockuperad mutex) | olåst | låsning begärs efter 120 s (fail-closed) | guard-tjänst | enhetstestad (T06) |
+| En CLI-instans av samma exe (`--probe-signals`) som "agent" | — | räknas inte: guarden läser processens kommandorad (agentroll) | `ProcessInfo` | kompilerad |
+| Skriva säkerhetsvärden i den egna policygrenen (HKCU\Software\Policies) | — | **ignoreras**: skyddsrelevanta värden läses bara från datorpolicyn | `PolicyScope` | enhetstestad (T07) |
 | Autostart avstängd | ingen agent | guarden startar den | guard-tjänst | enhetstestad |
 | Egen kopia döpt till `PresenceLock.exe` för att lura guarden | — | räknas inte | guarden kräver exakt avbildssökväg i `Program Files` | kompilerad |
 | Radera `profile.json`, ändra `Mode` till `Learning`, nollställa inlärningsklockan | 15+ dagar utan lås | **återställs** från skyddad kopia | `ChooseTrusted` + monoton `AcceptIntoProtected` | enhetstestad |
@@ -531,7 +540,9 @@ Skriptet är idempotent (kopierar bara vid ändrad hash), kontrollerar .NET 4.8 
 - **WDAC med signaturkrav:** blockerar. Då är signering organisationens eget krav, och en intern AD CS-signatur räcker.
 - **Defender/EDR:** en osignerad binär med låg spridning som tar emot rå musinput och anropar `LockWorkStation` kan flaggas heuristiskt. Testa i piloten. Om den flaggas: tillåt via hash eller sökväg (indicator), alternativt intern signering.
 
-### GPO-inställningar (`HKLM\SOFTWARE\Policies\PresenceLock`; HKCU-policy fungerar också, HKLM vinner)
+### GPO-inställningar (`HKLM\SOFTWARE\Policies\PresenceLock`)
+
+Sedan 0.7.0 är alla principer **datorprinciper**. Agenten läser skyddsrelevanta värden bara från HKLM. Ett värde i användarens egen gren (`HKCU\Software\Policies\PresenceLock`) ignoreras, med ett undantag: `ShowLockNotification`, som är en användarpreferens. Policyn läses om var 5:e minut i en körande agent.
 
 | Värde | Typ | Standard | Betydelse |
 |---|---|---|---|
@@ -592,7 +603,10 @@ Händelser i programloggen (källa `PresenceLock`), stabila id:n för SIEM:
 | Id | Från | Betydelse |
 |---|---|---|
 | 1000 / 1009 | guard | guard startad / stoppad |
-| 1001 | guard | agenten försvann ur en olåst session; sessionen låstes |
+| 1001 | guard | agenten saknas, svarar inte eller blev aldrig frisk: låsning **begärd** (försök n), ännu inte bekräftad |
+| 1003 | guard | låsbegäran misslyckades (hjälpprocessen startade inte eller LockWorkStation avvisades) |
+| 1007 | guard | låset bekräftades inte efter 3 begäranden: reservåtgärd frånkoppling (lyckad eller misslyckad) |
+| 1008 | guard | Windows rapporterar sessionen låst efter guardens begäran (bekräftelse) |
 | 1002 / 1005 | guard | profilregression upptäckt / profil återställd från skyddad kopia |
 | 1006 | guard | städtjänsten pensionerade skyddade kopior eller insamlade profiler |
 | 1003 / 1004 | guard | låsning misslyckades / agenten kunde inte startas |
@@ -601,6 +615,8 @@ Händelser i programloggen (källa `PresenceLock`), stabila id:n för SIEM:
 | 1013 | agent | `profile.json` oanvändbar: återställd från senast fungerande kopia (eller ny) |
 | 1014 | agent | `habits.json` oanvändbar: ny journal startad, låsningen opåverkad |
 | 1015 / 1016 | agent | användaren startade en paus (längd, budget kvar) / pausen slutade. Revisionsspår, aldrig spärrade (§7b) |
+| 1017 | agent | en låsbegäran avvisades eller kvitterades inte: ny begäran (försök n), eller reservåtgärd frånkoppling |
+| 1018 | agent | en signal som säkerhetsloopen behöver fallerar: inaktivitetstid (GetLastInputInfo), rå musindata eller sessionsnotiser. Utan sessionsnotiser kan ett lås inte bekräftas, och då begärs det igen och sessionen kopplas från |
 
 ### Loggar, städtjänst och diskbudget: inget växer obehindrat och inget har ett utgångsdatum
 
@@ -647,6 +663,15 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 
 ## 13. Kända begränsningar
 
+**Kvar efter granskningen 2026-11-12** (detaljer i [åtgärdsdokumentet](docs/review/2026-11-12-granskning-atgarder.md)):
+- F30: Windows-kedjan är inte körd (lås, sessionshändelser, process-DACL, GPO, installation). Det gäller också positionen för `WTSSessionInfoEx` och kommandoradsläsningen.
+- F04: hjärtslaget visar att agenten lever, inte att den är äkta (användaren kan skriva samma nyckel).
+- F12: två samtidiga sessioner för samma användare delar profil, och den sist skrivna vinner.
+- F13: kinematiken är inte normaliserad för musens CPI eller pollingfrekvens.
+- F16, F18, F19: sannolikheterna är inte validerade mot fysisk närvaro, Wilson-gränsen är ingen livslång garanti vid upprepad prövning, och modellskyddet jämför en följd av modellversioner.
+- F20: gammal data för ett konto som aldrig loggar in igen rensas först vid nästa inloggning, vid Windows profilrensning eller vid avinstallation.
+- F24: dimningen saknar text och nedräkning och är inte prövad med skärmläsare.
+
 - **Windows-skalet är inte kört.** Win32-signaturerna är granskade (bland annat `RAWMOUSE` med explicit layout, där unionen ligger på offset 4), men beteendet på riktig hårdvara är obekräftat.
 - **Kinematiktrösklarna** (`HighSpeed = 40` counts, kantmarginal 8 px) beror på musens CPI och DPI. Modellen lär sig hur mycket den ska lita på varje feature, men feature-kvaliteten avgörs i piloten.
 - **FP-fönstret på 10 s** inkluderar PIN-inmatning efter ett skarpt lås. Om upplåsning ofta tar längre än 10 s räknas äkta felaktiga lås som korrekta. Windows Hello gör det kortare.
@@ -663,6 +688,31 @@ Arbetsflöde för bred utrullning: pilotgrupp → profiler samlas in via `Profil
 - **`LOCALAPPDATA` roamar inte.** Profilen och vanejournalen gäller per användare och dator.
 - **Vanor vid vanlig hemgångstid ger liten vinst** (§8). Det är en egenskap hos datat, inte något en modell kan lösa utan fler signaler.
 - **`OpenInputDesktop`:** om säkerhetsprogram nekar läsningen permanent blir varje paus en `SecureDesktop`-paus fram till backstopet. Det syns som ett högt `hold starts` i `--status`.
+
+### Windows-acceptans (granskningens W01–W18; krävs före produktionsbeslut)
+
+Kör på isolerade testdatorer med versionsidentifierad kandidat (hash i `RELEASE-MANIFEST.json`). Spara OS-build, effektiv policy, start- och sluttid, session, injicerat fel och observerad WTS-kvittens för varje fall. Tidskraven beslutas före körningen.
+
+| Id | Område | Godkänt resultat |
+|---|---|---|
+| W01 | Alla låsorsaker (modell, backstop, vana, HoldProbe) med lyckat API, API-avslag och utebliven WTS-kvittens | ingen falsk framgång, tydlig återhämtning, verifierat slutläge (händelse 1017, 1007, 1008) |
+| W02 | Kallstart och haveri | guarden agerar även utan tidigare frisk agent (120 s) |
+| W03 | Hängning och fel process (fryst UI, CLI från installerad exe, ockuperad mutex) | räknas inte som frisk |
+| W04 | Indata strax före timeout, fördröjt tick 1–5 s | indata avbryter, rätt programfokus |
+| W05 | HKCU-värden som standardanvändare, HKLM ändrad under drift | miniminivån går inte att sänka, ändringen gäller inom 5 min |
+| W06 | Tjänst- och processrättigheter (Aktivitetshanteraren, taskkill, trådåtkomst, förutöppnade handtag) | hotmodellen verifierad, kvarvarande begränsningar dokumenterade |
+| W07 | Profilmanipulation (radera, regressera, långa pauser, byta fil eller sökväg under synk) | ogiltigt tillstånd accepteras aldrig som skyddat |
+| W08 | Installation (låst exe, nekad ACL, avbruten kopiering, omstart, avinstallation) | returkod och aktiv hash stämmer, tidigare version återställs |
+| W09 | Nätverk och lagring (SMB/DNS-avbrott, hög latens, full disk) | säkerhetsloopen påverkas inte |
+| W10 | Sessioner (konsol, RDP, två användare, samma SID i två sessioner) | rätt session säkras |
+| W11 | Tid och ström (UTC-steg, vila, viloläge) | monotona förlopp |
+| W12 | Signalfel (RAWINPUT, WTS, GetLastInputInfo, säkert skrivbord) | synlig degradering (1018), fail-closed |
+| W13 | Verklig hårdvara (mus 125/500/1000 Hz, CPI, pekplatta) | dokumenterade begränsningar |
+| W14 | Visning och tillgänglighet (flera skärmar, DPI, HDR, skärmläsare) | bekräftelsen märks och kan besvaras |
+| W15 | Arbetsmönster (CAD, PDF, möte, video, mätning, verklig avfärd) | oberoende facit, separata mått |
+| W16 | Dataskydd och gallring (60 dagar inaktiv, funktion avstängd, export, skyddad kopia) | alla platser inventerade |
+| W17 | Behörigheter för insamlingen (A mot B, datorkontots gallring) | minsta nödvändiga rättigheter |
+| W18 | Driftmiljö (avsedda Windows-versioner, domän-GPO, EDR, patchnivå) | exakt release fungerar |
 
 ### Pilotchecklista (det som inte kan bevisas här)
 

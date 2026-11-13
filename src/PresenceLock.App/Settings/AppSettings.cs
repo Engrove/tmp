@@ -69,6 +69,7 @@ namespace PresenceLock.App.Settings
             PrivacyContact = AboutPrivacyContact,
             PolicyUrl = AboutPolicyUrl,
             Nis2Mode = !AllowUserExit,
+            GuardStatus = GuardServiceStatus(),
             HoldMaxMinutes = HoldMaxMinutes,
             ConfirmGraceSeconds = ConfirmGraceSeconds,
             MaxLearnedHorizonMinutes = MaxLearnedHorizonMinutes,
@@ -80,6 +81,18 @@ namespace PresenceLock.App.Settings
             ProfileCollection = !string.IsNullOrEmpty(ProfileExportDirectory),
             Retention = ToRetentionPolicy()
         };
+
+        /// <summary>Observed state of the guard service (a standard user may query it).</summary>
+        public static string GuardServiceStatus()
+        {
+            try
+            {
+                using (var sc = new System.ServiceProcess.ServiceController("PresenceLockGuard"))
+                    return sc.Status == System.ServiceProcess.ServiceControllerStatus.Running ? "running" : "stopped";
+            }
+            catch (System.InvalidOperationException) { return "not installed"; }
+            catch (System.Exception) { return "unknown"; }
+        }
 
         // Data retention (cleaning service, every 24 h): nothing is kept longer than this.
         public int LogRetentionDays = 30;

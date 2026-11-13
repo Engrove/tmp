@@ -26,15 +26,30 @@ namespace PresenceLock.App.Interop
         public static extern uint GetTickCount();
 
         /// <summary>Seconds since the last user input across the whole session.</summary>
-        public static double IdleSeconds()
+        /// <summary>Seconds since the last input in this session, or NaN if GetLastInputInfo failed.
+        /// A failure must never read as "the user is active": see <see cref="IdleSource"/>.</summary>
+        public static double IdleSecondsOrNaN()
         {
             var lii = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO)) };
-            if (!GetLastInputInfo(ref lii)) return 0.0;
+            if (!GetLastInputInfo(ref lii)) return double.NaN;
             uint now = GetTickCount();
             // Unsigned wrap-safe subtraction.
             uint deltaMs = unchecked(now - lii.dwTime);
             return deltaMs / 1000.0;
         }
+
+        /// <summary>Display-only helper (CLI probe). Security code uses <see cref="IdleSource"/>.</summary>
+        public static double IdleSeconds()
+        {
+            double v = IdleSecondsOrNaN();
+            return double.IsNaN(v) ? 0.0 : v;
+        }
+
+        /// <summary>Disconnect THIS session (fallback when a lock cannot be confirmed). Reconnecting requires authentication.</summary>
+        [DllImport("wtsapi32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool WTSDisconnectSession(IntPtr hServer, int sessionId, [MarshalAs(UnmanagedType.Bool)] bool bWait);
+        public const int WTS_CURRENT_SESSION = -1;
 
         // --- locking -------------------------------------------------------------
         [DllImport("user32.dll", SetLastError = true)]

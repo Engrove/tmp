@@ -11,6 +11,31 @@ namespace PresenceLock.App
 {
     internal static class Program
     {
+        private static bool AnotherAgentRunsInThisSession()
+        {
+            try
+            {
+                using (var me = System.Diagnostics.Process.GetCurrentProcess())
+                {
+                    string myPath = me.MainModule.FileName;
+                    foreach (var p in System.Diagnostics.Process.GetProcessesByName("PresenceLock"))
+                    {
+                        using (p)
+                        {
+                            if (p.Id == me.Id || p.SessionId != me.SessionId) continue;
+                            string path = null;
+                            try { path = p.MainModule.FileName; } catch (Exception) { }
+                            if (string.Equals(path, myPath, StringComparison.OrdinalIgnoreCase)
+                                && ProcessInfo.IsAgentRole(ProcessInfo.TryGetCommandLine(p.Id)))
+                                return true;
+                        }
+                    }
+                }
+            }
+            catch (Exception) { return true; }   // cannot tell: keep the single-instance behaviour
+            return false;
+        }
+
         [STAThread]
         private static int Main(string[] args)
         {
@@ -28,7 +53,11 @@ namespace PresenceLock.App
             bool created;
             using (var single = new Mutex(true, @"Local\PresenceLock-" + sid, out created))
             {
-                if (!created) return 0;
+                // The mutex name is predictable, so another process of the user can create it first.
+                // Only step aside if a REAL agent (installed exe, agent role) already runs in this
+                // session; otherwise the mutex is squatted and this agent must run anyway (review F04).
+                if (!created && AnotherAgentRunsInThisSession()) return 0;
+                if (!created) AgentLog.Write("agent mutex held by a process that is not an agent; running anyway");
 
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);

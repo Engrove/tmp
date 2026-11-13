@@ -68,10 +68,7 @@ namespace PresenceLock.Core
         public static void Save(string path, HabitJournal j)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path));
-            string tmp = path + ".tmp";
-            File.WriteAllText(tmp, Serialize(j), new UTF8Encoding(false));
-            if (File.Exists(path)) File.Replace(tmp, path, null);
-            else File.Move(tmp, path);
+            ProfileStore.WriteText(path, Serialize(j));
         }
     }
 }

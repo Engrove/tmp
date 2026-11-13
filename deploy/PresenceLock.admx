@@ -6,6 +6,8 @@
   or to C:\Windows\PolicyDefinitions on a single admin machine.
 
   Every valueName here is read by src/PresenceLock.App/Settings/PolicyReader.cs;
+  protection-relevant policies are Computer-only (class="Machine"): a user-scope value is
+  ignored by the agent (PolicyScope.cs). Only ShowLockNotification may also be a user policy.
   verify/check_admx.py checks the two stay in sync.
 -->
 <policyDefinitions xmlns:xsd="http://www.w3.org/2001/XMLSchema"
@@ -45,7 +47,7 @@
   <policies>
 
     <!-- ===================== operating mode ===================== -->
-    <policy name="ModePolicy" class="Both"
+    <policy name="ModePolicy" class="Machine"
             displayName="$(string.ModePolicy)" explainText="$(string.ModePolicy_Help)"
             presentation="$(presentation.ModePolicy)"
             key="Software\Policies\PresenceLock">
@@ -60,7 +62,7 @@
       </elements>
     </policy>
 
-    <policy name="Thresholds" class="Both"
+    <policy name="Thresholds" class="Machine"
             displayName="$(string.Thresholds)" explainText="$(string.Thresholds_Help)"
             presentation="$(presentation.Thresholds)"
             key="Software\Policies\PresenceLock">
@@ -73,7 +75,7 @@
     </policy>
 
     <!-- ===================== learning period ===================== -->
-    <policy name="LearningPeriod" class="Both"
+    <policy name="LearningPeriod" class="Machine"
             displayName="$(string.LearningPeriod)" explainText="$(string.LearningPeriod_Help)"
             presentation="$(presentation.LearningPeriod)"
             key="Software\Policies\PresenceLock">
@@ -95,7 +97,7 @@
       <disabledValue><decimal value="0" /></disabledValue>
     </policy>
 
-    <policy name="AppLists" class="Both"
+    <policy name="AppLists" class="Machine"
             displayName="$(string.AppLists)" explainText="$(string.AppLists_Help)"
             presentation="$(presentation.AppLists)"
             key="Software\Policies\PresenceLock">
@@ -108,7 +110,7 @@
     </policy>
 
     <!-- ===================== optional sensors ===================== -->
-    <policy name="EnableAudioSonar" class="Both"
+    <policy name="EnableAudioSonar" class="Machine"
             displayName="$(string.EnableAudioSonar)" explainText="$(string.EnableAudioSonar_Help)"
             key="Software\Policies\PresenceLock" valueName="EnableAudioSonar">
       <parentCategory ref="PresenceLock_Sensors" />
@@ -117,7 +119,7 @@
       <disabledValue><decimal value="0" /></disabledValue>
     </policy>
 
-    <policy name="EnableBleRssi" class="Both"
+    <policy name="EnableBleRssi" class="Machine"
             displayName="$(string.EnableBleRssi)" explainText="$(string.EnableBleRssi_Help)"
             key="Software\Policies\PresenceLock" valueName="EnableBleRssi">
       <parentCategory ref="PresenceLock_Sensors" />
@@ -127,7 +129,7 @@
     </policy>
 
     <!-- ===================== passive hold & absolute backstop ===================== -->
-    <policy name="MediaHold" class="Both"
+    <policy name="MediaHold" class="Machine"
             displayName="$(string.MediaHold)" explainText="$(string.MediaHold_Help)"
             key="Software\Policies\PresenceLock" valueName="MediaHoldEnabled">
       <parentCategory ref="PresenceLock_Passive" />
@@ -136,7 +138,7 @@
       <disabledValue><decimal value="0" /></disabledValue>
     </policy>
 
-    <policy name="MeetingHold" class="Both"
+    <policy name="MeetingHold" class="Machine"
             displayName="$(string.MeetingHold)" explainText="$(string.MeetingHold_Help)"
             key="Software\Policies\PresenceLock" valueName="MeetingHoldEnabled">
       <parentCategory ref="PresenceLock_Passive" />
@@ -145,7 +147,7 @@
       <disabledValue><decimal value="0" /></disabledValue>
     </policy>
 
-    <policy name="HoldLimits" class="Both"
+    <policy name="HoldLimits" class="Machine"
             displayName="$(string.HoldLimits)" explainText="$(string.HoldLimits_Help)"
             presentation="$(presentation.HoldLimits)"
             key="Software\Policies\PresenceLock">
@@ -157,7 +159,7 @@
       </elements>
     </policy>
 
-    <policy name="LearnedHorizon" class="Both"
+    <policy name="LearnedHorizon" class="Machine"
             displayName="$(string.LearnedHorizon)" explainText="$(string.LearnedHorizon_Help)"
             presentation="$(presentation.LearnedHorizon)"
             key="Software\Policies\PresenceLock">
@@ -168,7 +170,7 @@
       </elements>
     </policy>
 
-    <policy name="HoldIgnoreApps" class="Both"
+    <policy name="HoldIgnoreApps" class="Machine"
             displayName="$(string.HoldIgnoreApps)" explainText="$(string.HoldIgnoreApps_Help)"
             presentation="$(presentation.HoldIgnoreApps)"
             key="Software\Policies\PresenceLock">
@@ -180,7 +182,7 @@
     </policy>
 
     <!-- ===================== habit (routine) learning ===================== -->
-    <policy name="HabitLearning" class="Both"
+    <policy name="HabitLearning" class="Machine"
             displayName="$(string.HabitLearning)" explainText="$(string.HabitLearning_Help)"
             key="Software\Policies\PresenceLock" valueName="HabitLearningEnabled">
       <parentCategory ref="PresenceLock_Habits" />
@@ -189,7 +191,7 @@
       <disabledValue><decimal value="0" /></disabledValue>
     </policy>
 
-    <policy name="HabitEarlyConfirm" class="Both"
+    <policy name="HabitEarlyConfirm" class="Machine"
             displayName="$(string.HabitEarlyConfirm)" explainText="$(string.HabitEarlyConfirm_Help)"
             presentation="$(presentation.HabitEarlyConfirm)"
             key="Software\Policies\PresenceLock">
@@ -201,7 +203,7 @@
     </policy>
 
     <!-- ===================== administration ===================== -->
-    <policy name="AllowUserExit" class="Both"
+    <policy name="AllowUserExit" class="Machine"
             displayName="$(string.AllowUserExit)" explainText="$(string.AllowUserExit_Help)"
             key="Software\Policies\PresenceLock" valueName="AllowUserExit">
       <parentCategory ref="PresenceLock_Admin" />
@@ -210,7 +212,7 @@
       <disabledValue><decimal value="0" /></disabledValue>
     </policy>
 
-    <policy name="AllowUserPause" class="Both"
+    <policy name="AllowUserPause" class="Machine"
             displayName="$(string.AllowUserPause)" explainText="$(string.AllowUserPause_Help)"
             key="Software\Policies\PresenceLock" valueName="AllowUserPause">
       <parentCategory ref="PresenceLock_Admin" />
@@ -219,7 +221,7 @@
       <disabledValue><decimal value="0" /></disabledValue>
     </policy>
 
-    <policy name="UserPauseLimits" class="Both"
+    <policy name="UserPauseLimits" class="Machine"
             displayName="$(string.UserPauseLimits)" explainText="$(string.UserPauseLimits_Help)"
             presentation="$(presentation.UserPauseLimits)"
             key="Software\Policies\PresenceLock">
@@ -235,7 +237,7 @@
       </elements>
     </policy>
 
-    <policy name="AboutInformation" class="Both"
+    <policy name="AboutInformation" class="Machine"
             displayName="$(string.AboutInformation)" explainText="$(string.AboutInformation_Help)"
             presentation="$(presentation.AboutInformation)"
             key="Software\Policies\PresenceLock">
@@ -249,7 +251,7 @@
       </elements>
     </policy>
 
-    <policy name="AllowProfileExport" class="Both"
+    <policy name="AllowProfileExport" class="Machine"
             displayName="$(string.AllowProfileExport)" explainText="$(string.AllowProfileExport_Help)"
             key="Software\Policies\PresenceLock" valueName="AllowProfileExport">
       <parentCategory ref="PresenceLock_Admin" />
@@ -258,7 +260,7 @@
       <disabledValue><decimal value="0" /></disabledValue>
     </policy>
 
-    <policy name="ProfileExportDirectory" class="Both"
+    <policy name="ProfileExportDirectory" class="Machine"
             displayName="$(string.ProfileExportDirectory)" explainText="$(string.ProfileExportDirectory_Help)"
             presentation="$(presentation.ProfileExportDirectory)"
             key="Software\Policies\PresenceLock">
@@ -269,7 +271,7 @@
       </elements>
     </policy>
 
-    <policy name="DataRetention" class="Both"
+    <policy name="DataRetention" class="Machine"
             displayName="$(string.DataRetention)" explainText="$(string.DataRetention_Help)"
             presentation="$(presentation.DataRetention)"
             key="Software\Policies\PresenceLock">
@@ -282,7 +284,7 @@
       </elements>
     </policy>
 
-    <policy name="BaselineProfilePath" class="Both"
+    <policy name="BaselineProfilePath" class="Machine"
             displayName="$(string.BaselineProfilePath)" explainText="$(string.BaselineProfilePath_Help)"
             presentation="$(presentation.BaselineProfilePath)"
             key="Software\Policies\PresenceLock">

@@ -27,7 +27,16 @@ namespace PresenceLock.App
         private static readonly TimeSpan SaveEvery = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan ExportEvery = TimeSpan.FromHours(24);
 
-        private readonly AppSettings _settings;
+        private AppSettings _settings;                       // reloaded from policy while running (review F09)
+        private readonly BackgroundWriter _io = new BackgroundWriter();   // all file/network I/O (review F05)
+        private DateTime _lastRegistrationTryUtc = DateTime.MinValue, _lastHeartbeatUtc = DateTime.MinValue,
+                         _lastPolicyReloadUtc = DateTime.UtcNow;
+        private bool _signalDegradedReported;
+        private volatile HousekeepingReport _hkResult;            // set by the background job, applied on the UI thread
+        private volatile int _hkLines;
+        private volatile bool _exportInFlight;
+        private long _exportDoneTicks;                             // Interlocked: >0 success time, <0 failure time
+        private static readonly TimeSpan PolicyReloadEvery = TimeSpan.FromMinutes(5);
         private readonly string _profilePath;
         private readonly UserProfile _profile;
         private readonly HabitJournal _habits;               // null when habit learning is off
@@ -42,7 +51,6 @@ namespace PresenceLock.App
         private readonly Timer _timer;
 
         private DateTime _lastSaveUtc = DateTime.UtcNow;
-        private DateTime _lastExportUtc = DateTime.MinValue;
         private OperatingMode _lastMode;
         private bool _shuttingDown;
 
@@ -82,6 +90,8 @@ namespace PresenceLock.App
             _msg.SessionUnlocked += OnSessionUnlocked;
             _msg.SessionDisconnected += OnSessionDisconnected;
             _msg.SessionConnected += OnSessionConnected;
+            if (!_msg.EnsureRegistered()) ReportSignalDegraded("registration failed at start (error " + _msg.LastRegistrationError + ")");
+            AgentHeartbeat.Beat();
 
             _icon = new NotifyIcon
             {
@@ -119,21 +129,92 @@ namespace PresenceLock.App
             var r = _settings.ToRetentionPolicy();
             try
             {
+                // In-memory retirement here (the UI thread owns these objects) ...
                 if (_habits != null) Housekeeping.PruneJournal(_habits, DateTime.UtcNow.Ticks, new HabitPolicy(), report);
                 Housekeeping.RetirePauses(_profile, DateTime.UtcNow.Ticks);
-                Housekeeping.CleanAgentDirectory(ProfileStore.DefaultDirectory(), DateTime.UtcNow, r, report);
-                int lines = AgentLog.Retire(r.LogRetentionDays);
                 SaveProfile();
-                Housekeeping.WriteBackup(_profilePath, report);
-                var st = _profile.Stats;
-                st.HousekeepingRuns++;
-                st.LastHousekeepingUtcTicks = DateTime.UtcNow.Ticks;
-                st.JournalEpisodesRetired += report.JournalEpisodesRetired;
-                st.FilesRetired += report.FilesDeleted.Count;
-                st.LogLinesRetired += lines;
-                AgentLog.Write(report + ", log lines retired " + lines);
+                // ... file work in the background, queued after the save, so the backup is taken
+                // from the file just written. Results are applied on the next tick.
+                string dir = ProfileStore.DefaultDirectory(), path = _profilePath;
+                _io.Post("housekeeping", () =>
+                {
+                    Housekeeping.CleanAgentDirectory(dir, DateTime.UtcNow, r, report);
+                    _hkLines = AgentLog.Retire(r.LogRetentionDays);
+                    Housekeeping.WriteBackup(path, report);
+                    _hkResult = report;
+                });
             }
             catch (Exception ex) { AgentLog.Write("housekeeping step failed: " + ex.GetType().Name); }
+        }
+
+        private void ReportSignalDegraded(string what)
+        {
+            _signalDegradedReported = true;
+            AgentEvents.Write(AgentEvents.SignalDegraded, System.Diagnostics.EventLogEntryType.Warning,
+                "PresenceLock signal degraded: " + what + ". Raw mouse input registered: " + _msg?.RawInputRegistered +
+                ", session notifications registered: " + _msg?.SessionNotificationsRegistered +
+                ". Without session notifications a lock cannot be confirmed: requests are repeated and fall back to a disconnect.");
+        }
+
+        /// <summary>
+        /// Group Policy changes reach a running agent (review F09): re-read every 5 minutes, apply what
+        /// changed to the coordinator, the profile's policy fields and the menu. Hardening is applied
+        /// when exit becomes forbidden; it is never removed while running (that needs a restart).
+        /// </summary>
+        private void ReloadPolicy()
+        {
+            _lastPolicyReloadUtc = DateTime.UtcNow;
+            AppSettings fresh;
+            try { fresh = PolicyReader.Load(); }
+            catch (Exception ex) { AgentLog.Write("policy reload failed: " + ex.GetType().Name); return; }
+            string before = Fingerprint(_settings), after = Fingerprint(fresh);
+            if (before == after) return;
+
+            bool exitWasAllowed = _settings.AllowUserExit;
+            _settings = fresh;
+            var c = fresh.ToCoordinatorConfig();
+            var live = _coord.Config;
+            live.MediaHoldEnabled = c.MediaHoldEnabled;
+            live.MeetingHoldEnabled = c.MeetingHoldEnabled;
+            live.HoldMaxSeconds = c.HoldMaxSeconds;
+            live.MaxLearnedHorizonSeconds = c.MaxLearnedHorizonSeconds;
+            live.ConfirmGraceSeconds = c.ConfirmGraceSeconds;
+            live.HabitEarlySeconds = c.HabitEarlySeconds;
+            live.Pause = c.Pause;
+            if (!fresh.HabitLearningEnabled) live.Habits = null;
+            fresh.ApplyTo(_profile);
+            if (exitWasAllowed && !fresh.AllowUserExit)
+            {
+                string sid = WindowsIdentity.GetCurrent().User?.Value ?? "";
+                string error = ProcessHardening.Apply(sid);
+                AgentLog.Write(error == null ? "policy: exit now forbidden, process hardened" : "policy: hardening FAILED: " + error);
+            }
+            _icon.ContextMenuStrip = BuildMenu();
+            AgentLog.Write("policy reloaded: " + after);
+        }
+
+        private static string Fingerprint(AppSettings s) => string.Join(";", new[]
+        {
+            "mode=" + s.ModePolicy, "exit=" + s.AllowUserExit, "holdMax=" + s.HoldMaxMinutes, "grace=" + s.ConfirmGraceSeconds,
+            "cap=" + s.MaxLearnedHorizonMinutes, "pause=" + s.AllowUserPause + "/" + string.Join(",", s.PauseOptionsMinutes) + "/" + s.PauseBudgetMinutesPerDay + "/" + s.PauseKeepsConfirmation,
+            "media=" + s.MediaHoldEnabled, "meeting=" + s.MeetingHoldEnabled, "habits=" + s.HabitLearningEnabled,
+            "export=" + s.AllowProfileExport, "collect=" + (string.IsNullOrEmpty(s.ProfileExportDirectory) ? "off" : "on"),
+            "retention=" + s.LogRetentionDays + "/" + s.ProtectedCopyRetentionDays + "/" + s.CollectedProfileRetentionDays,
+            "thresholds=" + s.SoftDimThreshold + "/" + s.LockThreshold
+        });
+
+        private void ApplyHousekeepingResult()
+        {
+            var report = _hkResult;
+            if (report == null) return;
+            _hkResult = null;
+            var st = _profile.Stats;
+            st.HousekeepingRuns++;
+            st.LastHousekeepingUtcTicks = DateTime.UtcNow.Ticks;
+            st.JournalEpisodesRetired += report.JournalEpisodesRetired;
+            st.FilesRetired += report.FilesDeleted.Count;
+            st.LogLinesRetired += _hkLines;
+            AgentLog.Write(report + ", log lines retired " + _hkLines);
         }
 
         // ------------------------------------------------------------------ profile
@@ -172,8 +253,11 @@ namespace PresenceLock.App
             {
                 try
                 {
-                    var baseline = ProfileStore.ExportBaseline(
-                        ProfileStore.Deserialize(BoundedFile.ReadAllText(_settings.BaselineProfilePath, BoundedFile.MaxProfileBytes)));
+                    // The baseline usually lives on a share: never let it hold up the agent's start.
+                    string basePath = _settings.BaselineProfilePath;
+                    var read = System.Threading.Tasks.Task.Run(() => BoundedFile.ReadAllText(basePath, BoundedFile.MaxProfileBytes));
+                    if (!read.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException("baseline not readable within 5 s");
+                    var baseline = ProfileStore.ExportBaseline(ProfileStore.Deserialize(read.Result));
                     baseline.UserSid = sid;
                     baseline.MachineName = machine;
                     AgentLog.Write("seeded from baseline profile");
@@ -198,8 +282,15 @@ namespace PresenceLock.App
             try
             {
                 _profile.AppVersion = AgentVersion;                 // the version that wrote it, not the one that created it
-                ProfileStore.Save(_profilePath, _profile);
-                if (_habits != null) HabitStore.Save(HabitStore.DefaultPath(), _habits);
+                _profile.UpdatedUtcTicks = DateTime.UtcNow.Ticks;
+                string json = ProfileStore.Serialize(_profile);
+                string habits = _habits != null ? HabitStore.Serialize(_habits) : null;
+                string path = _profilePath, habitsPath = HabitStore.DefaultPath();
+                _io.Post("profile", () =>
+                {
+                    ProfileStore.WriteText(path, json);
+                    if (habits != null) ProfileStore.WriteText(habitsPath, habits);
+                });
                 _lastSaveUtc = DateTime.UtcNow;
             }
             catch (Exception ex) { AgentLog.Write("save failed: " + ex.GetType().Name); }
@@ -207,17 +298,43 @@ namespace PresenceLock.App
 
         private void MaybeExportToShare()
         {
-            if (string.IsNullOrEmpty(_settings.ProfileExportDirectory)) return;
-            if (DateTime.UtcNow - _lastExportUtc < ExportEvery) return;
-            _lastExportUtc = DateTime.UtcNow;
-            try
+            long done = System.Threading.Interlocked.Exchange(ref _exportDoneTicks, 0);
+            if (done > 0) { _profile.Stats.LastExportSuccessUtcTicks = done; }
+            else if (done < 0) { _profile.Stats.ExportFailures++; }
+
+            if (string.IsNullOrEmpty(_settings.ProfileExportDirectory) || _exportInFlight) return;
+            var st = _profile.Stats;
+            long now = DateTime.UtcNow.Ticks;
+            bool due = now - st.LastExportSuccessUtcTicks >= ExportEvery.Ticks;
+            bool backoff = st.LastExportAttemptUtcTicks > st.LastExportSuccessUtcTicks && now - st.LastExportAttemptUtcTicks < TimeSpan.TicksPerHour;
+            if (!due || backoff) return;
+            st.LastExportAttemptUtcTicks = now;
+            _exportInFlight = true;
+            string dir = _settings.ProfileExportDirectory;
+            string name = Sanitize(Environment.MachineName) + "_" + Sanitize(Environment.UserName) + ".json";
+            string json = ProfileStore.Serialize(ProfileStore.ExportForCollection(_profile));   // allow-listed content
+            _io.Post("export", () =>
             {
-                Directory.CreateDirectory(_settings.ProfileExportDirectory);
-                string name = Sanitize(Environment.MachineName) + "_" + Sanitize(Environment.UserName) + ".json";
-                File.WriteAllText(Path.Combine(_settings.ProfileExportDirectory, name),
-                                  ProfileStore.Serialize(ProfileStore.ExportForCollection(_profile)));   // no activity times
-            }
-            catch (Exception ex) { AgentLog.Write("share export failed: " + ex.GetType().Name); }
+                try
+                {
+                    // Atomic publish: readers never see a half-written file.
+                    Directory.CreateDirectory(dir);
+                    string final = Path.Combine(dir, name), tmp = final + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                    File.WriteAllText(tmp, json);
+                    try
+                    {
+                        if (File.Exists(final)) File.Replace(tmp, final, null); else File.Move(tmp, final);
+                    }
+                    finally { if (File.Exists(tmp)) File.Delete(tmp); }
+                    System.Threading.Interlocked.Exchange(ref _exportDoneTicks, DateTime.UtcNow.Ticks);
+                }
+                catch (Exception ex)
+                {
+                    AgentLog.Write("share export failed (retry in 1 h): " + ex.GetType().Name);
+                    System.Threading.Interlocked.Exchange(ref _exportDoneTicks, -1);
+                }
+                finally { _exportInFlight = false; }
+            });
         }
 
         private static string Sanitize(string s)
@@ -232,6 +349,7 @@ namespace PresenceLock.App
 
         private void OnRawInput(RawInputSample sample)
         {
+            IdleSource.NoteRawInput();
             _kin.Feed(sample);
             // Instant visual feedback; the coordinator itself sees the input on the next tick
             // (idle < 1 s), before it could take any further action.
@@ -242,7 +360,17 @@ namespace PresenceLock.App
         {
             if (_shuttingDown) return;
             long now = Now();
-            double idle = NativeMethods.IdleSeconds();
+            double idle = IdleSource.Read();
+            if (IdleSource.Degraded) { _profile.Stats.IdleSignalFailures++; if (!_signalDegradedReported) ReportSignalDegraded("GetLastInputInfo failed: idle time now grows from the last good reading (fail-closed)"); }
+            else if (_signalDegradedReported && _msg.RawInputRegistered && _msg.SessionNotificationsRegistered) { _signalDegradedReported = false; AgentLog.Write("signals restored"); }
+            if (DateTime.UtcNow - _lastHeartbeatUtc >= TimeSpan.FromSeconds(5)) { _lastHeartbeatUtc = DateTime.UtcNow; AgentHeartbeat.Beat(); }
+            if (DateTime.UtcNow - _lastRegistrationTryUtc >= TimeSpan.FromMinutes(1) && !(_msg.RawInputRegistered && _msg.SessionNotificationsRegistered))
+            {
+                _lastRegistrationTryUtc = DateTime.UtcNow;
+                if (!_msg.EnsureRegistered()) { _profile.Stats.RegistrationFailures++; ReportSignalDegraded("registration still failing (error " + _msg.LastRegistrationError + ")"); }
+            }
+            if (DateTime.UtcNow - _lastPolicyReloadUtc >= PolicyReloadEvery) ReloadPolicy();
+            ApplyHousekeepingResult();
 
             // Passive state is only needed while idle (cheap registry/power reads, cached 5 s
             // and refreshed at the start of every idle period).
@@ -295,11 +423,24 @@ namespace PresenceLock.App
 
                 case CoordinatorAction.Lock:
                     _overlay.Cancel();
+                    if (r.LockUnconfirmed)
+                        AgentEvents.Write(AgentEvents.LockNotConfirmed, System.Diagnostics.EventLogEntryType.Warning,
+                            "PresenceLock: lock requested again (attempt " + r.LockAttempt + ", cause " + r.Cause +
+                            "): the previous request was refused or never confirmed by a session-lock event.");
                     if (!NativeMethods.LockWorkStation())
                     {
                         _coord.OnLockRefused();
-                        AgentLog.Write("LockWorkStation refused (policy DisableLockWorkstation?)");
+                        AgentLog.Write("LockWorkStation refused (policy DisableLockWorkstation?); will retry, then disconnect");
                     }
+                    break;
+
+                case CoordinatorAction.Disconnect:
+                    _overlay.Cancel();
+                    bool ok = NativeMethods.WTSDisconnectSession(IntPtr.Zero, NativeMethods.WTS_CURRENT_SESSION, false);
+                    AgentEvents.Write(AgentEvents.LockNotConfirmed, ok ? System.Diagnostics.EventLogEntryType.Warning : System.Diagnostics.EventLogEntryType.Error,
+                        "PresenceLock: " + (r.LockAttempt - 1) + " lock requests not confirmed; fallback disconnect " +
+                        (ok ? "initiated" : "FAILED (error " + System.Runtime.InteropServices.Marshal.GetLastWin32Error() + ")"), throttle: false);
+                    if (!ok) _coord.OnDisconnectRefused();
                     break;
 
                 case CoordinatorAction.WouldLockNotice:
@@ -318,7 +459,7 @@ namespace PresenceLock.App
         private void OnSessionLocked()
         {
             _overlay.Cancel();
-            _coord.OnSessionLocked(Now(), NativeMethods.IdleSeconds(), _builder.BuildSignature);
+            _coord.OnSessionLocked(Now(), IdleSource.Read(), _builder.BuildSignature);
             SaveProfile();
         }
 
@@ -334,7 +475,7 @@ namespace PresenceLock.App
         private void OnSessionDisconnected()
         {
             _overlay.Cancel();
-            _coord.OnSessionDisconnected(Now(), NativeMethods.IdleSeconds());
+            _coord.OnSessionDisconnected(Now(), IdleSource.Read());
             SaveProfile();
         }
 
@@ -344,7 +485,11 @@ namespace PresenceLock.App
             _kin.Clear();                      // console and RDP kinematics must not mix
         }
 
-        private void OnSessionEnding(object sender, SessionEndingEventArgs e) => SaveProfile();
+        private void OnSessionEnding(object sender, SessionEndingEventArgs e)
+        {
+            SaveProfile();
+            _io.Flush(TimeSpan.FromSeconds(5));                  // logoff: the save must land on disk
+        }
 
         // ------------------------------------------------------------------ tray menu
 
@@ -513,6 +658,7 @@ namespace PresenceLock.App
             _shuttingDown = true;
             _timer.Stop();
             SaveProfile();
+            _io.Flush(TimeSpan.FromSeconds(5));
             SystemEvents.SessionEnding -= OnSessionEnding;
             _icon.Visible = false;
             _icon.Dispose();

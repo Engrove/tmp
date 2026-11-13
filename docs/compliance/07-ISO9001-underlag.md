@@ -64,6 +64,7 @@ Acceptanskriterier sätts **före** körningen och redovisas, även när de fall
 | 0.5.2 | `a48a8df` | Städtjänst, självläkning | 139 tester |
 | 0.6.0 | `b792fa0` | Användarpaus med budget | 149 tester |
 | 0.6.1 | commit "v0.6.1: About box …" | Om-ruta; insamlingen rensad från aktivitetstider; detta underlag | Python 33/33, C# 153/153, ADMX ok, net48 0 varningar |
+| 0.7.0 | se `RELEASE-MANIFEST.json` | Rättningar efter extern djupgranskning: låskedja, guard, policyscope, I/O, installation, releasemanifest | regressionstester T01–T14, se åtgärdsdokumentet |
 
 ## 4. Avvikelser och korrigerande åtgärder (10.2) under utvecklingen
 
@@ -79,6 +80,10 @@ Acceptanskriterier sätts **före** körningen och redovisas, även när de fall
 | 8 | Skyddad kopia kunde pensioneras för en användare med manipulerad profil | Lagringstiden räknades från senaste skrivning | Räknas från "senast sedd" | Kodgranskning före commit |
 | 9 | Insamlad profil innehöll pausernas tidpunkter | Hela profilen exporterades | Insamlingen rensas från aktivitetstider | Test `CollectedProfile_CarriesNoActivityTimes` |
 | 10 | Profilens `AppVersion` visade skaparens version | Fältet uppdaterades aldrig | Sätts vid varje sparning | Upptäckt i pilot (skärmdump) |
+
+### Extern granskning 2026-11-12 (9.2/10.2)
+
+Den externa granskningen av 0.6.1 rapporterade 30 fynd, varav 7 med prioritet P0. Varje fynd har status, åtgärd, belägg och kvarstående del i `docs/review/2026-11-12-granskning-atgarder.md`. Granskarens reproducerade testfall är införda som regressionstester. **Validering i avsedd miljö (Windows-acceptans W01–W18) är inte gjord.** Releasen är därför en utvecklingskandidat.
 
 ## 5. Uppföljning och mätning (9.1)
 

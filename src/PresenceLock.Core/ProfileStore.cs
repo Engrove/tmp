@@ -58,11 +58,23 @@ namespace PresenceLock.Core
         public static UserProfile LoadWithRecovery(string path, string userSid, string machineName, out string recovery)
         {
             recovery = null;
-            if (!File.Exists(path)) return Fresh(userSid, machineName);
-            string problem = TryLoad(path, out var p);
-            if (problem == null) return p;
             string bak = path + Housekeeping.BackupSuffix;
-            if (File.Exists(bak) && TryLoad(bak, out var b) == null)
+            string problem;
+            UserProfile p;
+            if (!File.Exists(path))
+            {
+                // A missing profile is treated like a broken one: if a good backup exists, the
+                // profile was lost (deleted, roaming hiccup), not never created.
+                if (!File.Exists(bak)) return Fresh(userSid, machineName);
+                problem = "missing";
+            }
+            else
+            {
+                problem = TryLoad(path, out p);
+                if (problem == null) return p;
+            }
+            if (File.Exists(bak) && TryLoad(bak, out var b) == null
+                && (string.IsNullOrEmpty(userSid) || string.IsNullOrEmpty(b.UserSid) || string.Equals(b.UserSid, userSid, StringComparison.OrdinalIgnoreCase)))
             {
                 recovery = "profile.json " + problem + "; restored from the last-known-good backup of " +
                            File.GetLastWriteTimeUtc(bak).ToString("u");
@@ -92,15 +104,34 @@ namespace PresenceLock.Core
         public static void Save(string path, UserProfile profile)
         {
             profile.UpdatedUtcTicks = DateTime.UtcNow.Ticks;
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-
-            // Atomic-ish: write temp then replace, so a crash mid-write cannot corrupt
-            // the live profile.
-            string tmp = path + ".tmp";
-            File.WriteAllText(tmp, Serialize(profile), new UTF8Encoding(false));
-            if (File.Exists(path)) File.Replace(tmp, path, null);
-            else File.Move(tmp, path);
+            WriteText(path, Serialize(profile));
         }
+
+        /// <summary>
+        /// Atomic-ish write of already serialised text: temp file (unique name) then replace, so a
+        /// crash mid-write cannot corrupt the live file. Used by the agent's background writer.
+        /// </summary>
+        public static void WriteText(string path, string text)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            string tmp = TempName(path);
+            try
+            {
+                File.WriteAllText(tmp, text, new UTF8Encoding(false));
+                if (File.Exists(path)) File.Replace(tmp, path, null);
+                else File.Move(tmp, path);
+            }
+            finally { if (File.Exists(tmp)) File.Delete(tmp); }
+        }
+
+        /// <summary>
+        /// A temporary name unique to this process and write, so two sessions of the same user (RDS)
+        /// or two overlapping saves never write the same .tmp file. Leftovers are removed by the
+        /// cleaning service (*.tmp older than an hour).
+        /// </summary>
+        public static string TempName(string path) =>
+            path + "." + System.Diagnostics.Process.GetCurrentProcess().Id.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                 + "." + Guid.NewGuid().ToString("N").Substring(0, 8) + ".tmp";
 
         /// <summary>
         /// What the daily collection to ProfileExportDirectory contains: what --merge-baseline and
@@ -112,6 +143,14 @@ namespace PresenceLock.Core
         public static UserProfile ExportForCollection(UserProfile profile)
         {
             var clone = Deserialize(Serialize(profile));
+            // Identity and life-cycle times are not needed to build a baseline. The FILE NAME
+            // (COMPUTER_USER.json) still identifies the user: that is documented, not hidden.
+            clone.UserSid = "";
+            clone.MachineName = "";
+            clone.CreatedUtcTicks = 0;
+            clone.UpdatedUtcTicks = profile.UpdatedUtcTicks - profile.UpdatedUtcTicks % TimeSpan.TicksPerDay;   // day only: age filter of --merge-baseline
+            clone.Modes.FirstSeenUtcTicks = 0;
+            clone.Modes.PromotedUtcTicks = 0;
             clone.Pause = new PauseLedger { PausesStarted = profile.Pause?.PausesStarted ?? 0, MinutesChargedTotal = profile.Pause?.MinutesChargedTotal ?? 0 };
             clone.Silence = new SilenceProfile();
             clone.Quality = new QualityMonitor { Degraded = profile.Quality?.Degraded ?? false, Alerts = profile.Quality?.Alerts ?? 0 };

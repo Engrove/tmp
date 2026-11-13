@@ -32,7 +32,13 @@ namespace PresenceLock.Core
         /// <summary>The user is back (or a hold began): clear any dim immediately.</summary>
         CancelDim,
         /// <summary>Learning mode: the model would have locked now (optional "Visa låsning" notice).</summary>
-        WouldLockNotice
+        WouldLockNotice,
+        /// <summary>
+        /// Fallback when locks were requested but never confirmed by a session-lock event (refused,
+        /// or no acknowledgement): disconnect the session (WTSDisconnectSession). A disconnected
+        /// session needs authentication to reconnect, so it is as secure as a locked one.
+        /// </summary>
+        Disconnect
     }
 
     public enum LockCause { None, Model, Backstop, HoldProbe, Habit }
@@ -49,6 +55,10 @@ namespace PresenceLock.Core
         /// <summary>Kaizen events for the administrator (event log), never shown to the user.</summary>
         public QualityMonitor.Change QualityChange;
         public bool ModelRolledBack;
+        /// <summary>This Lock/Disconnect is a RETRY: earlier requests were refused or never confirmed.</summary>
+        public bool LockUnconfirmed;
+        /// <summary>Which request for the current lock this is (1 = first).</summary>
+        public int LockAttempt;
     }
 
     /// <summary>Runtime policy for the coordinator (from GPO; not part of the learned profile).</summary>
@@ -65,6 +75,16 @@ namespace PresenceLock.Core
         public double HoldMaxSeconds = 900.0;
         /// <summary>How long a confirmation dim (hold probe / backstop / habit) waits before locking.</summary>
         public double ConfirmGraceSeconds = 15.0;
+
+        // Lock chain: a request is not a lock. Only the session-lock event (OnSessionLocked) or a
+        // disconnect (OnSessionDisconnected) confirms it. All three are measured on the idle axis,
+        // which only grows while nobody touches the computer, so a clock change cannot stretch them.
+        /// <summary>No session-lock event this long after a request: request again.</summary>
+        public double LockAckTimeoutSeconds = 10.0;
+        /// <summary>After a refused request (LockWorkStation returned false): try again after this long.</summary>
+        public double LockRetrySeconds = 15.0;
+        /// <summary>After this many unconfirmed requests, use the fallback (Disconnect) instead of Lock.</summary>
+        public int LockFallbackAfterAttempts = 3;
 
         /// <summary>
         /// Learning mode: a silence that ends with the user touching the computer again is AMBIGUOUS
@@ -133,8 +153,15 @@ namespace PresenceLock.Core
         private bool _dimShown;
         private LockCause _confirm;             // confirmation dim in progress
         private long _confirmStartTicks;
-        private LockCause _pendingLock;         // lock issued, verdict on unlock
+        private LockCause _pendingLock;         // lock requested; confirmed by OnSessionLocked; verdict on unlock
         private long _pendingLockTicks;
+        private int _lockAttempts;              // requests for the current lock
+        private double _lastAttemptIdle;        // idle seconds at the last request (monotonic axis)
+        private bool _lastAttemptRefused;
+        private double _confirmStartIdle;       // idle seconds when the confirmation dim started
+        private double _prevIdle;               // previous tick's idle: a DROP means input happened
+        // Backstop/habit lock: the label waits for the unlock time, like a model lock (one rule for all causes).
+        private FeatureVector _pendingSig;
         private bool _sessionLocked;
         private bool _suspendedByDisconnect;
         private double _episodeHorizon = -1;     // cached per episode
@@ -192,14 +219,20 @@ namespace PresenceLock.Core
                                       ModePolicy policy, Func<FeatureVector> signature)
         {
             var r = new CoordinatorResult { Mode = _engine.Mode };
-            if (_sessionLocked) return r;
+            if (_sessionLocked) { _prevIdle = 0; return r; }
+            // Input is detected two ways: idle just reset (< 1 s), or idle DROPPED since the last
+            // tick. The second catches input that happened between two ticks when the next tick
+            // came late (timer delayed by I/O, a busy UI thread): idle is then already > 1 s.
+            bool input = idleSeconds < _c.InputResumeIdleSeconds || idleSeconds + 0.25 < _prevIdle;
+            _prevIdle = idleSeconds;
             _lastIdle = idleSeconds;
             bool enforcing = _engine.Mode == OperatingMode.Enforcing;
 
             // ---- 1. input: the user is here ------------------------------------------
-            if (idleSeconds < _c.InputResumeIdleSeconds)
+            if (input)
             {
                 _inputSinceEpisode = true;
+                if (_pendingLock != LockCause.None) CancelUnconfirmedLock();
                 switch (_confirm)
                 {
                     case LockCause.HoldProbe: _p.Stats.HoldProbesAnswered++; break;
@@ -217,6 +250,28 @@ namespace PresenceLock.Core
                 _hold = HoldReason.None;
                 HabitReturnFromInput(nowUtcTicks, idleSeconds);
                 if (_dimShown) { r.Action = CoordinatorAction.CancelDim; _dimShown = false; }
+                return Finish(r, nowUtcTicks, policy, ticked: false);
+            }
+
+            // ---- 0. a lock was requested and is not confirmed yet ----------------------
+            // Nothing else matters until the session is secured or the user is back. Retry on the
+            // idle axis; after LockFallbackAfterAttempts requests, fall back to a disconnect.
+            if (_pendingLock != LockCause.None)
+            {
+                double since = idleSeconds - _lastAttemptIdle;
+                double wait = _lastAttemptRefused ? _c.LockRetrySeconds : _c.LockAckTimeoutSeconds;
+                if (since >= wait)
+                {
+                    _lockAttempts++;
+                    _lastAttemptIdle = idleSeconds;
+                    _lastAttemptRefused = false;
+                    _p.Stats.LockRetries++;
+                    r.Action = _lockAttempts > _c.LockFallbackAfterAttempts ? CoordinatorAction.Disconnect : CoordinatorAction.Lock;
+                    if (r.Action == CoordinatorAction.Disconnect) _p.Stats.LockFallbacks++;
+                    r.Cause = _pendingLock;
+                    r.LockUnconfirmed = true;
+                    r.LockAttempt = _lockAttempts;
+                }
                 return Finish(r, nowUtcTicks, policy, ticked: false);
             }
 
@@ -242,7 +297,7 @@ namespace PresenceLock.Core
                         return Finish(r, nowUtcTicks, policy, ticked);
                     }
                 }
-                if (Seconds(nowUtcTicks - _confirmStartTicks) >= _c.ConfirmGraceSeconds)
+                if (idleSeconds - _confirmStartIdle >= _c.ConfirmGraceSeconds)
                 {
                     var cause = _confirm;
                     _confirm = LockCause.None;
@@ -252,8 +307,15 @@ namespace PresenceLock.Core
                         case LockCause.HoldProbe: _p.Stats.HoldProbeLocks++; break;
                         case LockCause.Habit: _p.Stats.HabitLocks++; break;
                     }
-                    // A visible dim went unanswered: verified absence for a model episode.
-                    if (cause != LockCause.HoldProbe && _engine.EpisodeActive) _engine.OnLongAbsence(nowUtcTicks);
+                    // An unanswered dim is not yet a verdict: the user may unlock within seconds
+                    // (they were there). Keep the signature; the unlock time decides, exactly as for
+                    // a model lock.
+                    if (cause != LockCause.HoldProbe && _engine.EpisodeActive)
+                    {
+                        _pendingSig = _engine.CurrentSignature.Clone();
+                        _pendingSig.IdleSeconds = idleSeconds - _episodeOffset;
+                        _engine.AbortEpisode();
+                    }
                     IssueLock(ref r, cause, nowUtcTicks);
                 }
                 r.Hold = _hold;
@@ -306,6 +368,14 @@ namespace PresenceLock.Core
                 _inputSinceEpisode = false;
             }
 
+            // ---- safety floor: HoldMax applies whether or not a model episode is running ---
+            if (enforcing && !_engine.EpisodeActive && idleSeconds >= _c.HoldMaxSeconds)
+            {
+                _p.Stats.BackstopDims++;
+                StartConfirm(ref r, LockCause.Backstop, nowUtcTicks);
+                return Finish(r, nowUtcTicks, policy, ticked: false);
+            }
+
             // ---- 3. the learned model ---------------------------------------------------
             bool modelTicked = false;
             if (_engine.EpisodeActive)
@@ -322,13 +392,14 @@ namespace PresenceLock.Core
                     if (backstop) _p.Stats.BackstopDims++;
                     StartConfirm(ref r, backstop ? LockCause.Backstop : LockCause.Habit, nowUtcTicks);
                 }
-                else if (!enforcing && (_c.RetrospectiveLearning ? certain || (backstop && !SilentWorkContext()) : backstop))
+                else if (!enforcing && (_c.RetrospectiveLearning ? (certain || backstop) && !SilentWorkContext() : backstop))
                 {
-                    // Learning. In a silent-work application (CAD, PDF, IDE: the "reading" list) a
-                    // silence past the horizon is NOT evidence of absence: the user may be studying a
-                    // drawing. Such an episode resolves when they touch the computer (ambiguous: no
-                    // label), at HoldMax (certain), or via a Windows lock and its unlock time.
-                    // Elsewhere, silence past the horizon is labelled "away" as before.
+                    _p.Stats.AssumedAbsenceLabels++;
+                    // Learning. In a silent-work application (CAD, PDF, IDE: the "reading" list) no
+                    // length of silence is evidence of absence: the user may be studying a drawing.
+                    // Such an episode resolves only by input (ambiguous: no label) or by a Windows
+                    // lock and its unlock time (observed). Elsewhere, silence past the horizon or
+                    // HoldMax is labelled "away" as an ASSUMPTION, counted separately (AssumedAbsenceLabels).
                     _engine.OnLongAbsence(nowUtcTicks);
                 }
                 else
@@ -394,8 +465,22 @@ namespace PresenceLock.Core
             if (natural && silence != null) silence.Record(ctx, d, nowUtcTicks);   // after judging: prequential
         }
 
+        /// <summary>
+        /// The user came back while a requested lock was still not confirmed: nothing was locked,
+        /// so there is no verdict. The time the computer stood unlocked is real exposure.
+        /// </summary>
+        private void CancelUnconfirmedLock()
+        {
+            if (_pendingLock == LockCause.Model) _engine.DiscardEnforcedLock();
+            _p.Stats.LocksNeverConfirmed++;
+            _p.Quality?.RecordExposure(_pendingLockIdle + Math.Max(0, _lastIdle - _lastAttemptIdle));
+            _pendingLock = LockCause.None;
+            _pendingSig = null;
+            _lockAttempts = 0;
+        }
+
         public bool PauseActive(long nowUtcTicks) =>
-            _c.Pause != null && _c.Pause.Enabled && _p.Pause != null && _p.Pause.IsActive(nowUtcTicks);
+            _c.Pause != null && _c.Pause.Enabled && _p.Pause != null && _p.Pause.IsActive(nowUtcTicks, _c.Pause);
 
         /// <summary>Menu: start a pause. The budget and the allowed lengths are enforced here, not in the UI.</summary>
         public bool TryStartPause(int minutes, long nowUtcTicks, out string reason)
@@ -418,6 +503,7 @@ namespace PresenceLock.Core
         {
             _confirm = cause;
             _confirmStartTicks = now;
+            _confirmStartIdle = _lastIdle;
             if (cause == LockCause.HoldProbe) _p.Stats.HoldProbes++;
             if (cause == LockCause.Habit && !_hProbeShown)
             {
@@ -436,9 +522,14 @@ namespace PresenceLock.Core
         {
             r.Action = CoordinatorAction.Lock;
             r.Cause = cause;
+            r.LockAttempt = 1;
             _pendingLock = cause;
             _pendingLockTicks = now;
             _pendingLockIdle = _lastIdle;
+            _lockAttempts = 1;
+            _lastAttemptIdle = _lastIdle;
+            _lastAttemptRefused = false;
+            _p.Stats.LockRequests++;
             _dimShown = false;
         }
 
@@ -601,6 +692,7 @@ namespace PresenceLock.Core
         /// <summary>The session was locked (by us, by Win+L, or by Windows itself).</summary>
         public void OnSessionLocked(long nowUtcTicks, double idleSeconds, Func<FeatureVector> signature)
         {
+            if (_pendingLock != LockCause.None) _p.Stats.LocksConfirmed++;   // the request took effect
             _dimShown = false;
             _confirm = LockCause.None;
             _hold = HoldReason.None;
@@ -619,6 +711,7 @@ namespace PresenceLock.Core
                     var s = signature();                 // Win+L right after input: gold-standard departure
                     s.IdleSeconds = idleSeconds;
                     _engine.OnManualLock(s, nowUtcTicks);
+                    _p.Stats.ObservedDepartures++;
                 }
                 else if (_engine.EpisodeActive)
                 {
@@ -656,6 +749,17 @@ namespace PresenceLock.Core
                 case LockCause.Backstop: if (quick) _p.Stats.BackstopQuickUnlocks++; break;
                 case LockCause.Habit: if (quick) _p.Stats.HabitQuickUnlocks++; break;
             }
+            if (_pendingLock != LockCause.None && !quick) _p.Stats.ObservedDepartures++;
+            // One rule for every cause: a lock is judged by the unlock time. Quick = the user was
+            // there (a wrong decision, present label); slow = they were away (observed departure).
+            if (_pendingSig != null)
+            {
+                _engine.LearnRetrospective(_pendingSig, away: !quick, nowUtcTicks);
+                _p.Modes.RecordEpisodeOutcome(true, quick);
+                if (!quick) _p.Modes.RecordConfirmedPositive();
+                _pendingSig = null;
+            }
+            _lockAttempts = 0;
             _pendingLock = LockCause.None;
             _sessionLocked = false;
             _suspendedByDisconnect = false;
@@ -666,7 +770,7 @@ namespace PresenceLock.Core
                 bool present = Seconds(nowUtcTicks - _deferredLockTicks) <= _p.Config.FalsePositiveWindowSeconds;
                 _engine.LearnRetrospective(_deferredSig, away: !present, nowUtcTicks);
                 if (present) _p.Modes.RecordEpisodeOutcome(_deferredFired, _deferredFired);   // a fire would have hit a present user
-                else { _p.Modes.RecordEpisodeOutcome(_deferredFired, false); _p.Modes.RecordConfirmedPositive(); }
+                else { _p.Modes.RecordEpisodeOutcome(_deferredFired, false); _p.Modes.RecordConfirmedPositive(); _p.Stats.ObservedDepartures++; }
                 _deferredSig = null;
             }
             HabitReturnFromUnlock(nowUtcTicks);
@@ -681,6 +785,7 @@ namespace PresenceLock.Core
         {
             if (_sessionLocked) return;                  // already locked: the unlock event follows later
             _p.Stats.Disconnects++;
+            if (_pendingLock != LockCause.None) _p.Stats.LocksConfirmed++;   // fallback (or RDP close) secured it
             _dimShown = false;
             _confirm = LockCause.None;
             _hold = HoldReason.None;
@@ -700,15 +805,26 @@ namespace PresenceLock.Core
             // A lock we issued that never took effect before the disconnect: drop its verdict.
             if (_pendingLock == LockCause.Model) _engine.DiscardEnforcedLock();
             _pendingLock = LockCause.None;
+            _pendingSig = null;
+            _lockAttempts = 0;
             HabitReturnFromUnlock(nowUtcTicks);
         }
 
-        /// <summary>LockWorkStation() failed (e.g. DisableLockWorkstation policy).</summary>
+        /// <summary>
+        /// LockWorkStation() returned false (e.g. DisableLockWorkstation policy). The lock is still
+        /// wanted: it is requested again after LockRetrySeconds of continued idle, and after
+        /// LockFallbackAfterAttempts requests the fallback (Disconnect) is used. Only input from
+        /// the user, a session-lock event or a disconnect ends it.
+        /// </summary>
         public void OnLockRefused()
         {
-            if (_pendingLock == LockCause.Model) _engine.DiscardEnforcedLock();
-            _pendingLock = LockCause.None;
+            if (_pendingLock == LockCause.None) return;
+            _lastAttemptRefused = true;
+            _p.Stats.LockRefusals++;
         }
+
+        /// <summary>The fallback disconnect failed as well (WTSDisconnectSession returned false).</summary>
+        public void OnDisconnectRefused() => OnLockRefused();
 
         public bool OnUserFlaggedUnjustified(long nowUtcTicks) => _engine.OnUserFlaggedUnjustified(nowUtcTicks);
     }

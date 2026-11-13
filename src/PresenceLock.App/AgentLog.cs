@@ -46,11 +46,14 @@ namespace PresenceLock.App
     ///   1014 habits.json unusable: a new journal was started (locking unaffected)
     ///   1015 the user started a pause (length, budget left)   - audit: never throttled (the budget bounds it)
     ///   1016 the pause ended (ran out / ended by the user)       - audit: never throttled
+    ///   1017 a lock request was refused or not confirmed: requested again / fallback disconnect
+    ///   1018 a signal the security loop depends on failed (idle time, raw input, session notifications)
     /// </summary>
     internal static class AgentEvents
     {
         public const int QualityBelowTarget = 1010, QualityRestored = 1011, ModelRolledBack = 1012,
-                         ProfileRecovered = 1013, JournalReset = 1014, PauseStarted = 1015, PauseEnded = 1016;
+                         ProfileRecovered = 1013, JournalReset = 1014, PauseStarted = 1015, PauseEnded = 1016,
+                         LockNotConfirmed = 1017, SignalDegraded = 1018;
 
         private static readonly EventThrottle Throttle = new EventThrottle();
         private static readonly TimeSpan Window = TimeSpan.FromHours(1);

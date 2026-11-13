@@ -44,6 +44,18 @@ namespace PresenceLock.App.Guard
 
         [DllImport("wtsapi32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool WTSQuerySessionInformation(IntPtr server, int sessionId, int infoClass, out IntPtr buffer, out int bytes);
+        private const int WTSSessionInfoEx = 25;
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetExitCodeProcess(IntPtr process, out uint exitCode);
+        private const uint WAIT_OBJECT_0 = 0;
+
+        [DllImport("wtsapi32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool WTSQueryUserToken(int sessionId, out IntPtr token);
 
         [DllImport("wtsapi32.dll", SetLastError = true)]
@@ -143,10 +155,14 @@ namespace PresenceLock.App.Guard
             {
                 try
                 {
+                    // Exact installed image AND the agent role (no arguments): a CLI instance of the
+                    // same exe (--probe-signals, --status ...) does not protect anything (review F04).
                     if (p.Id != ownPid &&
-                        string.Equals(ImagePath(p.Id), AgentExePath, StringComparison.OrdinalIgnoreCase))
+                        string.Equals(ImagePath(p.Id), AgentExePath, StringComparison.OrdinalIgnoreCase) &&
+                        Interop.ProcessInfo.IsAgentRole(Interop.ProcessInfo.TryGetCommandLine(p.Id)))
                         agentSessions.Add(p.SessionId);
                 }
+                catch (Exception) { /* process ended meanwhile */ }
                 finally { p.Dispose(); }
             }
 
@@ -158,11 +174,14 @@ namespace PresenceLock.App.Guard
                 for (int i = 0; i < count; i++)
                 {
                     var info = Marshal.PtrToStructure<WTS_SESSION_INFO>(buffer + i * size);
+                    bool active = info.State == WTS_CONNECTSTATE_CLASS.WTSActive;
                     result.Add(new SessionSnapshot
                     {
                         SessionId = info.SessionId,
-                        Active = info.State == WTS_CONNECTSTATE_CLASS.WTSActive,
-                        AgentRunning = agentSessions.Contains(info.SessionId)
+                        Active = active,
+                        AgentRunning = agentSessions.Contains(info.SessionId),
+                        HeartbeatAgeSeconds = active && info.SessionId != 0 ? HeartbeatAge(info.SessionId) : double.NaN,
+                        Locked = active && info.SessionId != 0 ? QueryLocked(info.SessionId) : null
                     });
                 }
             }
@@ -171,7 +190,9 @@ namespace PresenceLock.App.Guard
         }
 
         /// <summary>Start PresenceLock.exe [arguments] as the session's user, on its interactive desktop.</summary>
-        public static void StartInSession(int sessionId, string arguments)
+        public static void StartInSession(int sessionId, string arguments) => CloseHandle(StartInSessionHandle(sessionId, arguments));
+
+        private static IntPtr StartInSessionHandle(int sessionId, string arguments)
         {
             IntPtr userToken = IntPtr.Zero, primary = IntPtr.Zero, env = IntPtr.Zero;
             try
@@ -190,7 +211,7 @@ namespace PresenceLock.App.Guard
                         CREATE_UNICODE_ENVIRONMENT, env, System.IO.Path.GetDirectoryName(exe), ref si, out var pi))
                     throw new Win32Exception(Marshal.GetLastWin32Error(), "CreateProcessAsUser");
                 CloseHandle(pi.hThread);
-                CloseHandle(pi.hProcess);
+                return pi.hProcess;
             }
             finally
             {
@@ -201,23 +222,90 @@ namespace PresenceLock.App.Guard
         }
 
         /// <summary>
-        /// Lock a session: run "PresenceLock.exe --lock-now" as its user (normal lock screen);
-        /// if that fails, disconnect the session, which also returns a console session to the
-        /// logon screen without logging the user off.
+        /// REQUEST a session lock: run "PresenceLock.exe --lock-now" as its user and wait (bounded)
+        /// for its exit code, which is 0 only if LockWorkStation returned TRUE. That still only means
+        /// the lock was INITIATED (LockWorkStation is asynchronous): the guard counts the session as
+        /// locked only when Windows reports it (session-change event or <see cref="QueryLocked"/>).
         /// </summary>
-        public static string LockSession(int sessionId)
+        public static bool RequestLock(int sessionId, out string detail)
         {
             try
             {
-                StartInSession(sessionId, "--lock-now");
-                return "locked via LockWorkStation";
+                uint code = RunInSessionAndWait(sessionId, "--lock-now", 5000, out bool exited);
+                detail = !exited ? "lock helper did not finish within 5 s" : code == 0 ? "LockWorkStation initiated" : "LockWorkStation refused (exit " + code + ")";
+                return exited && code == 0;
             }
             catch (Win32Exception ex)
             {
-                if (WTSDisconnectSession(WTS_CURRENT_SERVER_HANDLE, sessionId, false))
-                    return "LockWorkStation launch failed (" + ex.Message + "); session disconnected instead";
-                return "LOCK FAILED: " + ex.Message + "; disconnect error " + Marshal.GetLastWin32Error();
+                detail = "lock helper could not be started: " + ex.Message;
+                return false;
             }
+        }
+
+        /// <summary>Fallback: disconnect the session (reconnecting requires authentication).</summary>
+        public static bool RequestDisconnect(int sessionId, out string detail)
+        {
+            bool ok = WTSDisconnectSession(WTS_CURRENT_SERVER_HANDLE, sessionId, false);
+            detail = ok ? "disconnect initiated" : "disconnect failed, error " + Marshal.GetLastWin32Error();
+            return ok;
+        }
+
+        /// <summary>
+        /// The session's lock state from WTSSessionInfoEx (WTSINFOEX_LEVEL1.SessionFlags:
+        /// 0 = locked, 1 = unlocked; the documented inversion only affects Windows 7 / 2008 R2,
+        /// outside this product's scope). null if it cannot be read. Pilot item: verify on the target build.
+        /// </summary>
+        public static bool? QueryLocked(int sessionId)
+        {
+            if (!WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, sessionId, WTSSessionInfoEx, out IntPtr buf, out int bytes))
+                return null;
+            try
+            {
+                if (bytes < 20 || Marshal.ReadInt32(buf, 0) != 1) return null;     // Level must be 1
+                int flags = Marshal.ReadInt32(buf, 16);                             // Data (8-aligned) + SessionId + SessionState
+                if (flags == 0) return true;
+                if (flags == 1) return false;
+                return null;
+            }
+            finally { WTSFreeMemory(buf); }
+        }
+
+        /// <summary>Seconds since the agent's heartbeat in the session user's hive; NaN if none.</summary>
+        public static double HeartbeatAge(int sessionId)
+        {
+            try
+            {
+                if (!TryGetUser(sessionId, out string sid, out _)) return double.NaN;
+                using (var k = Microsoft.Win32.Registry.Users.OpenSubKey(sid + @"\" + AgentHeartbeat.KeyPath, false))
+                {
+                    if (!(k?.GetValue(AgentHeartbeat.ValueName) is long ticks)) return double.NaN;
+                    return Math.Max(0, (DateTime.UtcNow.Ticks - ticks) / (double)TimeSpan.TicksPerSecond);
+                }
+            }
+            catch (Exception) { return double.NaN; }
+        }
+
+        private static uint RunInSessionAndWait(int sessionId, string arguments, uint timeoutMs, out bool exited)
+        {
+            IntPtr process = StartInSessionHandle(sessionId, arguments);
+            try
+            {
+                exited = WaitForSingleObject(process, timeoutMs) == WAIT_OBJECT_0;
+                return exited && GetExitCodeProcess(process, out uint code) ? code : uint.MaxValue;
+            }
+            finally { CloseHandle(process); }
+        }
+
+        /// <summary>
+        /// Run code with the session user's own rights (impersonation). The guard reads files in the
+        /// user's writable profile this way, so a junction or symlink there can only lead to files the
+        /// user could read anyway (review F26).
+        /// </summary>
+        public static T AsSessionUser<T>(int sessionId, Func<T> action)
+        {
+            if (!WTSQueryUserToken(sessionId, out IntPtr token)) throw new Win32Exception(Marshal.GetLastWin32Error(), "WTSQueryUserToken");
+            using (var handle = new Microsoft.Win32.SafeHandles.SafeAccessTokenHandle(token))
+                return WindowsIdentity.RunImpersonated(handle, action);
         }
 
         /// <summary>The session user's SID and LocalAppData folder (from their own token).</summary>

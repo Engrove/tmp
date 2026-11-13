@@ -42,10 +42,10 @@ Datorprincip går före användarprincip.</string>
       <string id="AppLists">Ytterligare applikationsklasser</string>
       <string id="AppLists_Help">Kommaseparerade processnamn (med eller utan .exe) som läggs till de inbyggda listorna. "Läs"-appar är sådana där användaren rimligen sitter stilla (CAD, IDE, PDF-läsare, videomöten). "Lämnar"-appar föregår ofta att man går ifrån. Endast processnamn granskas, aldrig fönstertitlar eller innehåll.</string>
 
-      <string id="EnableAudioSonar">Tillåt ultraljudsbaserad närvarodetektering (endast inlärning)</string>
+      <string id="EnableAudioSonar">Tillåt ultraljudsbaserad närvarodetektering (endast inlärning) — EJ TILLGÄNGLIG i denna version</string>
       <string id="EnableAudioSonar_Help">Tillåter den valfria 20 kHz eko/Doppler-sensorn under inlärning. Denna version innehåller signalbehandlingen men ingen ljudinspelningsdel, så inställningen har i dag ingen effekt. När en inspelningsdel integreras gäller: Windows visar mikrofonindikatorn, sekretessinställningen "Tillåt skrivbordsappar att komma åt mikrofonen" måste vara på, och sensorn används aldrig i skarpt läge om den inte var tillgänglig i minst 80 % av inlärningsepisoderna.</string>
 
-      <string id="EnableBleRssi">Tillåt Bluetooth LE-signalstyrka (endast inlärning)</string>
+      <string id="EnableBleRssi">Tillåt Bluetooth LE-signalstyrka (endast inlärning) — EJ TILLGÄNGLIG i denna version</string>
       <string id="EnableBleRssi_Help">Tillåter den valfria Bluetooth LE RSSI-indikationen under inlärning. Denna version innehåller logiken men ingen BLE-avlyssnare, så inställningen har i dag ingen effekt. Samma 80 %-regel gäller innan skarpt läge får använda den.</string>
 
       <string id="AllowUserExit">Tillåt användaren att avsluta agenten (inaktivera = NIS2-läge)</string>
@@ -57,7 +57,7 @@ Inaktiverad (NIS2-läge) — sätt den som DATORPRINCIP; guard-tjänsten följer
 3. Ett avslutsmeddelande som ett annat program skickar startar om agenten i stället för att avsluta den.
 4. Att återställa en profil (PresenceLock.exe --reset-profile) kräver eleverad administratör.
 5. En raderad profil, en profil som nedgraderats från skarpt läge till inlärning eller en omstartad inlärningsklocka återställs från guard-tjänstens skyddade kopia. Principvärden läses aldrig från den användarskrivbara profilfilen.
-6. Med tjänsten PresenceLock Guard installerad (Install-PresenceLock.ps1 -Guard): försvinner agenten ändå från en olåst session LÅSES sessionen inom cirka 4 sekunder och agenten startas om. Varje händelse skrivs till programloggen, källa "PresenceLock", händelse-ID 1001 (1003 om låsningen misslyckades).
+6. Med tjänsten PresenceLock Guard installerad (Install-PresenceLock.ps1 -Guard): försvinner agenten, slutar svara (inaktuellt hjärtslag) eller blir aldrig frisk inom 120 s efter inloggning/upplåsning BEGÄR guarden låsning inom cirka 4 s (händelse 1001) och upprepar begäran tills Windows rapporterar sessionen låst (händelse 1008); efter 3 obekräftade begäranden kopplas sessionen från (händelse 1007). Agenten startas om.
 
 Utanför skyddet: lokala administratörer, samt indata som injiceras för att fejka aktivitet (musjigglers, "håll vaken"-verktyg som skickar tangenttryck).</string>
 

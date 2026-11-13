@@ -54,6 +54,16 @@ namespace PresenceLock.Core
 
         // Rolling outcome window (true = fired on a present user).
         [DataMember] public bool[] OutcomeWindow = new bool[WindowSize];
+        // Same slots: what kind of decision it was. 0 = none, 1 = fired and verified right,
+        // 2 = fired and verified wrong, 3 = fired, truth unknown (counted as wrong per episode).
+        [DataMember] public byte[] FireWindow = new byte[WindowSize];
+        /// <summary>
+        /// Second gate criterion (decision precision): among the window's VERIFIED decisions, the
+        /// Wilson 95 % upper bound of the share that hit a present user must be at most this.
+        /// The per-episode rate alone can hide a model whose every decision is wrong (10 of 10
+        /// fires wrong is 5 % of 200 episodes).
+        /// </summary>
+        [DataMember] public double MaxWrongShareOfDecisions = 0.5;
         [DataMember] public int WindowHead;
         [DataMember] public int WindowCount;
 
@@ -79,6 +89,13 @@ namespace PresenceLock.Core
                 WindowHead = 0;
                 WindowCount = 0;
             }
+            if (FireWindow == null || FireWindow.Length != WindowSize)
+            {
+                // Older profile: reconstruct conservatively (a past false positive was a wrong fire).
+                FireWindow = new byte[WindowSize];
+                for (int i = 0; i < WindowSize; i++) FireWindow[i] = OutcomeWindow[i] ? (byte)2 : (byte)0;
+            }
+            if (!(MaxWrongShareOfDecisions > 0 && MaxWrongShareOfDecisions <= 1)) MaxWrongShareOfDecisions = 0.5;
             if (WindowHead < 0 || WindowHead >= WindowSize) WindowHead = 0;
             if (WindowCount < 0 || WindowCount > WindowSize) WindowCount = 0;
         }
@@ -94,9 +111,10 @@ namespace PresenceLock.Core
             return (nowUtcTicks - FirstSeenUtcTicks) / (double)TimeSpan.TicksPerDay;
         }
 
-        private void PushOutcome(bool falsePositive)
+        private void PushOutcome(bool falsePositive, byte fire)
         {
             OutcomeWindow[WindowHead] = falsePositive;
+            FireWindow[WindowHead] = fire;
             WindowHead = (WindowHead + 1) % WindowSize;
             if (WindowCount < WindowSize) WindowCount++;
             RecentFpRateEma = (1 - FpAlpha) * RecentFpRateEma + FpAlpha * (falsePositive ? 1.0 : 0.0);
@@ -111,7 +129,7 @@ namespace PresenceLock.Core
         {
             if (fired) FiredDecisions++;
             if (rejected) RejectedDecisions++;
-            PushOutcome(fired && rejected);
+            PushOutcome(fired && rejected, fired ? (rejected ? (byte)2 : (byte)1) : (byte)0);
         }
 
         /// <summary>
@@ -123,7 +141,7 @@ namespace PresenceLock.Core
         public void RecordUnverifiedFire()
         {
             FiredDecisions++;
-            PushOutcome(true);
+            PushOutcome(true, 3);
         }
 
         public void RecordConfirmedPositive() => ConfirmedPositives++;
@@ -139,6 +157,7 @@ namespace PresenceLock.Core
             {
                 int last = (WindowHead - 1 + WindowSize) % WindowSize;
                 OutcomeWindow[last] = true;
+                FireWindow[last] = 2;
             }
             RecentFpRateEma = Math.Min(1.0, RecentFpRateEma + FpAlpha);
         }
@@ -162,6 +181,37 @@ namespace PresenceLock.Core
 
         public double WindowFalsePositiveRate() =>
             WindowCount == 0 ? 1.0 : WindowFalsePositives() / (double)WindowCount;
+
+        /// <summary>Window counts of decisions: verified right, verified wrong, unverified.</summary>
+        public void WindowDecisions(out int right, out int wrong, out int unverified)
+        {
+            right = wrong = unverified = 0;
+            for (int i = 0; i < WindowCount; i++)
+            {
+                int idx = (WindowHead - 1 - i + 2 * WindowSize) % WindowSize;
+                switch (FireWindow[idx]) { case 1: right++; break; case 2: wrong++; break; case 3: unverified++; break; }
+            }
+        }
+
+        /// <summary>
+        /// Wilson 95 % upper bound of the share of VERIFIED decisions that hit a present user;
+        /// 0 when no verified decision was wrong (a model that never fires, or only fires right).
+        /// </summary>
+        public double WrongDecisionUpperBound()
+        {
+            WindowDecisions(out int right, out int wrong, out _);
+            return wrong == 0 ? 0.0 : WilsonUpper(wrong, right + wrong);
+        }
+
+        public static double WilsonUpper(int k, int n)
+        {
+            if (n <= 0) return 1.0;
+            double p = k / (double)n, z2 = Z95 * Z95;
+            double denom = 1.0 + z2 / n;
+            double center = p + z2 / (2.0 * n);
+            double margin = Z95 * Math.Sqrt(p * (1.0 - p) / n + z2 / (4.0 * n * n));
+            return Math.Min(1.0, (center + margin) / denom);
+        }
 
         /// <summary>Wilson score 95 % upper bound of the windowed false-positive rate.</summary>
         public double FalsePositiveUpperBound()
@@ -199,8 +249,9 @@ namespace PresenceLock.Core
             bool enoughData = ConfirmedPositives >= MinConfirmedPositives;
             bool windowFull = WindowCount >= WindowSize;
             bool fpSafe = windowFull && FalsePositiveUpperBound() <= TargetFalsePositiveRate;
+            bool precise = WrongDecisionUpperBound() <= MaxWrongShareOfDecisions;
 
-            if (minTime && enoughData && fpSafe)
+            if (minTime && enoughData && fpSafe && precise)
             {
                 Mode = OperatingMode.Enforcing;
                 LearningExtended = false;
@@ -224,15 +275,17 @@ namespace PresenceLock.Core
         /// <summary>Human-readable gate status; for the tray status box, logs and export.</summary>
         public string Explain(long nowUtcTicks)
         {
+            WindowDecisions(out int right, out int wrong, out int unverified);
             return string.Format(System.Globalization.CultureInfo.InvariantCulture,
                 "mode={0}{1} days={2:F1}/{3} positives={4}/{5} window={6}/{7} " +
-                "fpRate={8:P1} fpUpper95={9:P1}(<= {10:P0}) stability={11:F3}",
+                "per-episode: wrong {8:P1} upper95 {9:P1} (<= {10:P0}); " +
+                "decisions in window: {12} right, {13} wrong, {14} unverified, wrong-share upper95 {15:P1} (<= {16:P0}); stability={11:F3}",
                 Mode, LearningExtended ? " (LearningExtended: needs admin review)" : "",
                 DaysElapsed(nowUtcTicks), MinLearningDays,
                 ConfirmedPositives, MinConfirmedPositives,
                 WindowCount, WindowSize,
                 WindowFalsePositiveRate(), FalsePositiveUpperBound(), TargetFalsePositiveRate,
-                StabilityEma);
+                StabilityEma, right, wrong, unverified, WrongDecisionUpperBound(), MaxWrongShareOfDecisions);
         }
     }
 }

@@ -157,8 +157,13 @@ namespace PresenceLock.Core.Tests
             Assert.Equal(LockCause.Backstop, r[c].Cause);
             Assert.Equal(CoordinatorAction.Lock, r[c + 15].Action);
             Assert.Equal(LockCause.Backstop, r[c + 15].Cause);
-            Assert.Equal(1, p.Modes.ConfirmedPositives);          // verified absence -> positive label
             Assert.Equal(1, p.Stats.BackstopLocks);
+            // Review F15: the verdict waits for the unlock: a slow unlock = observed departure.
+            Assert.Equal(0, p.Modes.ConfirmedPositives);
+            co.OnSessionLocked(T0 + (c + 16) * Sec, c + 16, Sig);
+            co.OnSessionUnlocked(T0 + (c + 16 + 600) * Sec);
+            Assert.Equal(1, p.Modes.ConfirmedPositives);
+            Assert.Equal(1, p.Stats.ObservedDepartures);
         }
 
         [Fact]
@@ -214,14 +219,18 @@ namespace PresenceLock.Core.Tests
         }
 
         [Fact]
-        public void Learning_SilentWorkApp_CertainAbsenceOnlyAtHoldMax()
+        public void Learning_SilentWorkApp_NeverAssumedAbsent()
         {
+            // Review F16: no length of silence in a silent-work application is evidence of absence.
             var (co, p) = Make(enforcing: false);
             p.Model.W0 = -1000;
-            Run(co, 0, 899, ReadingSig);
+            Run(co, 0, 3600, ReadingSig);
             Assert.Equal(0, p.Modes.ConfirmedPositives);
-            Run(co, 900, 901, ReadingSig);
-            Assert.Equal(1, p.Modes.ConfirmedPositives);
+            // ...but outside silent work, HoldMax still yields an ASSUMED absence, counted as such
+            var (co2, p2) = Make(enforcing: false);
+            p2.Model.W0 = -1000;
+            Run(co2, 0, 901, s => NoSignals);
+            Assert.Equal(1, p2.Stats.AssumedAbsenceLabels);
         }
 
         [Theory]
@@ -260,14 +269,20 @@ namespace PresenceLock.Core.Tests
         }
 
         [Fact]
-        public void LockRefused_DropsTheModelVerdict()
+        public void LockRefused_KeepsTheLockWanted_UntilTheUserIsBack()
         {
+            // Review F01: a refusal is not the end of the lock. It stays wanted (and is retried),
+            // and its verdict is only dropped when the user returns before anything secured the session.
             var (co, p) = Make(enforcing: true);
-            var r = Run(co, 0, 60, s => NoSignals);
+            Run(co, 0, 60, s => NoSignals);
             Assert.Equal(LockCause.Model, co.PendingLock);
             co.OnLockRefused();
+            Assert.Equal(LockCause.Model, co.PendingLock);
+            Assert.True(co.Engine.EnforcedLockPending);
+            co.Tick(T0 + 61 * Sec, 0.3, NoSignals, ModePolicy.Auto, Sig);     // the user is back
             Assert.Equal(LockCause.None, co.PendingLock);
             Assert.False(co.Engine.EnforcedLockPending);
+            Assert.Equal(1, p.Stats.LocksNeverConfirmed);
         }
 
         [Fact]
