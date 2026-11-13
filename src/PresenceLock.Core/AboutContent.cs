@@ -24,6 +24,7 @@ namespace PresenceLock.Core
         /// <summary>Observed, not configured: "running", "stopped", "not installed" or "unknown" (review F23).</summary>
         public string GuardStatus = "unknown";
         public int HoldMaxMinutes = 15;
+        public int MinLockIdleSeconds = 120;
         public int ConfirmGraceSeconds = 15;
         public int MaxLearnedHorizonMinutes = 10;
         public bool PauseAllowed = true;
@@ -71,6 +72,7 @@ namespace PresenceLock.Core
                     "Den lär sig på den här datorn hur just du arbetar, till exempel att du kan sitta stilla och läsa " +
                     "eller studera en ritning en stund, och skiljer det från att du har rest dig och gått.\n" +
                     "Innan låsning dämpas skärmen i några sekunder. En musrörelse eller tangenttryckning avbryter. " +
+                    (i.MinLockIdleSeconds > 0 ? "Datorn dämpas eller låses aldrig förrän den har stått orörd i minst " + Duration(i.MinLockIdleSeconds) + ". " : "") +
                     "Under de första veckorna lär sig appen utan att låsa.\n" +
                     "Spelar en synlig video, eller används mikrofon eller kamera i ett möte, pausas bedömningen. Efter " +
                     i.HoldMaxMinutes.ToString(c) + " minuter utan aktivitet frågar skärmen ändå om du är kvar." +

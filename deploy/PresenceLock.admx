@@ -170,6 +170,17 @@
       </elements>
     </policy>
 
+    <policy name="MinimumLockIdle" class="Machine"
+            displayName="$(string.MinimumLockIdle)" explainText="$(string.MinimumLockIdle_Help)"
+            presentation="$(presentation.MinimumLockIdle)"
+            key="Software\Policies\PresenceLock">
+      <parentCategory ref="PresenceLock_Passive" />
+      <supportedOn ref="SUPPORTED_Win10_Win11" />
+      <elements>
+        <decimal id="MinLockIdleSeconds" valueName="MinLockIdleSeconds" minValue="0" maxValue="900" required="true" />
+      </elements>
+    </policy>
+
     <policy name="HoldIgnoreApps" class="Machine"
             displayName="$(string.HoldIgnoreApps)" explainText="$(string.HoldIgnoreApps_Help)"
             presentation="$(presentation.HoldIgnoreApps)"

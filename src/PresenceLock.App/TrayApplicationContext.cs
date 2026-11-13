@@ -108,7 +108,7 @@ namespace PresenceLock.App
 
             SystemEvents.SessionEnding += OnSessionEnding;
 
-            AgentLog.Write("start: " + _coord.Engine.Diagnostics(DateTime.UtcNow.Ticks)
+            AgentLog.Write("start: PresenceLock " + AgentIdentity.Full + " (" + AgentIdentity.ExePath() + "); " + _coord.Engine.Diagnostics(DateTime.UtcNow.Ticks)
                            + " powerSignal=" + (_signals.PowerSignalAllowed ? "on" : "off (server SKU)"));
             RunHousekeeping();
         }
@@ -177,6 +177,7 @@ namespace PresenceLock.App
             live.MediaHoldEnabled = c.MediaHoldEnabled;
             live.MeetingHoldEnabled = c.MeetingHoldEnabled;
             live.HoldMaxSeconds = c.HoldMaxSeconds;
+            live.MinLockIdleSeconds = c.MinLockIdleSeconds;
             live.MaxLearnedHorizonSeconds = c.MaxLearnedHorizonSeconds;
             live.ConfirmGraceSeconds = c.ConfirmGraceSeconds;
             live.HabitEarlySeconds = c.HabitEarlySeconds;
@@ -195,7 +196,7 @@ namespace PresenceLock.App
 
         private static string Fingerprint(AppSettings s) => string.Join(";", new[]
         {
-            "mode=" + s.ModePolicy, "exit=" + s.AllowUserExit, "holdMax=" + s.HoldMaxMinutes, "grace=" + s.ConfirmGraceSeconds,
+            "mode=" + s.ModePolicy, "exit=" + s.AllowUserExit, "holdMax=" + s.HoldMaxMinutes, "minLockIdle=" + s.MinLockIdleSeconds, "grace=" + s.ConfirmGraceSeconds,
             "cap=" + s.MaxLearnedHorizonMinutes, "pause=" + s.AllowUserPause + "/" + string.Join(",", s.PauseOptionsMinutes) + "/" + s.PauseBudgetMinutesPerDay + "/" + s.PauseKeepsConfirmation,
             "media=" + s.MediaHoldEnabled, "meeting=" + s.MeetingHoldEnabled, "habits=" + s.HabitLearningEnabled,
             "export=" + s.AllowProfileExport, "collect=" + (string.IsNullOrEmpty(s.ProfileExportDirectory) ? "off" : "on"),
@@ -276,8 +277,7 @@ namespace PresenceLock.App
             return p;
         }
 
-        private static readonly string AgentVersion =
-            typeof(TrayApplicationContext).Assembly.GetName().Version.ToString(3);
+        private static readonly string AgentVersion = AgentIdentity.Version;
 
         private void SaveProfile()
         {

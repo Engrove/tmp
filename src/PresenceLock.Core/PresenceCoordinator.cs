@@ -101,6 +101,14 @@ namespace PresenceLock.Core
         public bool LearnedHorizon = true;
         /// <summary>Cap on the learned horizon (also bounds what an edited model can do). Clamped to HoldMax.</summary>
         public double MaxLearnedHorizonSeconds = 600.0;
+        /// <summary>
+        /// GPO floor (0.7.2): no automatic dim, would-lock notice or lock (model or habits) before this
+        /// much idle. The learned horizon never lies below it. Win+L and Windows' own inactivity lock are
+        /// unaffected. Clamped to [0, HoldMax]. Default 120 s: the factory model alone would act after
+        /// ~47 s, which the first field profile showed to hit most reading pauses (24 of 30 silences of
+        /// >= 30 s lasted longer than that, 5 longer than 120 s).
+        /// </summary>
+        public double MinLockIdleSeconds = 120.0;
         /// <summary>Champion/challenger supervision of the continuous learning (null = off).</summary>
         public ModelGuardPolicy ModelGuard = new ModelGuardPolicy();
         /// <summary>GPO "User pause" (menu choices, 24-hour budget, whether the HoldMax confirmation stays).</summary>
@@ -278,7 +286,7 @@ namespace PresenceLock.Core
             // ---- habit episode bookkeeping and verdict (shadow-evaluated always) ---------
             if (!_hOpen && idleSeconds >= _c.EpisodeStartIdleSeconds) HabitOpen(nowUtcTicks, idleSeconds);
             bool habitAct = HabitVerdict(nowUtcTicks, idleSeconds, out r.HabitLikelyGone) && enforcing
-                            && idleSeconds >= _c.HabitEarlySeconds;
+                            && idleSeconds >= _c.HabitEarlySeconds && idleSeconds >= MinLockIdle();
 
             // ---- confirmation dim in progress ------------------------------------------
             if (_confirm != LockCause.None)
@@ -393,6 +401,19 @@ namespace PresenceLock.Core
                 if (enforcing && (backstop || habitAct))
                 {
                     if (backstop) _p.Stats.BackstopDims++;
+                    else
+                    {
+                        // A habit confirmation must never delay the model. With the floor both may become
+                        // eligible in the same tick: let the model decide in this tick too (0.7.2).
+                        var d = _engine.Tick(nowUtcTicks, policy);
+                        modelTicked = true;
+                        r.Probability = d.Probability;
+                        if (d.Action == DecisionAction.TriggerLock && d.Mode == OperatingMode.Enforcing)
+                        {
+                            IssueLock(ref r, LockCause.Model, nowUtcTicks);
+                            return Finish(r, nowUtcTicks, policy, modelTicked);
+                        }
+                    }
                     StartConfirm(ref r, backstop ? LockCause.Backstop : LockCause.Habit, nowUtcTicks);
                 }
                 else if (!enforcing && (_c.RetrospectiveLearning ? (certain || backstop) && !SilentWorkContext() : backstop))
@@ -404,6 +425,11 @@ namespace PresenceLock.Core
                     // lock and its unlock time (observed). Elsewhere, silence past the horizon or
                     // HoldMax is labelled "away" as an ASSUMPTION, counted separately (AssumedAbsenceLabels).
                     _engine.OnLongAbsence(nowUtcTicks);
+                }
+                else if (idleSeconds < MinLockIdle())
+                {
+                    // Below the GPO floor no decision is made at all: the model is not asked, so it can
+                    // neither dim nor show a would-lock notice. Its state machine starts at the floor.
                 }
                 else
                 {
@@ -443,6 +469,9 @@ namespace PresenceLock.Core
                 double learned = _p.Model.LockTime(sig.X, _p.Config.SoftDimThreshold, cap);
                 h = Math.Min(cap, Math.Max(h, learned));
             }
+            // The horizon is measured on the episode clock; the floor on total idle. The episode starts
+            // at offset 0 or later (after a hold), so h >= floor keeps the backstop above the floor.
+            h = Math.Max(h, MinLockIdle());
             return _episodeHorizon = h;
         }
 
@@ -481,6 +510,10 @@ namespace PresenceLock.Core
             _pendingSig = null;
             _lockAttempts = 0;
         }
+
+        /// <summary>The GPO floor, clamped to [0, HoldMax].</summary>
+        public double MinLockIdle() =>
+            Math.Max(0, Math.Min(_c.HoldMaxSeconds, double.IsNaN(_c.MinLockIdleSeconds) ? 0 : _c.MinLockIdleSeconds));
 
         public bool PauseActive(long nowUtcTicks) =>
             _c.Pause != null && _c.Pause.Enabled && _p.Pause != null && _p.Pause.IsActive(nowUtcTicks, _c.Pause);

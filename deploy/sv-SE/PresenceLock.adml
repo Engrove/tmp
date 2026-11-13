@@ -113,6 +113,14 @@ Pausen begränsas alltid av "Gränser för paus".</string>
       <string id="HoldLimits_Help">Maximalt antal minuter inaktivitet (standard 15) varefter en synlig bekräftelsedimning ALLTID visas i skarpt läge, oavsett vad de passiva signalerna eller modellen säger; besvaras den inte inom nådetiden (standard 15 s) låses datorn. Samma bekräftelse används när horisonten för säker frånvaro (se "Tak för inlärd horisont", 3–10 min som standard) nås utan lås. Ingen dator står därför olåst längre än summan av de två värdena efter senaste indata.
 
 Simulerad avvägning (60 dagar, användare med 3 videor och 2 möten per dag): HoldMax 5 min: 74 % av media-/mötespauserna får en dimning, längsta obevakade tid 238 s; 10 min: 49 % / 531 s; 15 min: 30 % / 831 s; 20 min: 13 % / 1096 s. Utan passiva signaler: 53 % / 538 s (den inlärda horisonten låter modellen lära sig att tyst tittande är närvaro, så korta pauser från det sammanhanget kan stå olåsta upp till taket för inlärd horisont; med den fasta 3-minutershorisonten i tidigare versioner: 90 % / 184 s).</string>
+      <string id="MinimumLockIdle">Minsta inaktivitet före automatisk låsning</string>
+      <string id="MinimumLockIdle_Help">Ingen automatisk dimning, notis ("Datorn hade låsts nu") eller låsning sker förrän datorn har stått orörd så här länge, varken från den inlärda modellen eller från vanorna. Den inlärda horisonten och bekräftelsen efter HoldMax hamnar aldrig under gränsen. Win+L och Windows egen inaktivitetsgräns påverkas inte.
+
+Standard (ej konfigurerad): 120 sekunder. 0 = ingen gräns (modellen får agera så tidigt den vill, fabriksmodellen efter cirka 47 s). Värdet begränsas till HoldMax.
+
+Avvägning: en avfärd låses tidigast efter gränsen plus dimningen (3 s). Utan gräns var medianen cirka 4 s i simulering. Med 120 s blir den cirka 2 minuter, fortfarande kortare än en fast skärmsläckartid på 10–15 minuter. Den första fältprofilen (en dator, cirka en halv dag): av 30 tystnader på minst 30 s där användaren kom tillbaka själv varade 24 längre än 47 s, men bara 5 längre än 120 s.
+
+Principen är en datorprincip. Ett värde i användarens gren ignoreras.</string>
       <string id="LearnedHorizon">Tak för inlärd horisont (tyst arbete)</string>
       <string id="LearnedHorizon_Help">Hur länge en TYST användare får sitta utan att få frågan "är du kvar?", när agenten har lärt sig att just den användaren arbetar tyst i det sammanhanget (till exempel betraktar en CAD-modell utan att röra något).
 
@@ -180,6 +188,9 @@ Journalen är en närvarotidslinje (personuppgifter). Den stannar i användarens
       <presentation id="HoldLimits">
         <decimalTextBox refId="HoldMaxMinutes" defaultValue="15" spinStep="1">Bekräftelsedimning efter minuter inaktivitet </decimalTextBox>
         <decimalTextBox refId="ConfirmGraceSeconds" defaultValue="15" spinStep="1">Lås om obesvarad efter sekunder </decimalTextBox>
+      </presentation>
+      <presentation id="MinimumLockIdle">
+        <decimalTextBox refId="MinLockIdleSeconds" defaultValue="120" spinStep="10">Tidigast efter sekunder utan aktivitet </decimalTextBox>
       </presentation>
       <presentation id="LearnedHorizon">
         <decimalTextBox refId="MaxLearnedHorizonMinutes" defaultValue="10" spinStep="1">Fråga senast efter tysta minuter </decimalTextBox>

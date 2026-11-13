@@ -21,6 +21,9 @@ namespace PresenceLock.Core.Tests
             return (new PresenceCoordinator(new PresenceEngine(p), cfg ?? new CoordinatorConfig()), p);
         }
 
+        /// <summary>Tests of the mechanics at the factory timing (dim 37 s, lock 47 s): GPO floor off (FloorTests).</summary>
+        private static CoordinatorConfig FactoryTiming() => new CoordinatorConfig { MinLockIdleSeconds = 0 };
+
         private static FeatureVector Sig()
         {
             var f = new FeatureVector();
@@ -58,7 +61,7 @@ namespace PresenceLock.Core.Tests
         [Fact]
         public void NoSignals_BehavesLikeThePlainModel()
         {
-            var (co, _) = Make(enforcing: true);
+            var (co, _) = Make(enforcing: true, cfg: FactoryTiming());
             var r = Run(co, 0, 120, s => NoSignals);
             int dim = First(r, CoordinatorAction.SoftDim), lk = First(r, CoordinatorAction.Lock);
             Assert.InRange(dim, 37, 39);                 // neutral baseline: P >= 75 % at 37.3 s
@@ -69,7 +72,7 @@ namespace PresenceLock.Core.Tests
         [Fact]
         public void UnavailableSignals_AreNoEvidence()
         {
-            var (co, _) = Make(enforcing: true);
+            var (co, _) = Make(enforcing: true, cfg: FactoryTiming());
             var unknown = new PassiveSignals { DisplayRequired = null, MicrophoneInUse = null, CameraInUse = null };
             var r = Run(co, 0, 120, s => unknown);
             Assert.InRange(First(r, CoordinatorAction.SoftDim), 37, 39);
@@ -253,7 +256,7 @@ namespace PresenceLock.Core.Tests
         [Fact]
         public void MeetingHold_CanBeDisabledByPolicy()
         {
-            var (co, _) = Make(enforcing: true, cfg: new CoordinatorConfig { MeetingHoldEnabled = false });
+            var (co, _) = Make(enforcing: true, cfg: new CoordinatorConfig { MeetingHoldEnabled = false , MinLockIdleSeconds = 0 });
             var r = Run(co, 0, 60, s => Mic);
             Assert.InRange(First(r, CoordinatorAction.SoftDim), 37, 39);       // mic ignored
             Assert.Equal(HoldReason.None, co.EvaluateHold(Mic));
@@ -273,7 +276,7 @@ namespace PresenceLock.Core.Tests
         {
             // Review F01: a refusal is not the end of the lock. It stays wanted (and is retried),
             // and its verdict is only dropped when the user returns before anything secured the session.
-            var (co, p) = Make(enforcing: true);
+            var (co, p) = Make(enforcing: true, cfg: FactoryTiming());
             Run(co, 0, 60, s => NoSignals);
             Assert.Equal(LockCause.Model, co.PendingLock);
             co.OnLockRefused();

@@ -33,7 +33,7 @@ Uppgifterna finns **lokalt på den dator du använder**, i din profilmapp `%LOCA
 | Vanejournal (`habits.json`) | Starttid och längd för dina inaktiva perioder, inget annat | 42 dygn, rensas dagligen. Lämnar aldrig datorn |
 | Pauser (i profilen) | Start och slut för pauser du har valt | 24 timmar |
 | Teknisk logg (`agent.log`) | Start, stopp, lägesbyten, fel, städning och pauser | 30 dygn |
-| Windows händelselogg | Pauser (vem, när, längd), säkerhetshändelser (händelse 1000–1018): låsbegäran, bekräftelse, frånkoppling, signalfel | Enligt datorns inställning för programloggen [[ ]] |
+| Windows händelselogg | Pauser (vem, när, längd), säkerhetshändelser (händelse 1000–1019): låsbegäran, bekräftelse, frånkoppling, signalfel | Enligt datorns inställning för programloggen [[ ]] |
 | Hjärtslag (`HKCU\Software\PresenceLock\Agent`) | Tidpunkt när agenten senast svarade och dess processnummer. Skrivs över var 5:e sekund, ingen historik. Läses av bevakningstjänsten för att upptäcka en agent som hängt sig | Bara det senaste värdet |
 
 **I NIS2-läge** [[om tillämpligt]] finns dessutom en skyddad kopia av profilen (inte vanejournalen) i `%ProgramFiles%\PresenceLock\state` på samma dator, så att skyddet inte kan nollställas. Den tas bort 180 dygn efter att du senast använde datorn.

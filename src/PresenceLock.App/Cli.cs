@@ -39,7 +39,11 @@ namespace PresenceLock.App
                     case "--status":
                     {
                         var p = Load(path);
-                        Console.WriteLine("profile: " + path);
+                        Console.WriteLine("PresenceLock " + AgentIdentity.Full + " (" + AgentIdentity.ExePath() + ")");
+                        var agents = AgentIdentity.OtherAgentsInSession();
+                        Console.WriteLine("agents running in this session: " + (agents.Count == 0 ? "none" : string.Join("; ", agents)) +
+                                          (agents.Count > 1 ? "  <- MORE THAN ONE: end the older one" : ""));
+                        Console.WriteLine("profile: " + path + " (written by " + p.AppVersion + ")");
                         Console.WriteLine(p.Modes.Explain(DateTime.UtcNow.Ticks));
                         if (p.Modes.PromotedUtcTicks != 0)
                             Console.WriteLine(string.Format(System.Globalization.CultureInfo.InvariantCulture,
@@ -131,14 +135,14 @@ namespace PresenceLock.App
                             Console.WriteLine("profile: " + args[1]);
                         }
                         else { p = Load(path); Console.WriteLine("profile: " + path); }
-                        string v = typeof(Cli).Assembly.GetName().Version.ToString(3);
-                        var findings = ProfileDiagnostics.Check(p, DateTime.UtcNow.Ticks, v);
+                        Console.WriteLine("PresenceLock " + AgentIdentity.Full);
+                        var findings = ProfileDiagnostics.Check(p, DateTime.UtcNow.Ticks, AgentIdentity.Version);
                         foreach (var x in findings) Console.WriteLine(x.ToString());
                         return ProfileDiagnostics.HasErrors(findings) ? 2 : 0;
                     }
                     case "--about":
                     {
-                        string v = typeof(Cli).Assembly.GetName().Version.ToString(3);
+                        string v = AgentIdentity.Version;
                         Console.WriteLine(AboutContent.AsText(AboutContent.Build(Settings.PolicyReader.Load().ToAboutInfo(v))));
                         return 0;
                     }

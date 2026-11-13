@@ -130,5 +130,22 @@ namespace PresenceLock.Core.Tests
                            $"({baseline.MediaDimsOnPresent / (double)baseline.MediaEpisodes:P0}), all dims {baseline.DimsOnPresent}/{baseline.PresenceEpisodes}, " +
                            $"max exposure {baseline.Exposure.Max()} s, hard locks on present {baseline.LocksOnPresent}");
         }
+    
+        /// <summary>0.7.2, F4 (decision support): the GPO floor for the office routine (passive hold on).</summary>
+        [Fact]
+        public void MinLockIdle_TradeOff_Report()
+        {
+            foreach (int floor in new[] { 0, 60, 120, 180 })
+            {
+                var s = new CoordinatorSim(useSignals: true, cfg: new CoordinatorConfig { MinLockIdleSeconds = floor }).Run(Days, 7);
+                var E = s.Enforcing;
+                var plain = E.PlainDepartureExposure;
+                _out.WriteLine($"floor {floor,3} s: promoted {(s.PromotedDay?.ToString() ?? "no"),-3} dims on present {E.DimsOnPresent}/{E.PresenceEpisodes} " +
+                               $"(media {E.MediaDimsOnPresent}/{E.MediaEpisodes}), short pauses dimmed {E.ShortPauseDims}/{E.ShortPauses}, " +
+                               $"plain departures locked after median {(plain.Count > 0 ? plain.OrderBy(x => x).ElementAt(plain.Count / 2) : 0)} s, max {(plain.Count > 0 ? plain.Max() : 0)} s; " +
+                               $"hard locks on present {E.LocksOnPresent}; quality alerts {s.Profile.Quality.Alerts}");
+                Assert.Equal(0, E.LocksOnPresent);
+            }
+        }
     }
 }

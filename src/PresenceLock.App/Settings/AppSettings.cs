@@ -36,6 +36,7 @@ namespace PresenceLock.App.Settings
         public bool MediaHoldEnabled = true;
         public bool MeetingHoldEnabled = true;
         public int HoldMaxMinutes = 15;          // absolute cap: visible confirmation dim after this much idle
+        public int MinLockIdleSeconds = 120;     // floor: no automatic dim/notice/lock before this much idle (0.7.2)
         public int MaxLearnedHorizonMinutes = 10; // learned certain-absence horizon may grow from 3 min up to this
         public int ConfirmGraceSeconds = 15;     // confirmation dim -> lock if unanswered
         public string[] HoldIgnoreApps = new string[0];
@@ -71,6 +72,7 @@ namespace PresenceLock.App.Settings
             Nis2Mode = !AllowUserExit,
             GuardStatus = GuardServiceStatus(),
             HoldMaxMinutes = HoldMaxMinutes,
+            MinLockIdleSeconds = System.Math.Min(MinLockIdleSeconds, HoldMaxMinutes * 60),
             ConfirmGraceSeconds = ConfirmGraceSeconds,
             MaxLearnedHorizonMinutes = MaxLearnedHorizonMinutes,
             PauseAllowed = AllowUserPause,
@@ -112,6 +114,7 @@ namespace PresenceLock.App.Settings
             MediaHoldEnabled = MediaHoldEnabled,
             MeetingHoldEnabled = MeetingHoldEnabled,
             HoldMaxSeconds = HoldMaxMinutes * 60.0,
+            MinLockIdleSeconds = MinLockIdleSeconds,
             MaxLearnedHorizonSeconds = MaxLearnedHorizonMinutes * 60.0,
             ConfirmGraceSeconds = ConfirmGraceSeconds,
             HabitEarlySeconds = HabitEarlyConfirmMinutes * 60.0,

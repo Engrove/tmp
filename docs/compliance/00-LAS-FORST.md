@@ -25,6 +25,7 @@ status: "UTKAST – ej granskat eller godkänt"
 |---|---|---|---|---|---|
 | 0.1 | 2026-11-12 | Första utkast för PresenceLock 0.6.1 | Jan-Eric Enlund | [[ ]] | [[ ]] |
 | 0.2 | 2026-11-13 | 0.7.1: nya uppgifter i profilen (dagnummer för bedömningstillfällen, räknare per programtyp, profilens ursprung) och egen export via ikonmenyn (01, 02); avvikelse 11–17 och lärdomar (07); `--diagnose` som bevis (06) | Jan-Eric Enlund | [[ ]] | [[ ]] |
+| 0.3 | 2026-11-13 | 0.7.2: golvet `MinLockIdleSeconds` beslutas av Elho (punkt 5); version i loggen; händelse 1019 (01, 06, 07) | Jan-Eric Enlund | [[ ]] | [[ ]] |
 
 Källfilerna ligger i programmets repo under `docs/compliance/` och versionshanteras med programmet. Den gällande versionen ska föras in i Elhos dokumenthantering.
 
@@ -34,11 +35,11 @@ Källfilerna ligger i programmets repo under `docs/compliance/` och versionshant
 2. **Information före införandet** (GDPR art. 13 och 759/2004 4 §): [01](01-Dataskyddsbeskrivning.md) och [08](08-Kort-information.md) ska ha nått användarna. Om-rutan i programmet är ett komplement, inte en ersättning.
 3. **DPIA** ([04](04-Konsekvensbedomning-DPIA.md)): systematisk övervakning och anställda som registrerade är två kriterier i EDPB:s riktlinjer (WP248). Normalt krävs då en konsekvensbedömning.
 4. **Intresseavvägning** ([03](03-Intresseavvagning.md)) och **registerpost** ([02](02-Behandlingsregister-art30.md)) ska vara upprättade.
-5. **Beslut om parametrar** via GPO: tak för inlärd horisont (standard 10 min), pausbudget (standard 120 min/dygn), om bekräftelsen ska gälla under paus (standard ja), lagringstider (30/180/90 dygn), om profiler ska samlas in (standard nej). Beslut och motivering ska dokumenteras.
+5. **Beslut om parametrar** via GPO: lägsta tid före automatisk låsning (standard 120 s), tak för inlärd horisont (standard 10 min), pausbudget (standard 120 min/dygn), om bekräftelsen ska gälla under paus (standard ja), lagringstider (30/180/90 dygn), om profiler ska samlas in (standard nej). Beslut och motivering ska dokumenteras.
 6. **Juridiskt namn och kontaktuppgifter:** Om-rutan visar standard "Elho" som personuppgiftsansvarig. Ange det registrerade bolagsnamnet via GPO "Om-rutan" (OneDrive-namnet tyder på `Oy El-Ho Ab`, **VERIFIERA**). Ange också dataskyddskontakt och länk till den fullständiga dataskyddsbeskrivningen.
 7. **Språk:** informationen ska finnas på ett språk som användarna förstår. Finsk version behövs om personal är finskspråkig ([[ ]]).
 8. **Omfattas Elho av cybersäkerhetslagen?** NIS2 bilaga II omfattar tillverkning av maskiner (NACE C28) för medelstora och större företag. Bedömningen och registreringen hos tillsynsmyndigheten görs av Elho (**VERIFIERA**). PresenceLock är en motiverad säkerhetsåtgärd även om lagen inte gäller, men då kan NIS2 inte anges som grund i informationen. Om-rutans text skriver "där NIS2 gäller".
-9. **Pilot** enligt README, pilotchecklistan punkt 1–18. En första lokal körning på en dator (2026-11-12/13, utan GPO) gav en fältprofil som ledde till 0.7.1 ([analys](../review/2026-11-13-faltprofil-analys.md)). Någon systematisk Windows-acceptans är inte gjord.
+9. **Pilot** enligt README, pilotchecklistan punkt 1–19. En första lokal körning på en dator (2026-11-12/13, utan GPO) gav en fältprofil som ledde till 0.7.1 ([analys](../review/2026-11-13-faltprofil-analys.md)). Någon systematisk Windows-acceptans är inte gjord.
 10. **Windows-acceptans W01–W18** (extern granskning 2026-11-12, `docs/review/`). Den ska vara godkänd för exakt den releasehash som ska driftsättas.
 11. **Säkerhetsgolv:** behåll Windows egen inaktivitetsgräns. PresenceLock får komplettera men inte ersätta den.
 12. **Beslut per datamängd** (granskningen F29): ändamål, lagringstid och ansvar för gallring för profil, vanejournal, skyddad kopia, insamling, loggar och hjärtslag. Rekommendation: insamlingen avstängd under piloten.

@@ -26,7 +26,9 @@ namespace PresenceLock.Core.Tests
             var p = new UserProfile { UserSid = "S-1-5-21-100-200-300-1001", MachineName = "REVIEW" };
             p.Modes.Mode = OperatingMode.Enforcing;
             if (slow) { p.Model.W0 = -100; p.Model.U0 = -30; Array.Clear(p.Model.W, 0, p.Model.W.Length); Array.Clear(p.Model.U, 0, p.Model.U.Length); }
-            return (p, new PresenceCoordinator(new PresenceEngine(p), new CoordinatorConfig { ModelGuard = null }));
+            // The review cases were reproduced at the factory timing (dim 38 s, lock 48 s). The GPO floor of
+            // 0.7.2 (default 120 s) only delays them; it is tested on its own in FloorTests.
+            return (p, new PresenceCoordinator(new PresenceEngine(p), new CoordinatorConfig { ModelGuard = null, MinLockIdleSeconds = 0 }));
         }
 
         private static CoordinatorResult Tick(PresenceCoordinator c, double seconds, double idle) =>
@@ -151,7 +153,7 @@ namespace PresenceLock.Core.Tests
         public void T07_UserScopePolicy_CannotCarryProtectionSettings()
         {
             foreach (var name in new[] { "ModePolicy", "AllowUserExit", "HoldMaxMinutes", "PauseKeepsConfirmation", "PauseBudgetMinutesPerDay",
-                                         "MaxLearnedHorizonMinutes", "ExtraReadingApps", "ProfileExportDirectory", "TargetFalsePositivePercent", "LogRetentionDays" })
+                                         "MaxLearnedHorizonMinutes", "MinLockIdleSeconds", "ExtraReadingApps", "ProfileExportDirectory", "TargetFalsePositivePercent", "LogRetentionDays" })
                 Assert.False(PolicyScope.IsUserSettable(name), name);
             Assert.True(PolicyScope.IsUserSettable("ShowLockNotification"));
             Assert.Single(PolicyScope.UserSettableNames);

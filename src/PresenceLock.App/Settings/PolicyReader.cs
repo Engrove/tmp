@@ -74,6 +74,7 @@ namespace PresenceLock.App.Settings
                     if ((v = Dword(k, "HoldMaxMinutes")).HasValue) s.HoldMaxMinutes = Math.Max(1, Math.Min(240, v.Value));
                     if ((v = Dword(k, "ConfirmGraceSeconds")).HasValue) s.ConfirmGraceSeconds = Math.Max(5, Math.Min(120, v.Value));
                     if ((v = Dword(k, "MaxLearnedHorizonMinutes")).HasValue) s.MaxLearnedHorizonMinutes = Math.Max(3, Math.Min(60, v.Value));
+                    if ((v = Dword(k, "MinLockIdleSeconds")).HasValue) s.MinLockIdleSeconds = Math.Max(0, Math.Min(900, v.Value));
                     if ((v = Dword(k, "AllowUserPause")).HasValue) s.AllowUserPause = v.Value != 0;
                     string about;
                     if ((about = Str(k, "AboutResponsible")) != null && about.Trim().Length > 0) s.AboutResponsible = Cap(about, 200);

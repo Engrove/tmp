@@ -10,7 +10,7 @@ Från [[datum]] införs **PresenceLock** på [[vilka datorer]]. Programmet låse
 **Så märker du det**
 - En liten sköld syns vid klockan.
 - De första [[2–4]] veckorna lär sig programmet hur du arbetar och låser inte. Till exempel lär det sig att du kan sitta stilla och läsa eller studera en ritning.
-- Därefter dämpas skärmen i några sekunder innan den låses. En musrörelse räcker för att avbryta.
+- Därefter dämpas skärmen i några sekunder innan den låses. En musrörelse räcker för att avbryta. Datorn dämpas eller låses aldrig förrän den har stått orörd i minst [[2]] minuter.
 - Behöver du läsa av skärmen länge, till exempel vid mätningar, kan du pausa via ikonen: [[30, 60 eller 90]] minuter, högst [[120]] minuter per dygn.
 
 **Det här samlas in och det här samlas inte in**

@@ -4,7 +4,7 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 
 > Repo: `tmp` (Claude Code-experiment). Den här katalogen innehåller experimentet PresenceLock.
 
-> **Status 0.7.1: utvecklingskandidat, inte godkänd för bred produktion.** 0.7.0 rättade låskedjan efter en extern djupgranskning av 0.6.1 ([åtgärdsdokument](docs/review/2026-11-12-granskning-atgarder.md)). 0.7.1 rättar befordringsgrinden efter analysen av den första fältprofilen ([fältanalys](docs/review/2026-11-13-faltprofil-analys.md)). Ingen Windows-acceptans är gjord (W01–W18 i pilotchecklistan, §13). **Behåll Windows egen inaktivitetsgräns** (skärmsläckar-GPO eller *Interactive logon: Machine inactivity limit*) som säkerhetsgolv. PresenceLock är ett komplement som kan låsa tidigare.
+> **Status 0.7.2: utvecklingskandidat, inte godkänd för bred produktion.** 0.7.0 rättade låskedjan efter en extern djupgranskning av 0.6.1 ([åtgärdsdokument](docs/review/2026-11-12-granskning-atgarder.md)). 0.7.1 rättade befordringsgrinden efter den första fältprofilen ([fältanalys](docs/review/2026-11-13-faltprofil-analys.md)). 0.7.2 lägger till ett GPO-golv: ingen automatisk låsning före 120 s utan aktivitet som standard (§5c). Dessutom skrivs version och commit i loggen, och händelse 1019 varnar om två agenter körs samtidigt. Ingen Windows-acceptans är gjord (W01–W18 i pilotchecklistan, §13). **Behåll Windows egen inaktivitetsgräns** (skärmsläckar-GPO eller *Interactive logon: Machine inactivity limit*) som säkerhetsgolv. PresenceLock är ett komplement som kan låsa tidigare.
 
 ---
 
@@ -12,7 +12,7 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 
 | Del | Status | Bevis |
 |---|---|---|
-| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad i simulering; grinden omgjord efter fältdata (0.7.1)** | 43 kontroller i Python-referensen, bland annat fältreproduktionen från 2026-11-13. Hela C#-sviten är 188 tester: 19 regressionstester från den externa granskningen och 16 från fältanalysen. Simuleringarna har sedan 0.7.1 den uppmätta pausfördelningen. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
+| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad i simulering; grinden omgjord efter fältdata (0.7.1)** | 43 kontroller i Python-referensen, bland annat fältreproduktionen från 2026-11-13. Hela C#-sviten är 197 tester: 19 regressionstester från den externa granskningen, 16 från fältanalysen och 9 för golvet (0.7.2). Simuleringarna har sedan 0.7.1 den uppmätta pausfördelningen. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
 | Beslutsflöde: passiv paus, kontrollprob, absolut backstop (`PresenceCoordinator`) | **Verifierad** | 14 enhetstester, bland annat ett egenskapstest med 500 slumpade modeller och slumpmässigt fladdrande signaler (låsning sker alltid ≤ `HoldMax` + grace). Två jämförande 60-dagarssimuleringar (§6). |
 | Passiva OS-signaler (`PassiveSignalReader`) | **Kompilerad, ej körd. Semantiken är delvis odokumenterad** | ConsentStore är odokumenterad. Om `SystemExecutionState` aggregerar andra processers begäranden är inte dokumenterat. Verifiera på målmaskin med `PresenceLock.exe --probe-signals` (§6). Ett fel i signalerna kan bara fördröja låsning upp till `HoldMax` + grace. |
 | Profil-JSON, export, baslinje, sammanslagning | **Verifierad** | C#-tester: round-trip, atomisk skrivning, korrupt fil, saknade fält, anonymisering, medelvärde. |
@@ -224,6 +224,28 @@ Tabellen ovan driver motorn direkt. De 1–5 % avgångar som modellen inte låst
 | Tak 5 min för Inventor-användaren | varning (29–31 %): taket är för snävt för den användaren, och admin ser det |
 
 Utan Windows har händelseloggen inte provats. Källan `PresenceLock` registreras av installationsskriptet. Vanliga användare får skriva till den men inte skapa den. Om källan saknas skrivs raden bara i `agent.log`.
+
+---
+
+## 5c. Golv: ingen automatisk låsning före `MinLockIdleSeconds` (0.7.2, standard 120 s)
+
+Fabriksmodellen dimmar efter cirka 37 s och låser efter 47 s utan aktivitet, tills den har lärt sig användaren. I den första fältprofilen varade 24 av 30 tystnader på minst 30 s (där användaren kom tillbaka själv) längre än 47 s, men bara 5 längre än 120 s. Varje sådan tystnad gav en notis under inlärningen, eller en dimning i skarpt läge.
+
+Golvet är en datorprincip. Före gränsen tillfrågas inte modellen alls, och vanorna får inte agera. Ingen dimning, ingen notis ("Datorn hade låsts nu") och ingen låsning sker. Vid gränsen dimmar en modell som redan är säker direkt, och låser 3 s senare. Horisonten (bekräftelsen vid tyst arbete) ligger aldrig under golvet. `HoldMax` är alltid högre, eftersom golvet begränsas till den. Win+L och Windows egen inaktivitetsgräns påverkas inte. Grinden räknar fortfarande beslutstillfällen från 30 s: en tystnad på 30–120 s som inte dimmas är ett riktigt utfall av policyn.
+
+**Uppmätt.** Kriterierna sattes före körningen:
+- **F1:** med 500 slumpade modeller (även modeller som är säkra redan vid 0 s) och slumpvis fladdrande signaler, i båda lägena, sker ingen åtgärd före golvet. Den tidigaste åtgärden kom exakt vid golvet (60, 120 och 300 s). Gränsen `HoldMax` + nådetid gäller fortfarande.
+- **F2 och F3:** CAD- och kontorssimuleringarna klarar alla tidigare gränser med standardvärdet 120 s.
+- **F4:** beslutsunderlag, nedan.
+
+| Golv | CAD: befordrad dag | CAD: studier dimmade | CAD: kaffe med avgångssignaler, median/max | CAD: lunch, median/max | Kontor: dimningar av närvarande | Kontor: korta pauser dimmade | Kontor: vanlig avgång låst efter, median/max |
+|---|---|---|---|---|---|---|---|
+| 0 s | 21 | 13 av 1485 | 56/167 s | 5/30 s | 99 av 791 | 11 av 6541 | 5/184 s |
+| 60 s | 21 | 13 av 1486 | 63/154 s | 63/63 s | 103 av 809 | 0 | 63/184 s |
+| **120 s** | 21 | 13 av 1486 | 123/195 s | 123/123 s | **76 av 809** | 0 | 123/123 s |
+| 180 s | 22 | 12 av 1435 | 195/208 s | 195/195 s | 76 av 809 | 0 | 195/195 s |
+
+**Avvägning.** För CAD-användaren minskar golvet inte dimningarna i skarpt läge, eftersom studierna redan är längre än golvet och modellen har lärt sig dem. Golvet tar bort de tidiga notiserna och dimningarna under de första veckorna, och det är där klagomålen uppstår. För kontorsanvändaren minskar dimningarna av en närvarande användare med cirka en fjärdedel. Priset är att en tydlig avgång låses tidigast efter golvet plus dimningen, i stället för efter några sekunder. Med 120 s är det cirka 2 minuter, fortfarande kortare än en fast skärmsläckartid på 10–15 minuter.
 
 ---
 
@@ -565,6 +587,7 @@ Sedan 0.7.0 är alla principer **datorprinciper**. Agenten läser skyddsrelevant
 | `PauseBudgetMinutesPerDay` | DWORD 0–1440 | 120 | Total paustid per rullande 24 h. 0 = ingen paus |
 | `PauseKeepsConfirmation` | DWORD | 1 | 1 = "är du kvar?" efter `HoldMax` även under paus (NIS2-gränsen oförändrad). 0 = fullständig paus |
 | `MaxLearnedHorizonMinutes` | DWORD 3–60 | 10 | Tak för den inlärda horisonten vid tyst arbete (§4b). 3 = fast 3-minutershorisont som före v0.5 |
+| `MinLockIdleSeconds` | DWORD 0–900 | **120** | Golv (0.7.2): ingen automatisk dimning, notis eller låsning (modell eller vanor) före så här lång inaktivitet. Horisonten och bekräftelsen ligger aldrig under. 0 = inget golv (fabriksmodellen agerar efter cirka 47 s). Begränsas till `HoldMax`. Win+L och Windows egen gräns påverkas inte |
 | `AllowUserExit` | DWORD | 1 | **0 = NIS2-läge** (§7); sätt som datorprincip |
 | `AllowProfileExport` | DWORD | 1 | Exportval i menyn |
 | `HabitLearningEnabled` | DWORD | 1 | Vaneinlärning (§8); 0 = ingen journal |
@@ -619,6 +642,7 @@ Händelser i programloggen (källa `PresenceLock`), stabila id:n för SIEM:
 | 1015 / 1016 | agent | användaren startade en paus (längd, budget kvar) / pausen slutade. Revisionsspår, aldrig spärrade (§7b) |
 | 1017 | agent | en låsbegäran avvisades eller kvitterades inte: ny begäran (försök n), eller reservåtgärd frånkoppling |
 | 1018 | agent | en signal som säkerhetsloopen behöver fallerar: inaktivitetstid (GetLastInputInfo), rå musindata eller sessionsnotiser. Utan sessionsnotiser kan ett lås inte bekräftas, och då begärs det igen och sessionen kopplas från |
+| 1019 | agent | en annan PresenceLock-agent (annan sökväg eller version) körs i samma session. Två agenter ger två ikoner och två menyer. Meddelandet anger processnummer, version och sökväg för båda. Avsluta den äldre (0.7.2) |
 
 ### Loggar, städtjänst och diskbudget: inget växer obehindrat och inget har ett utgångsdatum
 
@@ -739,3 +763,4 @@ Kör på isolerade testdatorer med versionsidentifierad kandidat (hash i `RELEAS
 16. **Användarpaus:** välj *Pausa → 30 minuter*. Händelse 1015 ska finnas, ikonens text ska visa "pausad till …", och efter 15 min utan aktivitet ska dimningen "är du kvar?" komma. Gå sedan ifrån datorn under en paus: den ska låsas inom 15 min 15 s. Använd hela budgeten. Menyvalen ska då vara nedtonade med "(från HH:MM)", och efter utloggning och inloggning ska budgeten fortfarande vara förbrukad.
 17. **Om-rutan:** öppna *Om PresenceLock…*. Kontrollera ansvarig och personuppgiftsansvarig efter GPO, att *Öppna mina data* öppnar `%LOCALAPPDATA%\PresenceLock`, och att texten stämmer med `PresenceLock.exe --about`.
 18. **Profilkontroll (sedan 0.7.1):** kör `PresenceLock.exe --diagnose` efter en dag och efter en vecka på varje pilotdator. Ingen rad får vara `[ERROR]`. Arbetar användaren i CAD, PDF, Office, en utvecklingsmiljö eller samtal ska *silent-work* vara större än 0. Annars saknas programmets processnamn i läslistan, och då ska det läggas till med `ExtraReadingApps`. `origin` ska vara `first start`, eller `recreated: …` med en förklaring. En exporterad profil kan analyseras på samma sätt utan Windows: `python3 verify/analyse_profile.py <fil>`.
+19. **Version (sedan 0.7.2):** `PresenceLock.exe --status` ska på första raden visa den version och commit som står i `RELEASE-MANIFEST.json`, och på andra raden *exakt en* agent i sessionen. Startraden i `agent.log` innehåller samma version. Starta en äldre version från en annan mapp: händelse 1019 ska komma. Med golvet 120 s ska ingen notis "Datorn hade låsts nu" eller dimning komma före 2 minuter utan aktivitet.

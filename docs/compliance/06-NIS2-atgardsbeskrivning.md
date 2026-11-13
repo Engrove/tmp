@@ -19,14 +19,15 @@ Den låser arbetsstationen när användaren har lämnat den. Den kompletterar sk
 
 | Egenskap | Värde (standard, GPO-styrt) | Belägg |
 |---|---|---|
-| Avfärd med tydliga signaler | median 5–80 s, högst cirka 4 min (253 s) i simulering | README §4b, §6 |
+| Lägsta tid före automatisk låsning | GPO `MinLockIdleSeconds`, standard 120 s (0.7.2). Ingen dimning, notis eller låsning före den | `FloorTests` (500 slumpade modeller per golv) |
+| Avfärd med tydliga signaler | med golvet 120 s: låst efter cirka 123 s (median) i simulering, högst 195 s. Utan golv: median 5–80 s, högst cirka 4 min (253 s) | README §4b, §5c, §6 |
 | Avfärd som ser ut exakt som tyst arbete | låst senast efter taket + 15 s (10 min 15 s) | README §4b. Taket via GPO |
 | Video, möte eller användarpaus | låst senast efter `HoldMax` + 15 s (15 min 15 s) | Egenskapstest med 500 slumpade modeller |
 | Kan inte stängas av av användaren (centralt skyddat läge) | Processen nekar avslut. Om agenten försvinner, hänger sig eller aldrig blir frisk **begär** guard-tjänsten låsning inom cirka 4 s och upprepar begäran tills Windows bekräftar (1008). Annars kopplas sessionen från (1007) | README §7, regressionstester T05, T06. Ej provat på Windows |
 | Låskedjan | En begäran räknas som lås först när Windows bekräftar det. Begäran upprepas och sessionen kopplas från efter 3 obekräftade försök. Tiderna mäts på inaktivitetsaxeln, som är monoton | Regressionstester T01, T02, T11 |
 | Säkerhetsgolv | Windows egen inaktivitetsgräns behålls (skärmsläckar-GPO eller *Machine inactivity limit*). PresenceLock är ett komplement | Granskning 2026-11-12, huvudrekommendation |
 | Skydd mot manipulation av profil och pausbudget | skyddad kopia, sammanslagning som bara kan öka debiterad tid | Enhetstester |
-| Spårbarhet | händelser 1000–1018 i programloggen | README §12 |
+| Spårbarhet | händelser 1000–1019 i programloggen. Version och commit skrivs i `agent.log` vid varje start och visas i `--status` | README §12 |
 
 ## 3. Koppling till 9 § 2 mom. och rekommendationens kapitel
 

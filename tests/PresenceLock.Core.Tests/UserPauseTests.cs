@@ -125,8 +125,8 @@ namespace PresenceLock.Core.Tests
             int normal = -1;
             for (int s = 0; s <= 900 && normal < 0; s++)
                 if (co2.Tick(T0 + s * Sec, s, default(PassiveSignals), ModePolicy.Auto, Leaving).Action == CoordinatorAction.Lock) normal = s;
-            _out.WriteLine($"same departure without a pause: locked at {normal} s");
-            Assert.True(normal > 0 && normal < 120);
+            _out.WriteLine($"same departure without a pause: locked at {normal} s (GPO floor 120 s + 3-s dim)");
+            Assert.InRange(normal, 120, 124);
         }
 
         [Fact]

@@ -32,6 +32,8 @@ status: "UTKAST"
 12. Inga filer får växa obehindrat, och städtjänst utan utgångsdatum.
 13. Användarpaus med GPO-styrd maxtid, skydd mot skriptning.
 14. Om-ruta med ansvarig, NIS2- och GDPR-information.
+15. Lägsta tid före automatisk låsning via GPO, standard 120 s (beställaren 2026-11-13: den korta tiden ger klagomål).
+16. Versionen som körs ska gå att avgöra ur loggen (beställarens rapport 2026-11-13: menyn från en äldre version visades efter att 0.7.1 startats).
 
 **Utdata (8.3.5):** källkod, binär, ADMX/ADML (en-US, sv-SE), README med kravspårning (§2), detta underlag.
 
@@ -42,7 +44,7 @@ status: "UTKAST"
 - DSP-kontroll;
 - konsistens mellan ADMX och kod;
 - paritetsfil;
-- C#-testerna mot den riktiga motorn (188 i 0.7.1, bit-identisk paritet 28/28 parametrar);
+- C#-testerna mot den riktiga motorn (188 i 0.7.1, 197 i 0.7.2, bit-identisk paritet 28/28 parametrar);
 - bygge för .NET Framework 4.8 med 0 varningar;
 - analysverktyget för profiler på en syntetisk fixtur: Python och C# ska ge samma siffror.
 
@@ -68,7 +70,8 @@ Acceptanskriterier sätts **före** körningen och redovisas, även när de fall
 | 0.6.0 | `b792fa0` | Användarpaus med budget | 149 tester |
 | 0.6.1 | commit "v0.6.1: About box …" | Om-ruta; insamlingen rensad från aktivitetstider; detta underlag | Python 33/33, C# 153/153, ADMX ok, net48 0 varningar |
 | 0.7.0 | `038185f` | Rättningar efter extern djupgranskning: låskedja, guard, policyscope, I/O, installation, releasemanifest | regressionstester T01–T14, se åtgärdsdokumentet |
-| 0.7.1 | se `RELEASE-MANIFEST.json` | Rättningar efter analys av första fältprofilen (2026-11-13): grinden räknar beslutstillfällen i ett tidsmedvetet fönster, kalibrerat kvalitetslarm, simuleringar med uppmätt episodfördelning, diagnostik (`--diagnose`, `verify/analyse_profile.py`) | avvikelse 11–17 nedan; kriterier A1–A8 satta före körningen |
+| 0.7.1 | `a89ea33` | Rättningar efter analys av första fältprofilen (2026-11-13): grinden räknar beslutstillfällen i ett tidsmedvetet fönster, kalibrerat kvalitetslarm, simuleringar med uppmätt episodfördelning, diagnostik (`--diagnose`, `verify/analyse_profile.py`) | avvikelse 11–17 nedan; kriterier A1–A8 satta före körningen |
+| 0.7.2 | se `RELEASE-MANIFEST.json` | Krav 15–16: GPO-golvet `MinLockIdleSeconds` (standard 120 s). Version och commit i `agent.log` och `--status`. Händelse 1019 vid två agenter i samma session. Rättning: en vanebekräftelse kunde fördröja modellens lås 1 s när de blev aktuella samtidigt, vilket golvet gjorde möjligt. Upptäckt av egenskapstestet för vanor | Kriterier F1–F4 satta före körningen. F1: 1500 slumpade fall, tidigaste åtgärd exakt vid golvet. F2/F3: tidigare gränser håller. F4: avvägningstabell i README §5c |
 
 ## 4. Avvikelser och korrigerande åtgärder (10.2) under utvecklingen
 

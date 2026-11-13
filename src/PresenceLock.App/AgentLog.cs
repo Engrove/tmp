@@ -48,12 +48,13 @@ namespace PresenceLock.App
     ///   1016 the pause ended (ran out / ended by the user)       - audit: never throttled
     ///   1017 a lock request was refused or not confirmed: requested again / fallback disconnect
     ///   1018 a signal the security loop depends on failed (idle time, raw input, session notifications)
+    ///   1019 another PresenceLock agent (other path or version) runs in the same session (0.7.2)
     /// </summary>
     internal static class AgentEvents
     {
         public const int QualityBelowTarget = 1010, QualityRestored = 1011, ModelRolledBack = 1012,
                          ProfileRecovered = 1013, JournalReset = 1014, PauseStarted = 1015, PauseEnded = 1016,
-                         LockNotConfirmed = 1017, SignalDegraded = 1018;
+                         LockNotConfirmed = 1017, SignalDegraded = 1018, AnotherAgentRunning = 1019;
 
         private static readonly EventThrottle Throttle = new EventThrottle();
         private static readonly TimeSpan Window = TimeSpan.FromHours(1);

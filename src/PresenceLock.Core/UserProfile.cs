@@ -96,7 +96,7 @@ namespace PresenceLock.Core
         public const int CurrentSchemaVersion = 3;
 
         [DataMember] public int SchemaVersion = CurrentSchemaVersion;
-        [DataMember] public string AppVersion = "0.7.1";
+        [DataMember] public string AppVersion = "0.7.2";
         [DataMember] public string UserSid = "";       // identity only, not content
         [DataMember] public string MachineName = "";
         /// <summary>

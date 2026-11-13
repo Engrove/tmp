@@ -267,5 +267,24 @@ namespace PresenceLock.Core.Tests
                            new CadRhythmSim(new CoordinatorConfig { MaxLearnedHorizonSeconds = cap }, notice, 21, 7).Run(63));
             }
         }
+    
+        /// <summary>
+        /// 0.7.2, F4 (decision support, no assertion): the GPO floor MinLockIdleSeconds for the Inventor
+        /// user. A floor delays departures with leave cues and removes early dims.
+        /// </summary>
+        [Fact]
+        public void MinLockIdle_TradeOff_Report()
+        {
+            _out.WriteLine("floor | promoted | studies dimmed (enforcing) | mails dimmed | short pauses dimmed | coffee with cues: median/max | lunch: median/max | silent coffee: max");
+            foreach (int floor in new[] { 0, 60, 120, 180 })
+            {
+                var s = new CadRhythmSim(new CoordinatorConfig { MinLockIdleSeconds = floor }, false, -1, 7).Run(63);
+                var E = s.Enforcing;
+                string Mm(List<int> v) => v.Count == 0 ? "-" : $"{v.OrderBy(x => x).ElementAt(v.Count / 2)}/{v.Max()} s";
+                _out.WriteLine($"{floor,5} | {s.PromotedDay?.ToString() ?? "no",8} | {E.StudiesDimmed,5}/{E.Studies} | {E.MailsDimmed}/{E.Mails} | {E.ShortPausesDimmed}/{E.ShortPauses} | " +
+                               $"{Mm(E.CoffeeCueExposure)} | {Mm(E.OtherExposure)} | {(E.CoffeeSilentExposure.Count == 0 ? 0 : E.CoffeeSilentExposure.Max())} s");
+                Assert.Equal(0, E.HardLocksOnPresent);
+            }
+        }
     }
 }

@@ -56,8 +56,21 @@ namespace PresenceLock.App
                 // The mutex name is predictable, so another process of the user can create it first.
                 // Only step aside if a REAL agent (installed exe, agent role) already runs in this
                 // session; otherwise the mutex is squatted and this agent must run anyway (review F04).
-                if (!created && AnotherAgentRunsInThisSession()) return 0;
-                if (!created) AgentLog.Write("agent mutex held by a process that is not an agent; running anyway");
+                if (!created && AnotherAgentRunsInThisSession())
+                {
+                    AgentLog.Write("start " + AgentIdentity.Full + " ended: the same agent already runs in this session (" +
+                                   string.Join("; ", AgentIdentity.OtherAgentsInSession()) + ")");
+                    return 0;
+                }
+                if (!created) AgentLog.Write("agent mutex held by a process that is not this agent; running anyway");
+
+                // A different PresenceLock (other path, e.g. an older version started from another
+                // folder) may run next to this one: two icons, two menus. Say so (0.7.2).
+                var others = AgentIdentity.OtherAgentsInSession();
+                if (others.Count > 0)
+                    AgentEvents.Write(AgentEvents.AnotherAgentRunning, System.Diagnostics.EventLogEntryType.Warning,
+                        "PresenceLock " + AgentIdentity.Full + " (" + AgentIdentity.ExePath() + ") started while another PresenceLock agent runs in this session: " +
+                        string.Join("; ", others) + ". Two agents mean two tray icons; end the older one.", throttle: false);
 
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
