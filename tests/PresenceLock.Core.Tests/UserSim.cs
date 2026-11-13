@@ -5,7 +5,7 @@ using PresenceLock.Core;
 namespace PresenceLock.Core.Tests
 {
     /// <summary>
-    /// Line-for-line C# port of verify/user_sim.py. Same 31-bit LCG, same call order of the
+    /// Line-for-line C# port of verify/user_sim.py (including the field-calibrated short pauses). Same 31-bit LCG, same call order of the
     /// random generator, same episode rules — so the REAL C# engine can be compared against
     /// the Python reference's golden output (verify/parity_golden.json).
     /// </summary>
@@ -27,6 +27,7 @@ namespace PresenceLock.Core.Tests
         {
             public int Episodes, PresentEpisodes, DimsOnPresent, LocksOnPresent,
                        Departures, LockedDepartures, MissedDepartures;
+            public int Opportunities, PresentOpportunities, ShortPauses, ShortDims;
             public List<int> Latencies = new List<int>();
         }
 
@@ -57,8 +58,22 @@ namespace PresenceLock.Core.Tests
             return f;
         }
 
+        private static void Count(PhaseStats st, bool departing, bool fired, int idle, bool shortPause)
+        {
+            if (departing || fired || idle >= ModeController.DecisionOpportunitySeconds)
+            {
+                st.Opportunities++;
+                if (!departing) st.PresentOpportunities++;
+            }
+            if (shortPause)
+            {
+                st.ShortPauses++;
+                if (fired) st.ShortDims++;
+            }
+        }
+
         private static long Episode(PresenceEngine eng, long now, FeatureVector sig,
-                                    int presentFor, int? awayFor, Result res)
+                                    int presentFor, int? awayFor, Result res, bool shortPause = false)
         {
             bool departing = awayFor.HasValue;
             var st = eng.Mode == OperatingMode.Enforcing ? res.Enforcing : res.Learning;
@@ -81,6 +96,7 @@ namespace PresenceLock.Core.Tests
                     if (r.Action == DecisionAction.SoftDim && present)
                     {
                         st.DimsOnPresent++;
+                        Count(st, departing, true, idle, shortPause);
                         now += Sec;
                         eng.OnInputResumed(now);
                         return now;
@@ -99,6 +115,7 @@ namespace PresenceLock.Core.Tests
                             st.Latencies.Add(idle - presentFor);
                             unlock = now + Math.Max(1, presentFor + awayFor.Value - idle) * Sec;
                         }
+                        Count(st, departing, true, idle, shortPause);
                         eng.ApplyEnforcedLockOutcome(unlock);
                         return unlock;
                     }
@@ -106,19 +123,34 @@ namespace PresenceLock.Core.Tests
 
                 if (!departing && idle >= presentFor)
                 {
+                    Count(st, departing, false, idle, shortPause);
                     eng.OnInputResumed(now);
                     return now;
                 }
                 if (departing && idle >= LongAbsence)
                 {
                     if (modeNow == OperatingMode.Enforcing) st.MissedDepartures++;
+                    Count(st, departing, false, idle, shortPause);
                     eng.OnLongAbsence(now);
                     return now + Math.Max(0, presentFor + awayFor.Value - idle) * Sec;
                 }
             }
         }
 
-        public static Result Run(int days, long seed, bool ambiguous)
+        /// <summary>Active work with the short pauses real users make (mirror of _active_work).</summary>
+        private static long ActiveWork(PresenceEngine eng, long now, int seconds, Lcg rng, Result res)
+        {
+            long end = now + seconds * Sec;
+            while (true)
+            {
+                now += rng.UniformInt(5, 60) * Sec;
+                if (now >= end) return end;
+                var sig = rng.Next() % 2 == 0 ? ReadingSig() : new FeatureVector();
+                now = Episode(eng, now, sig, rng.UniformInt(2, 29), null, res, shortPause: true);
+            }
+        }
+
+        public static Result Run(int days, long seed, bool ambiguous, bool shortPauses = true)
         {
             var res = new Result { Engine = new PresenceEngine(new UserProfile()) };
             var eng = res.Engine;
@@ -166,7 +198,8 @@ namespace PresenceLock.Core.Tests
                             now = Episode(eng, now, LeavingSig(), 0, rng.UniformInt(300, 900), res);
                             break;
                     }
-                    now += rng.UniformInt(30, 600) * Sec;
+                    int gap = rng.UniformInt(30, 600);
+                    now = shortPauses ? ActiveWork(eng, now, gap, rng, res) : now + gap * Sec;
                 }
 
                 eng.Tick(now);

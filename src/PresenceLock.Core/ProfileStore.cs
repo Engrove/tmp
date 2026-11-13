@@ -55,7 +55,10 @@ namespace PresenceLock.Core
         /// <paramref name="recovery"/> is null on a normal load, otherwise what happened (for the
         /// event log: an administrator should know, but must not be NEEDED to fix it).
         /// </summary>
-        public static UserProfile LoadWithRecovery(string path, string userSid, string machineName, out string recovery)
+        /// <param name="processStartUtcTicks">start of the calling process: agent files written before it
+        /// show that this folder was in use already (0 = unknown).</param>
+        public static UserProfile LoadWithRecovery(string path, string userSid, string machineName, out string recovery,
+                                                   long processStartUtcTicks = 0)
         {
             recovery = null;
             string bak = path + Housekeeping.BackupSuffix;
@@ -65,7 +68,12 @@ namespace PresenceLock.Core
             {
                 // A missing profile is treated like a broken one: if a good backup exists, the
                 // profile was lost (deleted, roaming hiccup), not never created.
-                if (!File.Exists(bak)) return Fresh(userSid, machineName);
+                if (!File.Exists(bak))
+                {
+                    if (!FolderUsedBefore(path, processStartUtcTicks)) return Fresh(userSid, machineName, "first start");
+                    recovery = "profile.json missing although the agent folder was in use before (deleted or lost); no backup, started a fresh profile";
+                    return Fresh(userSid, machineName, "recreated: profile.json was missing although the agent folder was in use before (deleted or lost); no backup");
+                }
                 problem = "missing";
             }
             else
@@ -81,7 +89,23 @@ namespace PresenceLock.Core
                 return b;
             }
             recovery = "profile.json " + problem + "; no usable backup, started a fresh profile";
-            return Fresh(userSid, machineName);
+            return Fresh(userSid, machineName, "recreated: profile.json " + problem + "; no usable backup");
+        }
+
+        /// <summary>
+        /// Evidence that this agent folder held a profile before: the habit journal, a rotated log, or a
+        /// log written before this process started. (A deleted profile otherwise looks like a first start.)
+        /// </summary>
+        private static bool FolderUsedBefore(string profilePath, long processStartUtcTicks)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(profilePath) ?? "";
+                if (File.Exists(Path.Combine(dir, "habits.json")) || File.Exists(Path.Combine(dir, "agent.log.1"))) return true;
+                string log = Path.Combine(dir, "agent.log");
+                return processStartUtcTicks > 0 && File.Exists(log) && File.GetLastWriteTimeUtc(log).Ticks < processStartUtcTicks;
+            }
+            catch { return false; }
         }
 
         private static string TryLoad(string path, out UserProfile p)
@@ -98,8 +122,8 @@ namespace PresenceLock.Core
             catch (Exception ex) { return "unreadable (" + ex.GetType().Name + ")"; }
         }
 
-        private static UserProfile Fresh(string userSid, string machineName) =>
-            new UserProfile { UserSid = userSid ?? "", MachineName = machineName ?? "" };
+        private static UserProfile Fresh(string userSid, string machineName, string origin) =>
+            new UserProfile { UserSid = userSid ?? "", MachineName = machineName ?? "", Origin = origin };
 
         public static void Save(string path, UserProfile profile)
         {
@@ -151,6 +175,7 @@ namespace PresenceLock.Core
             clone.UpdatedUtcTicks = profile.UpdatedUtcTicks - profile.UpdatedUtcTicks % TimeSpan.TicksPerDay;   // day only: age filter of --merge-baseline
             clone.Modes.FirstSeenUtcTicks = 0;
             clone.Modes.PromotedUtcTicks = 0;
+            clone.Modes.DayWindow = new int[ModeController.WindowSize];   // dates of decision opportunities = activity days
             clone.Pause = new PauseLedger { PausesStarted = profile.Pause?.PausesStarted ?? 0, MinutesChargedTotal = profile.Pause?.MinutesChargedTotal ?? 0 };
             clone.Silence = new SilenceProfile();
             clone.Quality = new QualityMonitor { Degraded = profile.Quality?.Degraded ?? false, Alerts = profile.Quality?.Alerts ?? 0 };
@@ -173,26 +198,13 @@ namespace PresenceLock.Core
             clone.CreatedUtcTicks = DateTime.UtcNow.Ticks;
             clone.UpdatedUtcTicks = clone.CreatedUtcTicks;
 
-            clone.Modes.Mode = OperatingMode.Learning;
-            clone.Modes.LearningExtended = false;
-            clone.Modes.FirstSeenUtcTicks = 0;
-            clone.Modes.ConfirmedPositives = 0;
-            clone.Modes.FiredDecisions = 0;
-            clone.Modes.RejectedDecisions = 0;
-            clone.Modes.RecentFpRateEma = 0.0;
-            clone.Modes.StabilityEma = 1.0;
-            clone.Modes.PromotedUtcTicks = 0;
-            clone.Modes.PromotionWindowRate = 0.0;
-            clone.Modes.PromotionUpperBound = 0.0;
-            clone.Modes.PromotionForcedByPolicy = false;
+            clone.Modes.ResetCalibration();
+            clone.Origin = "seeded from baseline";
             clone.Stats = new CoordinatorStats();
             clone.Silence = new SilenceProfile();          // personal rhythm: never part of a baseline
             clone.Guard = new ModelGuard();
             clone.Quality = new QualityMonitor();
             clone.Pause = new PauseLedger();
-            clone.Modes.OutcomeWindow = new bool[ModeController.WindowSize];
-            clone.Modes.WindowHead = 0;
-            clone.Modes.WindowCount = 0;
 
             for (int i = 0; i < FeatureSchema.Count; i++)
             {
@@ -242,6 +254,9 @@ namespace PresenceLock.Core
             p.Modes.Normalize();
             if (p.Config == null) p.Config = new EngineConfig();
             if (p.Stats == null) p.Stats = new CoordinatorStats();
+            if (p.Stats.EpisodesByContext == null || p.Stats.EpisodesByContext.Length != SilenceProfile.Contexts)
+                p.Stats.EpisodesByContext = new int[SilenceProfile.Contexts];
+            if (p.Origin == null) p.Origin = "";
             if (p.Silence == null) p.Silence = new SilenceProfile();
             p.Silence.Normalize();
             if (p.Guard == null) p.Guard = new ModelGuard();

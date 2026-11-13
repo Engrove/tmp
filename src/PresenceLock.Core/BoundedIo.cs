@@ -13,7 +13,7 @@ namespace PresenceLock.Core
     /// </summary>
     public static class BoundedFile
     {
-        /// <summary>profile.json is ~4-8 KB (fixed-size structures only); 128x margin.</summary>
+        /// <summary>profile.json is ~10 KB since 0.7.1 (measured over 400 simulated days; fixed-size structures only, the evidence ring holds up to 1000 outcomes); ~100x margin.</summary>
         public const long MaxProfileBytes = 1L << 20;
         /// <summary>habits.json at its own caps (5000 episodes, 256 scores) is ~0.4 MB; 5x margin.</summary>
         public const long MaxJournalBytes = 2L << 20;

@@ -354,6 +354,7 @@ namespace PresenceLock.Core
                 var sig = signature();
                 MarkPostHold(sig);
                 _engine.BeginEpisode(sig, nowUtcTicks);
+                CountEpisode(sig);
                 _episodeOffset = idleSeconds;
                 _episodeHorizon = -1; _episodeT = 0; _episodeIntervened = false;
                 _inputSinceEpisode = false;
@@ -362,7 +363,9 @@ namespace PresenceLock.Core
             // ---- ordinary episode start ------------------------------------------------
             if (!_engine.EpisodeActive && _inputSinceEpisode && idleSeconds >= _c.EpisodeStartIdleSeconds)
             {
-                _engine.BeginEpisode(signature(), nowUtcTicks);
+                var sig = signature();
+                _engine.BeginEpisode(sig, nowUtcTicks);
+                CountEpisode(sig);
                 _episodeOffset = 0.0;
                 _episodeHorizon = -1; _episodeT = 0; _episodeIntervened = false;
                 _inputSinceEpisode = false;
@@ -492,6 +495,18 @@ namespace PresenceLock.Core
         }
 
         public double EndPause(long nowUtcTicks) => _p.Pause?.End(nowUtcTicks) ?? 0;
+
+        /// <summary>Coverage counters (no names, no times): which contexts the model sees.</summary>
+        private void CountEpisode(FeatureVector sig)
+        {
+            var st = _p.Stats;
+            if (st == null) return;
+            if (st.EpisodesByContext == null || st.EpisodesByContext.Length != SilenceProfile.Contexts)
+                st.EpisodesByContext = new int[SilenceProfile.Contexts];
+            st.EpisodesByContext[SilenceProfile.ContextOf(sig)]++;
+            if (sig.X[FeatureSchema.RemoteSession] >= 0.5) st.RemoteEpisodes++;
+            if (sig.X[FeatureSchema.PostHold] >= 0.5) st.PostHoldEpisodes++;
+        }
 
         private bool SilentWorkContext()
         {
@@ -755,7 +770,7 @@ namespace PresenceLock.Core
             if (_pendingSig != null)
             {
                 _engine.LearnRetrospective(_pendingSig, away: !quick, nowUtcTicks);
-                _p.Modes.RecordEpisodeOutcome(true, quick);
+                _p.Modes.RecordEpisodeOutcome(true, quick, _pendingSig.IdleSeconds, nowUtcTicks);
                 if (!quick) _p.Modes.RecordConfirmedPositive();
                 _pendingSig = null;
             }
@@ -769,8 +784,9 @@ namespace PresenceLock.Core
             {
                 bool present = Seconds(nowUtcTicks - _deferredLockTicks) <= _p.Config.FalsePositiveWindowSeconds;
                 _engine.LearnRetrospective(_deferredSig, away: !present, nowUtcTicks);
-                if (present) _p.Modes.RecordEpisodeOutcome(_deferredFired, _deferredFired);   // a fire would have hit a present user
-                else { _p.Modes.RecordEpisodeOutcome(_deferredFired, false); _p.Modes.RecordConfirmedPositive(); _p.Stats.ObservedDepartures++; }
+                double ds = _deferredSig.IdleSeconds;
+                if (present) _p.Modes.RecordEpisodeOutcome(_deferredFired, _deferredFired, ds, nowUtcTicks);   // a fire would have hit a present user
+                else { _p.Modes.RecordEpisodeOutcome(_deferredFired, false, ds, nowUtcTicks); _p.Modes.RecordConfirmedPositive(); _p.Stats.ObservedDepartures++; }
                 _deferredSig = null;
             }
             HabitReturnFromUnlock(nowUtcTicks);

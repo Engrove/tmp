@@ -30,6 +30,8 @@ def snapshot(eng, stats, promoted_day):
         "mode": mc.mode, "learning_extended": mc.learning_extended,
         "positives": mc.positives, "fired": mc.fired, "rejected": mc.rejected,
         "window_count": mc.count, "window_head": mc.head, "window_fp": mc.window_fp(),
+        "window_n": mc.window_n(), "window_ready": mc.window_ready(),
+        "window_days": mc.window_days(), "short_ignored": mc.short_ignored,
         "promoted_at": mc.promoted_at, "promotion_ub": mc.promotion_ub,
         "promoted_day": promoted_day,
         "enforcing": {k: v for k, v in stats["enforcing"].items() if k != "latencies"},

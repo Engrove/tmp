@@ -38,7 +38,7 @@ namespace PresenceLock.Core
     [DataContract]
     public sealed class CoordinatorStats
     {
-        [DataMember] public int HoldStarts;            // idle periods that entered a media/meeting hold
+        [DataMember] public int HoldStarts;            // idle periods that entered a hold: media, meeting or the user's own pause
         [DataMember] public int HoldAbortedEpisodes;   // model episodes discarded because a hold began
         [DataMember] public int HoldProbes;            // visible "are you still there" dims after HoldMax
         [DataMember] public int HoldProbesAnswered;    // ... answered by the user (present)
@@ -81,6 +81,12 @@ namespace PresenceLock.Core
         // Signals the security loop depends on (review F14): degradations seen.
         [DataMember] public int IdleSignalFailures;
         [DataMember] public int RegistrationFailures;// ... not decidable: counted as a possible false dim (conservative)
+        // Coverage (0.7.1, field profile 2026-11-13): which contexts the model actually sees, so that
+        // "no silent-work app ever" or "this was a Remote Desktop session" is read from the profile
+        // instead of guessed. Counts only, no names, no times.
+        [DataMember] public int[] EpisodesByContext = new int[SilenceProfile.Contexts];   // neutral, silent-work, leaving
+        [DataMember] public int RemoteEpisodes;        // episodes that started in a Remote Desktop session
+        [DataMember] public int PostHoldEpisodes;      // episodes that started when a media/meeting hold ended
     }
 
     [DataContract]
@@ -90,9 +96,14 @@ namespace PresenceLock.Core
         public const int CurrentSchemaVersion = 3;
 
         [DataMember] public int SchemaVersion = CurrentSchemaVersion;
-        [DataMember] public string AppVersion = "0.7.0";
+        [DataMember] public string AppVersion = "0.7.1";
         [DataMember] public string UserSid = "";       // identity only, not content
         [DataMember] public string MachineName = "";
+        /// <summary>
+        /// Why this profile exists (0.7.1): "first start", "seeded from baseline", or "recreated: ..."
+        /// when an earlier profile was missing or unusable. Empty in profiles written before 0.7.1.
+        /// </summary>
+        [DataMember] public string Origin = "";
         [DataMember] public long CreatedUtcTicks;
         [DataMember] public long UpdatedUtcTicks;
 

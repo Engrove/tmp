@@ -260,6 +260,7 @@ namespace PresenceLock.App
                     var baseline = ProfileStore.ExportBaseline(ProfileStore.Deserialize(read.Result));
                     baseline.UserSid = sid;
                     baseline.MachineName = machine;
+                    baseline.Origin = "seeded from baseline";
                     AgentLog.Write("seeded from baseline profile");
                     return baseline;
                 }
@@ -268,7 +269,8 @@ namespace PresenceLock.App
                     AgentLog.Write("baseline unusable, starting fresh: " + ex.GetType().Name);
                 }
             }
-            var p = ProfileStore.LoadWithRecovery(_profilePath, sid, machine, out string recovery);
+            long processStart = System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks;
+            var p = ProfileStore.LoadWithRecovery(_profilePath, sid, machine, out string recovery, processStart);
             if (recovery != null)
                 AgentEvents.Write(AgentEvents.ProfileRecovered, System.Diagnostics.EventLogEntryType.Warning, "PresenceLock: " + recovery);
             return p;

@@ -157,7 +157,7 @@ namespace PresenceLock.Core.Tests
         private static ModeController Enforcing(int falseDims, int episodes = 200)
         {
             var m = new ModeController { Mode = OperatingMode.Enforcing };
-            for (int i = 0; i < episodes; i++) m.RecordEpisodeOutcome(i < falseDims, i < falseDims);
+            for (int i = 0; i < episodes; i++) m.RecordEpisodeOutcome(i < falseDims, i < falseDims, 60, UserSim.BaseTicks + i * TimeSpan.TicksPerHour);
             return m;
         }
 
@@ -167,14 +167,30 @@ namespace PresenceLock.Core.Tests
             var q = new QualityMonitor();
             var good = Enforcing(4);
             Assert.Equal(QualityMonitor.Change.None, q.Evaluate(good, 1));
-            var bad = Enforcing(30);                            // 15 %: upper95 well above 10 %
+            var bad = Enforcing(30);                            // 15 % measured: above the 10 % target
             Assert.Equal(QualityMonitor.Change.Degraded, q.Evaluate(bad, 2));
             Assert.Equal(QualityMonitor.Change.None, q.Evaluate(bad, 3));         // one alert per episode of trouble
             Assert.Equal(OperatingMode.Enforcing, bad.Mode);                        // protection stays on
-            var borderline = Enforcing(12);                     // upper95 ~ 10 %: not yet restored (hysteresis)
+            var borderline = Enforcing(18);                     // 9 %: below target, above 8 %: not yet restored (hysteresis)
             Assert.Equal(QualityMonitor.Change.None, q.Evaluate(borderline, 4));
             Assert.Equal(QualityMonitor.Change.Restored, q.Evaluate(good, 5));
             Assert.Equal(1, q.Alerts);
+        }
+
+        /// <summary>
+        /// 0.7.1: the alert means "worse than the target", not "not proven better". A user at 5.5 %
+        /// (the office simulation's measured rate) has an upper bound of ~9.6 %, right at the target;
+        /// the old upper-bound rule alerted for 98 % of such users. 10.5 % measured alerts.
+        /// </summary>
+        [Fact]
+        public void Alert_IsOnTheMeasuredShare_NotOnTheUpperBound()
+        {
+            var q = new QualityMonitor();
+            var office = Enforcing(11);
+            Assert.InRange(office.FalsePositiveUpperBound(), 0.09, 0.10);
+            Assert.Equal(QualityMonitor.Change.None, q.Evaluate(office, 1));
+            Assert.False(q.Degraded);
+            Assert.Equal(QualityMonitor.Change.Degraded, q.Evaluate(Enforcing(21), 2));
         }
 
         [Fact]

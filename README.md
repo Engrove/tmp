@@ -4,7 +4,7 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 
 > Repo: `tmp` (Claude Code-experiment). Den här katalogen innehåller experimentet PresenceLock.
 
-> **Status 0.7.0: utvecklingskandidat, inte godkänd för bred produktion.** En extern djupgranskning av 0.6.1 (2026-11-12) hittade fel i låskedjan. De är rättade och belagda med regressionstester ([åtgärdsdokument](docs/review/2026-11-12-granskning-atgarder.md)). Ingen Windows-acceptans är gjord (W01–W18 i pilotchecklistan, §13). **Behåll Windows egen inaktivitetsgräns** (skärmsläckar-GPO eller *Interactive logon: Machine inactivity limit*) som säkerhetsgolv. PresenceLock är ett komplement som kan låsa tidigare.
+> **Status 0.7.1: utvecklingskandidat, inte godkänd för bred produktion.** 0.7.0 rättade låskedjan efter en extern djupgranskning av 0.6.1 ([åtgärdsdokument](docs/review/2026-11-12-granskning-atgarder.md)). 0.7.1 rättar befordringsgrinden efter analysen av den första fältprofilen ([fältanalys](docs/review/2026-11-13-faltprofil-analys.md)). Ingen Windows-acceptans är gjord (W01–W18 i pilotchecklistan, §13). **Behåll Windows egen inaktivitetsgräns** (skärmsläckar-GPO eller *Interactive logon: Machine inactivity limit*) som säkerhetsgolv. PresenceLock är ett komplement som kan låsa tidigare.
 
 ---
 
@@ -12,7 +12,7 @@ Självlärande närvaroagent för Windows 10/11. Låser arbetsstationen när anv
 
 | Del | Status | Bevis |
 |---|---|---|
-| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad** | 33 kontroller i Python-referensen; hela C#-sviten är 172 tester, varav 19 regressionstester från den externa granskningen. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
+| Modell, inlärning, befordringsgrind (`src/PresenceLock.Core`) | **Verifierad i simulering; grinden omgjord efter fältdata (0.7.1)** | 43 kontroller i Python-referensen, bland annat fältreproduktionen från 2026-11-13. Hela C#-sviten är 188 tester: 19 regressionstester från den externa granskningen och 16 från fältanalysen. Simuleringarna har sedan 0.7.1 den uppmätta pausfördelningen. C#-motorn ger **bit-identiska** parametrar mot referensen efter 45–60 simulerade dagar (28/28 parametrar, max avvikelse 0,0; modellskyddet i §5b ligger utanför motorn och påverkar inte detta). |
 | Beslutsflöde: passiv paus, kontrollprob, absolut backstop (`PresenceCoordinator`) | **Verifierad** | 14 enhetstester, bland annat ett egenskapstest med 500 slumpade modeller och slumpmässigt fladdrande signaler (låsning sker alltid ≤ `HoldMax` + grace). Två jämförande 60-dagarssimuleringar (§6). |
 | Passiva OS-signaler (`PassiveSignalReader`) | **Kompilerad, ej körd. Semantiken är delvis odokumenterad** | ConsentStore är odokumenterad. Om `SystemExecutionState` aggregerar andra processers begäranden är inte dokumenterat. Verifiera på målmaskin med `PresenceLock.exe --probe-signals` (§6). Ett fel i signalerna kan bara fördröja låsning upp till `HoldMax` + grace. |
 | Profil-JSON, export, baslinje, sammanslagning | **Verifierad** | C#-tester: round-trip, atomisk skrivning, korrupt fil, saknade fält, anonymisering, medelvärde. |
@@ -71,7 +71,8 @@ src/PresenceLock.Core/        ren logik, inga OS-anrop (net48 + net8.0)
   PresenceModel.cs            P(borta|x,t), online-SGD, LockTime()
   PresenceEngine.cs           episod-tillståndsmaskin + feedback-hooks
   PresenceCoordinator.cs      hela beslutsflödet: indata > passiv paus > modell, + backstop
-  ModeController.cs           inlärning -> skarpt: fönster + Wilson-gräns
+  ModeController.cs           inlärning -> skarpt: beslutsunderlag (>= 200 tillfällen på >= 5 dagar) + Wilson-gräns
+  ProfileDiagnostics.cs       konsistens- och täckningskontroll av en profil (--diagnose)
   ProfileStore.cs             JSON, atomisk skrivning, export/baslinje/merge, schemamigrering
   TamperProtection.cs         NIS2: process-SDDL, betrodd profil, guardens tillståndsmaskin
   HabitModel.cs, HabitStore.cs  vaneinlärning (Elli-modellerad), egen fil habits.json
@@ -82,9 +83,9 @@ src/PresenceLock.App/         Windows-skalet, kompileras till EN exe
   Policy/SoftDimOverlay.cs    3 s dimning, WS_EX_TRANSPARENT|NOACTIVATE|TOPMOST
   Settings/PolicyReader.cs    HKLM-policy > HKCU-policy > HKCU-preferens
   Guard/                      LocalSystem-tjänst: startar om agenten, låser vid avbrott, skyddad kopia
-  Cli.cs                      --status/--export/--export-baseline/--merge-baseline/--probe-signals/--reset-profile/--lock-now
+  Cli.cs                      --status/--diagnose/--export/--export-baseline/--merge-baseline/--probe-signals/--reset-profile/--lock-now
 deploy/                       ADMX/ADML, installations-/avinstallationsskript, task-XML
-verify/                       Python-referens, simulering, alla kontroller
+verify/                       Python-referens, simulering, alla kontroller; analyse_profile.py (exporterad profil, offline)
 tests/                        xUnit: enhet + paritet mot den riktiga C#-motorn
 ```
 
@@ -167,34 +168,35 @@ Användaren ritar 1–5 min, betraktar 1–8 min eller läser mejl 0,5–3 min, 
 Alla villkor måste vara uppfyllda:
 - minst `MinLearningDays` dagar (15);
 - minst 30 bekräftade avgångar;
-- de senaste **200** avslutade episoderna (≈ 11 arbetsdagar), där **Wilson 95 %-övre gränsen** för andelen "skulle ha dimmat eller låst en närvarande användare" ≤ `TargetFalsePositivePercent` (10 %).
+- ett **beslutsunderlag** på minst **200 beslutstillfällen**, fördelade på minst **5 olika dagar**. Ett beslutstillfälle är en inaktiv period där modellen fattade ett beslut, eller som varade minst 30 s utan beslut. Kortare pauser utan beslut är skrivrytm: där fattar ingen modell något beslut, och de räknas bara (`ShortEpisodesIgnored`). Underlaget är det kortaste avsnittet bakåt från det senaste tillfället som uppfyller båda kraven (högst 1000 sparade). Äldre poster behövs aldrig mer och rensas. För en lätt användare blir det 200 tillfällen över två till tre veckor. För en tung CAD-användare blir det tillfällena från de senaste fem arbetsdagarna;
+- **Wilson 95 %-övre gränsen** för andelen beslutstillfällen där en närvarande användare skulle ha dämpats eller låsts ≤ `TargetFalsePositivePercent` (10 %);
+- högst hälften av de verifierade besluten fel (Wilson-övre gräns ≤ 50 %, sedan 0.7.0).
 
-Når profilen inte grinden efter `MaxLearningDays` (30) tvingas den **inte** över. Den markeras `LearningExtended` och syns i `--status` och i exporten. Vid befordran sparas en revisionsspårbar ögonblicksbild: tidpunkt, uppmätt andel, övre gräns och om bytet tvingades av policy.
+**Varför (0.7.1, fältprofilen 2026-11-13).** 0.7.0 räknade varje inaktiv period från 2 s. Den första fältprofilen hade 362 sådana på 4–5 timmars användning, och minst 85 % var kortare än 30 s. De 200 senaste täckte alltså cirka 2,7 timmar, inte "≈ 11 arbetsdagar", och felandelen späddes ut ungefär 10 gånger. En modell som i snitt dämpar en närvarande användare en gång per timme gick igenom 0.7.0-grinden dag 15. 0.7.1-grinden släpper inte igenom den (`run_verification.py` 6b och `GateTests.FieldProfile_*`). Simuleringarna saknade korta pauser och hade därför validerat grinden på en fördelning som verkliga användare inte har. Sedan 0.7.1 har alla simuleringar den uppmätta fördelningen: 5–60 s arbete och 2–29 s paus om vartannat.
 
-### Uppmätt i simulering (60 arbetsdagar, 18–19 inaktivitetsepisoder per dag)
+Når profilen inte grinden efter `MaxLearningDays` (30) tvingas den **inte** över. Den markeras `LearningExtended` och syns i `--status`, `--diagnose` och i exporten. Vid befordran sparas en revisionsspårbar ögonblicksbild: tidpunkt, uppmätt andel, övre gräns och om bytet tvingades av policy. En profil från 0.7.0 eller äldre får sitt fönster nollställt vid första inläsningen (`WindowResets`). Allt inlärt behålls, men befordran och kvalitetsuppföljningen börjar om med ett nytt underlag.
 
-*Separerbar användare:* 10 läspauser (15–100 s), 2 läs-och-gå, 3 avgångar, 2 Win+L per dag.
-*Tvetydig användare:* samma plus 1 närvarande paus per dag med **identisk** signatur som en avgång. Den kan inte skiljas åt med någon sensor, och är där med flit.
+### Uppmätt i simulering (0.7.1, 60 arbetsdagar med uppmätt pausfördelning)
 
-| Scenario | Seed | Befordrad dag | Grind vid befordran (andel / övre 95 %) | Verklig andel i skarpt läge | Skarpa lås på närvarande | Avgångar låsta < 180 s | Median tid till lås |
+*Separerbar användare:* 10 läspauser (15–100 s), 2 läs-och-gå, 3 avgångar och 2 Win+L per dag. Däremellan aktivt arbete med korta pauser (≥ 85 % av alla episoder är kortare än 30 s, som i fältprofilen).
+*Tvetydig användare:* samma, plus 1 närvarande paus per dag med **identisk** signatur som en avgång. Den kan inte skiljas åt med någon sensor, och är där med flit.
+
+| Scenario | Seed | Befordrad dag | Grind vid befordran (andel / övre 95 %) | Verklig andel i skarpt läge (per beslutstillfälle) | Skarpa lås på närvarande | Avgångar låsta < 180 s | Median tid till lås |
 |---|---|---|---|---|---|---|---|
-| separerbar | 1 | 15 | 1,5 % / 4,3 % | 3,1 % | **0** | 97,8 % | 4 s |
-| separerbar | 7 | 15 | 1,5 % / 4,3 % | 3,3 % | **0** | 98,7 % | 4 s |
-| separerbar | 42 | 15 | 1,5 % / 4,3 % | 3,1 % | **0** | 99,1 % | 4 s |
-| separerbar | 999 | 15 | 1,5 % / 4,3 % | 3,1 % | **0** | 98,2 % | 4 s |
-| separerbar | 2024 | 15 | 2,0 % / 5,0 % | 3,0 % | **0** | 99,1 % | 4 s |
-| tvetydig | 1 | — | ej befordrad (LearningExtended) | — | **0** | — | — |
-| tvetydig | 7 | 51 | 5,5 % / 9,6 % | 9,2 % | **0** | 95,0 % | 21 s |
-| tvetydig | 42 | 15 | 5,5 % / 9,6 % | 8,5 % | **0** | 98,2 % | 8 s |
-| tvetydig | 999 | — | ej befordrad (LearningExtended) | — | **0** | — | — |
-| tvetydig | 2024 | — | ej befordrad (LearningExtended) | — | **0** | — | — |
+| separerbar | 1 | 15 | 4,0 % / 7,7 % | 3,9 % | **0** | 98,7 % | 4 s |
+| separerbar | 7 | 15 | 4,5 % / 8,3 % | 4,0 % | **0** | 97,8 % | 4 s |
+| separerbar | 42 | 15 | 3,0 % / 6,4 % | 4,0 % | **0** | 98,7 % | 4 s |
+| separerbar | 999 | 15 | 5,5 % / 9,6 % | 4,1 % | **0** | 98,2 % | 4 s |
+| separerbar | 2024 | 15 | 3,0 % / 6,4 % | 4,0 % | **0** | 97,8 % | 4 s |
+| tvetydig | alla 5 | — | ej befordrad (LearningExtended) | — | **0** | — | — |
 
 Observerat i alla 10 körningar, under simulatorns antaganden:
-- **Noll skarpa lås på en närvarande användare.** Den synliga 3-sekundersdimningen fångar alla.
-- **Varje befordrad profil låg inom målet (≤ 10 %) även i skarpt läge.**
-- **När signalen inte räcker blev det admin-granskning (LearningExtended) i stället för befordran.**
+- **Noll skarpa lås på en närvarande användare.** Den synliga 3-sekundersdämpningen fångar alla.
+- **Ingen av de korta pauserna (< 30 s) dämpades i skarpt läge.** Kravet är högst 1 %.
+- **Varje befordrad profil låg inom målet (≤ 10 %) även i skarpt läge**, mätt per beslutstillfälle precis som i grinden.
+- **När signalen inte räcker blir det administratörsgranskning (LearningExtended) i stället för befordran.** I 0.7.0 gick den tvetydiga användaren över i 2 av 5 körningar (dag 51 och dag 15), med verklig andel 8,5–9,2 %. Den låga andelen berodde på att Win+L och korta läsepisoder fanns med i nämnaren. Per beslutstillfälle går det inte att visa med 95 % säkerhet att användaren ligger under 10 %. Den stannar därför i inlärning, och det är grindens avsedda beteende: osäkerhet ska fördröja, aldrig påskynda.
 
-**Vad grinden inte är** (granskningen F16–F18). Wilson-gränsen gäller *ett* fönster om 200 episoder. Grinden prövas om dagligen tills den passerar, och fönstren överlappar medan modellen ändras. Gränsen är därför ingen livslång 95 %-garanti. Etiketterna bygger på beteende (inaktivitet, lås, upplåsningstid), inte på oberoende närvaromätning. Modellens sannolikheter är alltså inte validerade som sannolikhet för fysisk närvaro. Sedan 0.7.0 kräver grinden också att högst hälften av de *verifierade* besluten var fel (Wilson-övre gräns ≤ 50 %). Annars kan tio fel av tio beslut se ut som 5 % per episod. Validering med fryst modell och oberoende facit hör till piloten.
+**Vad grinden inte är** (granskningen F16–F18). Wilson-gränsen gäller *ett* underlag. Grinden prövas om vid varje ny episod tills den passerar, och underlagen överlappar medan modellen ändras. Gränsen är därför ingen livslång 95 %-garanti. Kravet på 5 olika dagar gör att en enda lugn eftermiddag inte kan avgöra, men det tar inte bort upprepningen. Etiketterna bygger på beteende (inaktivitet, lås, upplåsningstid), inte på oberoende närvaromätning. Modellens sannolikheter är alltså inte validerade som sannolikhet för fysisk närvaro. Validering med fryst modell och oberoende facit hör till piloten.
 
 Tabellen ovan driver motorn direkt. De 1–5 % avgångar som modellen inte låste före 180 s stod i den versionen **olåsta tills användaren kom tillbaka**. Det var ett säkerhetsfel, och det är rättat av backstopet i §6. Med hela beslutsflödet: 0 återkomster till en olåst dator.
 
@@ -208,7 +210,7 @@ Tabellen ovan driver motorn direkt. De 1–5 % avgångar som modellen inte låst
 
 **Mät, justera, kontrollera:**
 - **Modellskydd (`ModelGuard`).** Den senaste modellen som visat sig bra sparas. På varje ny etikett bedöms både den och den levande modellen *innan* den levande lär sig av etiketten. Ingen av dem har alltså sett datat. Måttet är log-loss, ett proper scoring rule, så en modell kan inte vinna genom att vara över- eller undersäker. Beslut fattas var 40:e etikett, högst 4 gånger per beslut. Om den levande modellen är sämre med mer än 0,05 nat per etikett **och** z > 2,5 rullas den tillbaka (händelse 1012). Är den minst lika bra blir den ny referens. Är det oavgjort efter 4 block godtas den, eftersom den kan följa en verklig vaneförändring.
-- **Kvalitetsuppföljning (`QualityMonitor`).** I skarpt läge kontrolleras grindens mått löpande: Wilson 95 %-övre gräns för falska dimningar över de senaste 200 episoderna. Den tid datorn stod olåst före varje lås som användaren sedan bekräftade (långsam upplåsning) loggas också, de senaste 50. Över målet ger händelse **1010** till programloggen. Under 80 % av målet ger **1011**. Låsningen stängs **aldrig** av, och profilen degraderas aldrig till inlärningsläge, eftersom det i NIS2-läge vore ett sätt att slå av skyddet.
+- **Kvalitetsuppföljning (`QualityMonitor`).** I skarpt läge kontrolleras grindens mått löpande på samma beslutsunderlag. Larmet gäller den **uppmätta** andelen felaktiga dämpningar per beslutstillfälle. Fram till 0.7.0 gällde det den övre 95 %-gränsen, vilket betyder "inte bevisat bättre" och inte "sämre". Vid 200 simulerade användare och 1000 tillfällen vardera gav den gamla regeln falsklarm för 98 % av användarna med verklig andel 5,5 % och för 28 % vid 3 %. Den nya ger 10,5 % respektive 0 %, och larmar alltid vid ≥ 12 %. Grinden för påslag behåller den övre gränsen, eftersom påslag ska vara bevisat. Den tid datorn stod olåst före varje lås som användaren sedan bekräftade (långsam upplåsning) loggas också, de senaste 50. Över målet ger händelse **1010** till programloggen. Under 80 % av målet ger **1011**. Låsningen stängs **aldrig** av, och profilen degraderas aldrig till inlärningsläge, eftersom det i NIS2-läge vore ett sätt att slå av skyddet.
 
 **Uppmätt.** Kriterierna sattes före körningen.
 
@@ -637,19 +639,19 @@ Tre lager, i den här ordningen:
 
 | Dag | `profile.json` | `habits.json` (episoder) |
 |---|---|---|
-| 30 | 5,1 KB | 78 KB (1498) |
-| 63 | 5,1 KB | 108 KB (2050) |
-| 180 | 5,1 KB | 116 KB (2079) |
-| 390 | 5,2 KB | 116 KB (2056) |
+| 30 | 9,9 KB | 78 KB (1495) |
+| 63 | 9,9 KB | 110 KB (2078) |
+| 180 | 9,9 KB | 116 KB (2079) |
+| 390 | 9,9 KB | 118 KB (2112) |
 
 Båda planar ut. Profilen har bara strukturer med fast storlek, och journalen ligger på cirka 42 dygns data. Gränserna vid läsning (1 MB och 2 MB) nås aldrig. Efter 400 dygn är agenten fortfarande i skarpt läge: 0,86 % av betraktandena dimmas, kvaliteten är ok och modellskyddet har inte gjort någon återställning.
 
 | Fil | Plats | Gräns (värsta fall) | Mekanism |
 |---|---|---|---|
 | `agent.log` + `agent.log.1` | `%LOCALAPPDATA%\PresenceLock` | **2 × 256 KB**, rader högst 30 dygn | Roterar innan en rad skulle passera 256 KB. Städtjänsten tar bort rader äldre än lagringstiden. En rad kapas vid 2048 tecken. Samma meddelande skrivs högst en gång per 10 min, med antal upprepningar. Innehåll: livscykel, lägesbyten och fel, aldrig indata, processnamn eller fönstertitlar. |
-| `profile.json` (+ `.tmp` under skrivning, + `profile.json.bak`) | samma | uppmätt **5,1–5,2 KB** dag 30–390. Läses inte om > 1 MB, och då laddas `.bak` | Bara strukturer med fast storlek: vikter, 200-fönster, 144 räknare för tystnadsprofilen, 50 senaste exponeringar. |
+| `profile.json` (+ `.tmp` under skrivning, + `profile.json.bak`) | samma | uppmätt **9,9–10,0 KB** dag 30–390 (0.7.1). Läses inte om > 1 MB, och då laddas `.bak` | Bara strukturer med fast storlek: vikter, beslutsunderlaget (högst 1000 platser; poster äldre än underlaget nollställs), 144 räknare för tystnadsprofilen, 50 senaste exponeringar. |
 | `habits.json` (+ `.tmp`) | samma | uppmätt **≈ 394 KB** vid taken. Läses inte om > 2 MB | Högst 42 dygn och 5000 episoder, 256 poäng. Rensas vid varje skrivning och vid inläsning. |
-| Skyddad kopia | `%ProgramFiles%\PresenceLock\state\<SID>.json` | ≈ 5 KB per användare som setts de senaste 180 dygnen | Städtjänsten i guarden tar bort kopior för användare som inte setts under `ProtectedCopyRetentionDays` (händelse 1006). |
+| Skyddad kopia | `%ProgramFiles%\PresenceLock\state\<SID>.json` | ≈ 10 KB per användare som setts de senaste 180 dygnen | Städtjänsten i guarden tar bort kopior för användare som inte setts under `ProtectedCopyRetentionDays` (händelse 1006). |
 | Insamlad profil | `ProfileExportDirectory` | en fil per dator × användare, skrivs över dagligen | Guarden tar bort den egna datorns filer äldre än `CollectedProfileRetentionDays` (kräver ändringsrätt för datorkontot). `--merge-baseline` hoppar alltid över dem. |
 | Programloggen | Windows | Windows egen maxstorlek (standard 20 MB, skriver över) | Agentens händelser: högst 1 per id och timme. Guardens: 1001/1003 högst 1 per session och minut, övriga 1 per session/SID och timme. Nästa post anger hur många som hölls tillbaka. |
 
@@ -736,3 +738,4 @@ Kör på isolerade testdatorer med versionsidentifierad kandidat (hash i `RELEAS
 15. **Städtjänsten:** efter ett dygn ska `--status` visa `cleaning service: N runs` med senaste körning under 24 h och en backup (`profile.json.bak`). Gör `profile.json` oläsbar (skriv skräp i den) och logga in igen. Agenten ska fortsätta i samma läge, händelse 1013 ska finnas, och profilen ska *inte* ha börjat om.
 16. **Användarpaus:** välj *Pausa → 30 minuter*. Händelse 1015 ska finnas, ikonens text ska visa "pausad till …", och efter 15 min utan aktivitet ska dimningen "är du kvar?" komma. Gå sedan ifrån datorn under en paus: den ska låsas inom 15 min 15 s. Använd hela budgeten. Menyvalen ska då vara nedtonade med "(från HH:MM)", och efter utloggning och inloggning ska budgeten fortfarande vara förbrukad.
 17. **Om-rutan:** öppna *Om PresenceLock…*. Kontrollera ansvarig och personuppgiftsansvarig efter GPO, att *Öppna mina data* öppnar `%LOCALAPPDATA%\PresenceLock`, och att texten stämmer med `PresenceLock.exe --about`.
+18. **Profilkontroll (sedan 0.7.1):** kör `PresenceLock.exe --diagnose` efter en dag och efter en vecka på varje pilotdator. Ingen rad får vara `[ERROR]`. Arbetar användaren i CAD, PDF, Office, en utvecklingsmiljö eller samtal ska *silent-work* vara större än 0. Annars saknas programmets processnamn i läslistan, och då ska det läggas till med `ExtraReadingApps`. `origin` ska vara `first start`, eller `recreated: …` med en förklaring. En exporterad profil kan analyseras på samma sätt utan Windows: `python3 verify/analyse_profile.py <fil>`.

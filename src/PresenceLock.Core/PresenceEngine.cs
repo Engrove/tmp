@@ -200,11 +200,11 @@ namespace PresenceLock.Core
             }
             if (fired && !rejected && _modes.Mode == OperatingMode.Learning)
             {
-                if (ambiguousIsAway != null && ambiguousIsAway()) _modes.RecordEpisodeOutcome(true, false);
-                else _modes.RecordUnverifiedFire();  // invisible decision, truth unknown
+                if (ambiguousIsAway != null && ambiguousIsAway()) _modes.RecordEpisodeOutcome(true, false, _episode.IdleSeconds, nowUtcTicks);
+                else _modes.RecordUnverifiedFire(nowUtcTicks);  // invisible decision, truth unknown
             }
             else
-                _modes.RecordEpisodeOutcome(fired, rejected);
+                _modes.RecordEpisodeOutcome(fired, rejected, _episode.IdleSeconds, nowUtcTicks);
 
             if (rejected)
             {
@@ -225,7 +225,7 @@ namespace PresenceLock.Core
         public void OnLongAbsence(long nowUtcTicks)
         {
             if (!_episodeActive) return;
-            _modes.RecordEpisodeOutcome(_lockFired, false); // never a false positive
+            _modes.RecordEpisodeOutcome(_lockFired, false, _episode.IdleSeconds, nowUtcTicks); // never a false positive
             _modes.RecordConfirmedPositive();
             Learn(FeedbackSample.From(_episode.Clone(), FeedbackKind.LongAbsence, nowUtcTicks));
             EndEpisode();
@@ -236,7 +236,9 @@ namespace PresenceLock.Core
         {
             if (preLockSignature == null) throw new ArgumentNullException(nameof(preLockSignature));
             _modes.EnsureStarted(nowUtcTicks);
-            _modes.RecordEpisodeOutcome(false, false);
+            // Not a decision opportunity (the user locked before any model could act): only the
+            // short-episode counter moves, unless the lock came after a long silence.
+            _modes.RecordEpisodeOutcome(false, false, preLockSignature.IdleSeconds, nowUtcTicks);
             _modes.RecordConfirmedPositive();
             Learn(FeedbackSample.From(preLockSignature.Clone(), FeedbackKind.ManualLock, nowUtcTicks));
             EndEpisode();
@@ -253,7 +255,7 @@ namespace PresenceLock.Core
             if (!_pendingLockActive) return;
             double delta = (nowUtcTicks - _pendingLockTicks) / (double)TimeSpan.TicksPerSecond;
             bool rejected = delta <= _cfg.FalsePositiveWindowSeconds;
-            _modes.RecordEpisodeOutcome(true, rejected);
+            _modes.RecordEpisodeOutcome(true, rejected, _pendingLockSig.IdleSeconds, nowUtcTicks);
             if (rejected)
             {
                 Learn(FeedbackSample.From(_pendingLockSig, FeedbackKind.FalsePositive, nowUtcTicks));
@@ -297,7 +299,7 @@ namespace PresenceLock.Core
         public void OnHorizonDimAnswered(long nowUtcTicks)
         {
             if (!_episodeActive) return;
-            _modes.RecordEpisodeOutcome(true, true);
+            _modes.RecordEpisodeOutcome(true, true, _episode.IdleSeconds, nowUtcTicks);
             Learn(FeedbackSample.From(_episode.Clone(), FeedbackKind.SoftDimRejected, nowUtcTicks));
             EndEpisode();
         }

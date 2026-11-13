@@ -11,6 +11,11 @@ Behaviour per simulated work day (order shuffled deterministically):
   * 3  x "leave"           abrupt departure signature, away 5..15 min
   * 2  x "manual"          presses Win+L, away 5..15 min
   * 1  x "leave_like_present" leaving-like kinematics but stays 5..30 s (ambiguous on purpose)
+  * between them, active work in which the user pauses SHORTLY again and again: 5..60 s of
+    input, then 2..29 s without (field distribution, measured on a real profile 2026-11-13:
+    362 idle episodes in ~4-5 h of use, at least 85 % of them under 30 s). Every such pause is
+    an idle episode for the engine. Up to 0.7.0 the simulation had none, and the gate was
+    validated on a distribution that real users do not have.
 
 Visibility rules (this is what makes it honest):
   * Learning mode: nothing the engine decides is visible, so a present user never
@@ -59,15 +64,38 @@ def leaving_sig():
     return x
 
 
+OPPORTUNITY = ModeController.OPPORTUNITY_SECONDS
+
+
+def work_sig():
+    """Neutral context mid-work (e.g. the drawing area, a browser): no cue either way."""
+    return zeros()
+
+
 def new_stats():
     return {"episodes": 0, "present_episodes": 0, "dims_on_present": 0,
             "locks_on_present": 0, "departures": 0, "locked_departures": 0,
-            "missed_departures": 0, "latencies": []}
+            "missed_departures": 0, "latencies": [],
+            # decision opportunities: the gate's denominator (fired, or idle >= 30 s, or a departure)
+            "opportunities": 0, "present_opportunities": 0,
+            "short_pauses": 0, "short_dims": 0}
 
 
-def _episode(eng, now, sig, present_for, away_for, stats):
+def _count(st, departing, fired, idle, short):
+    if departing or fired or idle >= OPPORTUNITY:
+        st["opportunities"] += 1
+        if not departing:
+            st["present_opportunities"] += 1
+    if short:
+        st["short_pauses"] += 1
+        if fired:
+            st["short_dims"] += 1
+
+
+def _episode(eng, now, sig, present_for, away_for, stats, short=False):
     """present_for: seconds the user stays (silently) at the desk.
-    away_for: None for a user who simply resumes; else seconds away after leaving."""
+    away_for: None for a user who simply resumes; else seconds away after leaving.
+    short: a pause in the rhythm of active work (statistics only)."""
     departing = away_for is not None
     enforcing = eng.modes.mode == ModeController.ENFORCING
     st = stats["enforcing" if enforcing else "learning"]
@@ -90,6 +118,7 @@ def _episode(eng, now, sig, present_for, away_for, stats):
         if mode_now == ModeController.ENFORCING:
             if action == PresenceEngine.SOFT_DIM and present:
                 st["dims_on_present"] += 1
+                _count(st, departing, True, idle, short)
                 now += SEC                       # visible dim -> 1 mm nudge
                 eng.on_input_resumed(now)
                 return now
@@ -101,22 +130,37 @@ def _episode(eng, now, sig, present_for, away_for, stats):
                     st["locked_departures"] += 1
                     st["latencies"].append(idle - present_for)
                     unlock = now + max(1, present_for + away_for - idle) * SEC
+                _count(st, departing, True, idle, short)
                 eng.apply_enforced_lock_outcome(unlock)
                 return unlock
 
         if not departing and idle >= present_for:
+            _count(st, departing, False, idle, short)
             eng.on_input_resumed(now)           # present user touches the mouse
             return now
         if departing and idle >= LONG_ABSENCE:
             if mode_now == ModeController.ENFORCING:
                 st["missed_departures"] += 1
+            _count(st, departing, False, idle, short)
             eng.on_long_absence(now)
             return now + max(0, present_for + away_for - idle) * SEC
 
 
-def run(days=30, seed=12345, engine=None, ambiguous=True):
+def _active_work(eng, now, seconds, rng, stats):
+    """Active work for 'seconds', with the short pauses real users make (see module doc)."""
+    end = now + seconds * SEC
+    while True:
+        now += rng.uniform_int(5, 60) * SEC
+        if now >= end:
+            return end
+        sig = reading_sig() if rng.next() % 2 == 0 else work_sig()
+        now = _episode(eng, now, sig, rng.uniform_int(2, 29), None, stats, short=True)
+
+
+def run(days=30, seed=12345, engine=None, ambiguous=True, short_pauses=True):
     """ambiguous=False: a cleanly separable user (no present-with-leaving-signature pauses).
-    ambiguous=True:  adds one deliberately indistinguishable present pause per day."""
+    ambiguous=True:  adds one deliberately indistinguishable present pause per day.
+    short_pauses=False: the pre-0.7.1 user without typing-rhythm pauses (comparison only)."""
     eng = engine or PresenceEngine()
     rng = Lcg(seed)
     stats = {"learning": new_stats(), "enforcing": new_stats(),
@@ -150,7 +194,8 @@ def run(days=30, seed=12345, engine=None, ambiguous=True):
                 now = _episode(eng, now, leaving_sig(), rng.uniform_int(5, 30), None, stats)
             else:  # leave
                 now = _episode(eng, now, leaving_sig(), 0, rng.uniform_int(300, 900), stats)
-            now += rng.uniform_int(30, 600) * SEC        # active work between pauses
+            gap = rng.uniform_int(30, 600)               # active work between pauses
+            now = _active_work(eng, now, gap, rng, stats) if short_pauses else now + gap * SEC
 
         # one Tick with no active episode so mode evaluation also happens off-episode
         eng.tick(now)
@@ -163,7 +208,7 @@ def run(days=30, seed=12345, engine=None, ambiguous=True):
 
 
 def enforcing_fire_rate(stats):
-    """Realised per-episode rate of firing on a present user in enforcing mode
+    """Realised rate of firing on a present user per DECISION OPPORTUNITY in enforcing mode
     (the same quantity the gate estimates during learning)."""
     E = stats["enforcing"]
-    return (E["dims_on_present"] + E["locks_on_present"]) / max(1, E["episodes"])
+    return (E["dims_on_present"] + E["locks_on_present"]) / max(1, E["opportunities"])

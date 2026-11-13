@@ -79,6 +79,10 @@ namespace PresenceLock.Core.Tests
             Assert.Equal(exp.GetProperty("window_count").GetInt32(), mc.WindowCount);
             Assert.Equal(exp.GetProperty("window_head").GetInt32(), mc.WindowHead);
             Assert.Equal(exp.GetProperty("window_fp").GetInt32(), mc.WindowFalsePositives());
+            Assert.Equal(exp.GetProperty("window_days").GetInt32(), mc.WindowDays());
+            Assert.Equal(exp.GetProperty("window_n").GetInt32(), mc.WindowOpportunities());
+            Assert.Equal(exp.GetProperty("window_ready").GetBoolean(), mc.WindowReady());
+            Assert.Equal(exp.GetProperty("short_ignored").GetInt32(), mc.ShortEpisodesIgnored);
             Assert.Equal(exp.GetProperty("promoted_at").GetInt64(), mc.PromotedUtcTicks);
 
             var pd = exp.GetProperty("promoted_day");
@@ -92,8 +96,13 @@ namespace PresenceLock.Core.Tests
             Assert.Equal(ee.GetProperty("locked_departures").GetInt32(), res.Enforcing.LockedDepartures);
             Assert.Equal(ee.GetProperty("missed_departures").GetInt32(), res.Enforcing.MissedDepartures);
             Assert.Equal(exp.GetProperty("enforcing_latency_sum").GetInt32(), res.Enforcing.Latencies.Sum());
+            Assert.Equal(ee.GetProperty("opportunities").GetInt32(), res.Enforcing.Opportunities);
+            Assert.Equal(ee.GetProperty("short_pauses").GetInt32(), res.Enforcing.ShortPauses);
+            Assert.Equal(ee.GetProperty("short_dims").GetInt32(), res.Enforcing.ShortDims);
             var el = exp.GetProperty("learning");
             Assert.Equal(el.GetProperty("episodes").GetInt32(), res.Learning.Episodes);
+            Assert.Equal(el.GetProperty("short_pauses").GetInt32(), res.Learning.ShortPauses);
+            Assert.Equal(el.GetProperty("opportunities").GetInt32(), res.Learning.Opportunities);
         }
     }
 }

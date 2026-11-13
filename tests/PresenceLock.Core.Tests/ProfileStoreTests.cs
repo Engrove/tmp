@@ -27,8 +27,11 @@ namespace PresenceLock.Core.Tests
             Assert.Equal(p.Model.W, q.Model.W);
             Assert.Equal(p.Model.U, q.Model.U);
             Assert.Equal(p.Modes.Mode, q.Modes.Mode);
-            Assert.Equal(p.Modes.OutcomeWindow, q.Modes.OutcomeWindow);
+            Assert.Equal(p.Modes.FireWindow, q.Modes.FireWindow);
+            Assert.Equal(p.Modes.DayWindow, q.Modes.DayWindow);
             Assert.Equal(p.Modes.WindowHead, q.Modes.WindowHead);
+            Assert.Equal(p.Modes.WindowCount, q.Modes.WindowCount);
+            Assert.Equal(p.Modes.WindowFalsePositives(), q.Modes.WindowFalsePositives());
             Assert.Equal(p.Modes.ConfirmedPositives, q.Modes.ConfirmedPositives);
             Assert.Equal(p.UserSid, q.UserSid);
             Assert.Equal(p.Config.LockThreshold, q.Config.LockThreshold);
@@ -83,10 +86,36 @@ namespace PresenceLock.Core.Tests
         public void MissingWindowInOldJson_IsRepaired()
         {
             string json = ProfileStore.Serialize(Trained());
-            json = Regex.Replace(json, "\"OutcomeWindow\":\\[[^\\]]*\\],?", "");
+            json = Regex.Replace(json, "\"FireWindow\":\\[[^\\]]*\\],?", "");
             var q = ProfileStore.Deserialize(json);
-            Assert.Equal(ModeController.WindowSize, q.Modes.OutcomeWindow.Length);
+            Assert.Equal(ModeController.WindowCapacity, q.Modes.FireWindow.Length);
             Assert.Equal(0, q.Modes.WindowCount);
+        }
+
+        /// <summary>
+        /// 0.7.1: a window recorded under the old rule counted every 2-s typing pause (field profile
+        /// 2026-11-13). It is discarded on load; everything learned is kept.
+        /// </summary>
+        [Fact]
+        public void WindowFromAnOlderRule_IsDiscarded_LearningIsKept()
+        {
+            var p = Trained();
+            for (int i = 0; i < 50; i++) p.Modes.RecordEpisodeOutcome(i % 10 == 0, i % 10 == 0, 60, UserSim.BaseTicks + i * TimeSpan.TicksPerHour);
+            p.Modes.RecordConfirmedPositive();
+            string json = ProfileStore.Serialize(p);
+            Assert.Contains(",\"WindowRule\":2", json);
+            json = json.Replace(",\"WindowRule\":2", "");                                       // as written by 0.7.0
+            json = json.Replace("\"PromotedUtcTicks\":", "\"OutcomeWindow\":[false,true],\"PromotedUtcTicks\":");  // 0.7.0 member, ignored
+            var q = ProfileStore.Deserialize(json);
+            Assert.Equal(0, q.Modes.WindowCount);
+            Assert.Equal(1, q.Modes.WindowResets);
+            Assert.Equal(ModeController.CurrentWindowRule, q.Modes.WindowRule);
+            Assert.Equal(p.Modes.ConfirmedPositives, q.Modes.ConfirmedPositives);
+            Assert.Equal(p.Modes.FiredDecisions, q.Modes.FiredDecisions);
+            Assert.Equal(p.Model.W, q.Model.W);
+            Assert.Equal(p.Model.U0, q.Model.U0);
+            var r = ProfileStore.Deserialize(ProfileStore.Serialize(q));             // and it stays migrated
+            Assert.Equal(1, r.Modes.WindowResets);
         }
 
         [Fact]
@@ -109,7 +138,7 @@ namespace PresenceLock.Core.Tests
             Assert.Equal(0.0, v2.Model.W[FeatureSchema.PostHold]);
             Assert.Equal(7, v2.OptionalSeen[9]);
             Assert.NotNull(v2.Stats);
-            Assert.Equal(v1.Modes.WindowCount, v2.Modes.WindowCount);
+            Assert.Equal(v1.Modes.WindowCount, v2.Modes.WindowCount);   // same window rule: kept
         }
 
         [Fact]

@@ -24,6 +24,7 @@ status: "UTKAST – ej granskat eller godkänt"
 | Version | Datum | Ändring | Upprättad | Granskad | Godkänd |
 |---|---|---|---|---|---|
 | 0.1 | 2026-11-12 | Första utkast för PresenceLock 0.6.1 | Jan-Eric Enlund | [[ ]] | [[ ]] |
+| 0.2 | 2026-11-13 | 0.7.1: nya uppgifter i profilen (dagnummer för bedömningstillfällen, räknare per programtyp, profilens ursprung) och egen export via ikonmenyn (01, 02); avvikelse 11–17 och lärdomar (07); `--diagnose` som bevis (06) | Jan-Eric Enlund | [[ ]] | [[ ]] |
 
 Källfilerna ligger i programmets repo under `docs/compliance/` och versionshanteras med programmet. Den gällande versionen ska föras in i Elhos dokumenthantering.
 
@@ -37,7 +38,7 @@ Källfilerna ligger i programmets repo under `docs/compliance/` och versionshant
 6. **Juridiskt namn och kontaktuppgifter:** Om-rutan visar standard "Elho" som personuppgiftsansvarig. Ange det registrerade bolagsnamnet via GPO "Om-rutan" (OneDrive-namnet tyder på `Oy El-Ho Ab`, **VERIFIERA**). Ange också dataskyddskontakt och länk till den fullständiga dataskyddsbeskrivningen.
 7. **Språk:** informationen ska finnas på ett språk som användarna förstår. Finsk version behövs om personal är finskspråkig ([[ ]]).
 8. **Omfattas Elho av cybersäkerhetslagen?** NIS2 bilaga II omfattar tillverkning av maskiner (NACE C28) för medelstora och större företag. Bedömningen och registreringen hos tillsynsmyndigheten görs av Elho (**VERIFIERA**). PresenceLock är en motiverad säkerhetsåtgärd även om lagen inte gäller, men då kan NIS2 inte anges som grund i informationen. Om-rutans text skriver "där NIS2 gäller".
-9. **Pilot** enligt README, pilotchecklistan punkt 1–17. Ingen del av Windows-agenten har ännu körts på en riktig dator.
+9. **Pilot** enligt README, pilotchecklistan punkt 1–18. En första lokal körning på en dator (2026-11-12/13, utan GPO) gav en fältprofil som ledde till 0.7.1 ([analys](../review/2026-11-13-faltprofil-analys.md)). Någon systematisk Windows-acceptans är inte gjord.
 10. **Windows-acceptans W01–W18** (extern granskning 2026-11-12, `docs/review/`). Den ska vara godkänd för exakt den releasehash som ska driftsättas.
 11. **Säkerhetsgolv:** behåll Windows egen inaktivitetsgräns. PresenceLock får komplettera men inte ersätta den.
 12. **Beslut per datamängd** (granskningen F29): ändamål, lagringstid och ansvar för gallring för profil, vanejournal, skyddad kopia, insamling, loggar och hjärtslag. Rekommendation: insamlingen avstängd under piloten.

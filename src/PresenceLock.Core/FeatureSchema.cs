@@ -25,7 +25,7 @@ namespace PresenceLock.Core
         public const int MicroJerk       = 4; // 1 = 1-3px micro twitch at release (hand leaving mouse / chair pushback)
         public const int CtxReading      = 5; // 1 = foreground is an active read/review app (PDF/CAD/IDE/active call/compiling)
         public const int CtxLeaving      = 6; // 1 = desktop/lock dialog/inbox, or just after Ctrl+S / closed tab
-        public const int TimeDepartPrior = 7; // learned prior that this minute-of-day tends to precede absence, 0..1
+        public const int TimeDepartPrior = 7; // FIXED time-of-day curve, 0..1 (peaks 09/12/15/17 local, TimePrior.cs); only its WEIGHT is learned per user
 
         // --- optional (learning-only unless proven) -------------------------------
         public const int AudioPresent     = 8;  // centered 0: +ve stable echo (body present), -ve otherwise

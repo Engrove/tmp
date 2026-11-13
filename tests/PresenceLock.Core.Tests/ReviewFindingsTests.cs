@@ -244,14 +244,14 @@ namespace PresenceLock.Core.Tests
         public void T13_AllDecisionsWrong_DoesNotPassTheGate()
         {
             var p = new UserProfile(); p.Modes.FirstSeenUtcTicks = T0 - 30L * TimeSpan.TicksPerDay; p.Modes.ConfirmedPositives = 30;
-            for (int i = 0; i < 200; i++) p.Modes.RecordEpisodeOutcome(i < 10, i < 10);
+            for (int i = 0; i < 200; i++) p.Modes.RecordEpisodeOutcome(i < 10, i < 10, 60, GateTests.Spread(i, 200, T0 - 20L * TimeSpan.TicksPerDay));
             p.Modes.Evaluate(T0, ModePolicy.Auto);
             _out.WriteLine(p.Modes.Explain(T0));
             Assert.Equal(OperatingMode.Learning, p.Modes.Mode);
             Assert.True(p.Modes.FalsePositiveUpperBound() <= 0.10);                   // per-episode criterion alone would pass
             // ten fires of which one is wrong: passes
             var q = new UserProfile(); q.Modes.FirstSeenUtcTicks = T0 - 30L * TimeSpan.TicksPerDay; q.Modes.ConfirmedPositives = 30;
-            for (int i = 0; i < 200; i++) q.Modes.RecordEpisodeOutcome(i < 10, i < 1);
+            for (int i = 0; i < 200; i++) q.Modes.RecordEpisodeOutcome(i < 10, i < 1, 60, GateTests.Spread(i, 200, T0 - 20L * TimeSpan.TicksPerDay));
             q.Modes.Evaluate(T0, ModePolicy.Auto);
             Assert.Equal(OperatingMode.Enforcing, q.Modes.Mode);
         }

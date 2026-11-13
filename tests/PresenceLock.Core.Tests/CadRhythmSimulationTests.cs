@@ -20,6 +20,7 @@ namespace PresenceLock.Core.Tests
         {
             public int Studies, StudiesDimmed, HardLocksOnPresent, WrongAwayLabels;
             public int Mails, MailsDimmed, NoticesShown;
+            public int ShortPauses, ShortPausesDimmed, ShortPauseLocks;   // typing-rhythm pauses while drawing
             public List<int> CoffeeCueExposure = new List<int>(), CoffeeSilentExposure = new List<int>(), OtherExposure = new List<int>();
             public int[] StudiesDimmedByWeek = new int[12], StudiesByWeek = new int[12];
         }
@@ -51,13 +52,51 @@ namespace PresenceLock.Core.Tests
 
         public static FeatureVector Study() { var f = new FeatureVector(); f.X[FeatureSchema.CtxReading] = 1; f.X[FeatureSchema.Deceleration] = 0.7; f.X[FeatureSchema.ScrollFrac] = 0.2; return f; }
         public static FeatureVector Mail() { var f = new FeatureVector(); f.X[FeatureSchema.CtxLeaving] = 1; f.X[FeatureSchema.ScrollFrac] = 0.5; f.X[FeatureSchema.Deceleration] = 0.6; return f; }
+        /// <summary>Mid-drawing in Inventor: a reading-list app, ordinary pointer motion.</summary>
+        public static FeatureVector Drawing() { var f = new FeatureVector(); f.X[FeatureSchema.CtxReading] = 1; f.X[FeatureSchema.Deceleration] = 0.3; f.X[FeatureSchema.ScrollFrac] = 0.1; return f; }
         public static FeatureVector CoffeeCue() { var f = Study(); f.X[FeatureSchema.AbruptStop] = 1; f.X[FeatureSchema.MicroJerk] = 1; f.X[FeatureSchema.Deceleration] = 0; return f; }
 
         private Phase P => Co.Engine.Mode == OperatingMode.Enforcing ? Enforcing : Learning;
         private double Idle => (_now - _lastInput) / (double)Sec;
         private CoordinatorResult Step() => Co.Tick(_now, Idle, default(PassiveSignals), _policy, () => _sig.Clone());
         private void Input() { _lastInput = _now; Step(); }
-        private void Work(int seconds) { _now += seconds * Sec; Input(); }
+        /// <summary>
+        /// Drawing for 'seconds': 5-60 s of input, then a 2-29 s pause at the desk, repeated (field profile
+        /// 2026-11-13: ~73 idle episodes per active hour, >= 85 % under 30 s). Until 0.7.1 drawing had
+        /// no pauses at all, so the gate was never tested against the episodes real users produce.
+        /// </summary>
+        private void Work(int seconds)
+        {
+            long end = _now + seconds * Sec;
+            while (true)
+            {
+                _now += _rng.UniformInt(5, 60) * Sec;
+                if (_now >= end) { _now = end; Input(); return; }
+                Input();
+                var ph = P;
+                ph.ShortPauses++;
+                var keep = _sig;
+                _sig = Drawing();
+                int pause = _rng.UniformInt(2, 29);
+                for (int t = 1; t <= pause; t++)
+                {
+                    _now += Sec;
+                    var r = Step();
+                    if (r.Action == CoordinatorAction.SoftDim || (r.Action == CoordinatorAction.WouldLockNotice && _notice))
+                    { ph.ShortPausesDimmed++; _now += Sec; break; }
+                    if (r.Action == CoordinatorAction.Lock)
+                    {
+                        ph.ShortPauseLocks++;
+                        Co.OnSessionLocked(_now, Idle, () => _sig.Clone());
+                        _now += 5 * Sec;
+                        Co.OnSessionUnlocked(_now);
+                        break;
+                    }
+                }
+                Input();
+                _sig = keep;
+            }
+        }
 
         /// <summary>present: silent but at the desk for 'seconds', then touches the mouse.
         /// away: leaves for 'seconds' (returns, unlocking if needed).</summary>
@@ -184,6 +223,8 @@ namespace PresenceLock.Core.Tests
             _out.WriteLine($"  learned lock time t(90%): studying {tStudy:F0} s, reading mail {tMail:F0} s, coffee with leave cues {tCue:F0} s");
             string weekly = string.Join(" ", Enumerable.Range(3, 6).Select(w => E.StudiesByWeek[w] == 0 ? "-" : $"{E.StudiesDimmedByWeek[w] * 100 / E.StudiesByWeek[w]}%"));
             _out.WriteLine($"  ENFORCING: studies dimmed {E.StudiesDimmed}/{E.Studies}, per week: {weekly}; mails dimmed {E.MailsDimmed}/{E.Mails}; HARD locks on present {E.HardLocksOnPresent}");
+            _out.WriteLine($"  typing-rhythm pauses (< 30 s): learning {L.ShortPauses} (visible {L.ShortPausesDimmed}), enforcing {E.ShortPauses} (dimmed {E.ShortPausesDimmed}, locked {E.ShortPauseLocks}); " +
+                           $"gate: {s.Profile.Modes.Explain(s.Now)}");
             _out.WriteLine($"  coffee with leave cues: {Med(E.CoffeeCueExposure)}; coffee indistinguishable from studying: {Med(E.CoffeeSilentExposure)}; lunch: {Med(E.OtherExposure)}");
         }
 
@@ -206,6 +247,8 @@ namespace PresenceLock.Core.Tests
             Assert.True(s.PromotedDay <= 30, $"promoted day {s.PromotedDay}");         // [21]  never before
             Assert.True(E.StudiesDimmed <= 0.05 * E.Studies, $"{E.StudiesDimmed}/{E.Studies}"); // [~1 %] was ~70 %
             Assert.Equal(0, E.HardLocksOnPresent);                                     // [0]
+            Assert.Equal(0, E.ShortPauseLocks);                                        // 0.7.1: typing rhythm
+            Assert.True(E.ShortPausesDimmed <= 0.01 * E.ShortPauses, $"{E.ShortPausesDimmed}/{E.ShortPauses}");
             int bound = (int)cfg.MaxLearnedHorizonSeconds + (int)cfg.ConfirmGraceSeconds + 2;
             Assert.All(E.CoffeeSilentExposure.Concat(E.CoffeeCueExposure).Concat(E.OtherExposure),
                        x => Assert.True(x <= bound, $"exposure {x} > {bound}"));       // [615]

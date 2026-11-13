@@ -11,6 +11,7 @@ namespace PresenceLock.App
     /// logon script or remote shell). Output goes to the calling console.
     ///
     ///   PresenceLock.exe --status
+    ///   PresenceLock.exe --diagnose [file.json]   consistency and coverage check (exit 2 on ERROR)
     ///   PresenceLock.exe --export &lt;file.json&gt;
     ///   PresenceLock.exe --export-baseline &lt;file.json&gt;
     ///   PresenceLock.exe --merge-baseline &lt;out.json&gt; &lt;in1.json&gt; &lt;in2.json&gt; ...
@@ -87,6 +88,12 @@ namespace PresenceLock.App
                                           "; lock chain: requests " + st.LockRequests + ", confirmed " + st.LocksConfirmed +
                                           ", refused " + st.LockRefusals + ", retries " + st.LockRetries + ", fallbacks " + st.LockFallbacks +
                                           ", never confirmed (user back first) " + st.LocksNeverConfirmed);
+                        var ctx = st.EpisodesByContext ?? new int[SilenceProfile.Contexts];
+                        Console.WriteLine("profile origin: " + (string.IsNullOrEmpty(p.Origin) ? "unknown (written before 0.7.1)" : p.Origin) +
+                                          "; episodes by context: neutral " + ctx[0] + ", silent-work " + ctx[1] + ", leaving " + ctx[2] +
+                                          ", Remote Desktop " + st.RemoteEpisodes + ", after media/meeting " + st.PostHoldEpisodes +
+                                          "; typing pauses not counted by the gate " + p.Modes.ShortEpisodesIgnored +
+                                          " (full check: --diagnose)");
                         Console.WriteLine("labels: observed departures " + st.ObservedDepartures + ", ASSUMED from inactivity " + st.AssumedAbsenceLabels +
                                           "; signal failures: idle " + st.IdleSignalFailures + ", registration " + st.RegistrationFailures +
                                           "; collection: last success " + (st.LastExportSuccessUtcTicks == 0 ? "never" : new DateTime(st.LastExportSuccessUtcTicks, DateTimeKind.Utc).ToString("u")) +
@@ -113,6 +120,21 @@ namespace PresenceLock.App
                         }
                         else Console.WriteLine("habit journal: none (habit learning off or no data yet)");
                         return 0;
+                    }
+                    case "--diagnose":
+                    {
+                        // Own profile, or an exported/collected file (read with the same size limit).
+                        UserProfile p;
+                        if (args.Length > 1)
+                        {
+                            p = ProfileStore.Deserialize(BoundedFile.ReadAllText(args[1], BoundedFile.MaxProfileBytes));
+                            Console.WriteLine("profile: " + args[1]);
+                        }
+                        else { p = Load(path); Console.WriteLine("profile: " + path); }
+                        string v = typeof(Cli).Assembly.GetName().Version.ToString(3);
+                        var findings = ProfileDiagnostics.Check(p, DateTime.UtcNow.Ticks, v);
+                        foreach (var x in findings) Console.WriteLine(x.ToString());
+                        return ProfileDiagnostics.HasErrors(findings) ? 2 : 0;
                     }
                     case "--about":
                     {

@@ -1,0 +1,12 @@
+{
+  "window_n": 293,
+  "window_k": 1,
+  "window_days": 5,
+  "window_ready": true,
+  "right": 11,
+  "wrong": 1,
+  "unverified": 0,
+  "upper95": 0.019075989239007305,
+  "neutral_dim": 98.76281835396732,
+  "neutral_lock": 131.289833156481
+}

@@ -28,7 +28,7 @@ Uppgifterna finns **lokalt på den dator du använder**, i din profilmapp `%LOCA
 
 | Uppgift | Innehåll | Lagringstid |
 |---|---|---|
-| Inlärd modell (`profile.json`) | Siffervikter, räknare och utfallet av de senaste 200 bedömningarna, kopplat till ditt Windows-konto (SID) och datorns namn | Så länge du använder datorn. En kopia med samma innehåll förnyas dagligen som reserv |
+| Inlärd modell (`profile.json`) | Siffervikter, räknare och utfallet av de senaste bedömningstillfällena (minst 200, spridda över minst 5 dagar) med **dagnummer utan klockslag**. Antal inaktiva perioder per programtyp (neutral, läs- eller ritprogram, "på väg bort") och i fjärrskrivbord, **bara antal**. Om profilen skapades första gången eller återskapades. Allt kopplat till ditt Windows-konto (SID) och datorns namn | Så länge du använder datorn. Dagnummer som inte längre behövs för bedömningen rensas vid varje ny bedömning. En kopia med samma innehåll förnyas dagligen som reserv |
 | Tystnadsprofil (i profilen) | Hur långa dina tysta perioder brukar vara per typ av program, i form av räknare utan tidpunkter | Räknarna halveras var 14:e dygn |
 | Vanejournal (`habits.json`) | Starttid och längd för dina inaktiva perioder, inget annat | 42 dygn, rensas dagligen. Lämnar aldrig datorn |
 | Pauser (i profilen) | Start och slut för pauser du har valt | 24 timmar |
@@ -38,7 +38,9 @@ Uppgifterna finns **lokalt på den dator du använder**, i din profilmapp `%LOCA
 
 **I NIS2-läge** [[om tillämpligt]] finns dessutom en skyddad kopia av profilen (inte vanejournalen) i `%ProgramFiles%\PresenceLock\state` på samma dator, så att skyddet inte kan nollställas. Den tas bort 180 dygn efter att du senast använde datorn.
 
-**Insamling** [[om tillämpligt, annars stryk; rekommendation: avstängd under piloten]]: en gång per dygn skickas en kopia av modellen till en filresurs. Kopian innehåller vikter, lägesuppgifter och räknare. Den innehåller inte ditt Windows-konto (SID), datorns namn, livscykeltider, pausernas tidpunkter, tystnadsprofilen eller vanejournalen. Uppdateringsdatumet anges bara på dagsnivå. **Filnamnet (`DATOR_ANVÄNDARE.json`) identifierar dig.** Kopian är alltså personuppgifter om dig. Den används för att förbättra standardinställningarna och tas bort efter 90 dygn. Behörigheterna på resursen ska bestämmas så att användare inte kan läsa varandras filer [[verifiera]].
+**Insamling** [[om tillämpligt, annars stryk; rekommendation: avstängd under piloten]]: en gång per dygn skickas en kopia av modellen till en filresurs. Kopian innehåller vikter, lägesuppgifter och räknare. Den innehåller inte ditt Windows-konto (SID), datorns namn, livscykeltider, pausernas tidpunkter, bedömningstillfällenas dagnummer, tystnadsprofilen eller vanejournalen. Uppdateringsdatumet anges bara på dagsnivå. **Filnamnet (`DATOR_ANVÄNDARE.json`) identifierar dig.** Kopian är alltså personuppgifter om dig. Den används för att förbättra standardinställningarna och tas bort efter 90 dygn. Behörigheterna på resursen ska bestämmas så att användare inte kan läsa varandras filer [[verifiera]].
+
+**Egen export** [[stryk om principen AllowProfileExport = 0]]: i ikonmenyn kan du spara en kopia av din profil som fil ("Exportera profil…"). Kopian innehåller allt i profilen, även SID, datornamn och pausernas tidpunkter, och hamnar där du själv väljer. "Exportera anonym baslinje…" ger bara vikterna utan identitet.
 
 **Det som inte samlas in:** tangenttryckningar, skärm- eller dokumentinnehåll, fönstertitlar, webbhistorik, kamerabild, mikrofonljud och position. Om mikrofon eller kamera används läses bara av som ja eller nej, för att inte låsa under möten, och det sparas inte. Programnamnet i förgrunden används bara för att avgöra programtyp och sparas inte. Musrörelser används några sekunder i minnet och sparas inte.
 

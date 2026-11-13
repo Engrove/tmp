@@ -165,10 +165,14 @@ class PresenceModel:
 TICKS_PER_DAY = 864_000_000_000  # TimeSpan.TicksPerDay
 
 class ModeController:
-    """Mirror of ModeController.cs: windowed outcomes + Wilson 95% upper-bound gate."""
+    """Mirror of ModeController.cs (0.7.1): outcomes over DECISION OPPORTUNITIES in a time-aware
+    evidence window, Wilson 95% upper-bound gate and decision-precision criterion."""
     LEARNING, ENFORCING = "Learning", "Enforcing"
     AUTO, FORCE_LEARNING, FORCE_ENFORCING = "Auto", "ForceLearning", "ForceEnforcing"
-    WINDOW = 200
+    WINDOW = 200                 # minimum opportunities in the evidence window
+    MIN_WINDOW_DAYS = 5          # ... on at least this many different UTC days
+    CAPACITY = 1000              # outcomes stored
+    OPPORTUNITY_SECONDS = 30.0   # an episode without a decision counts only if it lasted this long
     Z95 = 1.959964
 
     def __init__(self):
@@ -176,15 +180,21 @@ class ModeController:
         self.max_days = 30
         self.target_fp = 0.10
         self.min_positives = 30
+        self.max_wrong_share = 0.5
         self.mode = self.LEARNING
         self.learning_extended = False
         self.first_seen = 0
         self.positives = 0
         self.fired = 0
         self.rejected = 0
-        self.window = [False] * self.WINDOW
+        self.fire = [0] * self.CAPACITY      # 0 none, 1 right, 2 wrong, 3 unverified
+        self.day = [0] * self.CAPACITY
         self.head = 0
         self.count = 0
+        self.short_ignored = 0
+        self.push_seq = 0
+        self.last_fired_slot = -1
+        self.last_fired_seq = -1
         self.promoted_at = 0
         self.promotion_rate = 0.0
         self.promotion_ub = 0.0
@@ -193,6 +203,7 @@ class ModeController:
         self.stab_ema = 1.0        # diagnostic only
         self._fp_alpha = 0.08
         self._stab_alpha = 0.05
+        self._ev = None            # cached evidence (ready, n, k, days, right, wrong, unverified)
 
     def ensure_started(self, now):
         if self.first_seen == 0:
@@ -203,53 +214,121 @@ class ModeController:
             return 0.0
         return (now - self.first_seen) / TICKS_PER_DAY
 
-    def _push(self, fp):
-        self.window[self.head] = fp
-        self.head = (self.head + 1) % self.WINDOW
-        if self.count < self.WINDOW:
+    def _push(self, fire, now):
+        self.fire[self.head] = fire
+        self.day[self.head] = now // TICKS_PER_DAY
+        if fire != 0:
+            self.last_fired_slot, self.last_fired_seq = self.head, self.push_seq
+        self.push_seq += 1
+        self.head = (self.head + 1) % self.CAPACITY
+        if self.count < self.CAPACITY:
             self.count += 1
+        self._ev = None
+        fp = fire in (2, 3)
         self.fp_ema = (1-self._fp_alpha)*self.fp_ema + self._fp_alpha*(1.0 if fp else 0.0)
+        self._prune()
 
-    def record_episode_outcome(self, fired, rejected):
+    def _prune(self):
+        """Data minimisation: outcomes older than complete evidence are never needed again."""
+        ready, n = self._evidence()[:2]
+        if not ready or self.count <= n:
+            return
+        for age in range(n, self.count):
+            i = (self.head - 1 - age) % self.CAPACITY
+            self.fire[i] = 0
+            self.day[i] = 0
+        self.count = n
+
+    def record_episode_outcome(self, fired, rejected, seconds, now):
         if fired:
             self.fired += 1
         if rejected:
             self.rejected += 1
-        self._push(fired and rejected)
+        if not fired and not (seconds >= self.OPPORTUNITY_SECONDS):
+            self.short_ignored += 1
+            return
+        self._push((2 if rejected else 1) if fired else 0, now)
 
-    def record_unverified_fire(self):
+    def record_unverified_fire(self, now):
         self.fired += 1
-        self._push(True)
+        self._push(3, now)
 
     def record_positive(self):
         self.positives += 1
 
     def record_user_correction(self):
         self.rejected += 1
-        if self.count > 0:
-            self.window[(self.head - 1) % self.WINDOW] = True
+        age = self.push_seq - 1 - self.last_fired_seq
+        if self.last_fired_slot >= 0 and self.last_fired_seq >= 0 and 0 <= age < self.count:
+            self.fire[self.last_fired_slot] = 2
+            self._ev = None
         self.fp_ema = min(1.0, self.fp_ema + self._fp_alpha)
 
     def record_update(self, change):
         self.stab_ema = (1-self._stab_alpha)*self.stab_ema + self._stab_alpha*change
 
+    def _evidence(self):
+        """Newest outcomes back to where >= WINDOW opportunities AND >= MIN_WINDOW_DAYS days are covered."""
+        if self._ev is not None:
+            return self._ev
+        days, n, k, right, wrong, unverified, ready = set(), 0, 0, 0, 0, 0, False
+        for age in range(self.count):
+            i = (self.head - 1 - age) % self.CAPACITY
+            f = self.fire[i]
+            n += 1
+            if f in (2, 3):
+                k += 1
+            if f == 1:
+                right += 1
+            elif f == 2:
+                wrong += 1
+            elif f == 3:
+                unverified += 1
+            days.add(self.day[i])
+            if n >= self.WINDOW and len(days) >= self.MIN_WINDOW_DAYS:
+                ready = True
+                break
+        self._ev = (ready, n, k, len(days), right, wrong, unverified)
+        return self._ev
+
+    def window_ready(self):
+        return self._evidence()[0]
+
+    def window_n(self):
+        return self._evidence()[1]
+
     def window_fp(self):
-        return sum(1 for i in range(self.count)
-                   if self.window[(self.head - 1 - i) % self.WINDOW])
+        return self._evidence()[2]
+
+    def window_days(self):
+        return self._evidence()[3]
+
+    def window_decisions(self):
+        e = self._evidence()
+        return e[4], e[5], e[6]
 
     def window_rate(self):
-        return 1.0 if self.count == 0 else self.window_fp() / self.count
+        n = self.window_n()
+        return 1.0 if n == 0 else self.window_fp() / n
 
-    def fp_upper_bound(self):
-        if self.count == 0:
+    @classmethod
+    def wilson_upper(cls, k, n):
+        if n <= 0:
             return 1.0
-        n = float(self.count)
-        p = self.window_fp() / n
-        z2 = self.Z95 * self.Z95
+        p = k / float(n)
+        z2 = cls.Z95 * cls.Z95
         denom = 1.0 + z2 / n
         center = p + z2 / (2.0 * n)
-        margin = self.Z95 * math.sqrt(p * (1.0 - p) / n + z2 / (4.0 * n * n))
+        margin = cls.Z95 * math.sqrt(p * (1.0 - p) / n + z2 / (4.0 * n * n))
         return min(1.0, (center + margin) / denom)
+
+    def fp_upper_bound(self):
+        n = self.window_n()
+        return 1.0 if n == 0 else self.wilson_upper(self.window_fp(), n)
+
+    def wrong_decision_upper_bound(self):
+        right, wrong, _ = self.window_decisions()
+        return 0.0 if wrong == 0 else self.wilson_upper(wrong, right + wrong)
 
     def _snapshot(self, now, forced):
         self.promoted_at = now
@@ -271,9 +350,9 @@ class ModeController:
         days = self.days_elapsed(now)
         min_time = days >= self.min_days
         enough = self.positives >= self.min_positives
-        full = self.count >= self.WINDOW
-        fp_safe = full and self.fp_upper_bound() <= self.target_fp
-        if min_time and enough and fp_safe:
+        fp_safe = self.window_ready() and self.fp_upper_bound() <= self.target_fp
+        precise = self.wrong_decision_upper_bound() <= self.max_wrong_share
+        if min_time and enough and fp_safe and precise:
             self.mode = self.ENFORCING
             self.learning_extended = False
             self._snapshot(now, False)
@@ -379,9 +458,9 @@ class PresenceEngine:
             since = (now - self._last_fired) / TICKS_PER_SECOND
             rejected = since <= self.cfg.fp_window_seconds
         if fired and not rejected and self.modes.mode == ModeController.LEARNING:
-            self.modes.record_unverified_fire()   # invisible decision, truth unknown
+            self.modes.record_unverified_fire(now)   # invisible decision, truth unknown
         else:
-            self.modes.record_episode_outcome(fired, rejected)
+            self.modes.record_episode_outcome(fired, rejected, self._idle, now)
         if rejected:
             kind = "FalsePositive" if self._lock_fired else "SoftDimRejected"
             self._learn(self._ep, self._idle, kind)
@@ -393,14 +472,14 @@ class PresenceEngine:
         """Censored label at the OBSERVED idle time, never back-dated to t0."""
         if not self._active:
             return
-        self.modes.record_episode_outcome(self._lock_fired, False)
+        self.modes.record_episode_outcome(self._lock_fired, False, self._idle, now)
         self.modes.record_positive()
         self._learn(self._ep, self._idle, "LongAbsence")
         self._end()
 
     def on_manual_lock(self, signature_x, idle, now):
         self.modes.ensure_started(now)
-        self.modes.record_episode_outcome(False, False)
+        self.modes.record_episode_outcome(False, False, idle, now)
         self.modes.record_positive()
         self._learn(list(signature_x), idle, "ManualLock")
         self._end()
@@ -410,8 +489,8 @@ class PresenceEngine:
             return
         delta = (now - self._pending_lock_t) / TICKS_PER_SECOND
         rejected = delta <= self.cfg.fp_window_seconds
-        self.modes.record_episode_outcome(True, rejected)
         x, idle = self._pending_lock_sig
+        self.modes.record_episode_outcome(True, rejected, idle, now)
         if rejected:
             self._learn(x, idle, "FalsePositive")
         else:

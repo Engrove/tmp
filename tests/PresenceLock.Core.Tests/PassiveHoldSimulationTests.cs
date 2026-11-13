@@ -49,7 +49,10 @@ namespace PresenceLock.Core.Tests
                 $"plainMax={(E.PlainDepartureExposure.Count > 0 ? E.PlainDepartureExposure.Max() : 0)}s " +
                 $"unlockedReturns={E.UnlockedReturns}  probes={s.Profile.Stats.HoldProbes}  " +
                 $"ambiguous(away/unknown)={s.Profile.Stats.AmbiguousScoredAway}/{s.Profile.Stats.AmbiguousScoredUnknown}  " +
-                $"rollbacks={s.Profile.Guard.Rollbacks} promotions={s.Profile.Guard.Promotions} qualityAlerts={s.Profile.Quality.Alerts}");
+                $"rollbacks={s.Profile.Guard.Rollbacks} promotions={s.Profile.Guard.Promotions} qualityAlerts={s.Profile.Quality.Alerts}  " +
+                $"shortPauses(L/E)={L.ShortPauses}/{E.ShortPauses} dimmedE={E.ShortPauseDims} lockedE={E.ShortPauseLocks}");
+            _out.WriteLine($"{"",-34} {s.Profile.Quality.Describe(s.Profile.Modes)}");
+            _out.WriteLine($"{"",-34} {s.Profile.Modes.Explain(s.Profile.UpdatedUtcTicks)}");
         }
 
         [Fact]
@@ -82,6 +85,10 @@ namespace PresenceLock.Core.Tests
                 {
                     // c)
                     Assert.Equal(0, s.Enforcing.LocksOnPresent);
+                    // c2) 0.7.1: the typing rhythm (field distribution) is never locked, at most 1 % dimmed
+                    Assert.Equal(0, s.Enforcing.ShortPauseLocks);
+                    Assert.True(s.Enforcing.ShortPauseDims <= 0.01 * s.Enforcing.ShortPauses,
+                                $"short pauses dimmed {s.Enforcing.ShortPauseDims}/{s.Enforcing.ShortPauses}");
                     // d)
                     Assert.All(s.Enforcing.Exposure, e => Assert.True(e <= bound, $"exposure {e} > {bound}"));
                     // e)

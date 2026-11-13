@@ -29,6 +29,7 @@ namespace PresenceLock.Core.Tests
             public List<int> Exposure = new List<int>();          // unattended & unlocked seconds per departure
             public List<int> PlainDepartureExposure = new List<int>(); // departures with no media/meeting running
             public int WrongAbsenceLabels;                            // "away" label while the user was present
+            public int ShortPauses, ShortPauseDims, ShortPauseLocks;  // typing-rhythm pauses (2-29 s) during active work
             public int HabitDimsOnPresent;                            // habit-triggered dims shown to a present user
             public Dictionary<string, List<int>> ExposureByTag = new Dictionary<string, List<int>>();
             public void AddExposure(string tag, int seconds)
@@ -45,16 +46,20 @@ namespace PresenceLock.Core.Tests
         public readonly PresenceCoordinator Co;
 
         private readonly bool _useSignals;
+        private readonly bool _shortPauses;
         private readonly int _forceEnforcingFromDay;
         private ModePolicy _policy = ModePolicy.Auto;
         private long _now, _lastInput;
         private PassiveSignals _sig;
         private FeatureVector _current = new FeatureVector();
 
+        /// <param name="shortPauses">active work contains the short pauses real users make (field profile
+        /// 2026-11-13: ~73 idle episodes per active hour, >= 85 % under 30 s). Default on since 0.7.1.</param>
         public CoordinatorSim(bool useSignals, int forceEnforcingFromDay = -1, CoordinatorConfig cfg = null,
-                              HabitJournal habits = null)
+                              HabitJournal habits = null, bool shortPauses = true)
         {
             _useSignals = useSignals;
+            _shortPauses = shortPauses;
             _forceEnforcingFromDay = forceEnforcingFromDay;
             cfg = cfg ?? new CoordinatorConfig();
             cfg.Habits = habits;
@@ -142,6 +147,43 @@ namespace PresenceLock.Core.Tests
             }
         }
 
+        /// <summary>
+        /// Active work for 'seconds': 5-60 s of input, then a 2-29 s pause at the desk, repeated (the
+        /// field distribution). A present user reacts to a visible dim within 1 s.
+        /// </summary>
+        private void ActiveWork(UserSim.Lcg rng, int seconds)
+        {
+            long end = _now + seconds * Sec;
+            while (_shortPauses)
+            {
+                _now += rng.UniformInt(5, 60) * Sec;
+                if (_now >= end) break;
+                Input();
+                var st = Phase;
+                st.ShortPauses++;
+                _current = rng.Next() % 2 == 0 ? UserSim.ReadingSig() : Neutral();
+                int pause = rng.UniformInt(2, 29);
+                for (int t = 1; t <= pause; t++)
+                {
+                    _now += Sec;
+                    _sig = default(PassiveSignals);
+                    var r = Step();
+                    if (r.Action == CoordinatorAction.SoftDim) { st.ShortPauseDims++; _now += Sec; break; }
+                    if (r.Action == CoordinatorAction.Lock)
+                    {
+                        st.ShortPauseLocks++;
+                        Co.OnSessionLocked(_now, Idle, Signature);
+                        _now += 5 * Sec;
+                        Co.OnSessionUnlocked(_now);
+                        break;
+                    }
+                }
+                Input();
+            }
+            if (_now < end) _now = end;
+            Input();
+        }
+
         private void ManualLock(UserSim.Lcg rng)
         {
             Phase.Departures++;
@@ -205,8 +247,7 @@ namespace PresenceLock.Core.Tests
                         Input();
                     }
                     RunKind(kinds[k], rng, video, meeting);
-                    _now += rng.UniformInt(30, 600) * Sec;
-                    Input();
+                    ActiveWork(rng, rng.UniformInt(30, 600));
                 }
 
                 bool late = rng.UniformInt(1, 10) == 1;
@@ -322,8 +363,7 @@ namespace PresenceLock.Core.Tests
                             Episode(Neutral(), stay, 1800, meeting, stay + rest); break;
                         }
                     }
-                    _now += rng.UniformInt(30, 600) * Sec;
-                    Input();
+                    ActiveWork(rng, rng.UniformInt(30, 600));
                 }
 
                 if (PromotedDay == null && Co.Engine.Mode == OperatingMode.Enforcing && _policy == ModePolicy.Auto)
