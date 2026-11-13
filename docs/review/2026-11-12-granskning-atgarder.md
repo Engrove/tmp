@@ -5,7 +5,7 @@ status: "Utvecklingskandidat – inte godkänd för bred produktion"
 
 # Åtgärder efter djupgranskningen av 0.6.1
 
-Granskningen (28 sidor, 30 fynd, 14 reproducerade testfall T01–T14) är **bekräftad mot källkoden**. Varje testfall är omskrivet till ett regressionstest som kräver det rättade beteendet: `tests/PresenceLock.Core.Tests/ReviewFindingsTests.cs`. Testen fallerade mot 0.6.1-logiken och går igenom i 0.7.0. Granskarens positiva kontrollfall C01 och C02 går fortfarande igenom.
+Granskningen omfattar 28 sidor, 30 fynd och 14 testfall (T01–T14) som granskaren reproducerade i 0.6.1-binären. Felvägarna är **bekräftade genom läsning av källkoden** (exempelvis släppte `OnLockRefused` låset, bekräftelsen mättes med väggklocka och säkerhetsfälten lästes från HKCU). Varje testfall är omskrivet till ett regressionstest som kräver det rättade beteendet: `tests/PresenceLock.Core.Tests/ReviewFindingsTests.cs`. Alla går igenom i 0.7.0. Testen använder nya gränssnitt och har därför inte körts mot 0.6.1-källan. Att felen fanns där vilar på granskarens reproduktion. Granskarens positiva kontrollfall C01 och C02 går fortfarande igenom.
 
 **Bedömning efter rättningarna: fortfarande inte produktionsklar** (F30). Windows-kedjan, alltså riktiga lås, sessionshändelser, processrättigheter, GPO och installation, är inte körd på Windows. Behåll Windows egen inaktivitetsgräns (*Interactive logon: Machine inactivity limit*, eller den befintliga skärmsläckar-GPO:n) som **säkerhetsgolv**. PresenceLock är ett komplement som kan låsa tidigare.
 
