@@ -26,7 +26,8 @@ CS=$(grep -oE 'Passed: +[0-9]+, Skipped: +[0-9]+, Total: +[0-9]+' "$LOG" | head 
 rm -f "$LOG"
 
 BIN=src/PresenceLock.App/bin/Release/net48
-EMBEDDED=$(strings "$BIN/PresenceLock.exe" | grep -oE "^$VERSION\+[0-9a-f]{40}" | head -1 || true)
+# The version RESOURCE (UTF-16), i.e. the ProductVersion Windows shows in the file's properties.
+EMBEDDED=$(strings -el "$BIN/PresenceLock.exe" | grep -oE "^$VERSION\+[0-9a-f]{40}$" | head -1 || true)
 if [ "$EMBEDDED" != "$VERSION+$COMMIT" ]; then
   echo "refusing: exe informational version '$EMBEDDED' is not '$VERSION+$COMMIT'"; exit 1
 fi
